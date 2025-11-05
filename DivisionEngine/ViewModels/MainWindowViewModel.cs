@@ -1,6 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.Input;
+using HarfBuzzSharp;
 using ReactiveUI;
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 
 namespace DivisionEngine.Editor.ViewModels
 {
@@ -98,6 +100,32 @@ namespace DivisionEngine.Editor.ViewModels
                     CenterTabs.Add(vm);
                     SelectedCenterTab = vm;
                     break;
+            }
+        }
+
+        [RelayCommand]
+        private void CloseTab(EditorWindowViewModel? vm)
+        {
+            if (vm is null) return;
+            else if (LeftTabs.Contains(vm))
+            {
+                LeftTabs.Remove(vm);
+                SelectedLeftTab = LeftTabs[LeftTabs.Count - 1];
+            }
+            else if (RightTabs.Contains(vm))
+            {
+                RightTabs.Remove(vm);
+                SelectedRightTab = RightTabs[RightTabs.Count - 1];
+            }
+            else if (BottomTabs.Contains(vm))
+            {
+                BottomTabs.Remove(vm);
+                SelectedBottomTab = BottomTabs[BottomTabs.Count - 1];
+            }
+            else if (CenterTabs.Contains(vm))
+            {
+                CenterTabs.Remove(vm);
+                SelectedCenterTab = CenterTabs[CenterTabs.Count - 1];
             }
         }
     }

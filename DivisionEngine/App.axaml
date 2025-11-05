@@ -9,7 +9,7 @@
              xmlns:avalonia_controls_presenters="using:Avalonia.Controls.Presenters">
 
     <Application.DataTemplates>
-        <local:ViewLocator/>
+      <local:ViewLocator/>
     </Application.DataTemplates>
   
     <Application.Styles>
@@ -18,20 +18,25 @@
       <materialIcons:MaterialIconStyles/>
 
       <!--Division Engine Default Control Styling-->
+      
+      <!--Grid Splitter Styles-->
       <Style Selector="GridSplitter">
         <Setter Property="Background" Value="#444"/>
         <Setter Property="MinHeight" Value="1"/>
         <Setter Property="MinWidth" Value="1"/>
       </Style>
 
+      <!--Tab Control Styles-->
       <Style Selector="TabControl">
         <Setter Property="Background" Value="#111"/>
         <Setter Property="Padding" Value="0"/>
+        
       </Style>
       <Style Selector="TabControl /template/ avalonia_controls_presenters|ItemsPresenter#PART_ItemsPresenter">
         <Setter Property="Margin" Value="0,0,0,0"/>
       </Style>
       
+      <!--Tab Item Styles-->
       <Style Selector="TabItem">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="FontSize" Value="14"/>

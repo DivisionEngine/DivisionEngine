@@ -63,7 +63,7 @@
                         SelectedItem="{Binding SelectedLeftTab, Mode=TwoWay}">
               <TabControl.ItemTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding Title}"/>
+                  
                 </DataTemplate>
               </TabControl.ItemTemplate>
             </TabControl>
