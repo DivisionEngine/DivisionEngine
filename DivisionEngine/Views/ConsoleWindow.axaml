@@ -4,6 +4,7 @@
                     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                     xmlns:local="clr-namespace:DivisionEngine.Editor"
                     xmlns:vm="using:DivisionEngine.Editor.ViewModels"
+                    xmlns:core="using:DivisionEngine"
                     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
                     x:Class="DivisionEngine.Editor.ConsoleWindow"
                     x:DataType="vm:ConsoleWindowViewModel">
@@ -18,7 +19,7 @@
       </ItemsControl.Template>
       
       <ItemsControl.ItemTemplate>
-        <DataTemplate>
+        <DataTemplate DataType="core:LogEntry">
           
           <Border BorderBrush="#444" BorderThickness="1,1,1,1" Padding="4,4,4,4" CornerRadius="4" Margin="6,2,6,2">
             <StackPanel Orientation="Horizontal" Spacing="2">

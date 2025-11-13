@@ -4,7 +4,7 @@ namespace DivisionEngine.Editor.ViewModels
 {
     public partial class ConsoleWindowViewModel : EditorWindowViewModel
     {
-        public ObservableCollection<Debug.LogEntry> Logs { get; } = [];
+        public ObservableCollection<LogEntry> Logs { get; } = [];
 
         public ConsoleWindowViewModel()
         {

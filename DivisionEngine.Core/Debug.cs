@@ -12,31 +12,31 @@
     }
 
     /// <summary>
+    /// Represents a single log entry in the debug log.
+    /// </summary>
+    /// <param name="message">?Message of the log entry</param>
+    /// <param name="level">Log level</param>
+    public class LogEntry(string message, LogLevel level)
+    {
+        public DateTime Timestamp { get; } = DateTime.Now;
+        public string Message { get; } = message;
+        public LogLevel Level { get; } = level;
+
+        /// <summary>
+        /// Converts log entry to a string representation.
+        /// </summary>
+        /// <returns>Log entry string</returns>
+        public override string ToString()
+        {
+            return $"[{Level}] {Timestamp}: {Message}";
+        }
+    }
+
+    /// <summary>
     /// Debugging and logging utility for the Division Engine.
     /// </summary>
     public class Debug
     {
-        /// <summary>
-        /// Represents a single log entry in the debug log.
-        /// </summary>
-        /// <param name="message">?Message of the log entry</param>
-        /// <param name="level">Log level</param>
-        public class LogEntry(string message, LogLevel level)
-        {
-            public DateTime Timestamp { get; } = DateTime.Now;
-            public string Message { get; } = message;
-            public LogLevel Level { get; } = level;
-
-            /// <summary>
-            /// Converts log entry to a string representation.
-            /// </summary>
-            /// <returns>Log entry string</returns>
-            public override string ToString()
-            {
-                return $"[{Level}] {Timestamp}: {Message}";
-            }
-        }
-
         private static readonly Debug instance = new Debug();
         private readonly List<LogEntry> debugLog = [];
 
