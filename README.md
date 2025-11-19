@@ -1,6 +1,8 @@
+<img width="128" height="128" alt="DivisionEngineLogoR" src="https://github.com/user-attachments/assets/4495b5e3-012d-42e4-8e04-1eecbf22ee1d" />
+
 # Division Engine
 
-Division Engine is an SDF-based game engine written entirely in C#. Utilizing Avalonia UI for the interface and Silk.Net for native rendering, Division Engine has a complete build pipeline completely written in C#.
+Division Engine is an SDF-based game engine written entirely in C#. Utilizing Avalonia UI for the interface and Silk.Net for native rendering, Division Engine has a complete build pipeline that is entirely written in C#.
 
 The render pipeline is built using an OpenGL backend with HLSL shaders written in C# using ComputeSharp.
 
