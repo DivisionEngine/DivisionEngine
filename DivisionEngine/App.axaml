@@ -4,7 +4,7 @@
              x:Class="DivisionEngine.Editor.App"
              xmlns:vm="using:DivisionEngine.Editor"
              xmlns:local="using:DivisionEngine.Editor"
-             RequestedThemeVariant="Default"
+             RequestedThemeVariant="Dark"
              xmlns:avalonia_controls="using:Avalonia.Controls"
              xmlns:avalonia_controls_presenters="using:Avalonia.Controls.Presenters">
 

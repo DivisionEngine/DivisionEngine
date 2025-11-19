@@ -1,5 +1,4 @@
 ﻿using CommunityToolkit.Mvvm.Input;
-using HarfBuzzSharp;
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
