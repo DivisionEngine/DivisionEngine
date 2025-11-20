@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
+using DivisionEngine.Editor.ViewModels;
 
 namespace DivisionEngine.Editor
 {
@@ -14,6 +15,11 @@ namespace DivisionEngine.Editor
         public MainWindow()
         {
             InitializeComponent(); // Initialize the main window components
+
+            if (DataContext is MainWindowViewModel vm)
+            {
+                vm.RequestClose = Close;
+            }
 #if DEBUG
             this.AttachDevTools(); // Enable developer tools in debug mode
 #endif

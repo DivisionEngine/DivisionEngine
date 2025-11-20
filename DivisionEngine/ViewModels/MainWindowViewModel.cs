@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.Input;
 using ReactiveUI;
+using System;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 
@@ -10,6 +11,10 @@ namespace DivisionEngine.Editor.ViewModels
     /// </summary>
     public partial class MainWindowViewModel : ViewModelBase
     {
+        // Main Window Menu Commands
+
+        public Action? RequestClose { get; set; }
+
         // Editor window tab collections
 
         public ObservableCollection<EditorWindowViewModel> CenterTabs { get; } = [];
@@ -58,6 +63,55 @@ namespace DivisionEngine.Editor.ViewModels
 
             BottomTabs.Add(new AssetsWindowViewModel());
             BottomTabs.Add(new ConsoleWindowViewModel());
+        }
+
+        [RelayCommand]
+        private void OpenProject()
+        {
+            Debug.Info("Opening Project");
+            // Implement Open Project functionality here
+        }
+
+        [RelayCommand]
+        private void SaveProject()
+        {
+            Debug.Info("Saving Project");
+            // Implement Save Project functionality here
+        }
+
+        [RelayCommand]
+        private void SaveProjectAs()
+        {
+            Debug.Info("Saving Project As");
+            // Implement Save Project As functionality here
+        }
+
+        [RelayCommand]
+        private void Exit()
+        {
+            Debug.Info("Exiting Division Engine Editor");
+            RequestClose?.Invoke();
+        }
+
+        [RelayCommand]
+        private void Undo()
+        {
+            Debug.Info("Undo Triggered");
+            // Implement Undo functionality here
+        }
+
+        [RelayCommand]
+        private void Redo()
+        {
+            Debug.Info("Redo Triggered");
+            // Implement Redo functionality here
+        }
+
+        [RelayCommand]
+        private void About()
+        {
+            Debug.Info("About Help Triggered");
+            // Implement About Help functionality here
         }
 
         [RelayCommand]

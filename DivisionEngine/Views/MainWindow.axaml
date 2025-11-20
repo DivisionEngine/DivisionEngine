@@ -38,17 +38,18 @@
       <TextBlock Text="Division Engine" FontWeight="Bold" FontSize="16" Margin="5" VerticalAlignment="Center"/>
       <Menu Foreground="#ccc">
         <MenuItem Header="File" Foreground="#ccc">
-          <MenuItem Header="Open" Foreground="#ccc"/>
-          <MenuItem Header="Save" Foreground="#ccc"/>
-          <Separator/>
-          <MenuItem Header="Exit" Foreground="#ccc"/>
+            <MenuItem Header="Open" Command="{Binding OpenProjectCommand}" Foreground="#ccc"/>
+            <MenuItem Header="Save" Command="{Binding SaveProjectCommand}" Foreground="#ccc"/>
+            <MenuItem Header="SaveAs" Command="{Binding SaveProjectAsCommand}" Foreground="#ccc"/>
+            <Separator/>
+            <MenuItem Header="Exit" Command="{Binding ExitCommand}" Foreground="#ccc"/>
         </MenuItem>
         <MenuItem Header="Edit" Foreground="#ccc">
-          <MenuItem Header="Undo" Foreground="#ccc"/>
-          <MenuItem Header="Redo" Foreground="#ccc"/>
+            <MenuItem Header="Undo" Command="{Binding UndoCommand}" Foreground="#ccc"/>
+            <MenuItem Header="Redo" Command="{Binding RedoCommand}" Foreground="#ccc"/>
         </MenuItem>
         <MenuItem Header="Help" Foreground="#ccc">
-          <MenuItem Header="About" Foreground="#ccc"/>
+            <MenuItem Header="About" Command="{Binding AboutCommand}" Foreground="#ccc"/>
         </MenuItem>
       </Menu>
     </StackPanel>
@@ -169,5 +170,7 @@
         </Button>
       </Grid>
     </Grid>
+
   </DockPanel>
+
 </Window>
