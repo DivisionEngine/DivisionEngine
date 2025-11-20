@@ -9,7 +9,6 @@
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/DivisionEngineLogoRAS.ico"
         Title="Division Engine" Background="#111" Foreground="#ccc">
-
   <!--Editor Window Templates-->
   <!--DO NOT FORGET TO PUT CUSTOM WINDOWS HERE!-->
   <Window.DataTemplates>
@@ -29,10 +28,8 @@
       <local:PropertiesWindow/>
     </DataTemplate>
   </Window.DataTemplates>
-
   <!--Main Window-->
   <DockPanel Background="#333">
-
     <!--Main Menu-->
     <StackPanel DockPanel.Dock="Top" Background="#444" Orientation="Horizontal">
       <TextBlock Text="Division Engine" FontWeight="Bold" FontSize="16" Margin="5" VerticalAlignment="Center"/>
@@ -53,7 +50,6 @@
         </MenuItem>
       </Menu>
     </StackPanel>
-
     <!--Basic Grid Layout-->
     <Grid ColumnDefinitions="*, 2, 200">
       <Grid Grid.Column="0" RowDefinitions="*, 2, 200">
@@ -64,11 +60,10 @@
                         SelectedItem="{Binding SelectedLeftTab, Mode=TwoWay}">
               <TabControl.ItemTemplate>
                 <DataTemplate>
-                  
+                  <TextBlock Text="{Binding Title}"/>
                 </DataTemplate>
               </TabControl.ItemTemplate>
             </TabControl>
-
             <Button Content="+" FontSize="14" Width="18" Height="18"
                     Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
               <Button.Flyout>
@@ -83,9 +78,7 @@
               </Button.Flyout>
             </Button>
           </Grid>
-
           <GridSplitter Grid.Column="1" ResizeDirection="Auto"/>
-
           <!--Center Tabs-->
           <Grid Grid.Column="2">
             <TabControl ItemsSource="{Binding CenterTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
@@ -170,7 +163,5 @@
         </Button>
       </Grid>
     </Grid>
-
   </DockPanel>
-
 </Window>
