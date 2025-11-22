@@ -24,6 +24,19 @@
             return id;
         }
 
+        public bool DestroyEntity(uint entityId)
+        {
+            if (entities.Remove(entityId))
+            {
+                foreach (Type t in components.Keys)
+                {
+                    components[t].Remove(entityId);    
+                }
+                return true;
+            }
+            return false;
+        }
+
         public bool AddComponent<T>(uint entityId, T component) where T : IComponent
         {
             if (!entities.Contains(entityId))
