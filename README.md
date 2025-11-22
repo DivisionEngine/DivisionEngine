@@ -17,6 +17,10 @@ Picture this:
 *Signed Distance Fields* are spatial fields that store information represented as a grid sampling of the closest distance to the surface of an object defined as a polygonal model. Usually, the convention of using negative values inside the object and positive values outside the object is applied. Signed distance fields are important in computer graphics and related fields. Often, they are used for collision detection in cloth animation, soft-body physics effects, malleable geometry, volumetric effects, and fluid simulation.
 (https://developer.nvidia.com/gpugems/gpugems3/part-v-physics-simulation/chapter-34-signed-distance-fields-using-single-pass-gpu)
 
+## How to Work with ECS
+
+*ECS* or an entity-component-system framework is a way of organizing game data such that it is memory efficient and hyper-performant. Entities are simply IDs with components stored as a dictionary in an "ECS World" object. Systems are then the code that is written that operates on an awake --> update schedule, allowing components to be manipulated over time. For more information on ECS, check out how the Unity game engine implemented its ECS framework here: https://unity.com/ecs
+
 ### Resources:
 Follow the development: https://trello.com/b/mWtyHBMf/division-engine
 
