@@ -82,5 +82,13 @@
             Type type = typeof(T);
             return components.ContainsKey(type) && components[type].ContainsKey(entityId);
         }
+
+        public IEnumerable<uint> Query<T>() where T : IComponent
+        {
+            Type type = typeof(T);
+            if (components.Count > 0 && components.ContainsKey(type))
+                return components[type].Keys;
+            return [];
+        }
     }
 }
