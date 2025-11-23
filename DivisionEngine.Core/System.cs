@@ -1,7 +1,10 @@
 ﻿namespace DivisionEngine
 {
-    public interface ISystem
+    public abstract class SystemBase
     {
-        void Update();
+        public virtual void Awake() { }
+        public virtual void Update() { }
+        public virtual void FixedUpdate() { }
+        public virtual void Render() { }
     }
 }
