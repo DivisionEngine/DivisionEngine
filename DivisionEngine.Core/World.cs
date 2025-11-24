@@ -1,5 +1,4 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 
 namespace DivisionEngine
 {
@@ -144,7 +143,12 @@ namespace DivisionEngine
         {
             Type type = typeof(T);
             if (entities.Contains(entityId) && components.TryGetValue(type, out var value))
-                return value.Remove(entityId);
+            {
+                bool removed = value.Remove(entityId);
+                if (value.Count < 1)
+                    components.Remove(type);
+                return removed;
+            }
             return false;
         }
 
