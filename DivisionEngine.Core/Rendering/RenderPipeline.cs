@@ -26,8 +26,20 @@ namespace DivisionEngine.Rendering
         public bool InputReady { get; private set; } = false; // Indicates if the renderer is ready to process input
         public event Action? Close; // Event to handle window close actions
 
-        // Other variables
+        // World variables
         public float Time;
+        public World? boundWorld;
+
+        public bool BindCurrentWorld()
+        {
+            if (WorldManager.CurrentWorld != null)
+            {
+                boundWorld = WorldManager.CurrentWorld;
+                return true;
+            }
+
+            return false;
+        }
 
         /// <summary>
         /// Initializes and runs the render window.

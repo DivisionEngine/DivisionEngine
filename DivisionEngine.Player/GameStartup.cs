@@ -22,8 +22,30 @@ public class GameStartup
         UserInput = new InputSystem();
         SetupInput();
 
+        // Replace with project path from startup args eventually.
+        LoadProjectOrDefaultWorld(string.Empty);
+
         Renderer = new RenderPipeline();
+        Renderer.BindCurrentWorld();
         Renderer.Run(false);
+    }
+
+    /// <summary>
+    /// Loads the project path provided or a default world if the path is empty into the current world.
+    /// </summary>
+    /// <param name="projectPath">Path to project</param>
+    /// <returns>The world loaded into the current world</returns>
+    private static World LoadProjectOrDefaultWorld(string projectPath)
+    {
+        if (string.IsNullOrEmpty(projectPath))
+        {
+            return WorldManager.CreateDefaultWorld(true);
+        }
+        else
+        {
+            // Implement project loading here, for now fallback to default world
+            return WorldManager.CreateDefaultWorld(true);
+        }
     }
 
     /// <summary>

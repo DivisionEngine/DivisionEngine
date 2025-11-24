@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine
+﻿using DivisionEngine.Components;
+
+namespace DivisionEngine
 {
     /// <summary>
     /// Manages all ecs worlds loaded and currently active.
@@ -6,7 +8,25 @@
     public static class WorldManager
     {
         public static World? CurrentWorld { get; private set; }
-        private static Dictionary<string, World> worlds = new Dictionary<string, World>();
+        private static readonly Dictionary<string, World> worlds = [];
+
+        public static World CreateDefaultWorld(bool makeCurrent)
+        {
+            World newDefaultWorld = new World();
+            newDefaultWorld.RegisterAllSystems();
+
+            uint cameraEntity = newDefaultWorld.CreateEntity();
+            newDefaultWorld.AddComponent(cameraEntity, Transform.Default);
+            newDefaultWorld.AddComponent(cameraEntity, Camera.Default);
+
+            uint sphereEntity = newDefaultWorld.CreateEntity();
+            newDefaultWorld.AddComponent(sphereEntity, Transform.Default);
+            newDefaultWorld.AddComponent(sphereEntity, SDFSphere.Default);
+
+            SetWorld("default", newDefaultWorld);
+            if (makeCurrent) CurrentWorld = newDefaultWorld;
+            return newDefaultWorld;
+        }
 
         public static void SetWorld(string key, World world)
         {
