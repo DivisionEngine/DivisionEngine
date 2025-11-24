@@ -52,6 +52,12 @@ namespace DivisionEngine
 
         public void RegisterAllSystems()
         {
+            systems.Clear();
+            awakeSystems.Clear();
+            updateSystems.Clear();
+            fixedUpdateSystems.Clear();
+            renderSystems.Clear();
+
             foreach (Assembly a in AppDomain.CurrentDomain.GetAssemblies())
             {
                 foreach (Type t in a.GetTypes())
