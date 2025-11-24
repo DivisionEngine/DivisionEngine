@@ -1,8 +1,8 @@
 ﻿namespace DivisionEngine.Systems
 {
-    public class CameraSystem() : ISystem
+    public class CameraSystem() : SystemBase
     {
-        public void Update()
+        public override void Update()
         {
             throw new NotImplementedException();
         }

@@ -2,6 +2,7 @@
 {
     public struct SDFSphere : IComponent
     {
-        public float Radius;
+        public float4 color;
+        public float radius;
     }
 }

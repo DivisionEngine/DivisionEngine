@@ -2,13 +2,20 @@
 
 namespace DivisionEngine.Components
 {
-    /// <summary>
-    /// Represents a camera in a 3D space, including its position, rotation, and field of view.
-    /// </summary>
-    /// <remarks>Currently untested, needs to be integrated with rendering system.</remarks>
-    public class Camera(float fov) : IComponent
+    public struct Camera : IComponent
     {
-        public float fov = fov;
+        public static Camera Default => new Camera
+        {
+            fov = 70f,
+            nearClip = 0.1f,
+            farClip = 10000f,
+            aspectRatio = 16f / 9f
+        };
+
+        public float fov;
+        public float nearClip;
+        public float farClip;
+        public float aspectRatio;
 
         public static float FovToScreenDistance(float fov, float height)
         {
