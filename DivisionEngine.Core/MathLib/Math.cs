@@ -211,6 +211,7 @@
             float sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
             float cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
             float roll = Atan2(sinr_cosp, cosr_cosp);
+
             // Pitch (y-axis rotation)
             float sinp = 2 * (q.W * q.Y - q.Z * q.X);
             float pitch;
@@ -218,6 +219,7 @@
                 pitch = PI / 2 * Sign(sinp); // use 90 degrees if out of range
             else
                 pitch = Asin(sinp);
+
             // Yaw (z-axis rotation)
             float siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
             float cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);

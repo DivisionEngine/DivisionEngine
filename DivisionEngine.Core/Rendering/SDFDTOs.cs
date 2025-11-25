@@ -1,11 +1,8 @@
-﻿using System.Runtime.InteropServices;
-
-namespace DivisionEngine.Rendering
+﻿namespace DivisionEngine.Rendering
 {
     /// <summary>
     /// Transfers SDF world data to GPU for rendering.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)] // Test if this is needed later
     public struct SDFWorldDTO
     {
         public float3 cameraOrigin; // 12b
@@ -16,7 +13,6 @@ namespace DivisionEngine.Rendering
     /// <summary>
     /// Transfers SDF primitive object data to GPU for rendering.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)] // Test if this is needed later
     public struct SDFPrimitiveObjectDTO
     {
         public int type; // 4b

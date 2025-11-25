@@ -4,7 +4,7 @@ using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {
-    public class CameraSystem() : SystemBase
+    public class CameraSystem : SystemBase
     {
         public override void Update()
         {
@@ -23,8 +23,8 @@ namespace DivisionEngine.Systems
         {
             camera.viewMatrix = CalcCameraViewMatrix(transform);
             camera.projectionMatrix = CalcCameraProjectionMatrix(camera);
-            Debug.Info("Update camera view matrix: " + camera.viewMatrix.Float4x4ToMatrix4x4().ToString());
-            Debug.Info("Update camera projec matrix: " + camera.projectionMatrix.Float4x4ToMatrix4x4().ToString());
+            //Debug.Info("Update camera view matrix: " + camera.viewMatrix.Float4x4ToMatrix4x4().ToString());
+            //Debug.Info("Update camera projec matrix: " + camera.projectionMatrix.Float4x4ToMatrix4x4().ToString());
 
             camera.inverseViewMatrix = Matrix.Inverse(camera.viewMatrix);
             camera.inverseProjectionMatrix = Matrix.Inverse(camera.projectionMatrix);

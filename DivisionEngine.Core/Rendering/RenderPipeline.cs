@@ -1,9 +1,7 @@
 ﻿using ComputeSharp;
-using DivisionEngine.Input;
 using DivisionEngine.Systems;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using Window = Silk.NET.Windowing.Window;
 
@@ -232,7 +230,6 @@ namespace DivisionEngine.Rendering
 
             gl.DeleteShader(vs);
             gl.DeleteShader(fs);
-
             return shader;
         }
 

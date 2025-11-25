@@ -11,7 +11,14 @@
         /// </summary>
         public static readonly float4 Identity = new(0, 0, 0, 1);
 
+        /// <summary>
+        /// Calculates the dot product between two float4 quaternions.
+        /// </summary>
+        /// <param name="q">Left quaternion</param>
+        /// <param name="p">Right quaternion</param>
+        /// <returns>Dot product of two float4 quaternions</returns>
         public static float Dot(this float4 q, float4 p) => q.X * p.X + q.Y * p.Y + q.Z * p.Z + q.W * p.W;
+
         public static float4 Normalize(this float4 q)
         {
             float length = (float)Math.Sqrt(Dot(q, q));
