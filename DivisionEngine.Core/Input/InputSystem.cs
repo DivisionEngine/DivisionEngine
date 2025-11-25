@@ -81,8 +81,36 @@
         Menu,
         WindowsLeft,
         WindowsRight,
-        Application
+        Application,
+
+        // Unknown
+        Unknown
     }
+
+    /// <summary>
+    /// Represents a mouse key code in the input system.
+    /// </summary>
+    public enum MouseCode
+    {
+        // Main
+        Left,
+        Middle,
+        Right,
+
+        // Extra
+        Button4,
+        Button5,
+        Button6,
+        Button7,
+        Button8,
+        Button9,
+        Button10,
+        Button11,
+        Button12,
+        
+        // Unknown
+        Unknown
+    };
 
     /// <summary>
     /// Handles input events and maintains input state.
@@ -95,6 +123,7 @@
         public static InputSystem? Instance { get; private set; }
 
         private readonly HashSet<KeyCode> pressedKeys;
+        private readonly HashSet<MouseCode> pressedMouseKeys;
         private readonly object syncLock;
 
         /// <summary>
@@ -105,6 +134,7 @@
         {
             syncLock = new object();
             pressedKeys = [];
+            pressedMouseKeys = [];
             Instance = this;
         }
 
@@ -118,6 +148,16 @@
             lock (syncLock) pressedKeys.Remove(key);
         }
 
+        public void SetMouseKeyDown(MouseCode mouseKey)
+        {
+            lock (syncLock) pressedMouseKeys.Add(mouseKey);
+        }
+
+        public void SetMouseKeyUp(MouseCode mouseKey)
+        {
+            lock (syncLock) pressedMouseKeys.Remove(mouseKey);
+        }
+
         /// <summary>
         /// Checks if a key is currently pressed on the default keyboard.
         /// </summary>
@@ -126,6 +166,11 @@
         public static bool IsPressed(KeyCode key)
         {
             lock (Instance!.syncLock) return Instance.pressedKeys.Contains(key);
+        }
+
+        public static bool IsMousePressed(MouseCode key)
+        {
+            lock (Instance!.syncLock) return Instance.pressedMouseKeys.Contains(key);
         }
     }
 }

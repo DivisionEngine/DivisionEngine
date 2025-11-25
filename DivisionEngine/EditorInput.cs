@@ -1,6 +1,5 @@
 ﻿using DivisionEngine.Input;
 using Silk.NET.Input;
-using System;
 
 namespace DivisionEngine.Editor
 {
@@ -14,7 +13,6 @@ namespace DivisionEngine.Editor
         /// </summary>
         /// <param name="key">The Avalonia key to convert.</param>
         /// <returns>The corresponding <see cref="KeyCode"/> value.</returns>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown if the provided <paramref name="key"/> does not have a corresponding <see cref="KeyCode"/> mapping.</exception>
         public static KeyCode AvaloniaToKeyCode(Avalonia.Input.Key key)
         {
             return key switch
@@ -141,17 +139,18 @@ namespace DivisionEngine.Editor
                 Avalonia.Input.Key.LWin => KeyCode.WindowsLeft,
                 Avalonia.Input.Key.RWin => KeyCode.WindowsRight,
 
-                _ => throw new ArgumentOutOfRangeException(nameof(key), key, $"Input System: No mapping for Avalonia Key: {key}")
+                // Handle no mapping
+                _ => KeyCode.Unknown
             };
         }
+
+        // Insert Avalonia UI mouse button handling here
 
         /// <summary>
         /// Converts a <see cref="Key"/> value from Silk.NET to its corresponding <see cref="KeyCode"/> value.
         /// </summary>
         /// <param name="silkKey">The Silk.NET <see cref="Key"/> to be converted.</param>
         /// <returns>The corresponding <see cref="KeyCode"/> value that matches the provided Silk.NET <see cref="Key"/>.</returns>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown if the provided 
-        /// <paramref name="silkKey"/> does not have a corresponding mapping to a <see cref="KeyCode"/>.</exception>
         public static KeyCode SilkNetToKeyCode(Key silkKey)
         {
             return silkKey switch
@@ -276,7 +275,38 @@ namespace DivisionEngine.Editor
                 Key.SuperLeft => KeyCode.WindowsLeft,
                 Key.SuperRight => KeyCode.WindowsRight,
 
-                _ => throw new ArgumentOutOfRangeException(nameof(silkKey), silkKey, $"Input System: No mapping for Silk.NET key: {silkKey}")
+                // Handle no mapping
+                _ => KeyCode.Unknown
+            };
+        }
+
+        /// <summary>
+        /// Convert a Silk.Net mouse button to a Division Engine mouse code.
+        /// </summary>
+        /// <param name="mouseButton">Silk.Net mouse button</param>
+        /// <returns>Division engine mouse code mapping</returns>
+        public static MouseCode SilkNetToMouseCode(MouseButton mouseButton)
+        {
+            return mouseButton switch
+            {
+                // Main
+                MouseButton.Left => MouseCode.Left,
+                MouseButton.Right => MouseCode.Right,
+                MouseButton.Middle => MouseCode.Middle,
+
+                // Extra
+                MouseButton.Button4 => MouseCode.Button4,
+                MouseButton.Button5 => MouseCode.Button5,
+                MouseButton.Button6 => MouseCode.Button6,
+                MouseButton.Button7 => MouseCode.Button7,
+                MouseButton.Button8 => MouseCode.Button8,
+                MouseButton.Button9 => MouseCode.Button9,
+                MouseButton.Button10 => MouseCode.Button10,
+                MouseButton.Button11 => MouseCode.Button11,
+                MouseButton.Button12 => MouseCode.Button12,
+
+                // Handle no mapping
+                _ => MouseCode.Unknown
             };
         }
     }

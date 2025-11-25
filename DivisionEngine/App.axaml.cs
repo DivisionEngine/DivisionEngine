@@ -13,6 +13,9 @@ using System.Threading.Tasks;
 
 namespace DivisionEngine.Editor
 {
+    /// <summary>
+    /// Main editor application backend.
+    /// </summary>
     public partial class App : Application
     {
         /// <summary>
@@ -92,10 +95,12 @@ namespace DivisionEngine.Editor
             engineTimer.Start();
         }
 
-        private void EngineTimer_Tick(object? sender, EventArgs e)
-        {
-            EngineCore.RunFrame();
-        }
+        /// <summary>
+        /// Runs each frame of the core engine in the editor.
+        /// </summary>
+        /// <param name="sender">Sender obj</param>
+        /// <param name="e">Event args</param>
+        private void EngineTimer_Tick(object? sender, EventArgs e) => EngineCore.RunFrame();
 
         /// <summary>
         /// Sets up input handling for the Division Engine editor.
@@ -107,6 +112,8 @@ namespace DivisionEngine.Editor
             desktop.MainWindow!.KeyUp += (s, e) => UserInput?.SetKeyUp(EditorInput.AvaloniaToKeyCode(e.Key));
             desktop.MainWindow.KeyDown += (s, e) => UserInput?.SetKeyDown(EditorInput.AvaloniaToKeyCode(e.Key));
 
+            // Expand to include avalonia 
+
             // Silk.NET input handling
             while (Renderer == null || Renderer!.RendererWindow == null)
                 await Task.Delay(1); // Wait for the renderer to load
@@ -114,15 +121,24 @@ namespace DivisionEngine.Editor
             Renderer!.RendererWindow.Load += SilkNetInputSetup;
         }
 
+        /// <summary>
+        /// Setup input handling for borderless Silk.Net threaded render GL window.
+        /// </summary>
         private static void SilkNetInputSetup()
         {
             lock (Renderer!.SyncLock)
             {
                 IInputContext? input = Renderer!.RendererWindow!.CreateInput();
-                foreach (var keyboard in input.Keyboards)
+                foreach (var keyboard in input.Keyboards) // Keyboard button handling
                 {
                     keyboard.KeyDown += (kb, key, code) => UserInput!.SetKeyDown(EditorInput.SilkNetToKeyCode(key));
                     keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(EditorInput.SilkNetToKeyCode(key));
+                }
+
+                foreach (var mouse in input.Mice) // Mouse button handling
+                {
+                    mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(EditorInput.SilkNetToMouseCode(code));
+                    mouse.MouseUp += (m, code) => UserInput!.SetMouseKeyUp(EditorInput.SilkNetToMouseCode(code));
                 }
             }
         }

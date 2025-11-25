@@ -31,7 +31,7 @@ namespace DivisionEngine.Systems
                 worldData.cameraOrigin = transform.position;
                 worldData.cameraToWorld = camera.inverseViewMatrix;
                 worldData.cameraInverseProj = camera.inverseProjectionMatrix;
-                break;
+                break; // Use first camera
             }
 
             // Gather sphere primitives

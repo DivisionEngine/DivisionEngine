@@ -30,7 +30,7 @@ namespace DivisionEngine.Systems
             camera.inverseProjectionMatrix = Matrix.Inverse(camera.projectionMatrix);
         }
 
-        private float4x4 CalcCameraViewMatrix(Transform transform)
+        private static float4x4 CalcCameraViewMatrix(Transform transform)
         {
             return Matrix.Inverse(
                 Matrix.Multiply(

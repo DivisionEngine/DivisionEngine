@@ -13,8 +13,6 @@ namespace DivisionEngine.Player
         /// </summary>
         /// <param name="silkKey">The Silk.NET <see cref="Key"/> to be converted.</param>
         /// <returns>The corresponding <see cref="KeyCode"/> value that matches the provided Silk.NET <see cref="Key"/>.</returns>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown if the provided 
-        /// <paramref name="silkKey"/> does not have a corresponding mapping to a <see cref="KeyCode"/>.</exception>
         public static KeyCode SilkNetToKeyCode(Key silkKey)
         {
             return silkKey switch
@@ -139,7 +137,38 @@ namespace DivisionEngine.Player
                 Key.SuperLeft => KeyCode.WindowsLeft,
                 Key.SuperRight => KeyCode.WindowsRight,
 
-                _ => throw new ArgumentOutOfRangeException(nameof(silkKey), silkKey, $"Input System: No mapping for Silk.NET key: {silkKey}")
+                // Handle no mapping
+                _ => KeyCode.Unknown
+            };
+        }
+
+        /// <summary>
+        /// Convert a Silk.Net mouse button to a Division Engine mouse code.
+        /// </summary>
+        /// <param name="mouseButton">Silk.Net mouse button</param>
+        /// <returns>Division engine mouse code mapping</returns>
+        public static MouseCode SilkNetToMouseCode(MouseButton mouseButton)
+        {
+            return mouseButton switch
+            {
+                // Main
+                MouseButton.Left => MouseCode.Left,
+                MouseButton.Right => MouseCode.Right,
+                MouseButton.Middle => MouseCode.Middle,
+
+                // Extra
+                MouseButton.Button4 => MouseCode.Button4,
+                MouseButton.Button5 => MouseCode.Button5,
+                MouseButton.Button6 => MouseCode.Button6,
+                MouseButton.Button7 => MouseCode.Button7,
+                MouseButton.Button8 => MouseCode.Button8,
+                MouseButton.Button9 => MouseCode.Button9,
+                MouseButton.Button10 => MouseCode.Button10,
+                MouseButton.Button11 => MouseCode.Button11,
+                MouseButton.Button12 => MouseCode.Button12,
+
+                // Handle no mapping
+                _ => MouseCode.Unknown
             };
         }
     }

@@ -96,15 +96,24 @@ public class GameStartup
         Renderer!.RendererWindow.Load += SilkNetInputSetup;
     }
 
+    /// <summary>
+    /// Setup input handling for Silk.Net threaded render GL window.
+    /// </summary>
     private static void SilkNetInputSetup()
     {
         lock (Renderer!.SyncLock)
         {
             IInputContext? input = Renderer!.RendererWindow!.CreateInput();
-            foreach (var keyboard in input.Keyboards)
+            foreach (var keyboard in input.Keyboards) // Keyboard button handling
             {
                 keyboard.KeyDown += (kb, key, code) => UserInput!.SetKeyDown(PlayerInput.SilkNetToKeyCode(key));
                 keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(PlayerInput.SilkNetToKeyCode(key));
+            }
+            
+            foreach (var mouse in input.Mice) // Mouse button handling
+            {
+                mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(PlayerInput.SilkNetToMouseCode(code));
+                mouse.MouseUp += (m, code) => UserInput!.SetMouseKeyUp(PlayerInput.SilkNetToMouseCode(code));
             }
         }
     }
