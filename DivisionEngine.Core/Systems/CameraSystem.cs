@@ -19,17 +19,6 @@ namespace DivisionEngine.Systems
             }
         }
 
-        public static void UpdateCamerasAspectRatio(float newAspectRatio)
-        {
-            if (WorldManager.CurrentWorld == null) return;
-            World w = WorldManager.CurrentWorld;
-
-            foreach (var (entity, camera) in w.QueryData<Camera>())
-            {
-                camera.aspectRatio = newAspectRatio;
-            }
-        }
-
         private void UpdateCameraMatrices(Transform transform, Camera camera)
         {
             camera.viewMatrix = CalcCameraViewMatrix(transform);

@@ -117,11 +117,6 @@ namespace DivisionEngine.Rendering
             // Variable setup (variables modified outside of renderer must be locked)
             int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
 
-            lock (SyncLock)
-            {
-                CameraSystem.UpdateCamerasAspectRatio((float)texHeight / (float)texWidth);
-            }
-
             // Gather SDF world information
             SDFWorldDTO worldDTO;
             SDFPrimitiveObjectDTO[] sdfPrimitivesDTO;
