@@ -2,15 +2,32 @@
 
 namespace DivisionEngine
 {
+    /// <summary>
+    /// Stores all entities, components, and systems. This is the main ECS API.
+    /// </summary>
     public class World
     {
+        /// <summary>
+        /// All entities in the world.
+        /// </summary>
         public HashSet<uint> entities;
+
+        /// <summary>
+        /// All componenents in the world organized by component type => entity => component data.
+        /// </summary>
         public Dictionary<Type, Dictionary<uint, IComponent>> components;
+
+        /// <summary>
+        /// All systems in the world.
+        /// </summary>
         public List<SystemBase> systems;
 
-        private List<SystemBase> awakeSystems, updateSystems, fixedUpdateSystems, renderSystems;
+        private readonly List<SystemBase> awakeSystems, updateSystems, fixedUpdateSystems, renderSystems;
         private uint nextEntityId;
 
+        /// <summary>
+        /// Create a new world.
+        /// </summary>
         public World()
         {
             entities = [];
@@ -26,6 +43,17 @@ namespace DivisionEngine
 
         #region entities
 
+        /// <summary>
+        /// Check if an entity exists in the world.
+        /// </summary>
+        /// <param name="id">Entity id to check</param>
+        /// <returns>Whether the entity exists in the world</returns>
+        public bool EntityExists(uint id) => entities.Contains(id);
+
+        /// <summary>
+        /// Creates a new entity in the world.
+        /// </summary>
+        /// <returns>The new entity id created</returns>
         public uint CreateEntity()
         {
             uint id = nextEntityId;
@@ -50,6 +78,10 @@ namespace DivisionEngine
         #endregion
         #region systems
 
+        /// <summary>
+        /// Searches all assemblies in the Application Domain to find all classes that inherit from SystemBase and registers them automatically.
+        /// </summary>
+        /// <exception cref="NotImplementedException">Throws an exception if a system is not implemented correctly</exception>
         public void RegisterAllSystems()
         {
             systems.Clear();
@@ -74,6 +106,10 @@ namespace DivisionEngine
             }
         }
 
+        /// <summary>
+        /// Registers a system and adds it to the correct callback loops.
+        /// </summary>
+        /// <param name="system">System to register</param>
         private void RegisterSystem(SystemBase system)
         {
             systems.Add(system);
@@ -94,24 +130,36 @@ namespace DivisionEngine
                 renderSystems.Add(system);
         }
 
+        /// <summary>
+        /// Calls all systems that implement "Awake".
+        /// </summary>
         public void CallAwake()
         {
             for (int i = 0; i < awakeSystems.Count; i++)
                 awakeSystems[i].Awake();
         }
 
+        /// <summary>
+        /// Calls all systems that implement "Update".
+        /// </summary>
         public void CallUpdate()
         {
             for (int i = 0; i < updateSystems.Count; i++)
                 updateSystems[i].Update();
         }
 
+        /// <summary>
+        /// Calls all systems that implement "FixedUpdate".
+        /// </summary>
         public void CallFixedUpdate()
         {
             for (int i = 0; i < fixedUpdateSystems.Count; i++)
                 fixedUpdateSystems[i].FixedUpdate();
         }
 
+        /// <summary>
+        /// Calls all systems that implement "Render".
+        /// </summary>
         public void CallRender()
         {
             for (int i = 0; i < renderSystems.Count; i++)
@@ -178,9 +226,51 @@ namespace DivisionEngine
         public IEnumerable<uint> Query<T>() where T : IComponent
         {
             Type type = typeof(T);
-            if (components.Count > 0 && components.ContainsKey(type))
-                return components[type].Keys;
+            if (components.Count > 0 && components.TryGetValue(type, out Dictionary<uint, IComponent>? value))
+                return value.Keys;
             return [];
+        }
+
+        public IEnumerable<uint> Query(params Type[] componentTypes)
+        {
+            if (componentTypes.Length == 0) return [];
+
+            IEnumerable<uint> queryResult = GetComponentStore(componentTypes[0]).Keys;
+            for (int i = 1; i < componentTypes.Length; i++)
+                queryResult = queryResult.Intersect(GetComponentStore(componentTypes[i]).Keys);
+            return queryResult;
+        }
+
+        public IEnumerable<(uint, T)> QueryData<T>() where T : IComponent
+        {
+            foreach (uint entityId in Query<T>())
+            {
+                T queryResultComponent = (T)components[typeof(T)][entityId];
+                yield return (entityId, queryResultComponent);
+            }
+        }
+
+        public IEnumerable<(uint, IComponent[])> QueryData(params Type[] componentTypes)
+        {
+            foreach (uint entityId in Query(componentTypes))
+            {
+                IComponent[] queryResultComponents = new IComponent[componentTypes.Length];
+                for (int i = 0; i < componentTypes.Length; i++)
+                    queryResultComponents[i] = components[componentTypes[i]][entityId];
+
+                yield return (entityId, queryResultComponents);
+            }
+        }
+
+        private Dictionary<uint, IComponent> GetComponentStore(Type t)
+        {
+            return components.GetValueOrDefault(t, []);
+        }
+
+        private Dictionary<uint, IComponent> GetComponentStore<T>() where T : IComponent
+        {
+            Type type = typeof(T);
+            return components.GetValueOrDefault(type, []);
         }
 
         #endregion

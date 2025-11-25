@@ -1,20 +1,33 @@
-﻿namespace DivisionEngine.Systems
+﻿using DivisionEngine.Components;
+using DivisionEngine.Math;
+
+namespace DivisionEngine.Systems
 {
     public class CameraSystem() : SystemBase
     {
-        public override void Awake()
-        {
-            Debug.Info("Hello from camera awake!");
-        }
-
         public override void Update()
         {
-            Debug.Info("Hello from camera update!");
+            foreach (var item in WorldManager.CurrentWorld?.Query<Camera>())
+            {
+
+            }
         }
 
-        public override void Render()
+        private void UpdateCameraMatrices(Transform transform, Camera camera)
         {
-            Debug.Info("Hello from camera render!");
+
+        }
+
+        private float4x4 CalcCameraViewMatrix()
+        {
+            return Matrix.Identity4x4;
+            // Finish this
+        }
+
+        private float4x4 CalcCameraProjectionMatrix()
+        {
+            return Matrix.Identity4x4;
+            // Finish this
         }
     }
 }
