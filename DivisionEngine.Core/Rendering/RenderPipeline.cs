@@ -30,6 +30,10 @@ namespace DivisionEngine.Rendering
         public float Time;
         public World? boundWorld;
 
+        /// <summary>
+        /// Binds the WorldManager.CurrentWorld to this render pipeline.
+        /// </summary>
+        /// <returns>If the world was successfully bound</returns>
         public bool BindCurrentWorld()
         {
             if (WorldManager.CurrentWorld != null)
@@ -37,7 +41,6 @@ namespace DivisionEngine.Rendering
                 boundWorld = WorldManager.CurrentWorld;
                 return true;
             }
-
             return false;
         }
 
@@ -107,6 +110,8 @@ namespace DivisionEngine.Rendering
         [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
         private void OnRender(double delta)
         {
+            boundWorld?.CallRender(); // Calls the render loop on the bound world
+
             // Variable setup (variables modified outside of renderer must be locked)
             int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
 

@@ -26,7 +26,7 @@ public class GameStartup
         LoadProjectOrDefaultWorld(string.Empty);
 
         Renderer = new RenderPipeline();
-        Renderer.BindCurrentWorld();
+        Renderer.BindCurrentWorld(); // Bind loaded project
         Renderer.Run(false);
     }
 

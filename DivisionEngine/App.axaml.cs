@@ -1,12 +1,11 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using DivisionEngine.Editor.ViewModels;
-using DivisionEngine.Rendering;
 using DivisionEngine.Input;
+using DivisionEngine.Rendering;
 using Silk.NET.Input;
 using System;
 using System.Linq;
@@ -21,6 +20,8 @@ namespace DivisionEngine.Editor
         /// </summary>
         public static RenderPipeline? Renderer { get; private set; }
         public static InputSystem? UserInput { get; private set; }
+
+        public const long EngineCoreFrameTime = 16; // Around 60 fps
 
         public override void Initialize()
         {
@@ -39,12 +40,21 @@ namespace DivisionEngine.Editor
                     DataContext = new MainWindowViewModel(),
                 };
 
+                // Create default world for editor
+                WorldManager.CreateDefaultWorld(true);
+
+                // Start the editor engine loop
+                StartEditorEngineLoop();
+
                 // Start the SDFRenderer in a separate thread
                 Renderer = new RenderPipeline();
+                Renderer.BindCurrentWorld(); // Binds default world
                 Task.Run(() => Renderer.Run(true));
 
+                // Handle renderer close behavior
                 Renderer.Close += () =>
                 {
+                    // Shutdown UI Thread
                     Dispatcher.UIThread.Post(() =>
                     {
                         desktop.Shutdown();
@@ -64,6 +74,27 @@ namespace DivisionEngine.Editor
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        /// <summary>
+        /// Runs the ECS main loop in the editor, referencing the EngineCore.
+        /// </summary>
+        private void StartEditorEngineLoop()
+        {
+            EngineCore.Start(); // Start engine
+
+            // Create Avalonia editor-integrated engine loop
+            DispatcherTimer engineTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(EngineCoreFrameTime)
+            };
+            engineTimer.Tick += EngineTimer_Tick;
+            engineTimer.Start();
+        }
+
+        private void EngineTimer_Tick(object? sender, EventArgs e)
+        {
+            EngineCore.RunFrame();
         }
 
         /// <summary>
