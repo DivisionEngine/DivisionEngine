@@ -2,9 +2,19 @@
 {
     public class CameraSystem() : SystemBase
     {
+        public override void Awake()
+        {
+            Debug.Info("Hello from camera awake!");
+        }
+
         public override void Update()
         {
-            throw new NotImplementedException();
+            Debug.Info("Hello from camera update!");
+        }
+
+        public override void Render()
+        {
+            Debug.Info("Hello from camera render!");
         }
     }
 }
