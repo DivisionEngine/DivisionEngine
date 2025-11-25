@@ -12,7 +12,6 @@ namespace DivisionEngine.Components
             fov = 70f,
             nearClip = 0.1f,
             farClip = 10000f,
-            aspectRatio = 16f / 9f,
 
             viewMatrix = Matrix.Identity4x4,
             projectionMatrix = Matrix.Identity4x4,
@@ -23,7 +22,6 @@ namespace DivisionEngine.Components
         public float fov;
         public float nearClip;
         public float farClip;
-        public float aspectRatio;
 
         public float4x4 viewMatrix;
         public float4x4 projectionMatrix;

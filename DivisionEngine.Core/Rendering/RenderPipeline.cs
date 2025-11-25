@@ -3,6 +3,7 @@ using DivisionEngine.Input;
 using DivisionEngine.Systems;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using Window = Silk.NET.Windowing.Window;
 
@@ -115,6 +116,11 @@ namespace DivisionEngine.Rendering
 
             // Variable setup (variables modified outside of renderer must be locked)
             int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
+
+            lock (SyncLock)
+            {
+                CameraSystem.UpdateCamerasAspectRatio((float)texHeight / (float)texWidth);
+            }
 
             // Gather SDF world information
             SDFWorldDTO worldDTO;

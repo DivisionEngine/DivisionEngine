@@ -26,7 +26,7 @@ namespace DivisionEngine
             uint cameraEntity = newDefaultWorld.CreateEntity();
             newDefaultWorld.AddComponent(cameraEntity, new Transform
             {
-                position = new float3(0, 2, -5)
+                position = new float3(0, 0, 5)
             });
             newDefaultWorld.AddComponent(cameraEntity, Camera.Default);
 
