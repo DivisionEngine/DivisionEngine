@@ -1,5 +1,6 @@
 ﻿using ComputeSharp;
 using DivisionEngine.Input;
+using DivisionEngine.Systems;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 using System.Diagnostics.CodeAnalysis;
@@ -115,35 +116,32 @@ namespace DivisionEngine.Rendering
             // Variable setup (variables modified outside of renderer must be locked)
             int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
 
-            float time;
+            // Gather SDF world information
+            SDFWorldDTO worldDTO;
+            SDFPrimitiveObjectDTO[] sdfPrimitivesDTO;
             lock (SyncLock)
             {
-                time = Time;
+                worldDTO = SDFRenderSystem.PreparedWorldDTO;
+                sdfPrimitivesDTO = SDFRenderSystem.PreparedPrimitivesDTO;
             }
 
-            if (InputSystem.IsPressed(KeyCode.J))
-            {
-                time = 0.5f;
-            }
-            else if (InputSystem.IsPressed(KeyCode.K))
-            {
-                time = 0.2f;
-            }
-
+            // Build compute render texture
             if (texWidth < 1 || texHeight < 1) return; // Ensure valid texture dimensions
-            ReadWriteTexture2D<float4> renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+            using ReadWriteTexture2D<float4> renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+
+            // Build SDF world data buffers
+            using ReadOnlyBuffer<SDFWorldDTO> worldDTOBuffer = device!.AllocateReadOnlyBuffer([worldDTO]);
+            using ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitivesDTOBuffer = device!.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
 
             // Dispatch SDF compute shader
-            float4x4 camToWorld = new float4x4(); // Replace with actual camera to world matrix
-            float4x4 camInverseProj = new float4x4(); // Replace with actual camera inverse projection matrix
-
-            SDFShader shader = new SDFShader(renderTex, time, texWidth, texHeight, camToWorld, camInverseProj);
+            SDFShader shader = new SDFShader(renderTex, texWidth, texHeight, worldDTOBuffer, sdfPrimitivesDTOBuffer);
             device!.For(texWidth, texHeight, shader);
 
             float4[] pixels = new float4[texWidth * texHeight];
             renderTex.CopyTo(pixels);
-            renderTex.Dispose(); // Dispose of the texture after use
+            //renderTex.Dispose(); // No longer need dispose because of "using" included in front of renderTex declaration
 
+            // Push compute texture to openGL rendered quad (via Silk.Net)
             unsafe
             {
                 fixed (float4* dataPtr = pixels)

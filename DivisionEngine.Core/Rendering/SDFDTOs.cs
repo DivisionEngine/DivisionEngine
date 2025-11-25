@@ -8,6 +8,7 @@ namespace DivisionEngine.Rendering
     [StructLayout(LayoutKind.Sequential)] // Test if this is needed later
     public struct SDFWorldDTO
     {
+        public float3 cameraOrigin; // 12b
         public float4x4 cameraToWorld; // 64b
         public float4x4 cameraInverseProj; // 64b
     }

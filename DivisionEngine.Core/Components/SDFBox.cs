@@ -1,6 +1,6 @@
 ﻿namespace DivisionEngine.Components
 {
-    public struct SDFBox : IComponent
+    public class SDFBox : IComponent
     {
         public float4 color;
         public float3 size;

@@ -1,6 +1,6 @@
 ﻿namespace DivisionEngine.Components
 {
-    public struct DirectionalLight : IComponent
+    public class DirectionalLight : IComponent
     {
         public float4 color;
         public float3 direction;

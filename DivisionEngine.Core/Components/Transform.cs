@@ -5,7 +5,7 @@ namespace DivisionEngine.Components
     /// <summary>
     /// Component for translation, rotation, and scaling.
     /// </summary>
-    public struct Transform : IComponent
+    public class Transform : IComponent
     {
         /// <summary>
         /// Sets the position to (0, 0, 0), rotation to identity quaternion, and scaling to (1, 1, 1).

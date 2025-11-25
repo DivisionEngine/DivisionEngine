@@ -3,7 +3,7 @@
     /// <summary>
     /// Represents a SDF sphere.
     /// </summary>
-    public struct SDFSphere : IComponent
+    public class SDFSphere : IComponent
     {
         /// <summary>
         /// White sphere with a radius of 1.0.

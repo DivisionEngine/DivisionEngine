@@ -5,7 +5,7 @@ namespace DivisionEngine.Components
     /// <summary>
     /// Camera component
     /// </summary>
-    public struct Camera : IComponent
+    public class Camera : IComponent
     {
         public static Camera Default => new Camera
         {

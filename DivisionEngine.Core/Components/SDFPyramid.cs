@@ -1,6 +1,6 @@
 ﻿namespace DivisionEngine.Components
 {
-    public struct SDFPyramid : IComponent
+    public class SDFPyramid : IComponent
     {
         public float4 color;
         public float height;
