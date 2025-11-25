@@ -12,6 +12,11 @@ public class GameStartup
     public static RenderPipeline? Renderer { get; private set; }
     public static InputSystem? UserInput { get; private set; }
 
+    public const int EngineFrameTimeMS = 16; // Around 60 fps
+
+    private static Task? engineCoreTask;
+    private static CancellationTokenSource? engineCancellationTokenSource;
+
     /// <summary>
     /// The main entry point for the game.
     /// </summary>
@@ -25,9 +30,40 @@ public class GameStartup
         // Replace with project path from startup args eventually.
         LoadProjectOrDefaultWorld(string.Empty);
 
+        // Run engine loop
+        engineCancellationTokenSource = new CancellationTokenSource();
+        engineCoreTask = Task.Run(() => RunEngineLoop(EngineFrameTimeMS, engineCancellationTokenSource.Token));
+
+        // Run render pipeline
         Renderer = new RenderPipeline();
         Renderer.BindCurrentWorld(); // Bind loaded project
         Renderer.Run(false);
+
+        // Cancel and stop engine loop
+        engineCancellationTokenSource.Cancel();
+        engineCoreTask?.Wait(1000);
+        engineCancellationTokenSource.Dispose();
+    }
+
+    /// <summary>
+    /// Runs the main engine core loop.
+    /// </summary>
+    /// <param name="frameTime">Frame time the main loop runs at (usually 16ms for 60fps)</param>
+    /// <param name="cancellationToken">Engine loop thread cancellation token</param>
+    private static void RunEngineLoop(int frameTime, CancellationToken cancellationToken)
+    {
+        EngineCore.Start();
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                EngineCore.RunFrame();
+                Thread.Sleep(frameTime);
+            }
+        }
+        catch (OperationCanceledException)
+        { }
+        finally { EngineCore.Stop(); }
     }
 
     /// <summary>
