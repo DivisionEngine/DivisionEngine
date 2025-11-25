@@ -113,7 +113,7 @@
     };
 
     /// <summary>
-    /// Handles input events and maintains input state.
+    /// Handles input events and maintains input state in a thread-safe environment.
     /// </summary>
     public class InputSystem
     {
@@ -126,6 +126,18 @@
         private readonly HashSet<MouseCode> pressedMouseKeys;
         private readonly object syncLock;
 
+        private float2 mousePos, mouseDelta;
+
+        /// <summary>
+        /// Retrieve the mouse position on screen.
+        /// </summary>
+        public static float2 MousePosition { get { lock(Instance!.syncLock) return Instance.mousePos; } }
+        
+        /// <summary>
+        /// Retrieve the mouse delta between last mouse position record.
+        /// </summary>
+        public static float2 MouseDelta { get { lock (Instance!.syncLock) return Instance.mouseDelta; } }
+
         /// <summary>
         /// Initializes a new input system singleton.
         /// </summary>
@@ -135,7 +147,16 @@
             syncLock = new object();
             pressedKeys = [];
             pressedMouseKeys = [];
+
+            mousePos = float2.Zero;
+            mouseDelta = float2.Zero;
             Instance = this;
+        }
+
+        public void OnFixedUpdate()
+        {
+            Debug.Info($"Update from input system instance (V pressed): {IsPressed(KeyCode.V)}");
+            if (mouseDelta.X != 0 || mouseDelta.Y != 0) mouseDelta = float2.Zero;
         }
 
         public void SetKeyDown(KeyCode key)
@@ -158,6 +179,15 @@
             lock (syncLock) pressedMouseKeys.Remove(mouseKey);
         }
 
+        public void SetMousePosition(float2 newMousePos)
+        {
+            lock (syncLock)
+            {
+                mouseDelta = newMousePos - mousePos;
+                mousePos = newMousePos;
+            }
+        }
+
         /// <summary>
         /// Checks if a key is currently pressed on the default keyboard.
         /// </summary>
@@ -168,6 +198,11 @@
             lock (Instance!.syncLock) return Instance.pressedKeys.Contains(key);
         }
 
+        /// <summary>
+        /// Checks if a mouse button is currently pressed on the default mouse.
+        /// </summary>
+        /// <param name="key">Mouse button to check</param>
+        /// <returns>Whether the mouse button is pressed or not</returns>
         public static bool IsMousePressed(MouseCode key)
         {
             lock (Instance!.syncLock) return Instance.pressedMouseKeys.Contains(key);

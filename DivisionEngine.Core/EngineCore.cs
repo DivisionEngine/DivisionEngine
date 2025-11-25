@@ -58,7 +58,7 @@
             if (!IsRunning || IsPaused) return false;
 
             WorldManager.CurrentWorld?.CallUpdate();
-            WorldManager.CurrentWorld?.CallFixedUpdate();
+            WorldManager.CurrentWorld?.CallFixedUpdate(); // Fixed update loop runs after update loop
             return true;
         }
     }
