@@ -29,8 +29,8 @@ namespace DivisionEngine.Systems
 
         private float4x4 CalcCameraViewMatrix(Transform transform)
         {
-            return Matrix.Identity4x4;
-            // Finish this
+            // calc cam forward direction
+            float3 zaxis = Vector.Normalize()
         }
 
         private float4x4 CalcCameraProjectionMatrix()

@@ -134,6 +134,26 @@ namespace DivisionEngine.Math
             );
         }
 
+        internal static System.Numerics.Quaternion Float4ToQuaternion(this float4 quaternion)
+        {
+            return new System.Numerics.Quaternion(quaternion.X, quaternion.Y, quaternion.Z, quaternion.W);
+        }
+
+        internal static float4 QuaternionToFloat4(this System.Numerics.Quaternion quaternion)
+        {
+            return new float4(quaternion.X, quaternion.Y, quaternion.Z, quaternion.W);
+        }
+
+        internal static Vector3 Float3ToVector3(this float3 vector)
+        {
+            return new System.Numerics.Vector3(vector.X, vector.Y, vector.Z);
+        }
+
+        internal static float3 Vector3ToFloat3(this Vector3 vector)
+        {
+            return new float3(vector.X, vector.Y, vector.Z);
+        }
+
         /// <summary>
         /// Computes the inverse of the specified 2x2 matrix.
         /// </summary>
@@ -211,6 +231,16 @@ namespace DivisionEngine.Math
                 matrix.M13, matrix.M23, matrix.M33, matrix.M43,
                 matrix.M14, matrix.M24, matrix.M34, matrix.M44
             );
+        }
+
+        public static float4x4 CreateMatrix4x4FromQuaternion(this float4 quaternion)
+        {
+            return Matrix4x4.CreateFromQuaternion(quaternion.Float4ToQuaternion()).Matrix4x4ToFloat4x4();
+        }
+
+        public static float4x4 CreateMatrix4x4FromTranslation(this float3 translation)
+        {
+            return Matrix4x4.CreateTranslation(translation.Float3ToVector3()).Matrix4x4ToFloat4x4();
         }
 
         // Test this method before using it in production!
