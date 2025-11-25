@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace DivisionEngine.Math
+namespace DivisionEngine.MathLib
 {
     /// <summary>
     /// Handles common matrix operations and provides predefined matrices.
@@ -233,11 +233,66 @@ namespace DivisionEngine.Math
             );
         }
 
+        public static float4 Row0(this float4x4 m) => new float4(m.M11, m.M12, m.M13, m.M14);
+        public static float4 Row1(this float4x4 m) => new float4(m.M21, m.M22, m.M23, m.M24);
+        public static float4 Row2(this float4x4 m) => new float4(m.M31, m.M32, m.M33, m.M34);
+        public static float4 Row3(this float4x4 m) => new float4(m.M41, m.M42, m.M43, m.M44);
+
+        public static float4 Column0(this float4x4 m) => new float4(m.M11, m.M21, m.M31, m.M41);
+        public static float4 Column1(this float4x4 m) => new float4(m.M12, m.M22, m.M32, m.M42);
+        public static float4 Column2(this float4x4 m) => new float4(m.M13, m.M23, m.M33, m.M43);
+        public static float4 Column3(this float4x4 m) => new float4(m.M14, m.M24, m.M34, m.M44);
+
+        /// <summary>
+        /// Multiplies two 4x4 matrices.
+        /// </summary>
+        /// <param name="left">Left matrix to multiply</param>
+        /// <param name="right">Right matrix to multiply</param>
+        /// <returns>Multiplied matrices</returns>
+        public static float4x4 Multiply(float4x4 left, float4x4 right)
+        {
+            return new float4x4(
+                // Row 0
+                left.Row0().Dot(right.Column0()),
+                left.Row0().Dot(right.Column1()),
+                left.Row0().Dot(right.Column2()),
+                left.Row0().Dot(right.Column3()),
+
+                // Row 1
+                left.Row1().Dot(right.Column0()),
+                left.Row1().Dot(right.Column1()),
+                left.Row1().Dot(right.Column2()),
+                left.Row1().Dot(right.Column3()),
+
+                // Row 2
+                left.Row2().Dot(right.Column0()),
+                left.Row2().Dot(right.Column1()),
+                left.Row2().Dot(right.Column2()),
+                left.Row2().Dot(right.Column3()),
+
+                // Row 3
+                left.Row3().Dot(right.Column0()),
+                left.Row3().Dot(right.Column1()),
+                left.Row3().Dot(right.Column2()),
+                left.Row3().Dot(right.Column3())
+            );
+        }
+
+        /// <summary>
+        /// Creates a 4x4 matrix from a rotation.
+        /// </summary>
+        /// <param name="quaternion">Quaternion rotation</param>
+        /// <returns>Rotation matrix</returns>
         public static float4x4 CreateMatrix4x4FromQuaternion(this float4 quaternion)
         {
             return Matrix4x4.CreateFromQuaternion(quaternion.Float4ToQuaternion()).Matrix4x4ToFloat4x4();
         }
 
+        /// <summary>
+        /// Creates a 4x4 matrix from a translation.
+        /// </summary>
+        /// <param name="translation">Vector translation</param>
+        /// <returns>Translation matrix</returns>
         public static float4x4 CreateMatrix4x4FromTranslation(this float3 translation)
         {
             return Matrix4x4.CreateTranslation(translation.Float3ToVector3()).Matrix4x4ToFloat4x4();

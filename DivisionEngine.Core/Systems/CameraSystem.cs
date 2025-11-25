@@ -1,5 +1,6 @@
 ﻿using DivisionEngine.Components;
-using DivisionEngine.Math;
+using DivisionEngine.MathLib;
+using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {
@@ -21,7 +22,8 @@ namespace DivisionEngine.Systems
         private void UpdateCameraMatrices(Transform transform, Camera camera)
         {
             camera.viewMatrix = CalcCameraViewMatrix(transform);
-            camera.projectionMatrix = CalcCameraProjectionMatrix();
+            camera.projectionMatrix = CalcCameraProjectionMatrix(camera);
+            Debug.Info("Update camera matrices: " + camera.projectionMatrix.Float4x4ToMatrix4x4().ToString());
 
             camera.inverseViewMatrix = Matrix.Inverse(camera.viewMatrix);
             camera.inverseProjectionMatrix = Matrix.Inverse(camera.projectionMatrix);
@@ -29,26 +31,32 @@ namespace DivisionEngine.Systems
 
         private float4x4 CalcCameraViewMatrix(Transform transform)
         {
-            // calc cam forward direction
-            float3 zaxis = Vector.Normalize()
+            return Matrix.Inverse(
+                Matrix.Multiply(
+                    Matrix.CreateMatrix4x4FromQuaternion(transform.rotation),
+                    Matrix.CreateMatrix4x4FromTranslation(transform.position)));
         }
 
-        private float4x4 CalcCameraProjectionMatrix()
+        private float4x4 CalcCameraProjectionMatrix(Camera cam)
         {
-            return Matrix.Identity4x4;
-            // Finish this
+            float fovRad = Math.Deg2Rad * cam.fov;
+            float tanHalfFov = Math.Tan(fovRad / 2f);
+
+            float m11 = 1f / (cam.aspectRatio * tanHalfFov);
+            float m22 = 1f / tanHalfFov;
+            float m33 = cam.farClip / (cam.nearClip - cam.farClip);
+            float m43 = (cam.farClip * cam.nearClip) / (cam.nearClip - cam.farClip);
+
+            return new float4x4(
+                m11, 0, 0, 0,
+                0, m22, 0, 0,
+                0, 0, m33, -1,
+                0, 0, m43, 0);
         }
 
-        private float4x4 CreateLookAtMatrix()
+        public static float FovToScreenDistance(float fov, float height)
         {
-            return Matrix.Identity4x4;
-            // Finish this
-        }
-
-        private float4x4 CreatePerspectiveFOVMatrix()
-        {
-            return Matrix.Identity4x4;
-            // Finish this
+            return height / 2 / MathF.Tan(fov * MathF.PI / 360);
         }
     }
 }

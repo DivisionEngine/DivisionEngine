@@ -1,4 +1,4 @@
-﻿using DivisionEngine.Math;
+﻿using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Components
 {

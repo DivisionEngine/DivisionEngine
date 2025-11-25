@@ -1,4 +1,4 @@
-﻿namespace DivisionEngine.Math
+﻿namespace DivisionEngine.MathLib
 {
     /// <summary>
     /// Represents a pseduo random number generator that holds state.

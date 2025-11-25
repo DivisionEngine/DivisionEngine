@@ -1,4 +1,4 @@
-﻿namespace DivisionEngine.Math
+﻿namespace DivisionEngine.MathLib
 {
     /// <summary>
     /// Extension methods for quaternion vector operations on float4 objects.

@@ -1,4 +1,4 @@
-﻿namespace DivisionEngine.Math
+﻿namespace DivisionEngine.MathLib
 {
     /// <summary>
     /// Extension methods for float3 vector operations.

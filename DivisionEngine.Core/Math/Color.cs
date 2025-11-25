@@ -1,4 +1,4 @@
-﻿namespace DivisionEngine.Math
+﻿namespace DivisionEngine.MathLib
 {
     // This class was generated with the help of ChatGPT, specifically copilot auto-complete.
     // The class has not been tested and therefore cannot be used in production yet.

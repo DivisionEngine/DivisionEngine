@@ -1,4 +1,4 @@
-﻿namespace DivisionEngine.Math
+﻿namespace DivisionEngine.MathLib
 {
     /// <summary>
     /// Mathematical utilities for Division Engine.
