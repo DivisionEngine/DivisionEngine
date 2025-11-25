@@ -40,6 +40,9 @@
         private static readonly Debug instance = new Debug();
         private readonly List<LogEntry> debugLog = [];
 
+        /// <summary>
+        /// Callback involked when a new log entry is added.
+        /// </summary>
         public static event Action<LogEntry>? OnLogUpdate;
         public static IReadOnlyList<LogEntry> Logs => instance.debugLog;
 
@@ -84,7 +87,12 @@
                 LogLevel.Error => "[ERROR]",
                 _ => "[LOG]"
             };
-            
+
+#if DEBUG   // Only execute this if in debug mode and debugger is attached
+            if (System.Diagnostics.Debugger.IsAttached)
+                System.Diagnostics.Debug.WriteLine(message, prefix);
+#endif
+
             LogEntry entry = new LogEntry(message, level);
             Console.WriteLine(entry.ToString());
             instance.debugLog.Add(entry);
