@@ -1,4 +1,5 @@
-﻿namespace DivisionEngine.Input
+﻿
+namespace DivisionEngine.Input
 {
     /// <summary>
     /// Represents a key code in the input system.
@@ -124,7 +125,7 @@
 
         private readonly HashSet<KeyCode> pressedKeys;
         private readonly HashSet<MouseCode> pressedMouseKeys;
-        private readonly object syncLock;
+        private readonly Lock syncLock;
 
         private float2 mousePos, mouseDelta;
 
@@ -144,7 +145,7 @@
         /// <remarks>(this should only be called once)</remarks>
         public InputSystem()
         {
-            syncLock = new object();
+            syncLock = new Lock();
             pressedKeys = [];
             pressedMouseKeys = [];
 
@@ -153,9 +154,12 @@
             Instance = this;
         }
 
+        /// <summary>
+        /// Update this on the fixed update loop from the current world.
+        /// </summary>
         public void OnFixedUpdate()
         {
-            Debug.Info($"Update from input system instance (V pressed): {IsPressed(KeyCode.V)}");
+            //Debug.Info($"Update from input system instance (V pressed): {IsPressed(KeyCode.V)}");
             if (mouseDelta.X != 0 || mouseDelta.Y != 0) mouseDelta = float2.Zero;
         }
 

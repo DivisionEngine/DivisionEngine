@@ -14,7 +14,7 @@ namespace DivisionEngine.Rendering
     public class RenderPipeline
     {
         // Special variables
-        public readonly object SyncLock = new object(); // Synchronization lock for thread safety
+        public readonly Lock SyncLock = new Lock(); // Synchronization lock for thread safety
 
         // OpenGL variables
         private GL? gl;
