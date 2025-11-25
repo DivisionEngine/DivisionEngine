@@ -26,9 +26,9 @@ Picture this:
 Follow the development: https://trello.com/b/mWtyHBMf/division-engine
 
 Tutorials by Inigo Quilez (Not sponsored, just useful for learning constructive geometry):
-- Build mathematical worlds: https://www.youtube.com/watch?v=0ifChJ0nJfM&list=PL0EpikNmjs2CYUMePMGh3IjjP4tQlYqji
-- Build a 3D landscape: https://www.youtube.com/watch?v=BFld4EBO2RE&t=1190s
-- Paint a 3D character with math: https://www.youtube.com/watch?v=8--5LwHRhjk&t=1357s
+- Build mathematical worlds: https://youtu.be/0ifChJ0nJfM?si=ypKU1rz-8JloPlj2
+- Build a 3D landscape: https://youtu.be/BFld4EBO2RE?si=EASXvq-ez2qBOIHN
+- Paint a 3D character with math: https://youtu.be/8--5LwHRhjk?si=fH9QwvCz6dLptHE1
 
 ## Framework
 
