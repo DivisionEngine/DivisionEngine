@@ -41,4 +41,8 @@
   <ItemGroup>
     <ProjectReference Include="..\DivisionEngine.Core\DivisionEngine.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Converters\" />
+  </ItemGroup>
 </Project>
