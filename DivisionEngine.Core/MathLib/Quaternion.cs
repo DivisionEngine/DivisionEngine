@@ -124,8 +124,8 @@
             float s = quaternion.W;
 
             // Function form of: v' = v + 2.0 * cross(u, cross(u, v) + s * v)
-            float3 crossA = qVec.Cross(vector).Add(new float3(s, s, s).Multiply(vector));
-            float3 crossB = qVec.Cross(crossA).Multiply(new float3(2f, 2f, 2f));
+            float3 crossA = qVec.Cross(vector).Add(vector.Multiply(s));
+            float3 crossB = qVec.Cross(crossA).Multiply(2f);
             return vector.Add(crossB);
         }
     }

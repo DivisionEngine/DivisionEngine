@@ -18,23 +18,32 @@ namespace DivisionEngine.Systems
             HandleMouseLook(transform, player);
         }
 
-        private void HandleKeyboardMovement(Transform transform, Player player)
+        private static void HandleKeyboardMovement(Transform transform, Player player)
         {
             float deltaTime = TimeSystem.DeltaTimeF;
             float speed = player.movementSpeed * deltaTime;
 
-            float3 position = transform.position;
-            float3 forward = transform.Forward;
-            float3 right = transform.Right;
+            if (InputSystem.IsPressed(KeyCode.ShiftLeft)) speed *= player.sprintMultiplier;
 
-            forward = new float3(forward.X, 0, forward.Z).Normalize();
-            right = new float3(right.X, 0, right.Z).Normalize();
+            float3 position = transform.position;
+            float3 forward = transform.Forward.Normalize();
+            float3 right = transform.Right.Normalize();
+            float3 up = transform.Up.Normalize();
 
             float3 movement = new float3(0f, 0f, 0f);
-            if (InputSystem.IsPressed(KeyCode.W)) movement = movement.Add(forward.Multiply());
+            if (InputSystem.IsPressed(KeyCode.W)) movement = movement.Add(forward.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.A)) movement = movement.Subtract(right.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.S)) movement = movement.Subtract(forward.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.D)) movement = movement.Add(right.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.Q)) movement = movement.Subtract(up.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.E)) movement = movement.Add(up.Multiply(speed));
+
+            position = position.Add(movement);
+            transform.position = position;
         }
 
-        private void HandleMouseLook(Transform transform, Player player)
+        // This needs to be reworked and fixed, turning to black screen when rotated
+        private static void HandleMouseLook(Transform transform, Player player)
         {
             if (InputSystem.IsMousePressed(MouseCode.Right))
             {
