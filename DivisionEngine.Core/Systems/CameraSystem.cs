@@ -8,18 +8,11 @@ namespace DivisionEngine.Systems
     {
         public override void Update()
         {
-            if (WorldManager.CurrentWorld == null) return;
-            World w = WorldManager.CurrentWorld;
-
-            foreach (var (entity, components) in w.QueryData(typeof(Transform), typeof(Camera)))
-            {
-                Transform transform = (Transform)components[0];
-                Camera cam = (Camera)components[1];
-                UpdateCameraMatrices(transform, cam);
-            }
+            foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
+                UpdateCameraMatrices(transform, camera);
         }
 
-        private void UpdateCameraMatrices(Transform transform, Camera camera)
+        private static void UpdateCameraMatrices(Transform transform, Camera camera)
         {
             camera.viewMatrix = CalcCameraViewMatrix(transform);
             camera.projectionMatrix = CalcCameraProjectionMatrix(camera);

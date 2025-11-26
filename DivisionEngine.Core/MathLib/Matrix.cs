@@ -73,63 +73,53 @@ namespace DivisionEngine.MathLib
         /// </summary>
         /// <param name="matrix">Matrix to calculate the determinant of</param>
         /// <returns>Determinant of <param name="matrix"></returns>
-        public static float Determinant(this float3x3 matrix)
-        {
-            return matrix.M11 * (matrix.M22 * matrix.M33 - matrix.M23 * matrix.M32) -
-                   matrix.M12 * (matrix.M21 * matrix.M33 - matrix.M23 * matrix.M31) +
-                   matrix.M13 * (matrix.M21 * matrix.M32 - matrix.M22 * matrix.M31);
-        }
+        public static float Determinant(this float3x3 matrix) =>
+            matrix.M11 * (matrix.M22 * matrix.M33 - matrix.M23 * matrix.M32) -
+            matrix.M12 * (matrix.M21 * matrix.M33 - matrix.M23 * matrix.M31) +
+            matrix.M13 * (matrix.M21 * matrix.M32 - matrix.M22 * matrix.M31);
 
         /// <summary>
         /// Calculates the determinant of a 4x4 matrix.
         /// </summary>
         /// <param name="matrix">Matrix to calculate the determinant of</param>
         /// <returns>Determinant of <param name="matrix"></returns>
-        public static float Determinant(this float4x4 matrix)
-        {
-            return matrix.M11 * (matrix.M22 * (matrix.M33 * matrix.M44 - matrix.M34 * matrix.M43) -
-                                 matrix.M23 * (matrix.M32 * matrix.M44 - matrix.M34 * matrix.M42) +
-                                 matrix.M24 * (matrix.M32 * matrix.M43 - matrix.M33 * matrix.M42)) -
-                   matrix.M12 * (matrix.M21 * (matrix.M33 * matrix.M44 - matrix.M34 * matrix.M43) -
-                                 matrix.M23 * (matrix.M31 * matrix.M44 - matrix.M34 * matrix.M41) +
-                                 matrix.M24 * (matrix.M31 * matrix.M43 - matrix.M33 * matrix.M41)) +
-                   matrix.M13 * (matrix.M21 * (matrix.M32 * matrix.M44 - matrix.M34 * matrix.M42) -
-                                 matrix.M22 * (matrix.M31 * matrix.M44 - matrix.M34 * matrix.M41) +
-                                 matrix.M24 * (matrix.M31 * matrix.M42 - matrix.M32 * matrix.M41)) -
-                   matrix.M14 * (matrix.M21 * (matrix.M32 * matrix.M43 - matrix.M33 * matrix.M42) -
-                                 matrix.M22 * (matrix.M31 * matrix.M43 - matrix.M33 * matrix.M41) +
-                                 matrix.M23 * (matrix.M31 * matrix.M42 - matrix.M32 * matrix.M41));
-        }
+        public static float Determinant(this float4x4 matrix) =>
+            matrix.M11 * (matrix.M22 * (matrix.M33 * matrix.M44 - matrix.M34 * matrix.M43) -
+                    matrix.M23 * (matrix.M32 * matrix.M44 - matrix.M34 * matrix.M42) +
+                    matrix.M24 * (matrix.M32 * matrix.M43 - matrix.M33 * matrix.M42)) -
+            matrix.M12 * (matrix.M21 * (matrix.M33 * matrix.M44 - matrix.M34 * matrix.M43) -
+                    matrix.M23 * (matrix.M31 * matrix.M44 - matrix.M34 * matrix.M41) +
+                    matrix.M24 * (matrix.M31 * matrix.M43 - matrix.M33 * matrix.M41)) +
+            matrix.M13 * (matrix.M21 * (matrix.M32 * matrix.M44 - matrix.M34 * matrix.M42) -
+                    matrix.M22 * (matrix.M31 * matrix.M44 - matrix.M34 * matrix.M41) +
+                    matrix.M24 * (matrix.M31 * matrix.M42 - matrix.M32 * matrix.M41)) -
+            matrix.M14 * (matrix.M21 * (matrix.M32 * matrix.M43 - matrix.M33 * matrix.M42) -
+                    matrix.M22 * (matrix.M31 * matrix.M43 - matrix.M33 * matrix.M41) +
+                    matrix.M23 * (matrix.M31 * matrix.M42 - matrix.M32 * matrix.M41));
 
         /// <summary>
         /// Converts a float4x4 matrix to a System.Numerics.Matrix4x4.
         /// </summary>
         /// <param name="matrix">Matrix to convert</param>
         /// <returns>Converted matrix</returns>
-        public static Matrix4x4 Float4x4ToMatrix4x4(this float4x4 matrix)
-        {
-            return new Matrix4x4(
-                matrix.M11, matrix.M12, matrix.M13, matrix.M14,
-                matrix.M21, matrix.M22, matrix.M23, matrix.M24,
-                matrix.M31, matrix.M32, matrix.M33, matrix.M34,
-                matrix.M41, matrix.M42, matrix.M43, matrix.M44
-            );
-        }
+        public static Matrix4x4 ToMatrix4x4(this float4x4 matrix) => new Matrix4x4(
+            matrix.M11, matrix.M12, matrix.M13, matrix.M14,
+            matrix.M21, matrix.M22, matrix.M23, matrix.M24,
+            matrix.M31, matrix.M32, matrix.M33, matrix.M34,
+            matrix.M41, matrix.M42, matrix.M43, matrix.M44
+        );
 
         /// <summary>
         /// Converts a System.Numerics.Matrix4x4 to a float4x4.
         /// </summary>
         /// <param name="matrix">Matrix to convert</param>
         /// <returns>Converted matrix</returns>
-        public static float4x4 Matrix4x4ToFloat4x4(this Matrix4x4 matrix)
-        {
-            return new float4x4(
-                matrix.M11, matrix.M12, matrix.M13, matrix.M14,
-                matrix.M21, matrix.M22, matrix.M23, matrix.M24,
-                matrix.M31, matrix.M32, matrix.M33, matrix.M34,
-                matrix.M41, matrix.M42, matrix.M43, matrix.M44
-            );
-        }
+        public static float4x4 ToFloat4x4(this Matrix4x4 matrix) => new float4x4(
+            matrix.M11, matrix.M12, matrix.M13, matrix.M14,
+            matrix.M21, matrix.M22, matrix.M23, matrix.M24,
+            matrix.M31, matrix.M32, matrix.M33, matrix.M34,
+            matrix.M41, matrix.M42, matrix.M43, matrix.M44
+        );
 
         /// <summary>
         /// Computes the inverse of the specified 2x2 matrix.
@@ -163,8 +153,8 @@ namespace DivisionEngine.MathLib
         /// (non-invertible), the returned matrix will be the identity matrix.</returns>
         public static float4x4 Inverse(this float4x4 matrix)
         {
-            if (Matrix4x4.Invert(matrix.Float4x4ToMatrix4x4(), out Matrix4x4 m))
-                return m.Matrix4x4ToFloat4x4();
+            if (Matrix4x4.Invert(matrix.ToMatrix4x4(), out Matrix4x4 m))
+                return m.ToFloat4x4();
             return Identity4x4;
         }
 
@@ -252,7 +242,7 @@ namespace DivisionEngine.MathLib
         /// <param name="quaternion">Quaternion rotation</param>
         /// <returns>Rotation matrix</returns>
         public static float4x4 CreateMatrix4x4FromQuaternion(this float4 quaternion) =>
-            Matrix4x4.CreateFromQuaternion(quaternion.Float4ToQuaternion()).Matrix4x4ToFloat4x4();
+            Matrix4x4.CreateFromQuaternion(quaternion.ToQuaternion()).ToFloat4x4();
 
         /// <summary>
         /// Creates a 4x4 matrix from a translation.
@@ -260,7 +250,7 @@ namespace DivisionEngine.MathLib
         /// <param name="translation">Vector translation</param>
         /// <returns>Translation matrix</returns>
         public static float4x4 CreateMatrix4x4FromTranslation(this float3 translation) =>
-            Matrix4x4.CreateTranslation(translation.Float3ToVector3()).Matrix4x4ToFloat4x4();
+            Matrix4x4.CreateTranslation(translation.ToVector3()).ToFloat4x4();
 
         // Test this method before using it in production!
         // The algorithm is based on the following StackOverflow post:

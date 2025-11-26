@@ -5,9 +5,28 @@ namespace DivisionEngine.MathLib
     /// <summary>
     /// Extension methods for float3 vector operations.
     /// </summary>
-    /// <remarks>This class is still untested, and therefore cannot be used in production yet</remarks>
     public static class Vector
     {
+        // Add vectors
+        public static float2 Add(this float2 a, float2 b) => new float2(a.X + b.X, a.Y + b.Y);
+        public static float3 Add(this float3 a, float3 b) => new float3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+        public static float4 Add(this float4 a, float4 b) => new float4(a.X + b.X, a.Y + b.Y, a.Z + b.Z, a.W + b.W);
+
+        // Subtract vectors
+        public static float2 Subtract(this float2 a, float2 b) => new float2(a.X - b.X, a.Y - b.Y);
+        public static float3 Subtract(this float3 a, float3 b) => new float3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+        public static float4 Subtract(this float4 a, float4 b) => new float4(a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W);
+
+        // Multiply vectors
+        public static float2 Multiply(this float2 a, float2 b) => new float2(a.X * b.X, a.Y * b.Y);
+        public static float3 Multiply(this float3 a, float3 b) => new float3(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
+        public static float4 Multiply(this float4 a, float4 b) => new float4(a.X * b.X, a.Y * b.Y, a.Z * b.Z, a.W * b.W);
+
+        // Divide vectors
+        public static float2 Divide(this float2 a, float2 b) => new float2(a.X / b.X, a.Y / b.Y);
+        public static float3 Divide(this float3 a, float3 b) => new float3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
+        public static float4 Divide(this float4 a, float4 b) => new float4(a.X / b.X, a.Y / b.Y, a.Z / b.Z, a.W / b.W);
+
         /// <summary>
         /// Calculates the dot product of two float2 vectors.
         /// </summary>
@@ -52,7 +71,7 @@ namespace DivisionEngine.MathLib
         /// <param name="a">Vector a</param>
         /// <param name="b">Vector b</param>
         /// <returns>Distance between vectors a and b</returns>
-        public static float Distance(float2 a, float2 b) => Length(b - a);
+        public static float Distance(this float2 a, float2 b) => Length(b - a);
 
         /// <summary>
         /// Computes distance between two float3 vectors.
@@ -60,7 +79,7 @@ namespace DivisionEngine.MathLib
         /// <param name="a">Vector a</param>
         /// <param name="b">Vector b</param>
         /// <returns>Distance between vectors a and b</returns>
-        public static float Distance(float3 a, float3 b) => Length(b - a);
+        public static float Distance(this float3 a, float3 b) => Length(b - a);
 
         /// <summary>
         /// Computes the cross product between two float3 vectors.
@@ -68,7 +87,7 @@ namespace DivisionEngine.MathLib
         /// <param name="a">Left vector</param>
         /// <param name="b">Right vector</param>
         /// <returns>Cross product of vectors</returns>
-        public static float3 Cross(float3 a, float3 b) => new float3(
+        public static float3 Cross(this float3 a, float3 b) => new float3(
             a.Y * b.Z - a.Z * b.Y,
             a.Z * b.X - a.X * b.Z,
             a.X * b.Y - a.Y * b.X
@@ -79,26 +98,22 @@ namespace DivisionEngine.MathLib
         /// </summary>
         /// <param name="v">Vector to normalize</param>
         /// <returns>Normalized vector value</returns>
-        public static float2 Normalize(this float2 v)
-        {
-            float length = Length(v);
-            if (length == 0) return new float2(0, 0);
-            return new float2(v.X / length, v.Y / length);
-        }
+        public static float2 Normalize(this float2 v) => Vector2.Normalize(v.ToVector2()).ToFloat2();
 
         /// <summary>
         /// Normalizes a float3 vector value.
         /// </summary>
         /// <param name="v">Vector to normalize</param>
         /// <returns>Normalized vector value</returns>
-        public static float3 Normalize(this float3 v)
-        {
-            float length = Length(v);
-            if (length == 0) return new float3(0, 0, 0);
-            return new float3(v.X / length, v.Y / length, v.Z / length);
-        }
+        public static float3 Normalize(this float3 v) => Vector3.Normalize(v.ToVector3()).ToFloat3();
 
-        public static float3 Reflect(float3 I, float3 N) => I - 2 * Dot(N, I) * N;
+        /// <summary>
+        /// Reflects a vector over a normal vector.
+        /// </summary>
+        /// <param name="I">Vector to reflect</param>
+        /// <param name="N">Normal vector to reflect over</param>
+        /// <returns>Reflection vector</returns>
+        public static float3 Reflect(float3 I, float3 N) => Vector3.Reflect(I.ToVector3(), N.ToVector3()).ToFloat3();
 
         public static float3 Refract(float3 I, float3 N, float eta)
         {
@@ -116,14 +131,7 @@ namespace DivisionEngine.MathLib
             else return etaRatio * I + (etaRatio * cosi - (float)Math.Sqrt(k)) * N;
         }
 
-        public static float3 Lerp(float3 a, float3 b, float t)
-        {
-            return new float3(
-                Math.Lerp(a.X, b.X, t),
-                Math.Lerp(a.Y, b.Y, t),
-                Math.Lerp(a.Z, b.Z, t)
-            );
-        }
+        public static float3 Lerp(float3 a, float3 b, float t) => Vector3.Lerp(a.ToVector3(), b.ToVector3(), t).ToFloat3();
 
         public static float3 Slerp(float3 a, float3 b, float t)
         {
@@ -134,38 +142,46 @@ namespace DivisionEngine.MathLib
             return Normalize(a * (float)Math.Cos(theta) + relativeVec * (float)Math.Sin(theta));
         }
 
-        // Add vectors
-        public static float2 Add(this float2 a, float2 b) => new float2(a.X + b.X, a.Y + b.Y);
-        public static float3 Add(this float3 a, float3 b) => new float3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
-        public static float4 Add(this float4 a, float4 b) => new float4(a.X + b.X, a.Y + b.Y, a.Z + b.Z, a.W + b.W);
+        /// <summary>
+        /// Converts a float2 vector to a System.Numerics Vector2 value.
+        /// </summary>
+        /// <param name="vector">Vector to convert</param>
+        /// <returns>Converted Vector2 value</returns>
+        public static Vector2 ToVector2(this float2 vector) => new Vector2(vector.X, vector.Y);
 
-        // Subtract vectors
-        public static float2 Subtract(this float2 a, float2 b) => new float2(a.X - b.X, a.Y - b.Y);
-        public static float3 Subtract(this float3 a, float3 b) => new float3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
-        public static float4 Subtract(this float4 a, float4 b) => new float4(a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W);
-
-        // Multiply vectors
-        public static float2 Multiply(this float2 a, float2 b) => new float2(a.X * b.X, a.Y * b.Y);
-        public static float3 Multiply(this float3 a, float3 b) => new float3(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
-        public static float4 Multiply(this float4 a, float4 b) => new float4(a.X * b.X, a.Y * b.Y, a.Z * b.Z, a.W * b.W);
-
-        // Divide vectors
-        public static float2 Divide(this float2 a, float2 b) => new float2(a.X / b.X, a.Y / b.Y);
-        public static float3 Divide(this float3 a, float3 b) => new float3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
-        public static float4 Divide(this float4 a, float4 b) => new float4(a.X / b.X, a.Y / b.Y, a.Z / b.Z, a.W / b.W);
+        /// <summary>
+        /// Converts a System Vector2 value to a float2 vector.
+        /// </summary>
+        /// <param name="vector">Vector to convert</param>
+        /// <returns>Converted float2 vector value</returns>
+        public static float2 ToFloat2(this Vector2 vector) => new float2(vector.X, vector.Y);
 
         /// <summary>
         /// Converts a float3 vector to a System.Numerics Vector3 value.
         /// </summary>
         /// <param name="vector">Vector to convert</param>
         /// <returns>Converted Vector3 value</returns>
-        public static Vector3 Float3ToVector3(this float3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
+        public static Vector3 ToVector3(this float3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
 
         /// <summary>
         /// Converts a System Vector3 value to a float3 vector.
         /// </summary>
         /// <param name="vector">Vector to convert</param>
         /// <returns>Converted float3 vector value</returns>
-        public static float3 Vector3ToFloat3(this Vector3 vector) => new float3(vector.X, vector.Y, vector.Z);
+        public static float3 ToFloat3(this Vector3 vector) => new float3(vector.X, vector.Y, vector.Z);
+
+        /// <summary>
+        /// Converts a float4 vector to a System.Numerics Vector4 value.
+        /// </summary>
+        /// <param name="vector">Vector to convert</param>
+        /// <returns>Converted Vector4 value</returns>
+        public static Vector4 ToVector4(this float4 vector) => new Vector4(vector.X, vector.Y, vector.Z, vector.W);
+
+        /// <summary>
+        /// Converts a System Vector4 value to a float4 vector.
+        /// </summary>
+        /// <param name="vector">Vector to convert</param>
+        /// <returns>Converted float4 vector value</returns>
+        public static float4 ToFloat4(this Vector4 vector) => new float4(vector.X, vector.Y, vector.Z, vector.W);
     }
 }

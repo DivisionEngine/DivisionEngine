@@ -3,7 +3,6 @@
     /// <summary>
     /// Mathematical utilities for Division Engine.
     /// </summary>
-    /// <remarks>This class is still untested, all functions must be tested before use in production code.</remarks>
     public static class Math
     {
         // Constants

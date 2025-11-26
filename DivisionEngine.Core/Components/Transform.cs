@@ -20,5 +20,12 @@ namespace DivisionEngine.Components
         public float3 position;
         public float4 rotation;
         public float3 scaling;
+
+        public float3 Forward => rotation.RotateVector(new float3(0, 0, -1)).Normalize();
+        public float3 Back => rotation.RotateVector(new float3(0, 0, 1)).Normalize();
+        public float3 Up => rotation.RotateVector(new float3(0, 1, 0)).Normalize();
+        public float3 Down => rotation.RotateVector(new float3(0, -1, 0)).Normalize();
+        public float3 Left => rotation.RotateVector(new float3(-1, 0, 0)).Normalize();
+        public float3 Right => rotation.RotateVector(new float3(1, 0, 0)).Normalize();
     }
 }

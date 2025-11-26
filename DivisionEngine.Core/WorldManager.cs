@@ -29,6 +29,7 @@ namespace DivisionEngine
                 position = new float3(0, 2, 5)
             });
             newDefaultWorld.AddComponent(cameraEntity, Camera.Default);
+            newDefaultWorld.AddComponent(cameraEntity, Player.Default);
 
             uint sphereEntity = newDefaultWorld.CreateEntity();
             newDefaultWorld.AddComponent(sphereEntity, Transform.Default);

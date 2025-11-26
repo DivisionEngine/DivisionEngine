@@ -1,4 +1,6 @@
 ﻿
+using DivisionEngine.MathLib;
+
 namespace DivisionEngine.Input
 {
     /// <summary>
@@ -211,8 +213,8 @@ namespace DivisionEngine.Input
             {
                 if (screenSize.X > 0f && screenSize.Y > 0f)
                 {
-                    float2 relMousePos = new float2(newMousePos.X / screenSize.X, newMousePos.Y / screenSize.Y);
-                    mouseUVDelta = new float2(relMousePos.X - mouseUV.X, relMousePos.Y - mouseUV.Y);
+                    float2 relMousePos = newMousePos.Divide(screenSize);
+                    mouseUVDelta = relMousePos.Subtract(mouseUV);
                     mouseUV = relMousePos;
                 }
             }

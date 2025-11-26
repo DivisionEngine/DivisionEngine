@@ -250,6 +250,29 @@ namespace DivisionEngine
             }
         }
 
+        public IEnumerable<(uint, T1, T2)> QueryData<T1, T2>()
+            where T1 : IComponent where T2 : IComponent
+        {
+            foreach (uint entityId in Query(typeof(T1), typeof(T2)))
+            {
+                T1 queryResultComponent1 = (T1)components[typeof(T1)][entityId];
+                T2 queryResultComponent2 = (T2)components[typeof(T2)][entityId];
+                yield return (entityId, queryResultComponent1, queryResultComponent2);
+            }
+        }
+
+        public IEnumerable<(uint, T1, T2, T3)> QueryData<T1, T2, T3>()
+            where T1 : IComponent where T2 : IComponent where T3 : IComponent
+        {
+            foreach (uint entityId in Query(typeof(T1), typeof(T2), typeof(T3)))
+            {
+                T1 queryResultComponent1 = (T1)components[typeof(T1)][entityId];
+                T2 queryResultComponent2 = (T2)components[typeof(T2)][entityId];
+                T3 queryResultComponent3 = (T3)components[typeof(T3)][entityId];
+                yield return (entityId, queryResultComponent1, queryResultComponent2, queryResultComponent3);
+            }
+        }
+
         public IEnumerable<(uint, IComponent[])> QueryData(params Type[] componentTypes)
         {
             foreach (uint entityId in Query(componentTypes))

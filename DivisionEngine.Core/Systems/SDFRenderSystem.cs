@@ -15,19 +15,12 @@ namespace DivisionEngine.Systems
 
         public static (SDFWorldDTO, SDFPrimitiveObjectDTO[]) GetFullWorldSDFData()
         {
-            if (WorldManager.CurrentWorld == null) return (new SDFWorldDTO(), []);
-
-            World w = WorldManager.CurrentWorld;
-
             SDFWorldDTO worldData = new SDFWorldDTO();
             List<SDFPrimitiveObjectDTO> sdfPrimitives = [];
 
             // Gather camera world data
-            foreach (var (entity, components) in w.QueryData(typeof(Transform), typeof(Camera)))
+            foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
             {
-                Transform transform = (Transform)components[0];
-                Camera camera = (Camera)components[1];
-
                 worldData.cameraOrigin = transform.position;
                 worldData.cameraToWorld = camera.inverseViewMatrix;
                 worldData.cameraInverseProj = camera.inverseProjectionMatrix;
@@ -35,11 +28,8 @@ namespace DivisionEngine.Systems
             }
 
             // Gather sphere primitives
-            foreach (var (entity, components) in w.QueryData(typeof(Transform), typeof(SDFSphere)))
+            foreach (var (_, transform, sphere) in W.QueryData<Transform, SDFSphere>())
             {
-                Transform transform = (Transform)components[0];
-                SDFSphere sphere = (SDFSphere)components[1];
-
                 sdfPrimitives.Add(new SDFPrimitiveObjectDTO
                 {
                     type = 0, // Sphere type
