@@ -17,7 +17,7 @@
                 System.Numerics.Vector3.UnitY, MathF.PI / 2);
 
             System.Numerics.Vector3 result = System.Numerics.Vector3.Transform(testVector, testRot);
-            Debug.Info($"System.Numerics: (0,0,-1) rotated 90° around Y = {result}");
+            Debug.Error($"System.Numerics: (0,0,-1) rotated 90° around Y = {result}");
             // Should be (-1, 0, 0)
         }
     }

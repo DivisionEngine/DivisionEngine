@@ -7,5 +7,5 @@
                     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
                     x:Class="DivisionEngine.Editor.PropertiesWindow"
                     x:DataType="vm:PropertiesWindowViewModel">
-  (Properties Window Placeholder Content)
+  <Border x:Name="MainBorder" Background="#222"/>
 </local:EditorWindow>

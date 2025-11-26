@@ -24,13 +24,5 @@ namespace DivisionEngine.Editor
             this.AttachDevTools(); // Enable developer tools in debug mode
 #endif
         }
-
-        //private void Slider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        //{
-        //    lock (App.Renderer!.SyncLock)
-        //    {
-        //        App.Renderer.Time = (float)e.NewValue;
-        //    }
-        //}
     }
 }

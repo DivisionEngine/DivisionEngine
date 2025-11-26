@@ -2,7 +2,6 @@
 using ReactiveUI;
 using System;
 using System.Collections.ObjectModel;
-using System.Windows.Input;
 
 namespace DivisionEngine.Editor.ViewModels
 {

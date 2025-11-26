@@ -1,8 +1,6 @@
 ﻿using DivisionEngine.Components;
 using DivisionEngine.Input;
 using DivisionEngine.MathLib;
-using Silk.NET.Vulkan;
-using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {
