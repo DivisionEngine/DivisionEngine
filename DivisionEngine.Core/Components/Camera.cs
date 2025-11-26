@@ -15,7 +15,7 @@ namespace DivisionEngine.Components
 
             viewMatrix = Matrix.Identity4x4;
             projectionMatrix = Matrix.Identity4x4;
-            inverseViewMatrix = Matrix.Identity4x4;
+            cameraToWorld = Matrix.Identity4x4;
             inverseProjectionMatrix = Matrix.Identity4x4;
         }
 
@@ -25,7 +25,7 @@ namespace DivisionEngine.Components
 
         public float4x4 viewMatrix;
         public float4x4 projectionMatrix;
-        public float4x4 inverseViewMatrix;
+        public float4x4 cameraToWorld; // Inverse view matrix
         public float4x4 inverseProjectionMatrix;
     }
 }

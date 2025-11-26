@@ -5,7 +5,7 @@
         public Player()
         {
             movementSpeed = 2f;
-            mouseSensitivity = 0.001f;
+            mouseSensitivity = 20f;
             sprintMultiplier = 2f;
         }
 

@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine.MathLib
+﻿using System.Numerics;
+
+namespace DivisionEngine.MathLib
 {
     /// <summary>
     /// Extension methods for quaternion vector operations on float4 objects.
@@ -15,8 +17,12 @@
         /// </summary>
         /// <param name="q">Quaternion to normalize</param>
         /// <returns>Normalized quaternion</returns>
-        public static float4 Normalize(this float4 q) =>
-            System.Numerics.Quaternion.Normalize(q.ToQuaternion()).ToFloat4();
+        public static float4 Normalize(this float4 q)
+        {
+            float length = Math.Sqrt(q.X * q.X + q.Y * q.Y + q.Z * q.Z + q.W * q.W);
+            if (length < 0.0001f) return Identity;
+            return new float4(q.X / length, q.Y / length, q.Z / length, q.W / length);
+        }
 
         /// <summary>
         /// Create a quaternion rotation from an axis and an angle (in radians).

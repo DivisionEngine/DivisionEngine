@@ -22,7 +22,7 @@ namespace DivisionEngine.Systems
             foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
             {
                 worldData.cameraOrigin = transform.position;
-                worldData.cameraToWorld = camera.inverseViewMatrix;
+                worldData.cameraToWorld = camera.cameraToWorld;
                 worldData.cameraInverseProj = camera.inverseProjectionMatrix;
                 break; // Use first camera
             }

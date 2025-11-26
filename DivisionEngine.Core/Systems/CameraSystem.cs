@@ -6,7 +6,7 @@ namespace DivisionEngine.Systems
 {
     public class CameraSystem : SystemBase
     {
-        public override void Update()
+        public override void Render()
         {
             foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
                 UpdateCameraMatrices(transform, camera);
@@ -14,21 +14,18 @@ namespace DivisionEngine.Systems
 
         private static void UpdateCameraMatrices(Transform transform, Camera camera)
         {
-            camera.viewMatrix = CalcCameraViewMatrix(transform);
+            float4x4 camToWorld = CalcCameraToWorldMatrix(transform);
+            camera.cameraToWorld = camToWorld;
+            camera.viewMatrix = Matrix.Inverse(camToWorld);
             camera.projectionMatrix = CalcCameraProjectionMatrix(camera);
-            //Debug.Info("Update camera view matrix: " + camera.viewMatrix.Float4x4ToMatrix4x4().ToString());
-            //Debug.Info("Update camera projec matrix: " + camera.projectionMatrix.Float4x4ToMatrix4x4().ToString());
-
-            camera.inverseViewMatrix = Matrix.Inverse(camera.viewMatrix);
             camera.inverseProjectionMatrix = Matrix.Inverse(camera.projectionMatrix);
         }
 
-        private static float4x4 CalcCameraViewMatrix(Transform transform)
+        private static float4x4 CalcCameraToWorldMatrix(Transform transform)
         {
-            return Matrix.Inverse(
-                Matrix.Multiply(
-                    Matrix.CreateMatrix4x4FromQuaternion(transform.rotation),
-                    Matrix.CreateMatrix4x4FromTranslation(transform.position)));
+            return Matrix.Multiply(
+                Matrix.CreateMatrix4x4FromQuaternion(transform.rotation),
+                Matrix.CreateMatrix4x4FromTranslation(transform.position));
         }
 
         private static float4x4 CalcCameraProjectionMatrix(Camera cam)

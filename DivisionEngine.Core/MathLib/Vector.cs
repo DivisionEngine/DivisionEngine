@@ -158,6 +158,12 @@ namespace DivisionEngine.MathLib
             return Normalize(a * (float)Math.Cos(theta) + relativeVec * (float)Math.Sin(theta));
         }
 
+        public static float3 Transform(this float3 vector, float4x4 matrix) =>
+            Vector3.Transform(vector.ToVector3(), matrix.ToMatrix4x4()).ToFloat3();
+
+        public static float3 Transform(this float3 vector, float4 quaternion) =>
+            Vector3.Transform(vector.ToVector3(), quaternion.ToQuaternion()).ToFloat3();
+
         /// <summary>
         /// Converts a float2 vector to a System.Numerics Vector2 value.
         /// </summary>
