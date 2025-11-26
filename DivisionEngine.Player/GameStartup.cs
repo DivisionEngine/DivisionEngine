@@ -14,6 +14,7 @@ public class GameStartup
     public static InputSystem? UserInput { get; private set; }
 
     public const int EngineFrameTimeMS = 16; // Around 60 fps
+    public const double RequestedFPS = 60;
 
     private static Task? engineCoreTask;
     private static CancellationTokenSource? engineCancellationTokenSource;
@@ -33,12 +34,12 @@ public class GameStartup
 
         // Run engine loop
         engineCancellationTokenSource = new CancellationTokenSource();
-        engineCoreTask = Task.Run(() => RunEngineLoop(EngineFrameTimeMS, engineCancellationTokenSource.Token));
+        engineCoreTask = Task.Run(() => RunEngineLoop(EngineFrameTimeMS / 2, engineCancellationTokenSource.Token));
 
         // Run render pipeline
         Renderer = new RenderPipeline();
         Renderer.BindCurrentWorld(); // Bind loaded project
-        Renderer.Run(false);
+        Renderer.Run(RequestedFPS, false);
 
         // Cancel and stop engine loop
         engineCancellationTokenSource.Cancel();

@@ -49,7 +49,7 @@ namespace DivisionEngine.Rendering
         /// </summary>
         /// <remarks>This method creates a render window with default options, sets up event handlers for
         /// loading and rendering.</remarks>
-        public void Run(bool editorMode)
+        public void Run(double requestedFPS, bool editorMode)
         {
             WindowOptions options = WindowOptions.Default;
             if (editorMode)
@@ -63,7 +63,7 @@ namespace DivisionEngine.Rendering
             options.VSync = true;
             options.ShouldSwapAutomatically = true;
             
-            options.UpdatesPerSecond = 60; // Sets the update rate to 60 FPS
+            options.UpdatesPerSecond = requestedFPS;
             RendererWindow = Window.Create(options);
 
             Debug.Info("Renderer: Created Render Window");

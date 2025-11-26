@@ -14,7 +14,7 @@ namespace DivisionEngine
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
     {
 
-        const int MAX_RAYMARCH_STEPS = 256;
+        const int MAX_RAYMARCH_STEPS = 200;
         const float MAX_RAYMARCH_DISTANCE = 10000.0f;
         const float EPSILON = 0.0001f;
         const float MIN_TRAVERSE_DIST = 100000000.0f;
@@ -108,11 +108,11 @@ namespace DivisionEngine
             float res = 1.0f;
             float rayDist = minDist;
 
-            for (int i = 0; i < 256 && rayDist < maxDist; i++)
+            for (int i = 0; i < 100 && rayDist < maxDist; i++)
             {
                 float sceneSDF = WorldSDF(rayOrigin + rayDist * rayDir).X;
                 res = Hlsl.Min(res, sceneSDF / (0.5f * rayDist));
-                rayDist += Hlsl.Clamp(sceneSDF, 0.005f, 0.50f);
+                rayDist += Hlsl.Clamp(sceneSDF, 0.005f, 0.05f);
 
                 if (res < -1.0f || rayDist > maxDist)
                     break;

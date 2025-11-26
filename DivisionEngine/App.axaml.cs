@@ -26,6 +26,7 @@ namespace DivisionEngine.Editor
         public static InputSystem? UserInput { get; private set; }
 
         public const long EngineCoreFrameTime = 16; // Around 60 fps
+        public const double RequestedFPS = 60;
 
         public override void Initialize()
         {
@@ -53,7 +54,7 @@ namespace DivisionEngine.Editor
                 // Start the SDFRenderer in a separate thread
                 Renderer = new RenderPipeline();
                 Renderer.BindCurrentWorld(); // Binds default world
-                Task.Run(() => Renderer.Run(true));
+                Task.Run(() => Renderer.Run(RequestedFPS, true));
 
                 // Handle renderer close behavior
                 Renderer.Close += () =>
@@ -90,7 +91,7 @@ namespace DivisionEngine.Editor
             // Create Avalonia editor-integrated engine loop
             DispatcherTimer engineTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(EngineCoreFrameTime)
+                Interval = TimeSpan.FromMilliseconds(EngineCoreFrameTime / 2)
             };
             engineTimer.Tick += EngineTimer_Tick;
             engineTimer.Start();
