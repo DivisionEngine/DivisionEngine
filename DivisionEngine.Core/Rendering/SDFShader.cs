@@ -35,9 +35,21 @@ namespace DivisionEngine
                 new float4(Hlsl.Mul(worldData[0].cameraInverseProj, new float4(coord, 0.0f, 1.0f)).XYZ, 0.0f)).XYZ);
         }*/
 
-        private float SphereSDF(float3 pt, float3 center, float rad)
+        private float SphereSDF(float3 pt, float3 center, float r)
         {
-            return Hlsl.Length(pt - center) - rad;
+            return Hlsl.Length(pt - center) - r;
+        }
+
+        private float BoxSDF(float3 pt, float3 center, float3 size)
+        {
+            float3 q = Hlsl.Abs(pt - center) - size;
+            return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
+        }
+
+        private float RoundedBoxSDF(float3 pt, float3 center, float3 size, float r)
+        {
+            float3 q = Hlsl.Abs(pt - center) - size + r;
+            return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f) - r;
         }
 
         private float WorldSDF(float3 point)

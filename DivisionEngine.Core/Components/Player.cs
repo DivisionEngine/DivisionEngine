@@ -2,12 +2,12 @@
 {
     public class Player : IComponent
     {
-        public static Player Default => new Player
+        public Player()
         {
-            movementSpeed = 2f,
-            mouseSensitivity = 0.001f,
-            sprintMultiplier = 2f
-        };
+            movementSpeed = 2f;
+            mouseSensitivity = 0.001f;
+            sprintMultiplier = 2f;
+        }
 
         public float movementSpeed;
         public float mouseSensitivity;

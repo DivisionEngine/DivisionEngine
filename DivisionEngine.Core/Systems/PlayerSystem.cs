@@ -4,6 +4,9 @@ using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Systems
 {
+    /// <summary>
+    /// Handles basic 3D player movement and controls
+    /// </summary>
     public class PlayerSystem : SystemBase
     {
         public override void Update()
@@ -12,7 +15,7 @@ namespace DivisionEngine.Systems
                 HandlePlayerInput(transform, player);
         }
 
-        private void HandlePlayerInput(Transform transform, Player player)
+        private static void HandlePlayerInput(Transform transform, Player player)
         {
             HandleKeyboardMovement(transform, player);
             HandleMouseLook(transform, player);

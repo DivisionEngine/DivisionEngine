@@ -7,17 +7,17 @@ namespace DivisionEngine.Components
     /// </summary>
     public class Camera : IComponent
     {
-        public static Camera Default => new Camera
+        public Camera()
         {
-            fov = 70f,
-            nearClip = 0.1f,
-            farClip = 10000f,
+            fov = 70f;
+            nearClip = 0.1f;
+            farClip = 10000f;
 
-            viewMatrix = Matrix.Identity4x4,
-            projectionMatrix = Matrix.Identity4x4,
-            inverseViewMatrix = Matrix.Identity4x4,
-            inverseProjectionMatrix = Matrix.Identity4x4
-        };
+            viewMatrix = Matrix.Identity4x4;
+            projectionMatrix = Matrix.Identity4x4;
+            inverseViewMatrix = Matrix.Identity4x4;
+            inverseProjectionMatrix = Matrix.Identity4x4;
+        }
 
         public float fov;
         public float nearClip;

@@ -28,12 +28,12 @@ namespace DivisionEngine
             {
                 position = new float3(0, 2, 5)
             });
-            newDefaultWorld.AddComponent(cameraEntity, Camera.Default);
-            newDefaultWorld.AddComponent(cameraEntity, Player.Default);
+            newDefaultWorld.AddComponent(cameraEntity, new Camera());
+            newDefaultWorld.AddComponent(cameraEntity, new Player());
 
             uint sphereEntity = newDefaultWorld.CreateEntity();
-            newDefaultWorld.AddComponent(sphereEntity, Transform.Default);
-            newDefaultWorld.AddComponent(sphereEntity, SDFSphere.Default);
+            newDefaultWorld.AddComponent(sphereEntity, new Transform());
+            newDefaultWorld.AddComponent(sphereEntity, new SDFSphere());
 
             SetWorld("default", newDefaultWorld);
             if (makeCurrent) CurrentWorld = newDefaultWorld;

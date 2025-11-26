@@ -8,11 +8,11 @@
         /// <summary>
         /// White sphere with a radius of 1.0.
         /// </summary>
-        public static SDFSphere Default => new SDFSphere
+        public SDFSphere()
         {
-            color = float4.One,
-            radius = 1f
-        };
+            color = new float4(1f, 1f, 1f, 1f);
+            radius = 1f;
+        }
 
         public float4 color;
         public float radius;
