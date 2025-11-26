@@ -25,6 +25,14 @@ namespace DivisionEngine.MathLib
         public static float Dot(this float3 a, float3 b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
 
         /// <summary>
+        /// Calculates the dot product between two float4 vectors.
+        /// </summary>
+        /// <param name="q">Left vectors</param>
+        /// <param name="p">Right vectors</param>
+        /// <returns>Dot product of two float4 vectors</returns>
+        public static float Dot(this float4 q, float4 p) => q.X * p.X + q.Y * p.Y + q.Z * p.Z + q.W * p.W;
+
+        /// <summary>
         /// Computes the length (magnitude) of a the vector v.
         /// </summary>
         /// <param name="v">Magnitude vector</param>
@@ -125,6 +133,26 @@ namespace DivisionEngine.MathLib
             float3 relativeVec = Normalize(b - dot * a);
             return Normalize(a * (float)Math.Cos(theta) + relativeVec * (float)Math.Sin(theta));
         }
+
+        // Add vectors
+        public static float2 Add(this float2 a, float2 b) => new float2(a.X + b.X, a.Y + b.Y);
+        public static float3 Add(this float3 a, float3 b) => new float3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+        public static float4 Add(this float4 a, float4 b) => new float4(a.X + b.X, a.Y + b.Y, a.Z + b.Z, a.W + b.W);
+
+        // Subtract vectors
+        public static float2 Subtract(this float2 a, float2 b) => new float2(a.X - b.X, a.Y - b.Y);
+        public static float3 Subtract(this float3 a, float3 b) => new float3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+        public static float4 Subtract(this float4 a, float4 b) => new float4(a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W);
+
+        // Multiply vectors
+        public static float2 Multiply(this float2 a, float2 b) => new float2(a.X * b.X, a.Y * b.Y);
+        public static float3 Multiply(this float3 a, float3 b) => new float3(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
+        public static float4 Multiply(this float4 a, float4 b) => new float4(a.X * b.X, a.Y * b.Y, a.Z * b.Z, a.W * b.W);
+
+        // Divide vectors
+        public static float2 Divide(this float2 a, float2 b) => new float2(a.X / b.X, a.Y / b.Y);
+        public static float3 Divide(this float3 a, float3 b) => new float3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
+        public static float4 Divide(this float4 a, float4 b) => new float4(a.X / b.X, a.Y / b.Y, a.Z / b.Z, a.W / b.W);
 
         /// <summary>
         /// Converts a float3 vector to a System.Numerics Vector3 value.

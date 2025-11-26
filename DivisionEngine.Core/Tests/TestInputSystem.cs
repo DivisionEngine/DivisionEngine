@@ -12,7 +12,7 @@ namespace DivisionEngine.Tests
         {
             //Info($"K key is pressed: {InputSystem.IsPressed(KeyCode.K)}");
             //Info($"Left mouse is pressed: {InputSystem.IsMousePressed(MouseCode.Left)}");
-            Info($"Mouse position: ({InputSystem.MouseUV.X}, {InputSystem.MouseUV.Y})");
+            Info($"Mouse position: ({InputSystem.MouseUVDelta.X}, {InputSystem.MouseUVDelta.Y})");
         }
     }
 }
