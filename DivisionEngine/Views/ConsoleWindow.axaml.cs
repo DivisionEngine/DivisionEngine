@@ -12,7 +12,7 @@ public partial class ConsoleWindow : EditorWindow
 
     private readonly StackPanel logList;
     private readonly ScrollViewer scrollViewer;
-    private bool autoScroll;
+    private readonly bool autoScroll;
 
     public ConsoleWindow()
     {
@@ -47,7 +47,7 @@ public partial class ConsoleWindow : EditorWindow
 
     private void CreateLogEntry(LogEntry log)
     {
-        Control logContainer = CreateLogControl(log);
+        Border logContainer = CreateLogControl(log);
         logList.Children.Add(logContainer);
 
         if (autoScroll)
@@ -57,7 +57,7 @@ public partial class ConsoleWindow : EditorWindow
             logList.Children.RemoveAt(0);
     }
 
-    private static Control CreateLogControl(LogEntry log)
+    private static Border CreateLogControl(LogEntry log)
     {
         Border logBorder = new Border()
         {
@@ -78,7 +78,7 @@ public partial class ConsoleWindow : EditorWindow
         [
             new TextBlock
             {
-                Text = $"[{log.Timestamp.TimeOfDay}]",
+                Text = $"[{log.Timestamp.TimeOfDay:hh':'mm':'ss':'fff}]",
                 FontSize = 12,
                 Foreground = Brushes.Gray,
             },
