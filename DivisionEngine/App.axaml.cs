@@ -7,6 +7,7 @@ using DivisionEngine.Editor.ViewModels;
 using DivisionEngine.Input;
 using DivisionEngine.Rendering;
 using Silk.NET.Input;
+using Silk.NET.Maths;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -129,16 +130,25 @@ namespace DivisionEngine.Editor
             lock (Renderer!.SyncLock)
             {
                 IInputContext? input = Renderer!.RendererWindow!.CreateInput();
-                foreach (var keyboard in input.Keyboards) // Keyboard button handling
+                foreach (var keyboard in input.Keyboards) // Keyboard handling
                 {
                     keyboard.KeyDown += (kb, key, code) => UserInput!.SetKeyDown(EditorInput.SilkNetToKeyCode(key));
                     keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(EditorInput.SilkNetToKeyCode(key));
                 }
 
-                foreach (var mouse in input.Mice) // Mouse button handling
+                Vector2D<int> screenSizeInt = Renderer!.RendererWindow!.Size;
+                float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
+                foreach (var mouse in input.Mice) // Mouse handling
                 {
                     mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(EditorInput.SilkNetToMouseCode(code));
                     mouse.MouseUp += (m, code) => UserInput!.SetMouseKeyUp(EditorInput.SilkNetToMouseCode(code));
+
+                    mouse.MouseMove += (m, pos) =>
+                    {
+                        float2 posConverted = new float2(pos.X, pos.Y);
+                        UserInput!.SetMousePosition(posConverted);
+                        UserInput!.SetRelativeMousePosition(posConverted, screenSize);
+                    };
                 }
             }
         }

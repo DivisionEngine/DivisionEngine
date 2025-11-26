@@ -127,17 +127,27 @@ namespace DivisionEngine.Input
         private readonly HashSet<MouseCode> pressedMouseKeys;
         private readonly Lock syncLock;
 
-        private float2 mousePos, mouseDelta;
+        private float2 mousePos, mouseUV, mouseDelta, mouseUVDelta;
 
         /// <summary>
         /// Retrieve the mouse position on screen.
         /// </summary>
         public static float2 MousePosition { get { lock(Instance!.syncLock) return Instance.mousePos; } }
-        
+
+        /// <summary>
+        /// Retrieve the mouse position on screen.
+        /// </summary>
+        public static float2 MouseUV { get { lock (Instance!.syncLock) return Instance.mouseUV; } }
+
         /// <summary>
         /// Retrieve the mouse delta between last mouse position record.
         /// </summary>
         public static float2 MouseDelta { get { lock (Instance!.syncLock) return Instance.mouseDelta; } }
+
+        /// <summary>
+        /// Retrieve the mouse delta between last mouse position record.
+        /// </summary>
+        public static float2 MouseUVDelta { get { lock (Instance!.syncLock) return Instance.mouseUVDelta; } }
 
         /// <summary>
         /// Initializes a new input system singleton.
@@ -150,7 +160,9 @@ namespace DivisionEngine.Input
             pressedMouseKeys = [];
 
             mousePos = float2.Zero;
+            mouseUV = float2.Zero;
             mouseDelta = float2.Zero;
+            mouseUVDelta = float2.Zero;
             Instance = this;
         }
 
@@ -161,6 +173,7 @@ namespace DivisionEngine.Input
         {
             //Debug.Info($"Update from input system instance (V pressed): {IsPressed(KeyCode.V)}");
             if (mouseDelta.X != 0 || mouseDelta.Y != 0) mouseDelta = float2.Zero;
+            if (mouseUVDelta.X != 0 || mouseUVDelta.Y != 0) mouseUVDelta = float2.Zero;
         }
 
         public void SetKeyDown(KeyCode key)
@@ -189,6 +202,19 @@ namespace DivisionEngine.Input
             {
                 mouseDelta = newMousePos - mousePos;
                 mousePos = newMousePos;
+            }
+        }
+
+        public void SetRelativeMousePosition(float2 newMousePos, float2 screenSize)
+        {
+            lock (syncLock)
+            {
+                if (screenSize.X > 0f && screenSize.Y > 0f)
+                {
+                    float2 relMousePos = new float2(newMousePos.X / screenSize.X, newMousePos.Y / screenSize.Y);
+                    mouseUVDelta = relMousePos - mouseUV;
+                    mouseUV = relMousePos;
+                }
             }
         }
 

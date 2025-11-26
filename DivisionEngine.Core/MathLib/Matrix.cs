@@ -66,10 +66,7 @@ namespace DivisionEngine.MathLib
         /// </summary>
         /// <param name="matrix">Matrix to calculate the determinant of</param>
         /// <returns>Determinant of <param name="matrix"></returns>
-        public static float Determinant(this float2x2 matrix)
-        {
-            return matrix.M11 * matrix.M22 - matrix.M12 * matrix.M21;
-        }
+        public static float Determinant(this float2x2 matrix) => matrix.M11 * matrix.M22 - matrix.M12 * matrix.M21;
 
         /// <summary>
         /// Calculates the determinant of a 3x3 matrix.
@@ -109,7 +106,7 @@ namespace DivisionEngine.MathLib
         /// </summary>
         /// <param name="matrix">Matrix to convert</param>
         /// <returns>Converted matrix</returns>
-        internal static Matrix4x4 Float4x4ToMatrix4x4(this float4x4 matrix)
+        public static Matrix4x4 Float4x4ToMatrix4x4(this float4x4 matrix)
         {
             return new Matrix4x4(
                 matrix.M11, matrix.M12, matrix.M13, matrix.M14,
@@ -124,7 +121,7 @@ namespace DivisionEngine.MathLib
         /// </summary>
         /// <param name="matrix">Matrix to convert</param>
         /// <returns>Converted matrix</returns>
-        internal static float4x4 Matrix4x4ToFloat4x4(this Matrix4x4 matrix)
+        public static float4x4 Matrix4x4ToFloat4x4(this Matrix4x4 matrix)
         {
             return new float4x4(
                 matrix.M11, matrix.M12, matrix.M13, matrix.M14,
@@ -132,26 +129,6 @@ namespace DivisionEngine.MathLib
                 matrix.M31, matrix.M32, matrix.M33, matrix.M34,
                 matrix.M41, matrix.M42, matrix.M43, matrix.M44
             );
-        }
-
-        internal static System.Numerics.Quaternion Float4ToQuaternion(this float4 quaternion)
-        {
-            return new System.Numerics.Quaternion(quaternion.X, quaternion.Y, quaternion.Z, quaternion.W);
-        }
-
-        internal static float4 QuaternionToFloat4(this System.Numerics.Quaternion quaternion)
-        {
-            return new float4(quaternion.X, quaternion.Y, quaternion.Z, quaternion.W);
-        }
-
-        internal static Vector3 Float3ToVector3(this float3 vector)
-        {
-            return new System.Numerics.Vector3(vector.X, vector.Y, vector.Z);
-        }
-
-        internal static float3 Vector3ToFloat3(this Vector3 vector)
-        {
-            return new float3(vector.X, vector.Y, vector.Z);
         }
 
         /// <summary>
@@ -192,46 +169,37 @@ namespace DivisionEngine.MathLib
         }
 
         /// <summary>
-        /// Transposes the specified 2x2 matrix.
+        /// Transposes the specified float2x2 matrix.
         /// </summary>
         /// <param name="matrix">Matrix to transpose</param>
         /// <returns>Transposed matrix</returns>
-        public static float2x2 Transpose(this float2x2 matrix)
-        {
-            return new float2x2(
-                matrix.M11, matrix.M21,
-                matrix.M12, matrix.M22
-            );
-        }
+        public static float2x2 Transpose(this float2x2 matrix) => new float2x2(
+            matrix.M11, matrix.M21,
+            matrix.M12, matrix.M22
+        );
 
         /// <summary>
-        /// Transposes the specified 3x3 matrix.
+        /// Transposes the specified float3x3 matrix.
         /// </summary>
         /// <param name="matrix">Matrix to transpose</param>
         /// <returns>Transposed matrix</returns>
-        public static float3x3 Transpose(this float3x3 matrix)
-        {
-            return new float3x3(
-                matrix.M11, matrix.M21, matrix.M31,
-                matrix.M12, matrix.M22, matrix.M32,
-                matrix.M13, matrix.M23, matrix.M33
-            );
-        }
+        public static float3x3 Transpose(this float3x3 matrix) => new float3x3(
+            matrix.M11, matrix.M21, matrix.M31,
+            matrix.M12, matrix.M22, matrix.M32,
+            matrix.M13, matrix.M23, matrix.M33
+        );
 
         /// <summary>
-        /// Transposes the specified 4x4 matrix.
+        /// Transposes the specified float4x4 matrix.
         /// </summary>
         /// <param name="matrix">Matrix to transpose</param>
         /// <returns>Transposed matrix</returns>
-        public static float4x4 Transpose(this float4x4 matrix)
-        {
-            return new float4x4(
-                matrix.M11, matrix.M21, matrix.M31, matrix.M41,
-                matrix.M12, matrix.M22, matrix.M32, matrix.M42,
-                matrix.M13, matrix.M23, matrix.M33, matrix.M43,
-                matrix.M14, matrix.M24, matrix.M34, matrix.M44
-            );
-        }
+        public static float4x4 Transpose(this float4x4 matrix) => new float4x4(
+            matrix.M11, matrix.M21, matrix.M31, matrix.M41,
+            matrix.M12, matrix.M22, matrix.M32, matrix.M42,
+            matrix.M13, matrix.M23, matrix.M33, matrix.M43,
+            matrix.M14, matrix.M24, matrix.M34, matrix.M44
+        );
 
         public static float4 Row0(this float4x4 m) => new float4(m.M11, m.M12, m.M13, m.M14);
         public static float4 Row1(this float4x4 m) => new float4(m.M21, m.M22, m.M23, m.M24);
@@ -283,20 +251,16 @@ namespace DivisionEngine.MathLib
         /// </summary>
         /// <param name="quaternion">Quaternion rotation</param>
         /// <returns>Rotation matrix</returns>
-        public static float4x4 CreateMatrix4x4FromQuaternion(this float4 quaternion)
-        {
-            return Matrix4x4.CreateFromQuaternion(quaternion.Float4ToQuaternion()).Matrix4x4ToFloat4x4();
-        }
+        public static float4x4 CreateMatrix4x4FromQuaternion(this float4 quaternion) =>
+            Matrix4x4.CreateFromQuaternion(quaternion.Float4ToQuaternion()).Matrix4x4ToFloat4x4();
 
         /// <summary>
         /// Creates a 4x4 matrix from a translation.
         /// </summary>
         /// <param name="translation">Vector translation</param>
         /// <returns>Translation matrix</returns>
-        public static float4x4 CreateMatrix4x4FromTranslation(this float3 translation)
-        {
-            return Matrix4x4.CreateTranslation(translation.Float3ToVector3()).Matrix4x4ToFloat4x4();
-        }
+        public static float4x4 CreateMatrix4x4FromTranslation(this float3 translation) =>
+            Matrix4x4.CreateTranslation(translation.Float3ToVector3()).Matrix4x4ToFloat4x4();
 
         // Test this method before using it in production!
         // The algorithm is based on the following StackOverflow post:

@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine.MathLib
+﻿using System.Numerics;
+
+namespace DivisionEngine.MathLib
 {
     /// <summary>
     /// Extension methods for float3 vector operations.
@@ -36,15 +38,39 @@
         /// <returns>Magnitude of vector v</returns>
         public static float Length(this float3 v) => (float)Math.Sqrt(v.X * v.X + v.Y * v.Y + v.Z * v.Z);
 
+        /// <summary>
+        /// Computes distance between two float2 vectors.
+        /// </summary>
+        /// <param name="a">Vector a</param>
+        /// <param name="b">Vector b</param>
+        /// <returns>Distance between vectors a and b</returns>
         public static float Distance(float2 a, float2 b) => Length(b - a);
+
+        /// <summary>
+        /// Computes distance between two float3 vectors.
+        /// </summary>
+        /// <param name="a">Vector a</param>
+        /// <param name="b">Vector b</param>
+        /// <returns>Distance between vectors a and b</returns>
         public static float Distance(float3 a, float3 b) => Length(b - a);
 
+        /// <summary>
+        /// Computes the cross product between two float3 vectors.
+        /// </summary>
+        /// <param name="a">Left vector</param>
+        /// <param name="b">Right vector</param>
+        /// <returns>Cross product of vectors</returns>
         public static float3 Cross(float3 a, float3 b) => new float3(
             a.Y * b.Z - a.Z * b.Y,
             a.Z * b.X - a.X * b.Z,
             a.X * b.Y - a.Y * b.X
         );
 
+        /// <summary>
+        /// Normalizes a float2 vector value.
+        /// </summary>
+        /// <param name="v">Vector to normalize</param>
+        /// <returns>Normalized vector value</returns>
         public static float2 Normalize(this float2 v)
         {
             float length = Length(v);
@@ -52,6 +78,11 @@
             return new float2(v.X / length, v.Y / length);
         }
 
+        /// <summary>
+        /// Normalizes a float3 vector value.
+        /// </summary>
+        /// <param name="v">Vector to normalize</param>
+        /// <returns>Normalized vector value</returns>
         public static float3 Normalize(this float3 v)
         {
             float length = Length(v);
@@ -94,5 +125,19 @@
             float3 relativeVec = Normalize(b - dot * a);
             return Normalize(a * (float)Math.Cos(theta) + relativeVec * (float)Math.Sin(theta));
         }
+
+        /// <summary>
+        /// Converts a float3 vector to a System.Numerics Vector3 value.
+        /// </summary>
+        /// <param name="vector">Vector to convert</param>
+        /// <returns>Converted Vector3 value</returns>
+        public static Vector3 Float3ToVector3(this float3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
+
+        /// <summary>
+        /// Converts a System Vector3 value to a float3 vector.
+        /// </summary>
+        /// <param name="vector">Vector to convert</param>
+        /// <returns>Converted float3 vector value</returns>
+        public static float3 Vector3ToFloat3(this Vector3 vector) => new float3(vector.X, vector.Y, vector.Z);
     }
 }

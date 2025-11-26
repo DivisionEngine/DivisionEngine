@@ -1,4 +1,5 @@
 ﻿using DivisionEngine.Input;
+using static DivisionEngine.Debug;
 
 namespace DivisionEngine.Tests
 {
@@ -9,8 +10,9 @@ namespace DivisionEngine.Tests
     {
         public override void Update()
         {
-            //Debug.Info($"K key is pressed: {InputSystem.IsPressed(KeyCode.K)}");
-            //Debug.Info($"Left mouse is pressed: {InputSystem.IsMousePressed(MouseCode.Left)}");
+            //Info($"K key is pressed: {InputSystem.IsPressed(KeyCode.K)}");
+            //Info($"Left mouse is pressed: {InputSystem.IsMousePressed(MouseCode.Left)}");
+            Info($"Mouse position: ({InputSystem.MouseUV.X}, {InputSystem.MouseUV.Y})");
         }
     }
 }
