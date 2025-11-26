@@ -91,9 +91,7 @@ namespace DivisionEngine.MathLib
         /// <param name="a">Quaternion a</param>
         /// <param name="b">Quaternion b</param>
         /// <returns>Product of quaterions</returns>
-        //public static float4 Multiply(float4 a, float4 b) => (a.ToQuaternion() * b.ToQuaternion()).ToFloat4();
-
-        public static float4 Multiply(float4 a, float4 b)
+        public static float4 Multiply(float4 a, float4 b) // System.Numerics.Quaternion.* is broken, returns nans
         {
             // Formula: q1 * q2 = (w1*w2 - dot(v1,v2), w1*v2 + w2*v1 + cross(v1,v2))
 
@@ -145,12 +143,8 @@ namespace DivisionEngine.MathLib
         public static float3 RotateVector(this float4 quaternion, float3 vector)
         {
             float3 qVec = new float3(quaternion.X, quaternion.Y, quaternion.Z);
-            float s = quaternion.W;
-
-            // Function form of: v' = v + 2.0 * cross(u, cross(u, v) + s * v)
-            float3 crossA = qVec.Cross(vector).Add(vector.Multiply(s));
-            float3 crossB = qVec.Cross(crossA).Multiply(2f);
-            return vector.Add(crossB);
+            float3 t = qVec.Cross(vector).Multiply(2.0f);
+            return vector.Add(t.Multiply(quaternion.W)).Add(qVec.Cross(t));
         }
     }
 }

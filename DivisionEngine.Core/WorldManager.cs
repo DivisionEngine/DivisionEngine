@@ -35,7 +35,7 @@ namespace DivisionEngine
             uint sphereEntity = newDefaultWorld.CreateTransformEntity();
             newDefaultWorld.AddComponent(sphereEntity, new SDFSphere
             {
-                color = ColorPalette.Azure,
+                color = ColorPalette.Khaki,
                 radius = 3f
             });
 

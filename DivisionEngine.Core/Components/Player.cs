@@ -4,8 +4,8 @@
     {
         public Player()
         {
-            movementSpeed = 2f;
-            mouseSensitivity = 20f;
+            movementSpeed = 4f;
+            mouseSensitivity = 2f;
             sprintMultiplier = 2f;
         }
 
