@@ -91,7 +91,25 @@ namespace DivisionEngine.MathLib
         /// <param name="a">Quaternion a</param>
         /// <param name="b">Quaternion b</param>
         /// <returns>Product of quaterions</returns>
-        public static float4 Multiply(float4 a, float4 b) => (a.ToQuaternion() * b.ToQuaternion()).ToFloat4();
+        //public static float4 Multiply(float4 a, float4 b) => (a.ToQuaternion() * b.ToQuaternion()).ToFloat4();
+
+        public static float4 Multiply(float4 a, float4 b)
+        {
+            // Formula: q1 * q2 = (w1*w2 - dot(v1,v2), w1*v2 + w2*v1 + cross(v1,v2))
+
+            float3 v1 = new float3(a.X, a.Y, a.Z);
+            float3 v2 = new float3(b.X, b.Y, b.Z);
+            float w1 = a.W;
+            float w2 = b.W;
+
+            float3 crossVec = v1.Cross(v2);
+            float dotVec = v1.Dot(v2);
+
+            float3 resultVec = v2.Multiply(w1).Add(v1.Multiply(w2)).Add(crossVec);
+            float resultW = w1 * w2 - dotVec;
+
+            return new float4(resultVec.X, resultVec.Y, resultVec.Z, resultW);
+        }
 
         /// <summary>
         /// Divides two quaternions together.

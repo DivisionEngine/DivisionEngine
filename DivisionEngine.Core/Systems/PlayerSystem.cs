@@ -53,44 +53,18 @@ namespace DivisionEngine.Systems
         {
             if (InputSystem.IsMousePressed(MouseCode.Right))
             {
-                // Test rotation in general
-                Debug.Info("=== HARDCODED ROTATION TEST ===");
-
-                // Completely ignore mouse, use hardcoded rotation
-                float4 currentRot = transform.rotation;
-                Debug.Info($"Start Rotation: {currentRot}");
-
-                // Test 1: Simple 45° rotation around Z
-                float4 testRot = Quaternion.CreateFromAxisAngle(new float3(0, 1, 0), Math.PI / 2);
-                Debug.Info($"Test Rotation: {testRot}");
-
-                transform.rotation = testRot;
-                Debug.Info($"Applied Rotation: {transform.rotation}");
-
-                // Test 3: Check forward vector
-                Debug.Info($"New Forward: {transform.Forward}");
-
-                return;
-
-                /*float2 mouseDelta = InputSystem.MouseUVDelta;
+                float2 mouseDelta = InputSystem.MouseUVDelta;
                 if (mouseDelta.X == 0f && mouseDelta.Y == 0f) return;
 
                 float yaw = mouseDelta.X * player.mouseSensitivity;
                 float pitch = -mouseDelta.Y * player.mouseSensitivity;
 
-                Debug.Info($"yaw {yaw}, pitch {pitch}");
-
                 float4 currentRot = transform.rotation;
                 float4 yawRot = Quaternion.CreateFromAxisAngle(new float3(0, 1, 0), yaw);
                 float4 pitchRot = Quaternion.CreateFromAxisAngle(transform.Right, pitch);
 
-                Debug.Info($"Player rot: {currentRot}"); // This is nans
-
                 float4 newRot = Quaternion.Multiply(pitchRot, Quaternion.Multiply(currentRot, yawRot));
                 transform.rotation = newRot.Normalize();
-
-                // Test rotating without mouse
-                transform.rotation = Quaternion.CreateFromAxisAngle(new float3(0, 0, 1), Math.PI / 4);*/
             }
         }
 
