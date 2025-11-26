@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using DivisionEngine.Components;
+using System.Reflection;
 
 namespace DivisionEngine
 {
@@ -39,6 +40,8 @@ namespace DivisionEngine
             fixedUpdateSystems = [];
             renderSystems = [];
             nextEntityId = 0;
+
+            RegisterAllSystems();
         }
 
         #region entities
@@ -58,6 +61,19 @@ namespace DivisionEngine
         {
             uint id = nextEntityId;
             entities.Add(id);
+            nextEntityId++;
+            return id;
+        }
+
+        /// <summary>
+        /// Creates a new entity in the world with a transform component.
+        /// </summary>
+        /// <returns>The new entity id created</returns>
+        public uint CreateTransformEntity()
+        {
+            uint id = nextEntityId;
+            entities.Add(id);
+            AddComponent(id, new Transform());
             nextEntityId++;
             return id;
         }

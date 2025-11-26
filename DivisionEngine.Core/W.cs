@@ -15,6 +15,12 @@
         /// <returns>The new entity id created</returns>
         public static uint CreateEntity() => WorldManager.CurrentWorld!.CreateEntity();
 
+        /// <summary>
+        /// Creates a new entity in the current world with a transform component.
+        /// </summary>
+        /// <returns>The new entity id created</returns>
+        public static uint CreateTransformEntity() => WorldManager.CurrentWorld!.CreateTransformEntity();
+
         public static bool DestroyEntity(uint entityId) => WorldManager.CurrentWorld!.DestroyEntity(entityId);
 
         #endregion

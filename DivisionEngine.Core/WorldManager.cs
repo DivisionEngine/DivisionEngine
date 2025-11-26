@@ -1,4 +1,5 @@
 ﻿using DivisionEngine.Components;
+using DivisionEngine.MathLib;
 
 namespace DivisionEngine
 {
@@ -26,14 +27,40 @@ namespace DivisionEngine
             uint cameraEntity = newDefaultWorld.CreateEntity();
             newDefaultWorld.AddComponent(cameraEntity, new Transform
             {
-                position = new float3(0, 2, 5)
+                position = new float3(0, 0, 7)
             });
             newDefaultWorld.AddComponent(cameraEntity, new Camera());
             newDefaultWorld.AddComponent(cameraEntity, new Player());
 
-            uint sphereEntity = newDefaultWorld.CreateEntity();
-            newDefaultWorld.AddComponent(sphereEntity, new Transform());
-            newDefaultWorld.AddComponent(sphereEntity, new SDFSphere());
+            uint sphereEntity = newDefaultWorld.CreateTransformEntity();
+            newDefaultWorld.AddComponent(sphereEntity, new SDFSphere
+            {
+                color = ColorPalette.Azure,
+                radius = 3f
+            });
+
+            uint roundedBoxEntity = newDefaultWorld.CreateEntity();
+            newDefaultWorld.AddComponent(roundedBoxEntity, new Transform
+            {
+                position = new float3(0, -4, 0)
+            });
+            newDefaultWorld.AddComponent(roundedBoxEntity, new SDFRoundedBox
+            {
+                color = ColorPalette.DeepSkyBlue,
+                size = new float3(20f, 2f, 20f),
+                bevel = 0.25f
+            });
+
+            uint boxEntity = newDefaultWorld.CreateEntity();
+            newDefaultWorld.AddComponent(boxEntity, new Transform
+            {
+                position = new float3(3, 2, 3)
+            });
+            newDefaultWorld.AddComponent(boxEntity, new SDFBox
+            {
+                color = ColorPalette.Crimson,
+                size = new float3(1f, 2f, 1f)
+            });
 
             SetWorld("default", newDefaultWorld);
             if (makeCurrent) CurrentWorld = newDefaultWorld;

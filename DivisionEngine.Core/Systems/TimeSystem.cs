@@ -9,7 +9,7 @@ namespace DivisionEngine.Systems
     public class TimeSystem : SystemBase
     {
         private Stopwatch? timeTracker;
-        private double lastRecordedTime; // in seconds
+        private double lastRecordedTime, timeBetweenFrames; // in seconds
 
         /// <summary>
         /// Current delta time in the world (time between frames) in seconds.
@@ -31,9 +31,16 @@ namespace DivisionEngine.Systems
         /// </summary>
         public static float TimeF => (float)Time;
 
+        public static int FrameCount { get; private set; }
+
+        public static float FPS { get; private set; }
+
         public override void Awake()
         {
             lastRecordedTime = 0;
+            FrameCount = 0;
+            Time = 0;
+            timeBetweenFrames = 0;
             timeTracker = new Stopwatch();
             timeTracker.Start();
             Info("Time started in current world");
@@ -43,6 +50,12 @@ namespace DivisionEngine.Systems
         {
             double newTime = timeTracker!.Elapsed.TotalSeconds;
             DeltaTime = newTime - lastRecordedTime;
+
+            FrameCount++;
+            timeBetweenFrames += DeltaTimeF;
+            FPS = FrameCount / (float)timeBetweenFrames;
+            Info($"Current FPS: {FPS}");
+            Info($"Current FrameTime: {DeltaTimeF}");
 
             lastRecordedTime = timeTracker!.Elapsed.TotalSeconds;
             Time = lastRecordedTime;

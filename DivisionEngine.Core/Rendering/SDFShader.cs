@@ -14,10 +14,12 @@ namespace DivisionEngine
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
     {
 
-        const int MAX_RAYMARCH_STEPS = 128;
-        const float MAX_RAYMARCH_DISTANCE = 1000.0f;
+        const int MAX_RAYMARCH_STEPS = 256;
+        const float MAX_RAYMARCH_DISTANCE = 10000.0f;
         const float EPSILON = 0.0001f;
         const float MIN_TRAVERSE_DIST = 100000000.0f;
+        const float resolution = 0.001f;
+        readonly float3 sunDir = new float3(0.5f, 0.8f, 0.3f);
 
         // Obtained via Deepseek: https://chat.deepseek.com/share/avavmqykeivckbnakl
         private float3 GetCameraRayDir(float2 uv)
@@ -52,29 +54,25 @@ namespace DivisionEngine
             return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f) - r;
         }
 
-        private float WorldSDF(float3 point)
+        private float2 WorldSDF(float3 point)
         {
             float minDist = MIN_TRAVERSE_DIST;
 
-            for (int i = 0; i < sdfPrimitives.Length; i++)
-            {
-                // Replace with primitive evaluation function in future
-                float dist = SphereSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.X);
-                minDist = Hlsl.Min(minDist, dist);
-            }
-
-            return minDist;
-        }
-
-        private int FindClosestObj(float3 hitPoint)
-        {
             int closest = -1;
-            float minDist = EPSILON;
-
             for (int i = 0; i < sdfPrimitives.Length; i++)
             {
                 // Replace with primitive evaluation function in future
-                float dist = SphereSDF(hitPoint, sdfPrimitives[i].position, sdfPrimitives[i].parameters.X);
+                float dist;
+                if (sdfPrimitives[i].type == 0)
+                    dist = SphereSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.X);
+                else if (sdfPrimitives[i].type == 1)
+                    dist = BoxSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.XYZ);
+                else if (sdfPrimitives[i].type == 2)
+                    dist = RoundedBoxSDF(point, sdfPrimitives[i].position,
+                        sdfPrimitives[i].parameters.XYZ, sdfPrimitives[i].parameters.W);
+                else
+                    dist = SphereSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.X);
+
                 if (dist < minDist)
                 {
                     closest = i;
@@ -82,7 +80,54 @@ namespace DivisionEngine
                 }
             }
 
-            return closest;
+            return new float2(minDist, closest);
+        }
+
+        private float3 FastNormal(float3 pos)
+        {
+            float3 n = new float3(0, 0, 0);
+            for (int i = 0; i < 4; i++)
+            {
+                float3 e = 0.5773f * (2.0f * new float3((((i + 3) >> 1) & 1), ((i >> 1) & 1), (i & 1)) - 1.0f);
+                n += e * WorldSDF(pos + resolution * 50 * e).X;
+                //if( n.x+n.y+n.z>100.0 ) break;
+            }
+            return Hlsl.Normalize(n);
+        }
+
+        // Calculates the lighting amount based on a normal vector
+        private float NormalLighting(float3 normal)
+        {
+            return Hlsl.Clamp(Hlsl.Dot(Hlsl.Normalize(sunDir), normal), 0, 1);
+        }
+
+        // Calculates shadows
+        // Adapted: https://www.shadertoy.com/view/lsKcDD
+        private float SoftShadow(float3 rayOrigin, float3 rayDir, float minDist, float maxDist)
+        {
+            float res = 1.0f;
+            float rayDist = minDist;
+
+            for (int i = 0; i < 256 && rayDist < maxDist; i++)
+            {
+                float sceneSDF = WorldSDF(rayOrigin + rayDist * rayDir).X;
+                res = Hlsl.Min(res, sceneSDF / (0.5f * rayDist));
+                rayDist += Hlsl.Clamp(sceneSDF, 0.005f, 0.50f);
+
+                if (res < -1.0f || rayDist > maxDist)
+                    break;
+            }
+
+            res = Hlsl.Max(res, -1.0f);
+            return 0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res);
+        }
+
+        private float3 GetMaterialColor(int objIndex)
+        {
+            if (objIndex < 0 || objIndex > sdfPrimitives.Length)
+                return new float3(0.0f, 0.0f, 0.0f);
+
+            return sdfPrimitives[objIndex].color.XYZ;
         }
 
         public void Execute()
@@ -108,10 +153,11 @@ namespace DivisionEngine
                 hitPoint = rayOrigin + rayDir * totalDist;
 
                 // Calculate SDF world dist function
-                float worldDist = WorldSDF(hitPoint);
+                float2 worldSDFData = WorldSDF(hitPoint);
+                float worldDist = worldSDFData.X;
                 if (worldDist < EPSILON)
                 {
-                    closestObjIndex = FindClosestObj(hitPoint);
+                    closestObjIndex = (int)worldSDFData.Y;
                     break;
                 }
 
@@ -126,8 +172,18 @@ namespace DivisionEngine
             if (closestObjIndex > -1)
             {
                 // Calculate objectColor, lighting, normals, etc. eventually
+                float3 normal = FastNormal(hitPoint);
 
-                outputColor = new float3(1f, 1f, 1f);
+                float ambientLightAmt = 0.05f;
+                float diffuseLightAmt = NormalLighting(normal);
+
+                float3 shadowOrigin = hitPoint + normal * EPSILON;
+
+                float shadowAmt = SoftShadow(shadowOrigin, Hlsl.Normalize(sunDir), 0.001f, 10f);
+
+                float3 materialColor = GetMaterialColor(closestObjIndex);
+
+                outputColor = materialColor * (ambientLightAmt + diffuseLightAmt * shadowAmt);
             }
 
             texture[pixel] = new float4(outputColor, 1.0f);
