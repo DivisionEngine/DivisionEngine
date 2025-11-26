@@ -22,9 +22,21 @@ public partial class ConsoleWindow : EditorWindow
         logList = new StackPanel { Orientation = Orientation.Vertical };
         scrollViewer = new ScrollViewer { Content = logList };
 
-        AddDynamicContent();
-
         Debug.OnLogUpdate += Debug_OnLogUpdate;
+
+        LoadAllCurrentLogs();
+        AddDynamicContent();
+    }
+
+    private void LoadAllCurrentLogs()
+    {
+        foreach (LogEntry log in Debug.Logs)
+            Dispatcher.UIThread.Post(() => CreateLogEntry(log, false));
+    }
+
+    private void Debug_OnLogUpdate(LogEntry obj)
+    {
+        Dispatcher.UIThread.Post(() => CreateLogEntry(obj, autoScroll));
     }
 
     private void AddDynamicContent()
@@ -40,18 +52,12 @@ public partial class ConsoleWindow : EditorWindow
         else border.Child = scrollViewer;
     }
 
-    private void Debug_OnLogUpdate(LogEntry obj)
-    {
-        Dispatcher.UIThread.Post(() => CreateLogEntry(obj));
-    }
-
-    private void CreateLogEntry(LogEntry log)
+    private void CreateLogEntry(LogEntry log, bool scrollToEnd)
     {
         Border logContainer = CreateLogControl(log);
         logList.Children.Add(logContainer);
 
-        if (autoScroll)
-            scrollViewer.ScrollToEnd();
+        if (scrollToEnd) scrollViewer.ScrollToEnd();
 
         if (logList.Children.Count > MaxDisplayedLogEntries)
             logList.Children.RemoveAt(0);
