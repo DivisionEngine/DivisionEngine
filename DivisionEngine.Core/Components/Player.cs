@@ -5,7 +5,7 @@
         public static Player Default => new Player
         {
             movementSpeed = 2f,
-            mouseSensitivity = 1f,
+            mouseSensitivity = 0.001f,
             sprintMultiplier = 2f
         };
 

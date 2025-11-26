@@ -12,20 +12,36 @@ namespace DivisionEngine.MathLib
         public static float3 Add(this float3 a, float3 b) => new float3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
         public static float4 Add(this float4 a, float4 b) => new float4(a.X + b.X, a.Y + b.Y, a.Z + b.Z, a.W + b.W);
 
+        public static float2 Add(this float2 a, float b) => new float2(a.X + b, a.Y + b);
+        public static float3 Add(this float3 a, float b) => new float3(a.X + b, a.Y + b, a.Z + b);
+        public static float4 Add(this float4 a, float b) => new float4(a.X + b, a.Y + b, a.Z + b, a.W + b);
+
         // Subtract vectors
         public static float2 Subtract(this float2 a, float2 b) => new float2(a.X - b.X, a.Y - b.Y);
         public static float3 Subtract(this float3 a, float3 b) => new float3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
         public static float4 Subtract(this float4 a, float4 b) => new float4(a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W);
+
+        public static float2 Subtract(this float2 a, float b) => new float2(a.X - b, a.Y - b);
+        public static float3 Subtract(this float3 a, float b) => new float3(a.X - b, a.Y - b, a.Z - b);
+        public static float4 Subtract(this float4 a, float b) => new float4(a.X - b, a.Y - b, a.Z - b, a.W - b);
 
         // Multiply vectors
         public static float2 Multiply(this float2 a, float2 b) => new float2(a.X * b.X, a.Y * b.Y);
         public static float3 Multiply(this float3 a, float3 b) => new float3(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
         public static float4 Multiply(this float4 a, float4 b) => new float4(a.X * b.X, a.Y * b.Y, a.Z * b.Z, a.W * b.W);
 
+        public static float2 Multiply(this float2 a, float b) => new float2(a.X * b, a.Y * b);
+        public static float3 Multiply(this float3 a, float b) => new float3(a.X * b, a.Y * b, a.Z * b);
+        public static float4 Multiply(this float4 a, float b) => new float4(a.X * b, a.Y * b, a.Z * b, a.W * b);
+
         // Divide vectors
         public static float2 Divide(this float2 a, float2 b) => new float2(a.X / b.X, a.Y / b.Y);
         public static float3 Divide(this float3 a, float3 b) => new float3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
         public static float4 Divide(this float4 a, float4 b) => new float4(a.X / b.X, a.Y / b.Y, a.Z / b.Z, a.W / b.W);
+
+        public static float2 Divide(this float2 a, float b) => new float2(a.X / b, a.Y / b);
+        public static float3 Divide(this float3 a, float b) => new float3(a.X / b, a.Y / b, a.Z / b);
+        public static float4 Divide(this float4 a, float b) => new float4(a.X / b, a.Y / b, a.Z / b, a.W / b);
 
         /// <summary>
         /// Calculates the dot product of two float2 vectors.

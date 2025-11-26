@@ -64,6 +64,39 @@
             System.Numerics.Quaternion.Lerp(a.ToQuaternion(), b.ToQuaternion(), t).ToFloat4();
 
         /// <summary>
+        /// Adds two quaternions together.
+        /// </summary>
+        /// <param name="a">Quaternion a</param>
+        /// <param name="b">Quaternion b</param>
+        /// <returns>Addition of quaterions</returns>
+        public static float4 Add(float4 a, float4 b) => (a.ToQuaternion() + b.ToQuaternion()).ToFloat4();
+
+        /// <summary>
+        /// Subtracts two quaternions together.
+        /// </summary>
+        /// <param name="a">Quaternion a</param>
+        /// <param name="b">Quaternion b</param>
+        /// <returns>Subtraction of quaterions</returns>
+        public static float4 Subtract(float4 a, float4 b) => (a.ToQuaternion() - b.ToQuaternion()).ToFloat4();
+
+        /// <summary>
+        /// Multiplies two quaternions together.
+        /// </summary>
+        /// <param name="a">Quaternion a</param>
+        /// <param name="b">Quaternion b</param>
+        /// <returns>Product of quaterions</returns>
+        public static float4 Multiply(float4 a, float4 b) => (a.ToQuaternion() * b.ToQuaternion()).ToFloat4();
+
+        /// <summary>
+        /// Divides two quaternions together.
+        /// </summary>
+        /// <param name="numerator">Quaternion a</param>
+        /// <param name="denominator">Quaternion b</param>
+        /// <returns>Division of quaterions</returns>
+        public static float4 Divide(float4 numerator, float4 denominator) =>
+            (numerator.ToQuaternion() / denominator.ToQuaternion()).ToFloat4();
+
+        /// <summary>
         /// Converts a float4 quaternion to a System.Numerics quaternion.
         /// </summary>
         /// <param name="quaternion">Float4 vector to convert</param>
