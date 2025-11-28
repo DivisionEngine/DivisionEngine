@@ -7,6 +7,11 @@
     {
         #region entities
 
+        /// <summary>
+        /// Check if an entity exists in the world.
+        /// </summary>
+        /// <param name="id">Entity id to check</param>
+        /// <returns>Whether the entity exists in the world</returns>
         public static bool EntityExists(uint id) => WorldManager.CurrentWorld!.EntityExists(id);
 
         /// <summary>
@@ -21,6 +26,25 @@
         /// <returns>The new entity id created</returns>
         public static uint CreateTransformEntity() => WorldManager.CurrentWorld!.CreateTransformEntity();
 
+        /// <summary>
+        /// Creates a new entity in the world.
+        /// </summary>
+        /// <param name="name">The name of the entity</param>
+        /// <returns>The new entity id created</returns>
+        public static uint CreateEntity(string name) => WorldManager.CurrentWorld!.CreateEntity(name);
+
+        /// <summary>
+        /// Creates a new entity in the world with a transform component.
+        /// </summary>
+        /// <param name="name">The name of the entity</param>
+        /// <returns>The new entity id created</returns>
+        public static uint CreateTransformEntity(string name) => WorldManager.CurrentWorld!.CreateTransformEntity(name);
+
+        /// <summary>
+        /// Destroy an entity in the world.
+        /// </summary>
+        /// <param name="entityId">Entity to destroy</param>
+        /// <returns>Whether entity of <paramref name="entityId"/> was destroyed.</returns>
         public static bool DestroyEntity(uint entityId) => WorldManager.CurrentWorld!.DestroyEntity(entityId);
 
         #endregion
@@ -35,21 +59,52 @@
         #endregion
         #region components
 
+        /// <summary>
+        /// Adds a component onto an entity in the world.
+        /// </summary>
+        /// <typeparam name="T">Component type to add</typeparam>
+        /// <param name="entityId">Entity to add component to</param>
+        /// <param name="component">Component data to add</param>
+        /// <returns>True if the component was added</returns>
         public static bool AddComponent<T>(uint entityId, T component) where T : IComponent =>
             WorldManager.CurrentWorld!.AddComponent(entityId, component);
 
+        /// <summary>
+        /// Removes a component from an entity in the world.
+        /// </summary>
+        /// <typeparam name="T">Component to remove</typeparam>
+        /// <param name="entityId">Entity to remove component from</param>
+        /// <returns>True if the component was removed</returns>
         public static bool RemoveComponent<T>(uint entityId) where T : IComponent =>
             WorldManager.CurrentWorld!.RemoveComponent<T>(entityId);
 
+        /// <summary>
+        /// Gets a component on an entity.
+        /// </summary>
+        /// <typeparam name="T">Type of component to get</typeparam>
+        /// <param name="entityId">The entity</param>
+        /// <returns>The component on the entity</returns>
+        /// <exception cref="InvalidOperationException">Throws an exception when entity does not have component</exception>
         public static T GetComponent<T>(uint entityId) where T : IComponent =>
             WorldManager.CurrentWorld!.GetComponent<T>(entityId);
 
+        /// <summary>
+        /// Checks if an entity has a component of <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">Type of component to check for</typeparam>
+        /// <param name="entityId">Entity ID to check on</param>
+        /// <returns>Whether the entity of <paramref name="entityId"/> has a component type <typeparamref name="T"/></returns>
         public static bool HasComponent<T>(uint entityId) where T : IComponent =>
             WorldManager.CurrentWorld!.HasComponent<T>(entityId);
 
         #endregion
         #region queries
 
+        /// <summary>
+        /// Queries the world to find components of a type.
+        /// </summary>
+        /// <typeparam name="T">Type of components to find</typeparam>
+        /// <returns>All entities with component type <typeparamref name="T"/></returns>
         public static IEnumerable<uint> Query<T>() where T : IComponent => WorldManager.CurrentWorld!.Query<T>();
 
         public static IEnumerable<uint> Query(params Type[] componentTypes) => WorldManager.CurrentWorld!.Query(componentTypes);

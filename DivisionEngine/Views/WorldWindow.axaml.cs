@@ -7,9 +7,6 @@ namespace DivisionEngine.Editor;
 
 public partial class WorldWindow : UserControl
 {
-    private World refWorld;
-    private bool isFake;
-
     private readonly ListBox entitiesList;
     private readonly ScrollViewer scrollViewer;
 
@@ -28,19 +25,6 @@ public partial class WorldWindow : UserControl
             Content = entitiesList
         };
 
-        isFake = true;
-
-        if (WorldManager.CurrentWorld != null)
-        {
-            refWorld = WorldManager.CurrentWorld;
-            isFake = false;
-        }
-        else
-        {
-            refWorld = WorldManager.CreateDefaultWorld(false);
-            isFake = true;
-        }
-
         Border? border = this.FindControl<Border>("MainBorder");
         border!.Child = scrollViewer;
 
@@ -52,7 +36,7 @@ public partial class WorldWindow : UserControl
         worldWinUpdater.Start();
     }
 
-    private void WorldWinUpdater_Tick(object? sender, System.EventArgs e)
+    private void WorldWinUpdater_Tick(object? sender, EventArgs e)
     {
         if (WorldManager.CurrentWorld == null) return;
         UpdateListEntries();
@@ -66,7 +50,10 @@ public partial class WorldWindow : UserControl
         foreach (uint entity in newEntities)
         {
             if (!entitiesList.Items.Contains(entity))
+            {
+                W.Query<Name>
                 entitiesList.Items.Add(entity);
+            }
         }
     }
 }
