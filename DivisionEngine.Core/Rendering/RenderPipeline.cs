@@ -8,6 +8,7 @@ using Window = Silk.NET.Windowing.Window;
 namespace DivisionEngine.Rendering
 {
 
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
     /// <summary>
     /// SDF Render pipeline for Division Engine.
     /// </summary>
@@ -25,6 +26,12 @@ namespace DivisionEngine.Rendering
         public IWindow? RendererWindow;
         public bool InputReady { get; private set; } = false; // Indicates if the renderer is ready to process input
         public event Action? Close; // Event to handle window close actions
+
+        // Buffer storage
+        private ReadWriteTexture2D<float4>? renderTex;
+        private ReadOnlyBuffer<SDFWorldDTO>? worldBuffer;
+        private ReadOnlyBuffer<SDFPrimitiveObjectDTO>? primitivesBuffer;
+        private float4[]? pixels;
 
         // World variables
         public float Time;
@@ -80,10 +87,15 @@ namespace DivisionEngine.Rendering
         /// </summary>
         private void OnClosing()
         {
+            renderTex?.Dispose();
+            worldBuffer?.Dispose();
+            primitivesBuffer?.Dispose();
             Close?.Invoke(); // Invoke the close event if there are any subscribers
         }
 
-        [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
+        /// <summary>
+        /// Called on render window load.
+        /// </summary>
         private void OnLoad()
         {
             gl = GL.GetApi(RendererWindow);
@@ -107,6 +119,10 @@ namespace DivisionEngine.Rendering
             InputReady = true; // Set input ready to true after OpenGL context is initialized
         }
 
+        /// <summary>
+        /// Called when the frame must be rendered.
+        /// </summary>
+        /// <param name="delta">Window delta</param>
         [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
         private void OnRender(double delta)
         {
@@ -114,6 +130,7 @@ namespace DivisionEngine.Rendering
 
             // Variable setup (variables modified outside of renderer must be locked)
             int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
+            if (texWidth < 1 || texHeight < 1) return; // Ensure valid texture dimensions
 
             // Gather SDF world information
             SDFWorldDTO worldDTO;
@@ -125,19 +142,25 @@ namespace DivisionEngine.Rendering
             }
 
             // Build compute render texture
-            if (texWidth < 1 || texHeight < 1) return; // Ensure valid texture dimensions
-            using ReadWriteTexture2D<float4> renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+            if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight)
+            {
+                renderTex?.Dispose();
+                renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                pixels = new float4[texWidth * texHeight];
+            }
 
-            // Build SDF world data buffers
-            using ReadOnlyBuffer<SDFWorldDTO> worldDTOBuffer = device!.AllocateReadOnlyBuffer([worldDTO]);
-            using ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitivesDTOBuffer = device!.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
+            // Build and copy buffers
+            worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
+            worldBuffer.CopyFrom([worldDTO]);
+
+            primitivesBuffer?.Dispose();
+            primitivesBuffer = device!.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
 
             // Dispatch SDF compute shader
-            SDFShader shader = new SDFShader(renderTex, texWidth, texHeight, worldDTOBuffer, sdfPrimitivesDTOBuffer);
+            SDFShader shader = new SDFShader(renderTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
             device!.For(texWidth, texHeight, shader);
 
-            float4[] pixels = new float4[texWidth * texHeight];
-            renderTex.CopyTo(pixels);
+            renderTex.CopyTo(pixels!);
             //renderTex.Dispose(); // No longer need dispose because of "using" included in front of renderTex declaration
 
             // Push compute texture to openGL rendered quad (via Silk.Net)
