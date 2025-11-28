@@ -71,10 +71,33 @@ namespace DivisionEngine
         /// <returns>The new entity id created</returns>
         public uint CreateTransformEntity()
         {
-            uint id = nextEntityId;
-            entities.Add(id);
+            uint id = CreateEntity();
             AddComponent(id, new Transform());
-            nextEntityId++;
+            return id;
+        }
+
+        /// <summary>
+        /// Creates a new entity in the world.
+        /// </summary>
+        /// <param name="name">The name of the entity</param>
+        /// <returns>The new entity id created</returns>
+        public uint CreateEntity(string name)
+        {
+            uint id = CreateEntity();
+            AddComponent(id, new Name(name));
+            return id;
+        }
+
+        /// <summary>
+        /// Creates a new entity in the world with a transform component.
+        /// </summary>
+        /// <param name="name">The name of the entity</param>
+        /// <returns>The new entity id created</returns>
+        public uint CreateTransformEntity(string name)
+        {
+            uint id = CreateEntity(name);
+            AddComponent(id, new Name(name));
+            AddComponent(id, new Transform());
             return id;
         }
 

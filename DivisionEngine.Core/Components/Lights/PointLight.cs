@@ -1,4 +1,4 @@
-﻿namespace DivisionEngine.Components
+﻿namespace DivisionEngine.Components.Lights
 {
     public class PointLight : IComponent
     {

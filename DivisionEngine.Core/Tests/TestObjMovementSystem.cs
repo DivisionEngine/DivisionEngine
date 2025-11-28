@@ -7,7 +7,7 @@ namespace DivisionEngine.Tests
     {
         public override void Update()
         {
-            
+            //UpdateBoxes();
         }
 
         private void UpdateBoxes()

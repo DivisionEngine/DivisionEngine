@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Threading;
 using System;
+using System.Collections.Generic;
 
 namespace DivisionEngine.Editor;
 
@@ -40,6 +41,9 @@ public partial class WorldWindow : UserControl
             isFake = true;
         }
 
+        Border? border = this.FindControl<Border>("MainBorder");
+        border!.Child = scrollViewer;
+
         worldWinUpdater = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(250)
@@ -50,11 +54,19 @@ public partial class WorldWindow : UserControl
 
     private void WorldWinUpdater_Tick(object? sender, System.EventArgs e)
     {
-        Debug.Warning("Update world window");
+        if (WorldManager.CurrentWorld == null) return;
+        UpdateListEntries();
     }
 
     private void UpdateListEntries()
     {
+        HashSet<uint> newEntities = WorldManager.CurrentWorld!.entities;
+        if (newEntities.Count == entitiesList.Items.Count) return;
         
+        foreach (uint entity in newEntities)
+        {
+            if (!entitiesList.Items.Contains(entity))
+                entitiesList.Items.Add(entity);
+        }
     }
 }

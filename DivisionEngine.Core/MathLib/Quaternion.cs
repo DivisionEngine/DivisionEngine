@@ -1,6 +1,4 @@
-﻿using System.Numerics;
-
-namespace DivisionEngine.MathLib
+﻿namespace DivisionEngine.MathLib
 {
     /// <summary>
     /// Extension methods for quaternion vector operations on float4 objects.

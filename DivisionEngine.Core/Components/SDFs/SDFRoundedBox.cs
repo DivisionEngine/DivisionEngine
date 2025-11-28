@@ -1,4 +1,4 @@
-﻿namespace DivisionEngine.Components
+﻿namespace DivisionEngine.Components.SDFs
 {
     public class SDFRoundedBox : IComponent
     {
