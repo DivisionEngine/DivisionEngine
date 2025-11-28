@@ -109,12 +109,17 @@
         #region queries
 
         /// <summary>
-        /// Queries the world to find components of a type.
+        /// Queries the world to find entities with a component.
         /// </summary>
         /// <typeparam name="T">Type of components to find</typeparam>
         /// <returns>All entities with component type <typeparamref name="T"/></returns>
         public static IEnumerable<uint> Query<T>() where T : IComponent => WorldManager.CurrentWorld!.Query<T>();
 
+        /// <summary>
+        /// Queries the world to find entities with certain component types.
+        /// </summary>
+        /// <param name="componentTypes">Component types to discover</param>
+        /// <returns>List of entities with component types</returns>
         public static IEnumerable<uint> Query(params Type[] componentTypes) => WorldManager.CurrentWorld!.Query(componentTypes);
 
         public static IEnumerable<(uint, T)> QueryData<T>() where T : IComponent => WorldManager.CurrentWorld!.QueryData<T>();
