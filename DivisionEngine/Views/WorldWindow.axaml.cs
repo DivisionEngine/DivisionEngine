@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Threading;
+using DivisionEngine.Components;
 using System;
 using System.Collections.Generic;
 
@@ -51,8 +52,12 @@ public partial class WorldWindow : UserControl
         {
             if (!entitiesList.Items.Contains(entity))
             {
-                W.Query<Name>
-                entitiesList.Items.Add(entity);
+                if (W.HasComponent<Name>(entity))
+                {
+                    Name nameComp = W.GetComponent<Name>(entity);
+                    entitiesList.Items.Add(nameComp.name);
+                }
+                else entitiesList.Items.Add(entity);
             }
         }
     }

@@ -85,8 +85,16 @@
         /// <param name="entityId">The entity</param>
         /// <returns>The component on the entity</returns>
         /// <exception cref="InvalidOperationException">Throws an exception when entity does not have component</exception>
-        public static T GetComponent<T>(uint entityId) where T : IComponent =>
+        public static T? GetComponent<T>(uint entityId) where T : IComponent =>
             WorldManager.CurrentWorld!.GetComponent<T>(entityId);
+
+        /// <summary>
+        /// Gets all components on a specific entity.
+        /// </summary>
+        /// <param name="entityId">Entity ID to check</param>
+        /// <returns>List of all components on entity of <paramref name="entityId"/></returns>
+        public static List<IComponent> GetAllComponents(uint entityId) =>
+            WorldManager.CurrentWorld!.GetAllComponents(entityId);
 
         /// <summary>
         /// Checks if an entity has a component of <typeparamref name="T"/>.

@@ -25,7 +25,7 @@ namespace DivisionEngine
             World newDefaultWorld = new World();
             newDefaultWorld.RegisterAllSystems();
 
-            uint cameraEntity = newDefaultWorld.CreateEntity();
+            uint cameraEntity = newDefaultWorld.CreateEntity("Camera");
             newDefaultWorld.AddComponent(cameraEntity, new Transform
             {
                 position = new float3(0, 0, 7)
@@ -33,14 +33,14 @@ namespace DivisionEngine
             newDefaultWorld.AddComponent(cameraEntity, new Camera());
             newDefaultWorld.AddComponent(cameraEntity, new Player());
 
-            uint sphereEntity = newDefaultWorld.CreateTransformEntity();
+            uint sphereEntity = newDefaultWorld.CreateTransformEntity("Sphere");
             newDefaultWorld.AddComponent(sphereEntity, new SDFSphere
             {
                 color = ColorPalette.Khaki,
                 radius = 3f
             });
 
-            uint roundedBoxEntity = newDefaultWorld.CreateEntity();
+            uint roundedBoxEntity = newDefaultWorld.CreateEntity("Rounded Box");
             newDefaultWorld.AddComponent(roundedBoxEntity, new Transform
             {
                 position = new float3(0, -4, 0)
@@ -52,7 +52,7 @@ namespace DivisionEngine
                 bevel = 0.25f
             });
 
-            uint boxEntity = newDefaultWorld.CreateEntity();
+            uint boxEntity = newDefaultWorld.CreateEntity("Box");
             newDefaultWorld.AddComponent(boxEntity, new Transform
             {
                 position = new float3(3, 2, 3)

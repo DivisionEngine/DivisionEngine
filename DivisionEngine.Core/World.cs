@@ -269,13 +269,28 @@ namespace DivisionEngine
         /// <typeparam name="T">Type of component to get</typeparam>
         /// <param name="entityId">The entity</param>
         /// <returns>The component on the entity</returns>
-        /// <exception cref="InvalidOperationException">Throws an exception when entity does not have component</exception>
-        public T GetComponent<T>(uint entityId) where T : IComponent
+        public T? GetComponent<T>(uint entityId) where T : IComponent
         {
             Type type = typeof(T);
             if (components.TryGetValue(type, out var value) && value.TryGetValue(entityId, out var component))
                 return (T)component;
-            throw new InvalidOperationException($"Entity {entityId} does not have {type.Name} component.");
+            return default;
+        }
+
+        /// <summary>
+        /// Gets all components on a specific entity.
+        /// </summary>
+        /// <param name="entityId">Entity ID to check</param>
+        /// <returns>List of all components on entity of <paramref name="entityId"/></returns>
+        public List<IComponent> GetAllComponents(uint entityId)
+        {
+            List<IComponent> entityComponents = [];
+            foreach (var componentType in components.Values)
+            {
+                if (componentType.TryGetValue(entityId, out IComponent? component))
+                    entityComponents.Add(component);
+            }
+            return entityComponents;
         }
 
         /// <summary>
