@@ -101,6 +101,11 @@ namespace DivisionEngine
             return id;
         }
 
+        /// <summary>
+        /// Destroy an entity in the world.
+        /// </summary>
+        /// <param name="entityId">Entity to destroy</param>
+        /// <returns>Whether entity of <paramref name="entityId"/> was destroyed.</returns>
         public bool DestroyEntity(uint entityId)
         {
             if (entities.Remove(entityId))
@@ -208,6 +213,13 @@ namespace DivisionEngine
         #endregion
         #region components
 
+        /// <summary>
+        /// Adds a component onto an entity in the world.
+        /// </summary>
+        /// <typeparam name="T">Component type to add</typeparam>
+        /// <param name="entityId">Entity to add component to</param>
+        /// <param name="component">Component data to add</param>
+        /// <returns>True if the component was added</returns>
         public bool AddComponent<T>(uint entityId, T component) where T : IComponent
         {
             if (!entities.Contains(entityId))
@@ -232,6 +244,12 @@ namespace DivisionEngine
             return true;
         }
 
+        /// <summary>
+        /// Removes a component from an entity in the world.
+        /// </summary>
+        /// <typeparam name="T">Component to remove</typeparam>
+        /// <param name="entityId">Entity to remove component from</param>
+        /// <returns>True if the component was removed</returns>
         public bool RemoveComponent<T>(uint entityId) where T : IComponent
         {
             Type type = typeof(T);
@@ -245,6 +263,13 @@ namespace DivisionEngine
             return false;
         }
 
+        /// <summary>
+        /// Gets a component on an entity.
+        /// </summary>
+        /// <typeparam name="T">Type of component to get</typeparam>
+        /// <param name="entityId">The entity</param>
+        /// <returns>The component on the entity</returns>
+        /// <exception cref="InvalidOperationException">Throws an exception when entity does not have component</exception>
         public T GetComponent<T>(uint entityId) where T : IComponent
         {
             Type type = typeof(T);
@@ -253,6 +278,12 @@ namespace DivisionEngine
             throw new InvalidOperationException($"Entity {entityId} does not have {type.Name} component.");
         }
 
+        /// <summary>
+        /// Checks if an entity has a component of <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">Type of component to check for</typeparam>
+        /// <param name="entityId">Entity ID to check on</param>
+        /// <returns>Whether the entity of <paramref name="entityId"/> has a component type <typeparamref name="T"/></returns>
         public bool HasComponent<T>(uint entityId) where T : IComponent
         {
             Type type = typeof(T);
@@ -262,6 +293,11 @@ namespace DivisionEngine
         #endregion
         #region queries
 
+        /// <summary>
+        /// Queries the world to find components of a type.
+        /// </summary>
+        /// <typeparam name="T">Type of components to find</typeparam>
+        /// <returns>All entities with component type <typeparamref name="T"/></returns>
         public IEnumerable<uint> Query<T>() where T : IComponent
         {
             Type type = typeof(T);
@@ -324,16 +360,7 @@ namespace DivisionEngine
             }
         }
 
-        private Dictionary<uint, IComponent> GetComponentStore(Type t)
-        {
-            return components.GetValueOrDefault(t, []);
-        }
-
-        private Dictionary<uint, IComponent> GetComponentStore<T>() where T : IComponent
-        {
-            Type type = typeof(T);
-            return components.GetValueOrDefault(type, []);
-        }
+        private Dictionary<uint, IComponent> GetComponentStore(Type t) => components.GetValueOrDefault(t, []);
 
         #endregion
     }
