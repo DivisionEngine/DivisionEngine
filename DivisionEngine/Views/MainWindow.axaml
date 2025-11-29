@@ -58,7 +58,7 @@
     </StackPanel>
 
     <!--Basic Grid Layout-->
-    <Grid ColumnDefinitions="*, 2, 200">
+    <Grid ColumnDefinitions="*, 2, 300">
       <Grid Grid.Column="0" RowDefinitions="*, 2, 200">
         <Grid Grid.Row="0" ColumnDefinitions="200, 2, *">
           <!--Left Tabs-->

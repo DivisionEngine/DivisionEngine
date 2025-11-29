@@ -1,5 +1,6 @@
 ﻿using DivisionEngine.Components;
 using DivisionEngine.Components.SDFs;
+using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.MathLib;
 
 namespace DivisionEngine
@@ -61,6 +62,10 @@ namespace DivisionEngine
             {
                 color = ColorPalette.Crimson,
                 size = new float3(1f, 2f, 1f)
+            });
+            newDefaultWorld.AddComponent(boxEntity, new SoftShadows
+            {
+
             });
 
             SetWorld("default", newDefaultWorld);

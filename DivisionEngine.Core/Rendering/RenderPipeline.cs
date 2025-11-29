@@ -154,18 +154,21 @@ namespace DivisionEngine.Rendering
             }
 
             // Build and copy buffers
-            worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
-            worldBuffer.CopyFrom([worldDTO]);
+            try
+            {
+                worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
+                worldBuffer.CopyFrom([worldDTO]);
 
-            primitivesBuffer?.Dispose();
-            primitivesBuffer = device!.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
+                primitivesBuffer?.Dispose();
+                primitivesBuffer = device!.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
 
-            // Dispatch SDF compute shader
-            if (disposed) return; // Check renderTex exists
-            SDFShader shader = new SDFShader(renderTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
-            device!.For(texWidth, texHeight, shader);
+                // Dispatch SDF compute shader
+                SDFShader shader = new SDFShader(renderTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
+                device?.For(texWidth, texHeight, shader);
 
-            renderTex.CopyTo(pixels!);
+                renderTex.CopyTo(pixels!);
+            }
+            catch (ObjectDisposedException) { Debug.Warning("Renderer: Disposed buffers before finished rendering"); }
             //renderTex.Dispose(); // No longer need dispose because of "using" included in front of renderTex declaration
 
             // Push compute texture to openGL rendered quad (via Silk.Net)
