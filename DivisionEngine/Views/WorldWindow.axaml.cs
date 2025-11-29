@@ -51,7 +51,6 @@ public partial class WorldWindow : EditorWindow
     public WorldWindow()
     {
         InitializeComponent();
-
         curEntities = [];
 
         header = new StackPanel
@@ -121,7 +120,7 @@ public partial class WorldWindow : EditorWindow
         mainPanel.Children.Add(header);
         mainPanel.Children.Add(new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(68, 68, 68)),
+            Background = EditorColor.FromRGB(68, 68, 68),
             Height = 1,
         });
         mainPanel.Children.Add(scrollViewer);

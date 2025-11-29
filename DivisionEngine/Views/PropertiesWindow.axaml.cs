@@ -59,7 +59,7 @@ public partial class PropertiesWindow : EditorWindow
         mainPanel.Children.Add(headerText);
         mainPanel.Children.Add(new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(68, 68, 68)),
+            Background = EditorColor.FromRGB(68, 68, 68),
             Height = 1,
             Margin = new Thickness(0, 0, 0, 5)
         });
@@ -101,7 +101,7 @@ public partial class PropertiesWindow : EditorWindow
         Border headerBorder = new Border
         {
             BorderThickness = new Thickness(2),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(68, 68, 68)),
+            BorderBrush = EditorColor.FromRGB(68, 68, 68),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(0, 8, 0, 0),
             Padding = new Thickness(4, 4)
@@ -133,7 +133,7 @@ public partial class PropertiesWindow : EditorWindow
         Border fieldsBorder = new Border
         {
             BorderThickness = new Thickness(2),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(17, 17, 17)),
+            BorderBrush = EditorColor.FromRGB(17, 17, 17),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(0, 0, 0, 2),
         };
@@ -193,7 +193,7 @@ public partial class PropertiesWindow : EditorWindow
             {
                 Text = value,
                 FontSize = 12,
-                Background = new SolidColorBrush(Color.FromRgb(17, 17, 17)),
+                Background = EditorColor.FromRGB(17, 17, 17),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(4, 2),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -364,7 +364,7 @@ public partial class PropertiesWindow : EditorWindow
             Increment = (decimal)Math.Max(initialVal / 10f, 0.1f),
             FontSize = 11,
             AllowSpin = true,
-            Background = new SolidColorBrush(Color.FromRgb(24, 24, 24)),
+            Background = EditorColor.FromRGB(24, 24, 24),
             Foreground = Brushes.White,
             BorderThickness = new Thickness(0),
             Padding = new Thickness(4),

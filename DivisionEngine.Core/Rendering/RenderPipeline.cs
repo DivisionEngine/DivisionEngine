@@ -27,6 +27,21 @@ namespace DivisionEngine.Rendering
         public bool InputReady { get; private set; } = false; // Indicates if the renderer is ready to process input
         public event Action? Close; // Event to handle window close actions
 
+        /// <summary>
+        /// Controls whether the renderer window is shown.
+        /// </summary>
+        public bool ShowWindow
+        {
+            get
+            {
+                return RendererWindow != null && RendererWindow.IsVisible;
+            }
+            set
+            {
+                if (RendererWindow != null) RendererWindow.IsVisible = value;
+            }
+        }
+
         // Buffer storage
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadOnlyBuffer<SDFWorldDTO>? worldBuffer;

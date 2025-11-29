@@ -5,9 +5,10 @@ using System;
 
 namespace DivisionEngine.Editor;
 
-public partial class EnvironmentWindow : UserControl
+public partial class EnvironmentWindow : EditorWindow
 {
     private readonly DispatcherTimer? renderWindowUpdate;
+    private bool isVisible = false;
 
     public EnvironmentWindow()
     {
@@ -20,11 +21,30 @@ public partial class EnvironmentWindow : UserControl
         };
         renderWindowUpdate.Tick += (_, _) => UpdateRendererPosition();
         renderWindowUpdate.Start(); // Start the render window tracking update loop
+
+        this.GetObservable(IsVisibleProperty).Subscribe(SetVisible);
     }
 
-    private void UserControl_Unloaded(object? sender, VisualTreeAttachmentEventArgs e)
+    private void UserControl_Unloaded(object? sender, VisualTreeAttachmentEventArgs e) => SetVisible(false);
+
+    public void SetVisible(bool visible)
     {
-        renderWindowUpdate?.Stop();
+        if (isVisible == visible) return;
+        isVisible = visible;
+
+        if (visible)
+        {
+            App.Renderer!.ShowWindow = true;
+            renderWindowUpdate?.Start();
+            UpdateRendererPosition();
+            Debug.Info("Environment Window: Activated");
+        }
+        else
+        {
+            renderWindowUpdate?.Stop();
+            App.Renderer!.ShowWindow = false;
+            Debug.Info("Environment Window: Deactivated");
+        }
     }
 
     /// <summary>
@@ -35,7 +55,9 @@ public partial class EnvironmentWindow : UserControl
     {
         try
         {
-            if (RenderVisualizerFrame == null || App.Renderer?.RendererWindow == null)
+            if (!isVisible || RenderVisualizerFrame == null || App.Renderer?.RendererWindow == null)
+                return;
+            if (RenderVisualizerFrame.Bounds.Width <= 0 || RenderVisualizerFrame.Bounds.Height <= 0)
                 return;
 
             PixelPoint screenPoint = RenderVisualizerFrame.PointToScreen(new Point(0, 0));
