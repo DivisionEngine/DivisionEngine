@@ -17,16 +17,16 @@
       <FluentTheme DensityStyle="Compact"/>
       <materialIcons:MaterialIconStyles/>
 
-      <!--Division Engine Default Control Styling-->
+        <!--Division Engine Default Control Styling-->
       
-      <!--Grid Splitter Styles-->
+        <!--Grid Splitter Styles-->
       <Style Selector="GridSplitter">
         <Setter Property="Background" Value="#444"/>
         <Setter Property="MinHeight" Value="1"/>
         <Setter Property="MinWidth" Value="1"/>
       </Style>
 
-      <!--Tab Control Styles-->
+        <!--Tab Control Styles-->
       <Style Selector="TabControl">
         <Setter Property="Background" Value="#111"/>
         <Setter Property="Padding" Value="0"/>
@@ -36,7 +36,7 @@
         <Setter Property="Margin" Value="0,0,0,0"/>
       </Style>
       
-      <!--Tab Item Styles-->
+        <!--Tab Item Styles-->
       <Style Selector="TabItem">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="FontSize" Value="14"/>
@@ -59,6 +59,12 @@
         <Setter Property="Padding" Value="4,2,4,2"/>
       </Style>
       
+        <!--Menu Item Styles-->
+      <Style Selector="MenuItem">
+        <Setter Property="Foreground" Value="#bbb"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="6,4,6,4"/>
+      </Style>
     </Application.Styles>
   
 </Application>

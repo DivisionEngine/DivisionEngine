@@ -138,9 +138,7 @@ public partial class WorldWindow : EditorWindow
     private void EntitiesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (entitiesList.SelectedItem is EntityListItem selectedItem)
-        {
             PropertiesWindow.LoadEntityComponents(selectedItem.Id);
-        }
     }
 
     private void WorldWinUpdater_Tick(object? sender, EventArgs e)

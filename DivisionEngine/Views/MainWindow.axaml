@@ -76,7 +76,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="200, 2, *">
           <!--Left Tabs-->
           <Grid Grid.Column="0">
-            <TabControl ItemsSource="{Binding LeftTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+            <TabControl x:Name="leftTabs" ItemsSource="{Binding LeftTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                         SelectedItem="{Binding SelectedLeftTab, Mode=TwoWay}">
               <TabControl.ItemTemplate>
                 <DataTemplate>
@@ -89,6 +89,7 @@
               <Button.Flyout>
                 <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
                   <StackPanel>
+                    <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,left"/>
                     <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,left"/>
                     <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,left"/>
                     <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,left"/>
@@ -102,7 +103,7 @@
 
           <!--Center Tabs-->
           <Grid Grid.Column="2">
-            <TabControl ItemsSource="{Binding CenterTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+            <TabControl x:Name="centerTabs" ItemsSource="{Binding CenterTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                         SelectedItem="{Binding SelectedCenterTab, Mode=TwoWay}">
               <TabControl.ItemTemplate>
                 <DataTemplate>
@@ -116,6 +117,7 @@
               <Button.Flyout>
                 <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
                   <StackPanel>
+                    <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,center"/>
                     <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,center"/>
                     <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,center"/>
                     <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,center"/>
@@ -131,7 +133,7 @@
         
         <!--Bottom Tabs-->
         <Grid Grid.Row="2">
-          <TabControl ItemsSource="{Binding BottomTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+          <TabControl x:Name="bottomTabs" ItemsSource="{Binding BottomTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                       SelectedItem="{Binding SelectedBottomTab, Mode=TwoWay}">
             <TabControl.ItemTemplate>
               <DataTemplate>
@@ -145,6 +147,7 @@
             <Button.Flyout>
               <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
                 <StackPanel>
+                  <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,bottom"/>
                   <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,bottom"/>
                   <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,bottom"/>
                   <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,bottom"/>
@@ -160,7 +163,7 @@
 
       <!--Right Tabs-->
       <Grid Grid.Column="2">
-        <TabControl ItemsSource="{Binding RightTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+        <TabControl x:Name="rightTabs" ItemsSource="{Binding RightTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                     SelectedItem="{Binding SelectedRightTab, Mode=TwoWay}">
           <TabControl.ItemTemplate>
             <DataTemplate>
@@ -174,6 +177,7 @@
           <Button.Flyout>
             <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
               <StackPanel>
+                <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,right"/>
                 <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,right"/>
                 <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,right"/>
                 <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,right"/>

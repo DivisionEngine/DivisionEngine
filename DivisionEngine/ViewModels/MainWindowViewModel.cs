@@ -185,22 +185,30 @@ namespace DivisionEngine.Editor.ViewModels
             else if (LeftTabs.Contains(vm))
             {
                 LeftTabs.Remove(vm);
-                SelectedLeftTab = LeftTabs[LeftTabs.Count - 1];
+                if (LeftTabs.Count > 0)
+                    SelectedLeftTab = LeftTabs[LeftTabs.Count - 1];
+                else SelectedLeftTab = null;
             }
             else if (RightTabs.Contains(vm))
             {
                 RightTabs.Remove(vm);
-                SelectedRightTab = RightTabs[RightTabs.Count - 1];
+                if (RightTabs.Count > 0)
+                    SelectedRightTab = RightTabs[RightTabs.Count - 1];
+                else SelectedRightTab = null;
             }
             else if (BottomTabs.Contains(vm))
             {
                 BottomTabs.Remove(vm);
-                SelectedBottomTab = BottomTabs[BottomTabs.Count - 1];
+                if (BottomTabs.Count > 0)
+                    SelectedBottomTab = BottomTabs[BottomTabs.Count - 1];
+                else SelectedBottomTab = null;
             }
             else if (CenterTabs.Contains(vm))
             {
                 CenterTabs.Remove(vm);
-                SelectedCenterTab = CenterTabs[CenterTabs.Count - 1];
+                if (CenterTabs.Count > 0)
+                    SelectedCenterTab = CenterTabs[CenterTabs.Count - 1];
+                else SelectedCenterTab = null;
             }
         }
     }
