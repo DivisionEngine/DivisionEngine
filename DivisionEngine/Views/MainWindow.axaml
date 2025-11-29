@@ -35,6 +35,7 @@
     <StackPanel DockPanel.Dock="Top" Background="#444" Orientation="Horizontal">
       <TextBlock Text="Division Engine" FontWeight="Bold" FontSize="16" Margin="5" VerticalAlignment="Center"/>
       <Menu Foreground="#ccc">
+          <!--File / Edit Menu-->
         <MenuItem Header="File" Foreground="#ccc">
             <MenuItem Header="Open" Command="{Binding OpenProjectCommand}" Foreground="#ccc"/>
             <MenuItem Header="Save" Command="{Binding SaveProjectCommand}" Foreground="#ccc"/>
@@ -46,6 +47,18 @@
             <MenuItem Header="Undo" Command="{Binding UndoCommand}" Foreground="#ccc"/>
             <MenuItem Header="Redo" Command="{Binding RedoCommand}" Foreground="#ccc"/>
         </MenuItem>
+          <!--Add Entity Menu-->
+        <MenuItem Header="Add" Foreground="#ccc">
+            <MenuItem Header="Empty Entity" Command="{Binding CreateEntityCommand}" CommandParameter="empty"/>
+            <MenuItem Header="Empty Transform" Command="{Binding CreateEntityCommand}" CommandParameter="emptyTransform"/>
+            <Separator/>
+            <MenuItem Header="Camera" Command="{Binding CreateEntityCommand}" CommandParameter="camera"/>
+            <Separator/>
+            <MenuItem Header="Sphere" Command="{Binding CreateEntityCommand}" CommandParameter="sphere"/>
+            <MenuItem Header="Box" Command="{Binding CreateEntityCommand}" CommandParameter="box"/>
+            <MenuItem Header="Rounded Box" Command="{Binding CreateEntityCommand}" CommandParameter="roundedBox"/>
+        </MenuItem>
+          <!--Other Menus-->
         <MenuItem Header="Help" Foreground="#ccc">
             <MenuItem Header="About" Command="{Binding AboutCommand}" Foreground="#ccc"/>
         </MenuItem>

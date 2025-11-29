@@ -114,6 +114,29 @@ namespace DivisionEngine.Editor.ViewModels
         }
 
         [RelayCommand]
+        private void CreateEntity(string entityType)
+        {
+            try
+            {
+                uint entityId = entityType switch
+                {
+                    "empty" => DefaultEntities.Empty(),
+                    "emptyTransform" => DefaultEntities.EmptyTransform(),
+                    "camera" => DefaultEntities.Camera(),
+                    "sphere" => DefaultEntities.SDFSphere(),
+                    "box" => DefaultEntities.SDFBox(),
+                    "roundedBox" => DefaultEntities.SDFRoundedBox(),
+                    _ => DefaultEntities.EmptyTransform()
+                };
+                Debug.Info($"Created {entityType} entity with ID: {entityId}");
+            }
+            catch (Exception e)
+            {
+                Debug.Error($"Failed to create entity: {e.Message}");
+            }
+        }
+
+        [RelayCommand]
         private void AddWindowToTab(string param)
         {
             string[] args = param.Split(',');

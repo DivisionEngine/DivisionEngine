@@ -40,6 +40,7 @@ namespace DivisionEngine
                 color = ColorPalette.Khaki,
                 radius = 3f
             });
+            newDefaultWorld.AddComponent(sphereEntity, new SoftShadows());
 
             uint roundedBoxEntity = newDefaultWorld.CreateEntity("Rounded Box");
             newDefaultWorld.AddComponent(roundedBoxEntity, new Transform
@@ -52,6 +53,7 @@ namespace DivisionEngine
                 size = new float3(20f, 2f, 20f),
                 bevel = 0.25f
             });
+            newDefaultWorld.AddComponent(roundedBoxEntity, new SoftShadows());
 
             uint boxEntity = newDefaultWorld.CreateEntity("Box");
             newDefaultWorld.AddComponent(boxEntity, new Transform
@@ -63,10 +65,7 @@ namespace DivisionEngine
                 color = ColorPalette.Crimson,
                 size = new float3(1f, 2f, 1f)
             });
-            newDefaultWorld.AddComponent(boxEntity, new SoftShadows
-            {
-
-            });
+            newDefaultWorld.AddComponent(boxEntity, new SoftShadows());
 
             SetWorld("default", newDefaultWorld);
             if (makeCurrent) CurrentWorld = newDefaultWorld;

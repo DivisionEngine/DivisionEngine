@@ -54,14 +54,15 @@ namespace DivisionEngine
             return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f) - r;
         }
 
-        private float2 WorldSDF(float3 point)
+        private float2 WorldSDF(float3 point, bool shadowCastCheck)
         {
             float minDist = MIN_TRAVERSE_DIST;
 
             int closest = -1;
             for (int i = 0; i < sdfPrimitives.Length; i++)
             {
-                // Replace with primitive evaluation function in future
+                if (shadowCastCheck && !sdfPrimitives[i].shadowEffects.X) continue;
+
                 float dist;
                 if (sdfPrimitives[i].type == 0)
                     dist = SphereSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.X);
@@ -89,7 +90,7 @@ namespace DivisionEngine
             for (int i = 0; i < 4; i++)
             {
                 float3 e = 0.5773f * (2.0f * new float3((((i + 3) >> 1) & 1), ((i >> 1) & 1), (i & 1)) - 1.0f);
-                n += e * WorldSDF(pos + resolution * 50 * e).X;
+                n += e * WorldSDF(pos + resolution * 50 * e, false).X;
                 //if( n.x+n.y+n.z>100.0 ) break;
             }
             return Hlsl.Normalize(n);
@@ -110,7 +111,7 @@ namespace DivisionEngine
 
             for (int i = 0; i < 100 && rayDist < maxDist; i++)
             {
-                float sceneSDF = WorldSDF(rayOrigin + rayDist * rayDir).X;
+                float sceneSDF = WorldSDF(rayOrigin + rayDist * rayDir, true).X;
                 res = Hlsl.Min(res, sceneSDF / (0.5f * rayDist));
                 rayDist += Hlsl.Clamp(sceneSDF, 0.005f, 0.05f);
 
@@ -153,7 +154,7 @@ namespace DivisionEngine
                 hitPoint = rayOrigin + rayDir * totalDist;
 
                 // Calculate SDF world dist function
-                float2 worldSDFData = WorldSDF(hitPoint);
+                float2 worldSDFData = WorldSDF(hitPoint, false);
                 float worldDist = worldSDFData.X;
                 if (worldDist < EPSILON)
                 {
@@ -176,10 +177,12 @@ namespace DivisionEngine
 
                 float ambientLightAmt = 0.05f;
                 float diffuseLightAmt = NormalLighting(normal);
+                float shadowAmt = 1.0f;
 
                 float3 shadowOrigin = hitPoint + normal * EPSILON;
 
-                float shadowAmt = SoftShadow(shadowOrigin, Hlsl.Normalize(sunDir), 0.001f, 10f);
+                if (sdfPrimitives[closestObjIndex].shadowEffects.Y)
+                    shadowAmt = SoftShadow(shadowOrigin, Hlsl.Normalize(sunDir), 0.001f, 10f);
 
                 float3 materialColor = GetMaterialColor(closestObjIndex);
 

@@ -21,5 +21,7 @@
         public float4 rotation; // 16b
         public float3 scaling; // 12b
         public float4 parameters; // 16b
+
+        public bool2 shadowEffects; // 8b
     }
 }

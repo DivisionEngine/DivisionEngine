@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using DivisionEngine.Components;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DivisionEngine.Editor;
 
@@ -24,8 +25,8 @@ public partial class WorldWindow : EditorWindow
 
     private class EntityListItem
     {
-        public uint Id { get; }
-        public string Display { get; }
+        public uint Id { get; set; }
+        public string Display { get; set; }
 
         public EntityListItem(uint entityId, World? world)
         {
@@ -41,7 +42,7 @@ public partial class WorldWindow : EditorWindow
             else Display = $"Entity_{entityId}";
         }
 
-        public override string ToString() => $"{Display} [{Id}]";
+        public override string ToString() => $"[{Id}] {Display}";
         public override bool Equals(object? obj) =>
             obj is EntityListItem other && other.Id == Id;
         public override int GetHashCode() => Id.GetHashCode();
@@ -91,7 +92,7 @@ public partial class WorldWindow : EditorWindow
                 };
                 TextBlock idText = new TextBlock
                 {
-                    Text = $"[{item.Id}]",
+                    Text = $"{item.Id}",
                     FontSize = 10,
                     Foreground = Brushes.Gray,
                     VerticalAlignment = VerticalAlignment.Center,
@@ -145,6 +146,17 @@ public partial class WorldWindow : EditorWindow
     private void WorldWinUpdater_Tick(object? sender, EventArgs e)
     {
         if (WorldManager.CurrentWorld == null) return;
+        foreach (EntityListItem? listItem in entitiesList.Items.Cast<EntityListItem?>())
+        {
+            if (listItem != null && W.HasComponent<Name>(listItem.Id))
+            {
+                string? name = W.GetComponent<Name>(listItem.Id)!.name;
+                listItem.Display = string.IsNullOrWhiteSpace(name)
+                    ? $"Entity_{listItem.Id}"
+                    : name;
+            }
+        }
+
         UpdateListEntries();
     }
 
@@ -154,7 +166,6 @@ public partial class WorldWindow : EditorWindow
         if (newEntities.Count == curEntities.Count && newEntities.SetEquals(curEntities)) return;
 
         World w = WorldManager.CurrentWorld;
-
         foreach (uint entity in curEntities)
         {
             if (!newEntities.Contains(entity))
@@ -173,7 +184,8 @@ public partial class WorldWindow : EditorWindow
             }
         }
 
-        curEntities = newEntities;
+        curEntities.Clear();
+        curEntities.UnionWith(newEntities);
         entitiesHeader.Text = $"Entities: {newEntities.Count}";
     }
 }
