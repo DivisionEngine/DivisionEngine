@@ -128,22 +128,70 @@ public partial class PropertiesWindow : EditorWindow
             Margin = new Thickness(10, 5)
         };
 
-        /*var fields = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+        FieldInfo[] fields = compType.GetFields(BindingFlags.Public | BindingFlags.Instance);
         foreach (var field in fields)
         {
-            if (field.IsInitOnly) continue; // Skip readonly fields
+            if (field.IsInitOnly) continue; // readonly field, implement these in the future
 
             var fieldEditor = CreateFieldEditor(field, instance, entityId);
             if (fieldEditor != null)
             {
                 fieldsPanel.Children.Add(fieldEditor);
             }
-        }*/
+        }
 
         if (fieldsPanel.Children.Count > 0)
         {
             propertiesPanel.Children.Add(fieldsPanel);
         }
+    }
+
+    private Control? CreateFieldEditor(FieldInfo field, IComponent component, uint entityId)
+    {
+        Type fieldType = field.FieldType;
+        var fieldValue = field.GetValue(component);
+
+        StackPanel fieldPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 2,
+            Margin = new Thickness(0, 2)
+        };
+        TextBlock nameLabel = new TextBlock
+        {
+            Text = field.Name,
+            Foreground = Brushes.LightGray,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(4, 0)
+        };
+
+        fieldPanel.Children.Add(nameLabel);
+        Control editorControl = new Control();
+
+        if (fieldValue != null && fieldType == typeof(float))
+        {
+            float value = (float)fieldValue;
+            NumericUpDown numericBox = new NumericUpDown
+            {
+                Value = (decimal)value,
+                Increment = (decimal)(value / 10f),
+                AllowSpin = true,
+                Background = new SolidColorBrush(Color.FromRgb(24, 24, 24)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(2),
+                VerticalAlignment = VerticalAlignment.Center,
+                FormatString = "F3"
+            };
+            numericBox.ValueChanged += (s, e) =>
+            {
+                field.SetValue(component, (float)(double)numericBox.Value);
+            };
+            editorControl = numericBox;
+        }
+
+        fieldPanel.Children.Add(editorControl);
+        return fieldPanel;
     }
 
     public void SetupPropertiesForWorld(World world)

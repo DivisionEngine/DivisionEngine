@@ -32,6 +32,7 @@ namespace DivisionEngine.Rendering
         private ReadOnlyBuffer<SDFWorldDTO>? worldBuffer;
         private ReadOnlyBuffer<SDFPrimitiveObjectDTO>? primitivesBuffer;
         private float4[]? pixels;
+        private bool disposed;
 
         // World variables
         public float Time;
@@ -65,6 +66,8 @@ namespace DivisionEngine.Rendering
                 options.WindowBorder = WindowBorder.Hidden;
             }
 
+            disposed = false;
+
             options.Title = "SDF Scene";
             options.IsVisible = true;
             options.VSync = true;
@@ -87,6 +90,7 @@ namespace DivisionEngine.Rendering
         /// </summary>
         private void OnClosing()
         {
+            disposed = true;
             renderTex?.Dispose();
             worldBuffer?.Dispose();
             primitivesBuffer?.Dispose();
@@ -157,6 +161,7 @@ namespace DivisionEngine.Rendering
             primitivesBuffer = device!.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
 
             // Dispatch SDF compute shader
+            if (disposed) return; // Check renderTex exists
             SDFShader shader = new SDFShader(renderTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
             device!.For(texWidth, texHeight, shader);
 
