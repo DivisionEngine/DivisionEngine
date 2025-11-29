@@ -47,6 +47,13 @@
         /// <returns>Whether entity of <paramref name="entityId"/> was destroyed.</returns>
         public static bool DestroyEntity(uint entityId) => WorldManager.CurrentWorld!.DestroyEntity(entityId);
 
+        /// <summary>
+        /// Attempts to get the entity's name from name component.
+        /// </summary>
+        /// <param name="entityId">Entity to find name for</param>
+        /// <returns>Entity name if exists, otherwise empty string</returns>
+        public static string TryGetEntityName(uint entityId) => WorldManager.CurrentWorld!.TryGetEntityName(entityId);
+
         #endregion
         #region systems
 

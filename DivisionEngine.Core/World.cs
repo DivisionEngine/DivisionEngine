@@ -118,6 +118,21 @@ namespace DivisionEngine
             }
             return false;
         }
+        
+        /// <summary>
+        /// Attempts to get the entity's name from name component.
+        /// </summary>
+        /// <param name="entityId">Entity to find name for</param>
+        /// <returns>Entity name if exists, otherwise empty string</returns>
+        public string TryGetEntityName(uint entityId)
+        {
+            if (HasComponent<Name>(entityId))
+            {
+                Name nameComp = GetComponent<Name>(entityId)!;
+                return nameComp.name!;
+            }
+            return string.Empty;
+        }
 
         #endregion
         #region systems

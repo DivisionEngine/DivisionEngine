@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -32,8 +33,8 @@ public partial class WorldWindow : EditorWindow
 
             if (world != null && world.HasComponent<Name>(entityId))
             {
-                var nameComp = world.GetComponent<Name>(entityId);
-                Display = string.IsNullOrWhiteSpace(nameComp!.name)
+                Name nameComp = world.GetComponent<Name>(entityId)!;
+                Display = string.IsNullOrWhiteSpace(nameComp.name)
                     ? $"Entity_{entityId}"
                     : nameComp.name;
             }
@@ -102,9 +103,12 @@ public partial class WorldWindow : EditorWindow
             })
         };
 
+        entitiesList.SelectionChanged += EntitiesList_SelectionChanged;
+
         scrollViewer = new ScrollViewer
         {
-            Content = entitiesList
+            Content = entitiesList,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
 
         var mainPanel = new StackPanel
@@ -128,6 +132,14 @@ public partial class WorldWindow : EditorWindow
         };
         worldWinUpdater.Tick += WorldWinUpdater_Tick;
         worldWinUpdater.Start();
+    }
+
+    private void EntitiesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (entitiesList.SelectedItem is EntityListItem selectedItem)
+        {
+            PropertiesWindow.LoadEntityComponents(selectedItem.Id);
+        }
     }
 
     private void WorldWinUpdater_Tick(object? sender, EventArgs e)
