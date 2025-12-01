@@ -2,7 +2,9 @@
 
 # Division Engine
 
-Division Engine is an SDF-based game engine written entirely in C#. Utilizing Avalonia UI for the interface and Silk.NET for native rendering, Division Engine has a complete build pipeline that is entirely written in C#.
+Division Engine is an SDF-based game engine written entirely in C#. Utilizing Avalonia UI for the interface and Silk.NET for native rendering, Division Engine features a comprehensive build pipeline that is written entirely in C#.
+
+*Note: This engine is still in preview and has known issues; it is specifically for experimentation and education only.*
 
 The render pipeline is built using an OpenGL backend with HLSL shaders written in C# using ComputeSharp.
 
@@ -13,6 +15,9 @@ Picture this:
 - ECS backend, fast data handling
 - Convenient editor tooling
 
+Editor Mockup (*Preview*):
+<img width="1919" height="1032" alt="Screenshot 2025-12-01 163210" src="https://github.com/user-attachments/assets/01b89a41-aa90-4db8-871c-c42fd6083751" />
+
 ## What Are SDFs?
 
 *Signed Distance Fields* are spatial fields that store information represented as a grid sampling of the closest distance to the surface of an object defined as a polygonal model. Usually, the convention of using negative values inside the object and positive values outside the object is applied. Signed distance fields are important in computer graphics and related fields. Often, they are used for collision detection in cloth animation, soft-body physics effects, malleable geometry, volumetric effects, and fluid simulation.
@@ -20,7 +25,7 @@ Picture this:
 
 ## How to Work with ECS
 
-*ECS* or an entity-component-system framework is a way of organizing game data such that it is memory efficient and hyper-performant. Entities are simply IDs with components stored as a dictionary in an "ECS World" object. Systems are the code files written that operate on an awake --> update --> fixed update --> render schedule, allowing components to be manipulated during different engine loops/stages. For more information on ECS, check out how the Unity game engine implemented its ECS framework here: https://unity.com/ecs
+*ECS* or an entity-component-system framework is a way of organizing game data such that it is memory efficient and hyper-performant. Entities are simply IDs with components stored as a dictionary in an "ECS World" object. Systems are code files written that operate on an awake --> update --> fixed update --> render schedule, allowing components to be manipulated during different engine loops/stages. For more information on ECS, check out how the Unity game engine implemented its ECS framework here: https://unity.com/ecs
 
 ### Resources:
 Follow the development: https://trello.com/b/mWtyHBMf/division-engine
