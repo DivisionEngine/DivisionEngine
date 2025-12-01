@@ -72,5 +72,15 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SoftShadows());
             return sdf;
         }
+
+        public static uint SDFPyramid(string name = "New Pyramid")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint sdf = W.CreateTransformEntity(name);
+            W.AddComponent(sdf, new SDFPyramid());
+            W.AddComponent(sdf, new SoftShadows());
+            return sdf;
+        }
     }
 }

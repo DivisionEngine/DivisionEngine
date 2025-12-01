@@ -58,6 +58,7 @@
             <MenuItem Header="Box" Command="{Binding CreateEntityCommand}" CommandParameter="box"/>
             <MenuItem Header="Rounded Box" Command="{Binding CreateEntityCommand}" CommandParameter="roundedBox"/>
             <MenuItem Header="Donut" Command="{Binding CreateEntityCommand}" CommandParameter="torus"/>
+            <MenuItem Header="Pyramid" Command="{Binding CreateEntityCommand}" CommandParameter="pyramid"/>
         </MenuItem>
           <!--Other Menus-->
         <MenuItem Header="Help" Foreground="#ccc">

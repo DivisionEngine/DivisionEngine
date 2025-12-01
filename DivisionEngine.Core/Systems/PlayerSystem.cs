@@ -34,12 +34,18 @@ namespace DivisionEngine.Systems
             float3 up = transform.Up;
 
             float3 movement = new float3(0f, 0f, 0f);
-            if (InputSystem.IsPressed(KeyCode.W)) movement = movement.Add(forward.Multiply(speed));
-            if (InputSystem.IsPressed(KeyCode.A)) movement = movement.Subtract(right.Multiply(speed));
-            if (InputSystem.IsPressed(KeyCode.S)) movement = movement.Subtract(forward.Multiply(speed));
-            if (InputSystem.IsPressed(KeyCode.D)) movement = movement.Add(right.Multiply(speed));
-            if (InputSystem.IsPressed(KeyCode.Q)) movement = movement.Subtract(up.Multiply(speed));
-            if (InputSystem.IsPressed(KeyCode.E)) movement = movement.Add(up.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.W) || InputSystem.IsPressed(KeyCode.ArrowUp))
+                movement = movement.Add(forward.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.A) || InputSystem.IsPressed(KeyCode.ArrowLeft))
+                movement = movement.Subtract(right.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.S) || InputSystem.IsPressed(KeyCode.ArrowDown))
+                movement = movement.Subtract(forward.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.D) || InputSystem.IsPressed(KeyCode.ArrowRight))
+                movement = movement.Add(right.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.Q) || InputSystem.IsPressed(KeyCode.PageDown))
+                movement = movement.Subtract(up.Multiply(speed));
+            if (InputSystem.IsPressed(KeyCode.E) || InputSystem.IsPressed(KeyCode.PageUp))
+                movement = movement.Add(up.Multiply(speed));
 
             position = position.Add(movement);
             transform.position = position;
