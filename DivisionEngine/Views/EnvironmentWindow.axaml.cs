@@ -1,10 +1,12 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Threading;
 using System;
 
 namespace DivisionEngine.Editor;
 
+/// <summary>
+/// Window responsible for displaying the Silk.NET player in-editor, sized correctly.
+/// </summary>
 public partial class EnvironmentWindow : EditorWindow
 {
     private readonly DispatcherTimer? renderWindowUpdate;

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -11,21 +12,84 @@ public partial class ConsoleWindow : EditorWindow
     public const int MaxDisplayedLogEntries = 1000;
 
     private readonly StackPanel logList;
+    private readonly StackPanel controlsPanel;
     private readonly ScrollViewer scrollViewer;
-    private readonly bool autoScroll;
+    private readonly CheckBox autoscrollCheckbox;
+    private readonly Button clearButton;
+    private bool autoScroll;
 
     public ConsoleWindow()
     {
         InitializeComponent();
 
+        // Create header controls
+
         autoScroll = true;
-        logList = new StackPanel { Orientation = Orientation.Vertical };
-        scrollViewer = new ScrollViewer { Content = logList };
+        clearButton = new Button
+        {
+            Content = "Clear",
+            FontSize = 12,
+            Height = 25,
+            FontStretch = FontStretch.SemiExpanded,
+            Foreground = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(34, 34, 34)),
+            Margin = new Thickness(4, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        clearButton.Click += ClearButton_Click;
+        autoscrollCheckbox = new CheckBox
+        {
+            Content = "Auto Scroll",
+            Foreground = Brushes.White,
+            IsChecked = autoScroll,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        autoscrollCheckbox.IsCheckedChanged += (s, e) => { autoScroll = autoscrollCheckbox.IsChecked.Value; };
+
+        // Create panels
+
+        logList = new StackPanel
+        {
+            Orientation = Orientation.Vertical
+        };
+        controlsPanel = new StackPanel
+        {
+            Background = EditorColor.FromRGB(28, 28, 28),
+            Orientation = Orientation.Horizontal,
+            Spacing = 0,
+            Height = 30,
+            VerticalAlignment = VerticalAlignment.Top
+        };
+        scrollViewer = new ScrollViewer
+        {
+            Content = logList,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        };
+
+        controlsPanel.Children.Add(clearButton);
+        controlsPanel.Children.Add(autoscrollCheckbox);
+
+        DockPanel mainPanel = new DockPanel
+        {
+            Background = EditorColor.FromRGB(45, 45, 45)
+        };
+
+        DockPanel.SetDock(controlsPanel, Dock.Top);
+        mainPanel.Children.Add(controlsPanel);
+        mainPanel.Children.Add(scrollViewer);
 
         Debug.OnLogUpdate += Debug_OnLogUpdate;
 
         LoadAllCurrentLogs();
-        AddDynamicContent();
+        Border? border = this.FindControl<Border>("MainBorder");
+        if (border != null) border.Child = mainPanel;
+    }
+
+    private void ClearButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        logList.Children.Clear();
+        Debug.ClearLogs();
     }
 
     private void LoadAllCurrentLogs()
@@ -34,23 +98,7 @@ public partial class ConsoleWindow : EditorWindow
             Dispatcher.UIThread.Post(() => CreateLogEntry(log, false));
     }
 
-    private void Debug_OnLogUpdate(LogEntry obj)
-    {
-        Dispatcher.UIThread.Post(() => CreateLogEntry(obj, autoScroll));
-    }
-
-    private void AddDynamicContent()
-    {
-        Border? border = this.FindControl<Border>("MainBorder");
-        if (border == null)
-        {
-            Content = new Border
-            {
-                Child = scrollViewer,
-            };
-        }
-        else border.Child = scrollViewer;
-    }
+    private void Debug_OnLogUpdate(LogEntry obj) => Dispatcher.UIThread.Post(() => CreateLogEntry(obj, autoScroll));
 
     private void CreateLogEntry(LogEntry log, bool scrollToEnd)
     {
@@ -106,15 +154,12 @@ public partial class ConsoleWindow : EditorWindow
         return logBorder;
     }
 
-    private static IBrush GetLogColor(LogLevel level)
+    private static IBrush GetLogColor(LogLevel level) => level switch
     {
-        return level switch
-        { 
-            LogLevel.Debug => Brushes.White,
-            LogLevel.Info => Brushes.White,
-            LogLevel.Warning => Brushes.Yellow,
-            LogLevel.Error => Brushes.Red,
-            _ => Brushes.Green
-        };
-    }
+        LogLevel.Debug => Brushes.White,
+        LogLevel.Info => Brushes.White,
+        LogLevel.Warning => Brushes.Yellow,
+        LogLevel.Error => Brushes.Red,
+        _ => Brushes.Green
+    };
 }

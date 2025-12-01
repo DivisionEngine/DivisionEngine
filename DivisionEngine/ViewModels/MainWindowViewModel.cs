@@ -113,6 +113,10 @@ namespace DivisionEngine.Editor.ViewModels
             // Implement About Help functionality here
         }
 
+        /// <summary>
+        /// Creates an entity straight from the "Add" menu.
+        /// </summary>
+        /// <param name="entityType">Entity type to add (as camel case string key)</param>
         [RelayCommand]
         private void CreateEntity(string entityType)
         {
@@ -126,6 +130,7 @@ namespace DivisionEngine.Editor.ViewModels
                     "sphere" => DefaultEntities.SDFSphere(),
                     "box" => DefaultEntities.SDFBox(),
                     "roundedBox" => DefaultEntities.SDFRoundedBox(),
+                    "torus" => DefaultEntities.SDFTorus(),
                     _ => DefaultEntities.EmptyTransform()
                 };
                 Debug.Info($"Created {entityType} entity with ID: {entityId}");
@@ -136,6 +141,10 @@ namespace DivisionEngine.Editor.ViewModels
             }
         }
 
+        /// <summary>
+        /// Adds a new window to a tab list on the main window.
+        /// </summary>
+        /// <param name="param">Window key to add</param>
         [RelayCommand]
         private void AddWindowToTab(string param)
         {
@@ -178,6 +187,10 @@ namespace DivisionEngine.Editor.ViewModels
             }
         }
 
+        /// <summary>
+        /// Called when a tab must be closed on one of the main panel areas.
+        /// </summary>
+        /// <param name="vm">Tab type to close</param>
         [RelayCommand]
         private void CloseTab(EditorWindowViewModel? vm)
         {

@@ -12,6 +12,9 @@ using System.Linq;
 
 namespace DivisionEngine.Editor;
 
+/// <summary>
+/// Window for displaying an entity hierarchy view of the ECS world.
+/// </summary>
 public partial class WorldWindow : EditorWindow
 {
     private readonly ListBox entitiesList;
@@ -21,8 +24,11 @@ public partial class WorldWindow : EditorWindow
 
     private readonly DispatcherTimer worldWinUpdater;
 
-    private HashSet<uint> curEntities;
+    private readonly HashSet<uint> curEntities;
 
+    /// <summary>
+    /// Represents an item in the entity list used by this window's list box, internal only.
+    /// </summary>
     private class EntityListItem
     {
         public uint Id { get; set; }
@@ -48,6 +54,9 @@ public partial class WorldWindow : EditorWindow
         public override int GetHashCode() => Id.GetHashCode();
     }
 
+    /// <summary>
+    /// Creates a new instance of the world window.
+    /// </summary>
     public WorldWindow()
     {
         InitializeComponent();
@@ -134,12 +143,18 @@ public partial class WorldWindow : EditorWindow
         worldWinUpdater.Start();
     }
 
+    /// <summary>
+    /// Called when the selection is changed in the entity list.
+    /// </summary>
     private void EntitiesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (entitiesList.SelectedItem is EntityListItem selectedItem)
             PropertiesWindow.LoadEntityComponents(selectedItem.Id);
     }
 
+    /// <summary>
+    /// Called when the world window updates (4fps).
+    /// </summary>
     private void WorldWinUpdater_Tick(object? sender, EventArgs e)
     {
         if (WorldManager.CurrentWorld == null) return;
@@ -157,6 +172,9 @@ public partial class WorldWindow : EditorWindow
         UpdateListEntries();
     }
 
+    /// <summary>
+    /// Called when the entity list must be updated in-place.
+    /// </summary>
     private void UpdateListEntries()
     {
         HashSet<uint> newEntities = WorldManager.CurrentWorld!.entities;

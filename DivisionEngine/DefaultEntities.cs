@@ -62,5 +62,15 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SoftShadows());
             return sdf;
         }
+
+        public static uint SDFTorus(string name = "New Donut")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint sdf = W.CreateTransformEntity(name);
+            W.AddComponent(sdf, new SDFTorus());
+            W.AddComponent(sdf, new SoftShadows());
+            return sdf;
+        }
     }
 }

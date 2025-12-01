@@ -351,6 +351,11 @@ namespace DivisionEngine
             return queryResult;
         }
 
+        /// <summary>
+        /// Queries the world to find entities with component types and returns the component data.
+        /// </summary>
+        /// <typeparam name="T">Type of component to search for</typeparam>
+        /// <returns>Tuple of (entityId, T component)</returns>
         public IEnumerable<(uint, T)> QueryData<T>() where T : IComponent
         {
             foreach (uint entityId in Query<T>())

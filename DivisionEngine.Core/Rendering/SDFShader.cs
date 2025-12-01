@@ -37,6 +37,11 @@ namespace DivisionEngine
                 new float4(Hlsl.Mul(worldData[0].cameraInverseProj, new float4(coord, 0.0f, 1.0f)).XYZ, 0.0f)).XYZ);
         }*/
 
+        /*private float3 ApplyTransformations(float3 pt, float3 translation, float4 rotation)
+        {
+            
+        }*/
+
         private float SphereSDF(float3 pt, float3 center, float r)
         {
             return Hlsl.Length(pt - center) - r;
@@ -52,6 +57,13 @@ namespace DivisionEngine
         {
             float3 q = Hlsl.Abs(pt - center) - size + r;
             return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f) - r;
+        }
+
+        private float TorusSDF(float3 pt, float3 center, float2 tr)
+        {
+            float3 p = pt - center;
+            float2 q = new float2(Hlsl.Length(p.XZ) - tr.X, p.Y);
+            return Hlsl.Length(q) - tr.Y;
         }
 
         private float2 WorldSDF(float3 point, bool shadowCastCheck)
@@ -71,6 +83,8 @@ namespace DivisionEngine
                 else if (sdfPrimitives[i].type == 2)
                     dist = RoundedBoxSDF(point, sdfPrimitives[i].position,
                         sdfPrimitives[i].parameters.XYZ, sdfPrimitives[i].parameters.W);
+                else if (sdfPrimitives[i].type == 3)
+                    dist = TorusSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.XY);
                 else
                     dist = SphereSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.X);
 

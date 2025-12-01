@@ -54,7 +54,7 @@ namespace DivisionEngine.Editor
                 if (e.InitialPressMouseButton == MouseButton.Right)
                 {
                     Control? source = e.Source as Control;
-                    TabItem? tabItem = FindParentTabItem(source);
+                    TabItem? tabItem = EditorUI.FindParentTabItem(source);
 
                     if (tabItem != null && tabItem.DataContext is EditorWindowViewModel viewModel)
                     {
@@ -64,18 +64,6 @@ namespace DivisionEngine.Editor
                     }
                 }
             }, RoutingStrategies.Tunnel);
-        }
-
-        private static TabItem? FindParentTabItem(Control? control)
-        {
-            Control? current = control;
-            while (current != null)
-            {
-                if (current is TabItem tabItem) return tabItem;
-                current = current.Parent as Control;
-            }
-            Debug.Warning("Could not find parent tab control to build context menu");
-            return null;
         }
 
         private ContextMenu CreateTabContextMenu(string panelType, EditorWindowViewModel viewModel)

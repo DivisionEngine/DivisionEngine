@@ -4,8 +4,14 @@ using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {
+    /// <summary>
+    /// In charge of processing render information for all cameras in the world.
+    /// </summary>
     public class CameraSystem : SystemBase
     {
+        /// <summary>
+        /// Called before the world is rendered.
+        /// </summary>
         public override void Render()
         {
             foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())

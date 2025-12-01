@@ -374,7 +374,11 @@ public partial class PropertiesWindow : EditorWindow
         };
         numericBox.ValueChanged += (s, e) =>
         {
-            onValueChanged((float)(double)numericBox.Value);
+            try
+            {
+                onValueChanged((float)(double)numericBox.Value);
+            }
+            catch (Exception ex) { Debug.Error(ex.Message); }
         };
         return numericBox;
     }

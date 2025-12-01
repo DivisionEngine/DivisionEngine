@@ -28,6 +28,9 @@ namespace DivisionEngine.Editor
         public const long EngineCoreFrameTime = 16; // Around 60 fps
         public const double RequestedFPS = 60;
 
+        /// <summary>
+        /// Initializes the Avalonia UI base app.
+        /// </summary>
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);

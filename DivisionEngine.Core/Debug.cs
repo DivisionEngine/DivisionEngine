@@ -30,6 +30,9 @@
         {
             return $"[{Level}] {Timestamp}: {Message}";
         }
+
+        public override bool Equals(object? obj) => obj is LogEntry entry && entry.Message == Message;
+        public override int GetHashCode() => Message.GetHashCode();
     }
 
     /// <summary>
@@ -98,5 +101,16 @@
             instance.debugLog.Add(entry);
             OnLogUpdate?.Invoke(entry);
         }
+
+        /// <summary>
+        /// Clears all debug logs without log update.
+        /// </summary>
+        public static void ClearLogs() => instance.debugLog.Clear();
+
+        /// <summary>
+        /// Removes a log at a specific index i.
+        /// </summary>
+        /// <param name="i">Index to remove log entry at</param>
+        public static void ClearLogAtIndex(int i) => instance.debugLog.RemoveAt(i);
     }
 }

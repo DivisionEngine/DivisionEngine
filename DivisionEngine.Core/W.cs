@@ -129,6 +129,11 @@
         /// <returns>List of entities with component types</returns>
         public static IEnumerable<uint> Query(params Type[] componentTypes) => WorldManager.CurrentWorld!.Query(componentTypes);
 
+        /// <summary>
+        /// Queries the world to find entities with component types and returns the component data.
+        /// </summary>
+        /// <typeparam name="T">Type of component to search for</typeparam>
+        /// <returns>Tuple of (entityId, T component)</returns>
         public static IEnumerable<(uint, T)> QueryData<T>() where T : IComponent => WorldManager.CurrentWorld!.QueryData<T>();
 
         public static IEnumerable<(uint, T1, T2)> QueryData<T1, T2>()
