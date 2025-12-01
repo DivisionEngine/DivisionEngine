@@ -1,5 +1,6 @@
 ﻿using ComputeSharp;
 using DivisionEngine.Rendering;
+using Silk.NET.Input;
 
 #pragma warning disable CA1416 // Validate platform compatibility
 namespace DivisionEngine
@@ -37,32 +38,53 @@ namespace DivisionEngine
                 new float4(Hlsl.Mul(worldData[0].cameraInverseProj, new float4(coord, 0.0f, 1.0f)).XYZ, 0.0f)).XYZ);
         }*/
 
-        /*private float3 ApplyTransformations(float3 pt, float3 translation, float4 rotation)
+        
+        // Quaternion ref: https://gist.github.com/mattatz/40a91588d5fb38240403f198a938a593
+        // Quaternion multiplication
+        private float4 Qmul(float4 q1, float4 q2)
         {
-            
-        }*/
-
-        private float SphereSDF(float3 pt, float3 center, float r)
-        {
-            return Hlsl.Length(pt - center) - r;
+            return new float4(
+                q2.XYZ * q1.W + q1.XYZ * q2.W + Hlsl.Cross(q1.XYZ, q2.XYZ),
+                q1.W * q2.W - Hlsl.Dot(q1.XYZ, q2.XYZ)
+            );
         }
 
-        private float BoxSDF(float3 pt, float3 center, float3 size)
+        // Quaternion rotation
+        private float3 RotateVector(float3 v, float4 r)
         {
-            float3 q = Hlsl.Abs(pt - center) - size;
+            float4 r_c = r * new float4(-1, -1, -1, 1);
+            return Qmul(r, Qmul(new float4(v, 0), r_c)).XYZ;
+        }
+
+        // Applies translation, rotation, and scaling to a point
+        private float3 ApplyTransforms(float3 pt, float3 position, float4 rotation, float3 scale)
+        {
+            float3 objPos = pt - position;
+            objPos = RotateVector(objPos, rotation);
+            objPos *= scale;
+            return objPos;
+        }
+
+        private float SphereSDF(float3 pt, float r)
+        {
+            return Hlsl.Length(pt) - r;
+        }
+
+        private float BoxSDF(float3 pt, float3 size)
+        {
+            float3 q = Hlsl.Abs(pt) - size;
             return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
         }
 
-        private float RoundedBoxSDF(float3 pt, float3 center, float3 size, float r)
+        private float RoundedBoxSDF(float3 pt, float3 size, float r)
         {
-            float3 q = Hlsl.Abs(pt - center) - size + r;
+            float3 q = Hlsl.Abs(pt) - size + r;
             return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f) - r;
         }
 
-        private float TorusSDF(float3 pt, float3 center, float2 tr)
+        private float TorusSDF(float3 pt, float2 tr)
         {
-            float3 p = pt - center;
-            float2 q = new float2(Hlsl.Length(p.XZ) - tr.X, p.Y);
+            float2 q = new float2(Hlsl.Length(pt.XZ) - tr.X, pt.Y);
             return Hlsl.Length(q) - tr.Y;
         }
 
@@ -71,22 +93,23 @@ namespace DivisionEngine
             float minDist = MIN_TRAVERSE_DIST;
 
             int closest = -1;
+            float3 transformedPt;
             for (int i = 0; i < sdfPrimitives.Length; i++)
             {
                 if (shadowCastCheck && !sdfPrimitives[i].shadowEffects.X) continue;
+                transformedPt = ApplyTransforms(point, sdfPrimitives[i].position, sdfPrimitives[i].rotation, sdfPrimitives[i].scaling);
 
                 float dist;
-                if (sdfPrimitives[i].type == 0)
-                    dist = SphereSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.X);
-                else if (sdfPrimitives[i].type == 1)
-                    dist = BoxSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.XYZ);
-                else if (sdfPrimitives[i].type == 2)
-                    dist = RoundedBoxSDF(point, sdfPrimitives[i].position,
-                        sdfPrimitives[i].parameters.XYZ, sdfPrimitives[i].parameters.W);
-                else if (sdfPrimitives[i].type == 3)
-                    dist = TorusSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.XY);
-                else
-                    dist = SphereSDF(point, sdfPrimitives[i].position, sdfPrimitives[i].parameters.X);
+                if (sdfPrimitives[i].type == 0) // Adds sphere SDFs
+                    dist = SphereSDF(transformedPt, sdfPrimitives[i].parameters.X);
+                else if (sdfPrimitives[i].type == 1) // Adds box SDFs
+                    dist = BoxSDF(transformedPt, sdfPrimitives[i].parameters.XYZ);
+                else if (sdfPrimitives[i].type == 2) // Adds rounded box SDFs
+                    dist = RoundedBoxSDF(transformedPt, sdfPrimitives[i].parameters.XYZ, sdfPrimitives[i].parameters.W);
+                else if (sdfPrimitives[i].type == 3) // Adds torus SDFs
+                    dist = TorusSDF(transformedPt, sdfPrimitives[i].parameters.XY);
+                else // Default sphere SDF
+                    dist = SphereSDF(transformedPt, sdfPrimitives[i].parameters.X);
 
                 if (dist < minDist)
                 {

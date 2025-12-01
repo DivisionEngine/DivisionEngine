@@ -178,7 +178,7 @@ public partial class WorldWindow : EditorWindow
     private void UpdateListEntries()
     {
         HashSet<uint> newEntities = WorldManager.CurrentWorld!.entities;
-        if (newEntities.Count == curEntities.Count && newEntities.SetEquals(curEntities)) return;
+        //if (newEntities.Count == curEntities.Count && newEntities.SetEquals(curEntities)) return;
 
         World w = WorldManager.CurrentWorld;
         foreach (uint entity in curEntities)

@@ -8,7 +8,7 @@
         /// <summary>
         /// Identity quaternion => float4(0, 0, 0, 1).
         /// </summary>
-        public static readonly float4 Identity = new(0, 0, 0, 1);
+        public static readonly float4 Identity = new float4(0f, 0f, 0f, 1f);
 
         /// <summary>
         /// Normalizes a quaternion vector.

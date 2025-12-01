@@ -10,12 +10,12 @@ namespace DivisionEngine.Components
         /// <summary>
         /// Sets the position to (0, 0, 0), rotation to identity quaternion, and scaling to (1, 1, 1).
         /// </summary>
-        public static Transform Default => new Transform
+        public Transform()
         {
-            position = float3.Zero,
-            rotation = Quaternion.Identity,
-            scaling = float3.One
-        };
+            position = new float3(0f, 0f, 0f);
+            rotation = Quaternion.Identity;
+            scaling = new float3(1f, 1f, 1f);
+        }
 
         public float3 position;
         public float4 rotation;
