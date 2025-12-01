@@ -4,7 +4,6 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
-using DivisionEngine.MathLib;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -182,7 +181,15 @@ public partial class PropertiesWindow : EditorWindow
         {
             float value = (float)fieldValue;
             editorControl = CreateFloatNumericBox(value, (f) => {
-                field.SetValue(component, (float)(double)f);
+                field.SetValue(component, f);
+            },
+            true);
+        }
+        else if (fieldValue != null && fieldType == typeof(int))
+        {
+            int value = (int)fieldValue;
+            editorControl = CreateIntegerNumericBox(value, (f) => {
+                field.SetValue(component, f);
             },
             true);
         }
@@ -193,7 +200,7 @@ public partial class PropertiesWindow : EditorWindow
             {
                 Text = value,
                 FontSize = 12,
-                Background = EditorColor.FromRGB(17, 17, 17),
+                Background = EditorColor.FromRGB(28, 28, 28),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(4, 2),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -364,7 +371,8 @@ public partial class PropertiesWindow : EditorWindow
             Increment = (decimal)Math.Max(initialVal / 10f, 0.1f),
             FontSize = 11,
             AllowSpin = true,
-            Background = EditorColor.FromRGB(24, 24, 24),
+            ParsingNumberStyle = NumberStyles.Float,
+            Background = EditorColor.FromRGB(28, 28, 28),
             Foreground = Brushes.White,
             BorderThickness = new Thickness(0),
             Padding = new Thickness(4),
@@ -377,6 +385,33 @@ public partial class PropertiesWindow : EditorWindow
             try
             {
                 onValueChanged((float)(double)numericBox.Value);
+            }
+            catch (Exception ex) { Debug.Error(ex.Message); }
+        };
+        return numericBox;
+    }
+
+    private static NumericUpDown CreateIntegerNumericBox(int initialVal, Action<int> onValueChanged, bool hasSpinner = false)
+    {
+        NumericUpDown numericBox = new NumericUpDown
+        {
+            Value = initialVal,
+            Increment = 1,
+            FontSize = 11,
+            AllowSpin = true,
+            ParsingNumberStyle = NumberStyles.Integer,
+            Background = EditorColor.FromRGB(28, 28, 28),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(4),
+            VerticalAlignment = VerticalAlignment.Center,
+            ShowButtonSpinner = hasSpinner
+        };
+        numericBox.ValueChanged += (s, e) =>
+        {
+            try
+            {
+                onValueChanged((int)numericBox.Value);
             }
             catch (Exception ex) { Debug.Error(ex.Message); }
         };

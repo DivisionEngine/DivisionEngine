@@ -8,6 +8,9 @@
         public float3 cameraOrigin; // 12b
         public float4x4 cameraToWorld; // 64b
         public float4x4 cameraInverseProj; // 64b
+
+        public int maxRaySteps; // 4b
+        public int maxShadowRaySteps; // 4b
     }
 
     /// <summary>
@@ -22,6 +25,7 @@
         public float3 scaling; // 12b
         public float4 parameters; // 16b
 
+        public float2 shadowDistances; // 8b
         public bool2 shadowEffects; // 8b
     }
 }

@@ -7,6 +7,9 @@ namespace DivisionEngine.Components
     /// </summary>
     public class Camera : IComponent
     {
+        /// <summary>
+        /// Creates a camera with Fov = 70, max ray steps = 256.
+        /// </summary>
         public Camera()
         {
             fov = 70f;
@@ -17,8 +20,12 @@ namespace DivisionEngine.Components
             projectionMatrix = Matrix.Identity4x4;
             cameraToWorld = Matrix.Identity4x4;
             inverseProjectionMatrix = Matrix.Identity4x4;
+
+            maxRaySteps = 256;
+            maxShadowRaySteps = 128;
         }
 
+        // Camera vars
         public float fov;
         public float nearClip;
         public float farClip;
@@ -27,5 +34,9 @@ namespace DivisionEngine.Components
         public float4x4 projectionMatrix;
         public float4x4 cameraToWorld; // Inverse view matrix
         public float4x4 inverseProjectionMatrix;
+
+        // SDF rendering vars
+        public int maxRaySteps;
+        public int maxShadowRaySteps;
     }
 }

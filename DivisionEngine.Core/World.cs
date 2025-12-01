@@ -14,6 +14,11 @@ namespace DivisionEngine
         public HashSet<uint> entities;
 
         /// <summary>
+        /// Next ID used to register a new entity.
+        /// </summary>
+        public uint NextEntityId { get; private set; }
+
+        /// <summary>
         /// All componenents in the world organized by component type => entity => component data.
         /// </summary>
         public Dictionary<Type, Dictionary<uint, IComponent>> components;
@@ -24,7 +29,6 @@ namespace DivisionEngine
         public List<SystemBase> systems;
 
         private readonly List<SystemBase> awakeSystems, updateSystems, fixedUpdateSystems, renderSystems;
-        private uint nextEntityId;
 
         /// <summary>
         /// Create a new world.
@@ -39,7 +43,7 @@ namespace DivisionEngine
             updateSystems = [];
             fixedUpdateSystems = [];
             renderSystems = [];
-            nextEntityId = 0;
+            NextEntityId = 0;
 
             RegisterAllSystems();
         }
@@ -59,9 +63,9 @@ namespace DivisionEngine
         /// <returns>The new entity id created</returns>
         public uint CreateEntity()
         {
-            uint id = nextEntityId;
+            uint id = NextEntityId;
             entities.Add(id);
-            nextEntityId++;
+            NextEntityId++;
             return id;
         }
 

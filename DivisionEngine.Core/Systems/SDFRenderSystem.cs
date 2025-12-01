@@ -43,29 +43,33 @@ namespace DivisionEngine.Systems
                 worldData.cameraOrigin = transform.position;
                 worldData.cameraToWorld = camera.cameraToWorld;
                 worldData.cameraInverseProj = camera.inverseProjectionMatrix;
+
+                worldData.maxRaySteps = camera.maxRaySteps;
+                worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
                 break; // Use first camera
             }
 
             // Gather and translate all primitives and effects
             foreach (var (id, transform) in W.QueryData<Transform>())
             {
-                bool castShadows = false, receiveShadows = false;
-                
-                if (W.HasComponent<SoftShadows>(id))
-                {
-                    SoftShadows shadows = W.GetComponent<SoftShadows>(id)!;
-                    castShadows = shadows.shadowCaster;
-                    receiveShadows = shadows.shadowReceiver;
-                }
-
+                // Setup
                 SDFPrimitiveObjectDTO curPrimitive = new SDFPrimitiveObjectDTO
                 {
                     type = -1,
                     position = transform.position,
                     rotation = transform.rotation,
                     scaling = transform.scaling,
-                    shadowEffects = new bool2(castShadows, receiveShadows)
                 };
+                
+                // Effects
+                if (W.HasComponent<SoftShadows>(id))
+                {
+                    SoftShadows shadows = W.GetComponent<SoftShadows>(id)!;
+                    curPrimitive.shadowEffects = new bool2(shadows.shadowCaster, shadows.shadowReceiver);
+                    curPrimitive.shadowDistances = new float2(shadows.minDistance, shadows.maxDistance);
+                }
+
+                // Primitives
                 if (W.HasComponent<SDFSphere>(id)) // Check sphere primitive
                 {
                     SDFSphere sphere = W.GetComponent<SDFSphere>(id)!;

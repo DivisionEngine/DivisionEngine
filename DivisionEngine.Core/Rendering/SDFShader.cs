@@ -15,11 +15,9 @@ namespace DivisionEngine
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
     {
 
-        const int MAX_RAYMARCH_STEPS = 200;
         const float MAX_RAYMARCH_DISTANCE = 10000.0f;
         const float EPSILON = 0.0001f;
         const float MIN_TRAVERSE_DIST = 100000000.0f;
-        const float resolution = 0.001f;
         readonly float3 sunDir = new float3(0.5f, 0.8f, 0.3f);
 
         // Obtained via Deepseek: https://chat.deepseek.com/share/avavmqykeivckbnakl
@@ -150,7 +148,7 @@ namespace DivisionEngine
             for (int i = 0; i < 4; i++)
             {
                 float3 e = 0.5773f * (2.0f * new float3((((i + 3) >> 1) & 1), ((i >> 1) & 1), (i & 1)) - 1.0f);
-                n += e * WorldSDF(pos + resolution * 50 * e, false).X;
+                n += e * WorldSDF(pos + EPSILON * 50 * e, false).X;
                 //if( n.x+n.y+n.z>100.0 ) break;
             }
             return Hlsl.Normalize(n);
@@ -183,6 +181,23 @@ namespace DivisionEngine
             return 0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res);
         }
 
+        // New soft-shadow technique:
+        // Reference: https://iquilezles.org/articles/rmshadows/
+        private float SoftShadow2(float3 rayOrigin, float3 rayDir, float mint, float maxt, float lightAngle)
+        {
+            float res = 1.0f;
+            float t = mint;
+            for (int i = 0; i < worldData[0].maxShadowRaySteps && t < maxt; i++)
+            {
+                float h = WorldSDF(rayOrigin + t * rayDir, true).X;
+                res = Hlsl.Min(res, h / (lightAngle * t));
+                t += Hlsl.Clamp(h, 0.005f, 0.50f);
+                if (res < -1.0f || t > maxt) break;
+            }
+            res = Hlsl.Max(res, -1.0f);
+            return 0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res);
+        }
+
         private float3 GetMaterialColor(int objIndex)
         {
             if (objIndex < 0 || objIndex > sdfPrimitives.Length)
@@ -208,7 +223,8 @@ namespace DivisionEngine
             float3 outputColor = new float3(0f, 0f, 0f);
             float3 hitPoint = rayOrigin;
 
-            for (int step = 0; step < MAX_RAYMARCH_STEPS; step++)
+            int maxSteps = worldData[0].maxRaySteps;
+            for (int step = 0; step < maxSteps; step++)
             {
                 // Accumulate ray position
                 hitPoint = rayOrigin + rayDir * totalDist;
@@ -241,8 +257,9 @@ namespace DivisionEngine
 
                 float3 shadowOrigin = hitPoint + normal * EPSILON;
 
+                float2 shadowDistances = sdfPrimitives[closestObjIndex].shadowDistances;
                 if (sdfPrimitives[closestObjIndex].shadowEffects.Y)
-                    shadowAmt = SoftShadow(shadowOrigin, Hlsl.Normalize(sunDir), 0.001f, 10f);
+                    shadowAmt = SoftShadow2(shadowOrigin, Hlsl.Normalize(sunDir), shadowDistances.X, shadowDistances.Y, 0.25f);
 
                 float3 materialColor = GetMaterialColor(closestObjIndex);
 
