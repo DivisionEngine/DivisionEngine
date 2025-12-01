@@ -88,6 +88,27 @@ namespace DivisionEngine
             return Hlsl.Length(q) - tr.Y;
         }
 
+        private float PyramidSDF(float3 pt, float h)
+        {
+            float m2 = h * h + 0.25f;
+
+            pt.XZ = Hlsl.Abs(pt.XZ);
+            pt.XZ = (pt.Z > pt.X) ? pt.ZX : pt.XZ;
+            pt.XZ -= 0.5f;
+
+            float3 q = new float3(pt.Z, h * pt.Y - 0.5f * pt.X, h * pt.X + 0.5f * pt.Y);
+
+            float s = Hlsl.Max(-q.X, 0.0f);
+            float t = Hlsl.Clamp((q.Y - 0.5f * pt.Z) / (m2 + 0.25f), 0.0f, 1.0f);
+
+            float a = m2 * (q.X + s) * (q.X + s) + q.Y * q.Y;
+            float b = m2 * (q.X + 0.5f * t) * (q.X + 0.5f * t) + (q.Y - m2 * t) * (q.Y - m2 * t);
+
+            float d2 = Hlsl.Min(q.Y, -q.X * m2 - q.Y * 0.5f) > 0.0f ? 0.0f : Hlsl.Min(a, b);
+
+            return Hlsl.Sqrt((d2 + q.Z * q.Z) / m2) * Hlsl.Sign(Hlsl.Max(q.Z, -pt.Y));
+        }
+
         private float2 WorldSDF(float3 point, bool shadowCastCheck)
         {
             float minDist = MIN_TRAVERSE_DIST;
@@ -108,6 +129,8 @@ namespace DivisionEngine
                     dist = RoundedBoxSDF(transformedPt, sdfPrimitives[i].parameters.XYZ, sdfPrimitives[i].parameters.W);
                 else if (sdfPrimitives[i].type == 3) // Adds torus SDFs
                     dist = TorusSDF(transformedPt, sdfPrimitives[i].parameters.XY);
+                else if (sdfPrimitives[i].type == 4) // Adds pyramid SDFs
+                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
                 else // Default sphere SDF
                     dist = SphereSDF(transformedPt, sdfPrimitives[i].parameters.X);
 

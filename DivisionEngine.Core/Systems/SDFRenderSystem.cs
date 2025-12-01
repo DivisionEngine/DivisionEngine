@@ -2,7 +2,6 @@
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Rendering;
-using Silk.NET.Maths;
 
 namespace DivisionEngine.Systems
 {
@@ -51,69 +50,62 @@ namespace DivisionEngine.Systems
             foreach (var (id, transform) in W.QueryData<Transform>())
             {
                 bool castShadows = false, receiveShadows = false;
+                
                 if (W.HasComponent<SoftShadows>(id))
                 {
                     SoftShadows shadows = W.GetComponent<SoftShadows>(id)!;
                     castShadows = shadows.shadowCaster;
                     receiveShadows = shadows.shadowReceiver;
                 }
-                if (W.HasComponent<SDFSphere>(id)) // Gather sphere primitives
+
+                SDFPrimitiveObjectDTO curPrimitive = new SDFPrimitiveObjectDTO
+                {
+                    type = -1,
+                    position = transform.position,
+                    rotation = transform.rotation,
+                    scaling = transform.scaling,
+                    shadowEffects = new bool2(castShadows, receiveShadows)
+                };
+                if (W.HasComponent<SDFSphere>(id)) // Check sphere primitive
                 {
                     SDFSphere sphere = W.GetComponent<SDFSphere>(id)!;
-                    sdfPrimitives.Add(new SDFPrimitiveObjectDTO
-                    {
-                        type = 0, // Sphere type
-                        color = sphere.color,
-                        position = transform.position,
-                        rotation = transform.rotation,
-                        scaling = transform.scaling,
-                        parameters = new float4(sphere.radius, 0f, 0f, 0f),
-                        shadowEffects = new bool2(castShadows, receiveShadows)
-                    });
+                    curPrimitive.type = 0; // Sphere type
+                    curPrimitive.color = sphere.color;
+                    curPrimitive.parameters = new float4(sphere.radius, 0f, 0f, 0f);
                 }
-                if (W.HasComponent<SDFBox>(id)) // Gather box primitives
+                if (W.HasComponent<SDFBox>(id)) // Check box primitive
                 {
                     SDFBox box = W.GetComponent<SDFBox>(id)!;
-                    sdfPrimitives.Add(new SDFPrimitiveObjectDTO
-                    {
-                        type = 1, // Box type
-                        color = box.color,
-                        position = transform.position,
-                        rotation = transform.rotation,
-                        scaling = transform.scaling,
-                        parameters = new float4(box.size.X, box.size.Y, box.size.Z, 0f),
-                        shadowEffects = new bool2(castShadows, receiveShadows)
-                    });
+                    curPrimitive.type = 1; // Box type
+                    curPrimitive.color = box.color;
+                    curPrimitive.parameters = new float4(box.size.X, box.size.Y, box.size.Z, 0f);
                 }
-                if (W.HasComponent<SDFRoundedBox>(id)) // Gather rounded box primitives
+                if (W.HasComponent<SDFRoundedBox>(id)) // Check rounded box primitive
                 {
                     SDFRoundedBox roundedBox = W.GetComponent<SDFRoundedBox>(id)!;
-                    sdfPrimitives.Add(new SDFPrimitiveObjectDTO
-                    {
-                        type = 2, // Rounded box type
-                        color = roundedBox.color,
-                        position = transform.position,
-                        rotation = transform.rotation,
-                        scaling = transform.scaling,
-                        parameters = new float4(roundedBox.size.X, roundedBox.size.Y, roundedBox.size.Z, roundedBox.bevel),
-                        shadowEffects = new bool2(castShadows, receiveShadows)
-                    });
+                    curPrimitive.type = 2; // Rounded box type
+                    curPrimitive.color = roundedBox.color;
+                    curPrimitive.parameters = new float4(roundedBox.size.X, roundedBox.size.Y, roundedBox.size.Z, roundedBox.bevel);
                 }
-                if (W.HasComponent<SDFTorus>(id)) // Gather torus primitives
+                if (W.HasComponent<SDFTorus>(id)) // Check torus primitive
                 {
                     SDFTorus torus = W.GetComponent<SDFTorus>(id)!;
-                    sdfPrimitives.Add(new SDFPrimitiveObjectDTO
-                    {
-                        type = 3, // Torus type
-                        color = torus.color,
-                        position = transform.position,
-                        rotation = transform.rotation,
-                        scaling = transform.scaling,
-                        parameters = new float4(torus.wholeRadius, torus.ringRadius, 0f, 0f),
-                        shadowEffects = new bool2(castShadows, receiveShadows)
-                    });
+                    curPrimitive.type = 3; // Torus type
+                    curPrimitive.color = torus.color;
+                    curPrimitive.parameters = new float4(torus.wholeRadius, torus.ringRadius, 0f, 0f);
                 }
-                // Space to add more SDF primitives in the future
+                if (W.HasComponent<SDFPyramid>(id)) // Check pyramid primitive
+                {
+                    SDFPyramid pyramid = W.GetComponent<SDFPyramid>(id)!;
+                    curPrimitive.type = 4; // Pyramid type
+                    curPrimitive.color = pyramid.color;
+                    curPrimitive.parameters = new float4(pyramid.height, 0f, 0f, 0f);
+                }
+
+                // Space to find more SDF primitives in the future
+
+                // Add the current primitive
+                if (curPrimitive.type != -1) sdfPrimitives.Add(curPrimitive);
             }
             return (worldData, sdfPrimitives.ToArray());
         }
