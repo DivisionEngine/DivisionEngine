@@ -1,59 +1,59 @@
-﻿using System.Text;
+﻿using DivisionEngine.Serialization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DivisionEngine.Editor.Projects
 {
+    /// <summary>
+    /// Represents a project in the Division Engine.
+    /// </summary>
     public class DivisionProject
     {
-        public string ProjectPath { get; set; } = string.Empty;
-        public string ProjectName { get; set; } = "New Project";
-        public string ProjectVersion { get; set; } = "1.0.0";
-        public DateTime LastSaved { get; set; } = DateTime.Now;
-
-        [JsonIgnore]
-        public string ProjectFilePath => Path.Combine(ProjectPath, $"{ProjectName}.division");
-
-        [JsonIgnore]
-        public string AssetsPath => Path.Combine(ProjectPath, "Assets");
-
-        [JsonIgnore]
-        public string SettingsPath => Path.Combine(ProjectPath, "ProjectSettings.json");
-
+        public string ProjectPath { get; set; }
+        public string Name { get; set; }
+        public string Version { get; set; }
+        public DateTime LastSaved { get; set; }
 
         public DivisionProject(string path, string name = "New Project")
         {
+            LastSaved = DateTime.Now;
+            Name = name;
             ProjectPath = path;
-            ProjectName = name;
+            Version = "1.0.0";
         }
 
         private void Load()
         {
-            // Implement loading project logic here
-            if (!File.Exists(ProjectFilePath))
-                throw new FileNotFoundException($"Project file not found: {ProjectFilePath}");
 
-            try
-            {
-                string json = File.ReadAllText(ProjectFilePath);
-                var project = JsonSerializer.Deserialize<DivisionProject>(json);
-
-                if (project != null)
-                {
-                    ProjectName = project.ProjectName;
-                    ProjectVersion = project.ProjectVersion;
-                    LastSaved = project.LastSaved;
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to load project: {ex.Message}", ex);
-            }
         }
 
+        /// <summary>
+        /// Save the currently loaded project as this project
+        /// </summary>
         public void Save()
         {
             // Implement saving project logic here
+
+            if (WorldManager.CurrentWorld != null)
+            {
+                WorldData worldData = new WorldData("default", WorldManager.CurrentWorld!);
+                string serialized = JsonSerializer.Serialize(worldData);
+                Debug.Info(serialized);
+            }
+        }
+
+        /// <summary>
+        /// Directory setup should be:
+        /// Project Folder/
+        /// - project.divproj
+        /// - world.json
+        /// - Assets/
+        ///     - example.png
+        /// </summary>
+        private void ForceValidateProjectDirectory()
+        {
+            
         }
     }
 }

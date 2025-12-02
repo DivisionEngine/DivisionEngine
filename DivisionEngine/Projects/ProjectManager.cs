@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine.Editor.Projects
+﻿using System.Text.Json;
+
+namespace DivisionEngine.Editor.Projects
 {
     internal class ProjectManager()
     {
@@ -12,7 +14,8 @@
 
         public static void SaveProject()
         {
-            
+            // Test serialization
+            JsonSerializer.Serialize(
         }
     }
 }

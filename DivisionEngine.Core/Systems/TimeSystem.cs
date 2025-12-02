@@ -34,8 +34,14 @@ namespace DivisionEngine.Systems
         /// </summary>
         public static float TimeF => (float)Time;
 
+        /// <summary>
+        /// Number of frames elapsed since world began.
+        /// </summary>
         public static int FrameCount { get; private set; }
 
+        /// <summary>
+        /// Frames per second, recorded every 20 frames.
+        /// </summary>
         public static float FPS { get; private set; }
 
         public override void Awake()
@@ -63,7 +69,7 @@ namespace DivisionEngine.Systems
 
             if (fpsFrameCounter > FPSFramesMeasured)
             {
-                Info($"Current FPS: {FPS}");
+                //Info($"Current FPS: {FPS}");
                 timeBetweenFrames = 0;
                 fpsFrameCounter = 0;
             }
