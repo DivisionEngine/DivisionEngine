@@ -1,16 +1,12 @@
-﻿using System.Text.Json.Serialization;
-
-namespace DivisionEngine.Serialization
+﻿namespace DivisionEngine.Serialization
 {
     /// <summary>
     /// Stores entity data for serializing project entities.
     /// </summary>
-    public class EntityData : ISerializable
+    public class EntityData
     {
-        [JsonInclude] public uint Id { get; }
-        [JsonInclude] public List<ComponentData> Components { get; }
-
-        [JsonIgnore] private object? serializedData;
+        public uint Id { get; }
+        public List<ComponentData> Components { get; }
 
         public EntityData(uint entity, World world)
         {
@@ -19,21 +15,6 @@ namespace DivisionEngine.Serialization
             List<IComponent> comps = world.GetAllComponents(entity);
             for (int i = 0; i < comps.Count; i++)
                 Components.Add(new ComponentData(comps[i]));
-        }
-
-        public object Serialize()
-        {
-            serializedData = this;
-            return this;
-        }
-
-        public void Deserialize()
-        {
-            // Validation or post-processing after deserialization
-            if (string.IsNullOrWhiteSpace(Name))
-            {
-                Name = $"Entity_{Id}";
-            }
         }
     }
 }

@@ -8,12 +8,12 @@
         /// <summary>
         /// Serializes an object.
         /// </summary>
-        /// <returns>Serialized data structure</returns>
-        object Serialize();
+        /// <returns>Serialized json structure</returns>
+        string Serialize();
 
         /// <summary>
         /// Deseralizes an object.
         /// </summary>
-        void Deserialize();
+        void Deserialize(string obj);
     }
 }

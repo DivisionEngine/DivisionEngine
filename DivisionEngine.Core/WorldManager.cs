@@ -23,7 +23,7 @@ namespace DivisionEngine
         /// <returns>The new default world</returns>
         public static World CreateDefaultWorld(bool makeCurrent)
         {
-            World newDefaultWorld = new World();
+            World newDefaultWorld = new World("default");
             newDefaultWorld.RegisterAllSystems();
 
             uint cameraEntity = newDefaultWorld.CreateEntity("Camera");
@@ -67,48 +67,47 @@ namespace DivisionEngine
             });
             newDefaultWorld.AddComponent(boxEntity, new SoftShadows());
 
-            SetWorld("default", newDefaultWorld);
+            SetWorld(newDefaultWorld);
             if (makeCurrent) CurrentWorld = newDefaultWorld;
             return newDefaultWorld;
         }
 
         /// <summary>
-        /// Sets / adds a world based off a key.
+        /// Sets / adds a world based off its name.
         /// </summary>
-        /// <param name="key">Key of the world to set / add</param>
         /// <param name="world">World to add / set</param>
-        public static void SetWorld(string key, World world)
+        public static void SetWorld(World world)
         {
-            if (!worlds.TryAdd(key, world))
-                worlds[key] = world;
+            if (!worlds.TryAdd(world.Name, world))
+                worlds[world.Name] = world;
         }
 
         /// <summary>
         /// Checks if a world exists in the world manager.
         /// </summary>
-        /// <param name="key">Key to check for</param>
-        /// <returns>If world linked to key exists</returns>
-        public static bool HasWorld(string key) => worlds.ContainsKey(key);
+        /// <param name="name">Name to check for</param>
+        /// <returns>If world exists</returns>
+        public static bool HasWorld(string name) => worlds.ContainsKey(name);
 
         /// <summary>
-        /// Gets a world based off a certain key.
+        /// Gets a world based off a certain name.
         /// </summary>
-        /// <param name="key">Key of the world to retrieve</param>
-        /// <returns>The world referenced by key</returns>
-        public static World? GetWorld(string key)
+        /// <param name="name">Name of the world to retrieve</param>
+        /// <returns>The world referenced by name</returns>
+        public static World? GetWorld(string name)
         {
-            worlds.TryGetValue(key, out var world);
+            worlds.TryGetValue(name, out var world);
             return world;
         }
 
         /// <summary>
-        /// Switches the current world to the one referenced by a certain key.
+        /// Switches the current world to the one referenced by a certain name.
         /// </summary>
-        /// <param name="key">Key of the world to make current</param>
+        /// <param name="name">Name of the world to make current</param>
         /// <returns>Whether or not the switch was successful</returns>
-        public static bool SwitchWorld(string key)
+        public static bool SwitchWorld(string name)
         {
-            if (worlds.TryGetValue(key, out var world))
+            if (worlds.TryGetValue(name, out var world))
             {
                 CurrentWorld = world;
                 return true;
@@ -119,13 +118,12 @@ namespace DivisionEngine
         /// <summary>
         /// Removes a world from the world manager.
         /// </summary>
-        /// <param name="key">Key of the world to remove</param>
+        /// <param name="name">Name of the world to remove</param>
         /// <returns>Whether the world could be removed or not</returns>
-        public static bool RemoveWorld(string key)
+        public static bool RemoveWorld(string name)
         {
-            if (CurrentWorld == worlds[key])
-                return false;
-            return worlds.Remove(key);
+            if (CurrentWorld == worlds[name]) return false;
+            return worlds.Remove(name);
         }
     }
 }

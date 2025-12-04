@@ -9,6 +9,11 @@ namespace DivisionEngine
     public class World
     {
         /// <summary>
+        /// The name of this world.
+        /// </summary>
+        public string Name { get; }
+
+        /// <summary>
         /// All entities in the world.
         /// </summary>
         public HashSet<uint> entities;
@@ -33,8 +38,9 @@ namespace DivisionEngine
         /// <summary>
         /// Create a new world.
         /// </summary>
-        public World()
+        public World(string name)
         {
+            Name = name;
             entities = [];
             components = [];
             systems = [];

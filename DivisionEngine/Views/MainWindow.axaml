@@ -39,7 +39,7 @@
         <MenuItem Header="File" Foreground="#ccc">
             <MenuItem Header="Open" Command="{Binding OpenProjectCommand}" Foreground="#ccc"/>
             <MenuItem Header="Save" Command="{Binding SaveProjectCommand}" Foreground="#ccc"/>
-            <MenuItem Header="SaveAs" Command="{Binding SaveProjectAsCommand}" Foreground="#ccc"/>
+            <MenuItem Header="Save As" Command="{Binding SaveProjectAsCommand}" Foreground="#ccc"/>
             <Separator/>
             <MenuItem Header="Exit" Command="{Binding ExitCommand}" Foreground="#ccc"/>
         </MenuItem>

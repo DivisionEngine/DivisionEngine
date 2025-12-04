@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.Input;
+using DivisionEngine.Projects;
 using ReactiveUI;
 using System;
 using System.Collections.ObjectModel;
@@ -75,14 +76,14 @@ namespace DivisionEngine.Editor.ViewModels
         private void SaveProject()
         {
             Debug.Info("Saving Project");
-            // Implement Save Project functionality here
+            ProjectManager.SaveCurrentProject("TestProj", @"C:\testDir");
         }
 
         [RelayCommand]
         private void SaveProjectAs()
         {
             Debug.Info("Saving Project As");
-            // Implement Save Project As functionality here
+            // Implement Save As functionality here
         }
 
         [RelayCommand]
