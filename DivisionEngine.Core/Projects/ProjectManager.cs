@@ -7,6 +7,27 @@ namespace DivisionEngine.Projects
     /// </summary>
     public class ProjectManager
     {
+        /// <summary>
+        /// Current project name.
+        /// </summary>
+        public static string? CurrentProjectName { get; private set; } = null;
+
+        /// <summary>
+        /// Current project directory path.
+        /// </summary>
+        public static string? CurrentProjectPath { get; private set; } = null;
+
+        /// <summary>
+        /// If a project is currently loaded.
+        /// </summary>
+        public static bool IsCurrentLoaded =>
+            !string.IsNullOrWhiteSpace(CurrentProjectPath) && !string.IsNullOrWhiteSpace(CurrentProjectName);
+
+        /// <summary>
+        /// Searches project directory to find the project 
+        /// </summary>
+        /// <param name="projDir"></param>
+        /// <returns></returns>
         public static string? GetProjectName(string projDir)
         {
             DirectoryInfo projDirInfo = new DirectoryInfo(projDir);
@@ -23,25 +44,77 @@ namespace DivisionEngine.Projects
 
         public static string GetWorldPath(string projDir, WorldData world) => $"{projDir}\\{world.Name}.wld";
 
-        public static void LoadProject(string projDir)
+        public static bool LoadProject(string projDir)
         {
-            // Implement project deseralization
+            CurrentProjectPath = projDir;
+            CurrentProjectName = GetProjectName(projDir);
+
+            if (IsCurrentLoaded)
+            {
+                // Force project validation
+                bool validationStep = ForceValidateProjectDirectory(CurrentProjectName!, projDir);
+                if (!validationStep)
+                {
+                    Debug.Error($"Project Failed Validation! | Path: {projDir}");
+                    return false;
+                }
+
+                WorldData? tempWorldData = null;
+                // Add deseralization and loading here
+                foreach (string worldPath in Directory.EnumerateFiles(projDir, "*.wld", SearchOption.TopDirectoryOnly))
+                {
+                    string worldJson = File.ReadAllText(worldPath);
+                    if (!string.IsNullOrEmpty(worldJson))
+                        tempWorldData = Deserialize.Default<WorldData>(worldJson);
+                    break; // Break after first world found for now
+                }
+
+                if (tempWorldData != null)
+                {
+                    Debug.Warning("Temp world data loaded");
+                }
+
+                return true;
+            }
+            return false;
         }
 
-        public static bool SaveCurrentProject(string projName, string projDir)
+        public static bool SaveNewProject(string projName, string projDir)
         {
-            if (!string.IsNullOrEmpty(projDir) && WorldManager.CurrentWorld != null)
+            if (!string.IsNullOrWhiteSpace(projDir) && !string.IsNullOrEmpty(projName))
+            {
+                CurrentProjectName = projName;
+                CurrentProjectPath = projDir;
+                return SaveProject(projName, projDir);
+            }
+            return false;
+        }
+
+        public static bool SaveCurrentProject()
+        {
+            if (IsCurrentLoaded)
+                return SaveProject(CurrentProjectName!, CurrentProjectPath!);
+            return false;
+        }
+
+        private static bool SaveProject(string projName, string projDir)
+        {
+            if (WorldManager.CurrentWorld != null)
             {
                 // Force project validation
                 bool validationStep = ForceValidateProjectDirectory(projName, projDir);
-                if (!validationStep) Debug.Error($"Project Failed Validation! | Path: {projDir}");
+                if (!validationStep)
+                {
+                    Debug.Error($"Project Failed Validation! | Path: {projDir}");
+                    return false;
+                }
 
                 // Serialize world
                 WorldData worldData = WorldData.Current;
                 string serializedWorld = Serialize.Default(worldData);
 
                 // Create project data
-                DivisionProject projectData = new DivisionProject(projDir, projName);
+                DivisionProject projectData = new DivisionProject(projName);
                 string serializedProjectData = Serialize.Default(projectData);
 
                 // Write project file

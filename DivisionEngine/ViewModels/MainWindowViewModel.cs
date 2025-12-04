@@ -69,21 +69,25 @@ namespace DivisionEngine.Editor.ViewModels
         private void OpenProject()
         {
             Debug.Info("Opening Project");
+
             // Implement Open Project functionality here
+            ProjectManager.LoadProject(@"C:\testDir");
         }
 
         [RelayCommand]
         private void SaveProject()
         {
             Debug.Info("Saving Project");
-            ProjectManager.SaveCurrentProject("TestProj", @"C:\testDir");
+            ProjectManager.SaveCurrentProject();
         }
 
         [RelayCommand]
         private void SaveProjectAs()
         {
             Debug.Info("Saving Project As");
+
             // Implement Save As functionality here
+            ProjectManager.SaveNewProject("TestProj", @"C:\testDir");
         }
 
         [RelayCommand]
