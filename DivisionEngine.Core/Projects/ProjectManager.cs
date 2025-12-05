@@ -59,6 +59,22 @@ namespace DivisionEngine.Projects
                     return false;
                 }
 
+                DivisionProject? tempProjectData = null;
+                // Add deseralization and loading here
+                foreach (string projPath in Directory.EnumerateFiles(projDir, "*.divproj", SearchOption.TopDirectoryOnly))
+                {
+                    string projJson = File.ReadAllText(projPath);
+                    if (!string.IsNullOrEmpty(projJson))
+                        tempProjectData = Deserialize.Default<DivisionProject>(projJson);
+                    break; // Break after first project file
+                }
+
+                if (tempProjectData != null)
+                {
+                    Debug.Info("Project Manager: Loaded project settings.");
+                    LoadProjectData(tempProjectData);
+                }
+
                 WorldData? tempWorldData = null;
                 // Add deseralization and loading here
                 foreach (string worldPath in Directory.EnumerateFiles(projDir, "*.wld", SearchOption.TopDirectoryOnly))
@@ -71,13 +87,18 @@ namespace DivisionEngine.Projects
 
                 if (tempWorldData != null)
                 {
-                    Debug.Info("Project Manager: World data deseralized.");
+                    Debug.Info("Project Manager: World data deserialized.");
                     LoadWorldDataIntoCurrent(tempWorldData);
                 }
 
                 return true;
             }
             return false;
+        }
+
+        private static void LoadProjectData(DivisionProject projectData)
+        {
+            // Project settings can be loaded here eventually.
         }
 
         private static void LoadWorldDataIntoCurrent(WorldData worldData)
