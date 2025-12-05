@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine
+﻿using DivisionEngine.Serialization;
+
+namespace DivisionEngine
 {
     /// <summary>
     /// Helper class for accessing the current world.
@@ -111,6 +113,14 @@
         /// <returns>Whether the entity of <paramref name="entityId"/> has a component type <typeparamref name="T"/></returns>
         public static bool HasComponent<T>(uint entityId) where T : IComponent =>
             WorldManager.CurrentWorld!.HasComponent<T>(entityId);
+
+        /// <summary>
+        /// Adds a component to the world from ComponentData serialized data.
+        /// </summary>
+        /// <param name="entityId">Entity to add component to</param>
+        /// <param name="componentData">ComponentData object to parse and add</param>
+        public static void AddComponentFromData(uint entityId, ComponentData componentData) =>
+            WorldManager.CurrentWorld!.AddComponentFromData(entityId, componentData);
 
         #endregion
         #region queries

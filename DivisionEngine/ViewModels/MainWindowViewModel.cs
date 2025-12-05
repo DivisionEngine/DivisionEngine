@@ -1,8 +1,11 @@
-﻿using CommunityToolkit.Mvvm.Input;
+﻿using Avalonia.Controls;
+using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.Input;
 using DivisionEngine.Projects;
 using ReactiveUI;
 using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 
 namespace DivisionEngine.Editor.ViewModels
 {
@@ -11,6 +14,10 @@ namespace DivisionEngine.Editor.ViewModels
     /// </summary>
     public partial class MainWindowViewModel : ViewModelBase
     {
+        // Window storage
+
+        private readonly Window mainWindow;
+
         // Main Window Menu Commands
 
         public Action? RequestClose { get; set; }
@@ -53,25 +60,51 @@ namespace DivisionEngine.Editor.ViewModels
         /// <summary>
         /// Builds the main window view model and initializes default tabs.
         /// </summary>
-        public MainWindowViewModel()
+        public MainWindowViewModel(Window mainWindow)
         {
+            this.mainWindow = mainWindow;
+
+            // Initialize default tabs
             LeftTabs.Add(new WorldWindowViewModel());
-
             CenterTabs.Add(new EnvironmentWindowViewModel());
-
             RightTabs.Add(new PropertiesWindowViewModel());
-
             BottomTabs.Add(new AssetsWindowViewModel());
             BottomTabs.Add(new ConsoleWindowViewModel());
         }
 
         [RelayCommand]
-        private void OpenProject()
+        private async Task OpenProject()
         {
-            Debug.Info("Opening Project");
+            try
+            {
+                // Open folder dialog for selecting project directory
+                var result = await mainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Open Project Folder",
+                    AllowMultiple = false,
+                    SuggestedStartLocation = await mainWindow.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Documents)
+                });
 
-            // Implement Open Project functionality here
-            ProjectManager.LoadProject(@"C:\testDir");
+                if (result.Count > 0 && !string.IsNullOrEmpty(result[0].Path.LocalPath))
+                {
+                    string projectPath = result[0].Path.LocalPath;
+                    Debug.Info($"Opening project from: {projectPath}");
+
+                    // Check if this is a valid project directory
+                    if (ProjectManager.IsDivisionProject(projectPath))
+                    {
+                        bool success = ProjectManager.LoadProject(projectPath);
+                        if (success)
+                            Debug.Info($"Project loaded successfully: {ProjectManager.CurrentProjectName}");
+                        else Debug.Error($"Failed to load project: {projectPath}");
+                    }
+                    else Debug.Error("Selected folder is not a valid Division Engine project");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Error opening project: {ex.Message}");
+            }
         }
 
         [RelayCommand]

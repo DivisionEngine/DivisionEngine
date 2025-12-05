@@ -27,7 +27,7 @@ namespace DivisionEngine.Projects
         /// Searches project directory to find the project name.
         /// </summary>
         /// <param name="projDir">Project directory to search</param>
-        /// <returns>Project file name</returns>
+        /// <returns>Project file name (includes .divproj extension)</returns>
         public static string? GetProjectName(string projDir)
         {
             DirectoryInfo projDirInfo = new DirectoryInfo(projDir);
@@ -44,7 +44,7 @@ namespace DivisionEngine.Projects
         /// </summary>
         /// <param name="projDir">Project top level directory</param>
         /// <returns>The path of the project file</returns>
-        public static string GetProjectPath(string projDir) => $"{projDir}\\{GetProjectName(projDir)!}.divproj";
+        public static string GetProjectPath(string projDir) => $"{projDir}\\{GetProjectName(projDir)!}";
 
         /// <summary>
         /// Gets the project file path from the project directory and project name.
@@ -61,6 +61,13 @@ namespace DivisionEngine.Projects
         /// <param name="world">WorldData to find path for</param>
         /// <returns>Formatted world data file path</returns>
         public static string GetWorldPath(string projDir, WorldData world) => $"{projDir}\\{world.Name}.wld";
+
+        /// <summary>
+        /// Checks to see if the project directory is a valid Division Engine project.
+        /// </summary>
+        /// <param name="projDir">Project directory to check</param>
+        /// <returns>If the project directory is a Division Engine project</returns>
+        public static bool IsDivisionProject(string projDir) => File.Exists(GetProjectPath(projDir));
 
         /// <summary>
         /// Loads a project via its top level directory.
@@ -154,6 +161,12 @@ namespace DivisionEngine.Projects
             WorldManager.SwitchWorld(newWorld.Name);
         }
 
+        /// <summary>
+        /// Saves a new project with a specified name and project directory.
+        /// </summary>
+        /// <param name="projName">New project name</param>
+        /// <param name="projDir">New project directory</param>
+        /// <returns>If new project creation was successful</returns>
         public static bool SaveNewProject(string projName, string projDir)
         {
             if (!string.IsNullOrWhiteSpace(projDir) && !string.IsNullOrEmpty(projName))

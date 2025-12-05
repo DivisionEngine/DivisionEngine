@@ -79,5 +79,10 @@ namespace DivisionEngine.Systems
             lastRecordedTime = timeTracker!.Elapsed.TotalSeconds;
             Time = lastRecordedTime;
         }
+
+        public override void Unload()
+        {
+            timeTracker?.Stop();
+        }
     }
 }
