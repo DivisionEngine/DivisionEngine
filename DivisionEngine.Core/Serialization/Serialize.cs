@@ -65,7 +65,6 @@ namespace DivisionEngine.Serialization
                         serializedField = Serialize4x4Matrix(matrix);
                     }
 
-                    Debug.Warning(field.Name + " : " + serializedField);
                     serialized.Add(field.Name, serializedField);
                 }
             }
