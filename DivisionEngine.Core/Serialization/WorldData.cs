@@ -7,14 +7,21 @@ namespace DivisionEngine.Serialization
     /// </summary>
     public class WorldData
     {
-        public string Name { get; }
-        public uint NextEntityId { get; }
-        public List<EntityData> Entities { get; }
+        public string Name { get; set; }
+        public uint NextEntityId { get; set; }
+        public List<EntityData> Entities { get; set; }
 
         /// <summary>
         /// Shortcut for "new WorldData(WorldManager.CurrentWorld!)".
         /// </summary>
         [JsonIgnore] public static WorldData Current => new WorldData(WorldManager.CurrentWorld!);
+
+        [JsonConstructor]
+        public WorldData()
+        {
+            Name = string.Empty;
+            Entities = [];
+        }
 
         /// <summary>
         /// Builds serializable world data object automatically from ECS world.

@@ -1,12 +1,20 @@
-﻿namespace DivisionEngine.Serialization
+﻿using System.Text.Json.Serialization;
+
+namespace DivisionEngine.Serialization
 {
     /// <summary>
     /// Stores entity data for serializing project entities.
     /// </summary>
     public class EntityData
     {
-        public uint Id { get; }
-        public List<ComponentData> Components { get; }
+        public uint Id { get; set; }
+        public List<ComponentData> Components { get; set; }
+
+        [JsonConstructor]
+        public EntityData()
+        {
+            Components = [];
+        }
 
         public EntityData(uint entity, World world)
         {
