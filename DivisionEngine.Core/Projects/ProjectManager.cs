@@ -24,10 +24,10 @@ namespace DivisionEngine.Projects
             !string.IsNullOrWhiteSpace(CurrentProjectPath) && !string.IsNullOrWhiteSpace(CurrentProjectName);
 
         /// <summary>
-        /// Searches project directory to find the project 
+        /// Searches project directory to find the project name.
         /// </summary>
-        /// <param name="projDir"></param>
-        /// <returns></returns>
+        /// <param name="projDir">Project directory to search</param>
+        /// <returns>Project file name</returns>
         public static string? GetProjectName(string projDir)
         {
             DirectoryInfo projDirInfo = new DirectoryInfo(projDir);
@@ -39,11 +39,34 @@ namespace DivisionEngine.Projects
             return null;
         }
 
+        /// <summary>
+        /// Gets the project file path from the project directory.
+        /// </summary>
+        /// <param name="projDir">Project top level directory</param>
+        /// <returns>The path of the project file</returns>
         public static string GetProjectPath(string projDir) => $"{projDir}\\{GetProjectName(projDir)!}.divproj";
+
+        /// <summary>
+        /// Gets the project file path from the project directory and project name.
+        /// </summary>
+        /// <param name="projDir">Project top level directory</param>
+        /// <param name="projName">Project name</param>
+        /// <returns>The path of the project file</returns>
         public static string GetProjectPath(string projDir, string projName) => $"{projDir}\\{projName}.divproj";
 
+        /// <summary>
+        /// Gets the path to the world data file.
+        /// </summary>
+        /// <param name="projDir">Project to look in</param>
+        /// <param name="world">WorldData to find path for</param>
+        /// <returns>Formatted world data file path</returns>
         public static string GetWorldPath(string projDir, WorldData world) => $"{projDir}\\{world.Name}.wld";
 
+        /// <summary>
+        /// Loads a project via its top level directory.
+        /// </summary>
+        /// <param name="projDir">Project directory to load</param>
+        /// <returns>If the project was successfully loaded</returns>
         public static bool LoadProject(string projDir)
         {
             CurrentProjectPath = projDir;
@@ -58,9 +81,9 @@ namespace DivisionEngine.Projects
                     Debug.Error($"Project Failed Validation! | Path: {projDir}");
                     return false;
                 }
-
+                
+                // Load project file
                 DivisionProject? tempProjectData = null;
-                // Add deseralization and loading here
                 foreach (string projPath in Directory.EnumerateFiles(projDir, "*.divproj", SearchOption.TopDirectoryOnly))
                 {
                     string projJson = File.ReadAllText(projPath);
@@ -68,15 +91,14 @@ namespace DivisionEngine.Projects
                         tempProjectData = Deserialize.Default<DivisionProject>(projJson);
                     break; // Break after first project file
                 }
-
                 if (tempProjectData != null)
                 {
                     Debug.Info("Project Manager: Loaded project settings.");
                     LoadProjectData(tempProjectData);
                 }
 
+                // Load world data file
                 WorldData? tempWorldData = null;
-                // Add deseralization and loading here
                 foreach (string worldPath in Directory.EnumerateFiles(projDir, "*.wld", SearchOption.TopDirectoryOnly))
                 {
                     string worldJson = File.ReadAllText(worldPath);
@@ -84,32 +106,48 @@ namespace DivisionEngine.Projects
                         tempWorldData = Deserialize.Default<WorldData>(worldJson);
                     break; // Break after first world found for now
                 }
-
                 if (tempWorldData != null)
                 {
                     Debug.Info("Project Manager: World data deserialized.");
                     LoadWorldDataIntoCurrent(tempWorldData);
                 }
-
                 return true;
             }
             return false;
         }
 
+        /// <summary>
+        /// Loads a DivsionProject object into the current project.
+        /// </summary>
+        /// <param name="projectData">Project settings to parse and load</param>
         private static void LoadProjectData(DivisionProject projectData)
         {
             // Project settings can be loaded here eventually.
+            
         }
 
+        /// <summary>
+        /// Loads a WorldData object into the current world.
+        /// </summary>
+        /// <param name="worldData">WorldData to parse and load</param>
         private static void LoadWorldDataIntoCurrent(WorldData worldData)
         {
-            World newWorld = new World(worldData.Name);
-            newWorld.entities = new HashSet<uint>();
-            for (int i = 0; i < worldData.Entities.Count; i++)
+            World newWorld = new World(worldData.Name)
             {
-                newWorld.entities.Add(worldData.Entities[i].Id);
-                Debug.Warning($"Added entity: {worldData.Entities[i].Id}");
+                entities = [],
+                NextEntityId = worldData.NextEntityId
+            };
+
+            // Create entities and components
+            foreach (EntityData entityData in worldData.Entities)
+            {
+                newWorld.entities.Add(entityData.Id);
+                foreach (ComponentData componentData in entityData.Components)
+                    newWorld.AddComponentFromData(entityData.Id, componentData);
             }
+
+            // Register systems
+            newWorld.RegisterAllSystems();
 
             // Make current world
             WorldManager.SetWorld(newWorld);

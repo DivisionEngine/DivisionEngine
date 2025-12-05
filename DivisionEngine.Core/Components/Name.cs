@@ -1,7 +1,20 @@
 ﻿namespace DivisionEngine.Components
 {
-    public class Name(string name) : IComponent
+    /// <summary>
+    /// Special tag component allowing the naming of entities.
+    /// </summary>
+    public class Name : IComponent
     {
-        public string? name = name;
+        public Name()
+        {
+            name = null;
+        }
+
+        public Name(string name)
+        {
+            this.name = name;
+        }
+
+        public string? name;
     }
 }
