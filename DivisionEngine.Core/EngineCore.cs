@@ -31,6 +31,7 @@
         {
             IsRunning = false;
             IsPaused = false;
+            WorldManager.CurrentWorld?.CallUnload();
         }
 
         /// <summary>

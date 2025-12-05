@@ -33,7 +33,7 @@ namespace DivisionEngine
         /// </summary>
         public List<SystemBase> systems;
 
-        private readonly List<SystemBase> awakeSystems, updateSystems, fixedUpdateSystems, renderSystems;
+        private readonly List<SystemBase> awakeSystems, updateSystems, fixedUpdateSystems, unloadSystems, renderSystems;
 
         /// <summary>
         /// Create a new world.
@@ -48,6 +48,7 @@ namespace DivisionEngine
             awakeSystems = [];
             updateSystems = [];
             fixedUpdateSystems = [];
+            unloadSystems = [];
             renderSystems = [];
             NextEntityId = 0;
 
@@ -157,6 +158,7 @@ namespace DivisionEngine
             awakeSystems.Clear();
             updateSystems.Clear();
             fixedUpdateSystems.Clear();
+            unloadSystems.Clear();
             renderSystems.Clear();
 
             foreach (Assembly a in AppDomain.CurrentDomain.GetAssemblies())
@@ -187,6 +189,7 @@ namespace DivisionEngine
             MethodInfo? awakeInfo = sysType.GetMethod("Awake"),
                 updateInfo = sysType.GetMethod("Update"),
                 fixedUpdateInfo = sysType.GetMethod("FixedUpdate"),
+                unloadInfo = sysType.GetMethod("Unload"),
                 renderInfo = sysType.GetMethod("Render");
 
             if (awakeInfo != null && awakeInfo.DeclaringType != sysBaseType)
@@ -195,6 +198,8 @@ namespace DivisionEngine
                 updateSystems.Add(system);
             if (fixedUpdateInfo != null && fixedUpdateInfo.DeclaringType != sysBaseType)
                 fixedUpdateSystems.Add(system);
+            if (unloadInfo != null && unloadInfo.DeclaringType != sysBaseType)
+                unloadSystems.Add(system);
             if (renderInfo != null && renderInfo.DeclaringType != sysBaseType)
                 renderSystems.Add(system);
         }
@@ -224,6 +229,15 @@ namespace DivisionEngine
         {
             for (int i = 0; i < fixedUpdateSystems.Count; i++)
                 fixedUpdateSystems[i].FixedUpdate();
+        }
+
+        /// <summary>
+        /// Calls all systems that implement "FixedUpdate".
+        /// </summary>
+        public void CallUnload()
+        {
+            for (int i = 0; i < unloadSystems.Count; i++)
+                unloadSystems[i].Unload();
         }
 
         /// <summary>

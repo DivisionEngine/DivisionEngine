@@ -6,7 +6,7 @@
     public abstract class SystemBase
     {
         /// <summary>
-        /// Called once when the World is run.
+        /// Called once when the world is run.
         /// </summary>
         public virtual void Awake() { }
 
@@ -19,6 +19,11 @@
         /// Called once every frame after Update loop has completed.
         /// </summary>
         public virtual void FixedUpdate() { }
+
+        /// <summary>
+        /// Called once when the world is stopped or unloaded.
+        /// </summary>
+        public virtual void Unload() { }
         
         /// <summary>
         /// Called before every render thread execution step.
