@@ -58,6 +58,8 @@ namespace DivisionEngine.Systems
 
         public override void Update()
         {
+            if (timeTracker == null) return;
+
             double newTime = timeTracker!.Elapsed.TotalSeconds;
             DeltaTime = newTime - lastRecordedTime;
 

@@ -71,12 +71,28 @@ namespace DivisionEngine.Projects
 
                 if (tempWorldData != null)
                 {
-                    Debug.Warning("Temp world data loaded");
+                    Debug.Info("Project Manager: World data deseralized.");
+                    LoadWorldDataIntoCurrent(tempWorldData);
                 }
 
                 return true;
             }
             return false;
+        }
+
+        private static void LoadWorldDataIntoCurrent(WorldData worldData)
+        {
+            World newWorld = new World(worldData.Name);
+            newWorld.entities = new HashSet<uint>();
+            for (int i = 0; i < worldData.Entities.Count; i++)
+            {
+                newWorld.entities.Add(worldData.Entities[i].Id);
+                Debug.Warning($"Added entity: {worldData.Entities[i].Id}");
+            }
+
+            // Make current world
+            WorldManager.SetWorld(newWorld);
+            WorldManager.SwitchWorld(newWorld.Name);
         }
 
         public static bool SaveNewProject(string projName, string projDir)

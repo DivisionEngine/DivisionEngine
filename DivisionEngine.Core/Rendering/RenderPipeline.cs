@@ -156,6 +156,9 @@ namespace DivisionEngine.Rendering
                 sdfPrimitivesDTO = SDFRenderSystem.PreparedPrimitivesDTO;
             }
 
+            // Check if primitives exist
+            if (sdfPrimitivesDTO.Length < 1) return;
+
             // Build compute render texture
             if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight)
             {
