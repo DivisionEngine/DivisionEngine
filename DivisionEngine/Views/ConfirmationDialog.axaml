@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="using:DivisionEngine.Editor"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="DivisionEngine.Editor.ConfirmationDialog"
+        x:DataType="local:ConfirmationDialog"
+        Title="{Binding Title}"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="20" Spacing="10">
+        <TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Content="No" Click="OnNoClicked" Width="80"/>
+            <Button Content="Yes" Click="OnYesClicked" Width="80"/>
+        </StackPanel>
+    </StackPanel>
+</Window>
