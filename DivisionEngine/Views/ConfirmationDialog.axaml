@@ -6,9 +6,9 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="DivisionEngine.Editor.ConfirmationDialog"
         x:DataType="local:ConfirmationDialog"
-        Title="{Binding Title}"
+        Title="Confirm"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="20" Spacing="10">
+  <StackPanel Margin="20" Spacing="10" Background="#222">
         <TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
             <Button Content="No" Click="OnNoClicked" Width="80"/>
