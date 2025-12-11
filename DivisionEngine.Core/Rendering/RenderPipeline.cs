@@ -38,6 +38,10 @@ namespace DivisionEngine.Rendering
             }
             set
             {
+                if (!value)
+                {
+                    //RendererWindow.
+                }
                 if (RendererWindow != null) RendererWindow.IsVisible = value;
             }
         }
