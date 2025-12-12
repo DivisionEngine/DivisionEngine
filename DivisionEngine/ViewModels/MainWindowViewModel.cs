@@ -5,6 +5,7 @@ using DivisionEngine.Projects;
 using ReactiveUI;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace DivisionEngine.Editor.ViewModels
@@ -77,6 +78,8 @@ namespace DivisionEngine.Editor.ViewModels
         {
             try
             {
+                App.SetEditorRendering(false);
+
                 // Open folder dialog for selecting project directory
                 var result = await mainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
@@ -100,6 +103,8 @@ namespace DivisionEngine.Editor.ViewModels
                     }
                     else Debug.Error("Selected folder is not a valid Division Engine project");
                 }
+
+                App.SetEditorRendering(true);
             }
             catch (Exception ex)
             {
@@ -111,16 +116,105 @@ namespace DivisionEngine.Editor.ViewModels
         private void SaveProject()
         {
             Debug.Info("Saving Project");
+            try
+            {
+                if (ProjectManager.IsCurrentLoaded)
+                {
+                    Debug.Info("Saving current project");
+                    ProjectManager.SaveCurrentProject();
+                }
+                else
+                {
+                    // No project open, trigger Save As instead
+                    SaveProjectAs().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Error saving project: {ex.Message}");
+            }
             ProjectManager.SaveCurrentProject();
         }
 
         [RelayCommand]
-        private void SaveProjectAs()
+        private async Task SaveProjectAs()
         {
             Debug.Info("Saving Project As");
 
+            try
+            {
+                App.SetEditorRendering(false);
+
+                // Step 1: Get project name
+                var projectNameDialog = new ProjectNameDialog();
+                var projectName = await projectNameDialog.ShowDialog<string>(mainWindow);
+
+                if (string.IsNullOrWhiteSpace(projectName))
+                {
+                    Debug.Info("Save cancelled: No project name provided");
+                    App.SetEditorRendering(true);
+                    return;
+                }
+
+                // Step 2: Choose folder location
+                var folderResult = await mainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Select Project Location",
+                    AllowMultiple = false,
+                    SuggestedStartLocation = await mainWindow.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Documents)
+                });
+
+                if (folderResult.Count == 0 || string.IsNullOrEmpty(folderResult[0].Path.LocalPath))
+                {
+                    Debug.Info("Save cancelled: No folder selected");
+                    App.SetEditorRendering(true);
+                    return;
+                }
+
+                string selectedFolder = folderResult[0].Path.LocalPath;
+                string projectPath = Path.Combine(selectedFolder, projectName);
+
+                // Step 3: Check if folder already exists
+                if (Directory.Exists(projectPath) && Directory.GetFiles(projectPath, "*.divproj").Length > 0)
+                {
+                    var confirmDialog = new ConfirmationDialog
+                    {
+                        Title = "Project Exists",
+                        Message = $"A project named '{projectName}' already exists at this location. Overwrite?"
+                    };
+
+                    bool overwrite = await confirmDialog.ShowDialog<bool>(mainWindow);
+                    if (!overwrite)
+                    {
+                        Debug.Info("Save cancelled: User chose not to overwrite");
+                        App.SetEditorRendering(true);
+                        return;
+                    }
+                }
+
+                // Step 4: Save the project
+                Debug.Info($"Saving project '{projectName}' to: {projectPath}");
+                bool success = ProjectManager.SaveNewProject(projectName, projectPath);
+
+                if (success)
+                {
+                    Debug.Info($"Project saved successfully: {projectName}");
+                    // Update UI, window title, etc.
+                }
+                else
+                {
+                    Debug.Error("Failed to save project");
+                }
+
+                App.SetEditorRendering(true);
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Error saving project: {ex.Message}");
+            }
+
             // Implement Save As functionality here
-            ProjectManager.SaveNewProject("TestProj", @"C:\testDir");
+            //ProjectManager.SaveNewProject("TestProj", @"C:\testDir");
         }
 
         [RelayCommand]

@@ -16,6 +16,7 @@ namespace DivisionEngine.Rendering
     {
         // Special variables
         public readonly Lock SyncLock = new Lock(); // Synchronization lock for thread safety
+        private bool closeWindowWithCloseEvent = true;
 
         // OpenGL variables
         private GL? gl;
@@ -28,22 +29,20 @@ namespace DivisionEngine.Rendering
         public event Action? Close; // Event to handle window close actions
 
         /// <summary>
-        /// Controls whether the renderer window is shown.
+        /// Stops the renderer window from running.
         /// </summary>
-        public bool ShowWindow
+        /// <returns>If the window was successfully closed</returns>
+        public bool Stop()
         {
-            get
+            if (RendererWindow != null)
             {
-                return RendererWindow != null && RendererWindow.IsVisible;
+                closeWindowWithCloseEvent = false;
+                RendererWindow!.Close();
+                RendererWindow = null;
+                closeWindowWithCloseEvent = true;
+                return true;
             }
-            set
-            {
-                if (!value)
-                {
-                    //RendererWindow.
-                }
-                if (RendererWindow != null) RendererWindow.IsVisible = value;
-            }
+            return false;
         }
 
         // Buffer storage
@@ -92,6 +91,7 @@ namespace DivisionEngine.Rendering
             options.UpdatesPerSecond = requestedFPS;
             RendererWindow = Window.Create(options);
 
+            closeWindowWithCloseEvent = true;
             Debug.Info("Renderer: Created Render Window");
             RendererWindow.Load += OnLoad;
             RendererWindow.Render += OnRender;
@@ -109,7 +109,7 @@ namespace DivisionEngine.Rendering
             renderTex?.Dispose();
             worldBuffer?.Dispose();
             primitivesBuffer?.Dispose();
-            Close?.Invoke(); // Invoke the close event if there are any subscribers
+            if (closeWindowWithCloseEvent) Close?.Invoke(); // Invoke the close event if there are any subscribers
         }
 
         /// <summary>

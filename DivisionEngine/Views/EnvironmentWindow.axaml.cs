@@ -10,7 +10,6 @@ namespace DivisionEngine.Editor;
 public partial class EnvironmentWindow : EditorWindow
 {
     private readonly DispatcherTimer? renderWindowUpdate;
-    private bool isVisible = false;
 
     public EnvironmentWindow()
     {
@@ -29,14 +28,12 @@ public partial class EnvironmentWindow : EditorWindow
 
     private void UserControl_Unloaded(object? sender, VisualTreeAttachmentEventArgs e) => SetVisible(false);
 
+    // Fully implement this so environment window can be added and removed
     public void SetVisible(bool visible)
     {
-        if (isVisible == visible) return;
-        isVisible = visible;
-
         if (visible)
         {
-            App.Renderer!.ShowWindow = true;
+            //App.SetEditorRendering(true);
             renderWindowUpdate?.Start();
             UpdateRendererPosition();
             Debug.Info("Environment Window: Activated");
@@ -44,7 +41,7 @@ public partial class EnvironmentWindow : EditorWindow
         else
         {
             renderWindowUpdate?.Stop();
-            App.Renderer!.ShowWindow = false;
+            //App.SetEditorRendering(false);
             Debug.Info("Environment Window: Deactivated");
         }
     }
@@ -57,7 +54,7 @@ public partial class EnvironmentWindow : EditorWindow
     {
         try
         {
-            if (!isVisible || RenderVisualizerFrame == null || App.Renderer?.RendererWindow == null)
+            if (RenderVisualizerFrame == null || App.Renderer?.RendererWindow == null)
                 return;
             if (RenderVisualizerFrame.Bounds.Width <= 0 || RenderVisualizerFrame.Bounds.Height <= 0)
                 return;

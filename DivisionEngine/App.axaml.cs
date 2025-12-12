@@ -36,6 +36,27 @@ namespace DivisionEngine.Editor
             AvaloniaXamlLoader.Load(this);
         }
 
+        /// <summary>
+        /// Sets whether the editor renders using a render pipeline.
+        /// </summary>
+        /// <param name="rendering">Whether the editor is rendering</param>
+        public static void SetEditorRendering(bool rendering)
+        {
+            if (rendering)
+            {
+                //Renderer?.Stop();
+                // Start the SDFRenderer in a separate thread
+                Renderer = new RenderPipeline();
+                Renderer.BindCurrentWorld(); // Binds default world
+                Task.Run(() => Renderer.Run(RequestedFPS, true));
+            }
+            else
+            {
+                Renderer!.Stop();
+                Renderer = null;
+            }
+        }
+
         public override void OnFrameworkInitializationCompleted()
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
