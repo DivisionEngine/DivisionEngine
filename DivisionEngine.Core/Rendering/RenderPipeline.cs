@@ -181,7 +181,7 @@ namespace DivisionEngine.Rendering
                 primitivesBuffer = device!.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
 
                 // Dispatch SDF compute shader
-                SDFShader shader = new SDFShader(renderTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
+                SDFShader3D shader = new SDFShader3D(renderTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
                 device?.For(texWidth, texHeight, shader);
 
                 renderTex.CopyTo(pixels!);

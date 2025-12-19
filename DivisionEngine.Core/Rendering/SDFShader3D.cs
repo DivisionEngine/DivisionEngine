@@ -1,13 +1,12 @@
 ﻿using ComputeSharp;
 using DivisionEngine.Rendering;
-using Silk.NET.Input;
 
 #pragma warning disable CA1416 // Validate platform compatibility
 namespace DivisionEngine
 {
     [GeneratedComputeShaderDescriptor]
     [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
-    public readonly partial struct SDFShader(
+    public readonly partial struct SDFShader3D(
         ReadWriteTexture2D<float4> texture,
         float width,
         float height,
@@ -107,6 +106,32 @@ namespace DivisionEngine
             return Hlsl.Sqrt((d2 + q.Z * q.Z) / m2) * Hlsl.Sign(Hlsl.Max(q.Z, -pt.Y));
         }
 
+        private float PlaneSDF(float3 pt, float3 n, float h)
+        {
+            return Hlsl.Dot(pt, Hlsl.Normalize(n)) + h;
+        }
+
+        // Bound not exact, for performance
+        private float ConeSDF(float3 pt, float2 c, float h)
+        {
+            float q = Hlsl.Length(pt.XZ);
+            return Hlsl.Max(Hlsl.Dot(c.XY, new float2(q, pt.Y)), -h - pt.Y);
+        }
+
+        // Vertical version, for performance
+        private float CylinderSDF(float3 pt, float r, float h)
+        {
+            float2 d = Hlsl.Abs(new float2(Hlsl.Length(pt.XZ), pt.Y)) - new float2(r, h);
+            return Hlsl.Min(Hlsl.Max(d.X, d.Y), 0.0f) + Hlsl.Length(Hlsl.Max(d, 0.0f));
+        }
+
+        // Vertical version, for performance
+        private float CapsuleSDF(float3 pt, float h, float r)
+        {
+            pt.Y -= Hlsl.Clamp(pt.Y, 0.0f, h);
+            return Hlsl.Length(pt) - r;
+        }
+
         private float2 WorldSDF(float3 point, bool shadowCastCheck)
         {
             float minDist = MIN_TRAVERSE_DIST;
@@ -128,6 +153,14 @@ namespace DivisionEngine
                 else if (sdfPrimitives[i].type == 3) // Adds torus SDFs
                     dist = TorusSDF(transformedPt, sdfPrimitives[i].parameters.XY);
                 else if (sdfPrimitives[i].type == 4) // Adds pyramid SDFs
+                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
+                else if (sdfPrimitives[i].type == 5) // Adds pyramid SDFs
+                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
+                else if (sdfPrimitives[i].type == 6) // Adds pyramid SDFs
+                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
+                else if (sdfPrimitives[i].type == 7) // Adds pyramid SDFs
+                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
+                else if (sdfPrimitives[i].type == 8) // Adds pyramid SDFs
                     dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
                 else // Default sphere SDF
                     dist = SphereSDF(transformedPt, sdfPrimitives[i].parameters.X);
