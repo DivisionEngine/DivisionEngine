@@ -105,6 +105,34 @@ namespace DivisionEngine.Systems
                     curPrimitive.color = pyramid.color;
                     curPrimitive.parameters = new float4(pyramid.height, 0f, 0f, 0f);
                 }
+                if (W.HasComponent<SDFPlane>(id)) // Check plane primitive
+                {
+                    SDFPlane plane = W.GetComponent<SDFPlane>(id)!;
+                    curPrimitive.type = 5; // Plane type
+                    curPrimitive.color = plane.color;
+                    curPrimitive.parameters = new float4(plane.normal.X, plane.normal.Y, plane.normal.Z, plane.h);
+                }
+                if (W.HasComponent<SDFCylinder>(id)) // Check cylinder primitive
+                {
+                    SDFCylinder cylinder = W.GetComponent<SDFCylinder>(id)!;
+                    curPrimitive.type = 6; // Cylinder type
+                    curPrimitive.color = cylinder.color;
+                    curPrimitive.parameters = new float4(cylinder.radius, cylinder.height, 0f, 0f);
+                }
+                if (W.HasComponent<SDFCapsule>(id)) // Check capsule primitive
+                {
+                    SDFCapsule capsule = W.GetComponent<SDFCapsule>(id)!;
+                    curPrimitive.type = 7; // Capsule type
+                    curPrimitive.color = capsule.color;
+                    curPrimitive.parameters = new float4(capsule.radius, capsule.height, 0f, 0f);
+                }
+                if (W.HasComponent<SDFCone>(id)) // Check cone primitive
+                {
+                    SDFCone cone = W.GetComponent<SDFCone>(id)!;
+                    curPrimitive.type = 8; // Cone type
+                    curPrimitive.color = cone.color;
+                    curPrimitive.parameters = new float4(cone.cone.X, cone.cone.Y, cone.height, 0f);
+                }
 
                 // Space to find more SDF primitives in the future
 

@@ -59,6 +59,10 @@
             <MenuItem Header="Rounded Box" Command="{Binding CreateEntityCommand}" CommandParameter="roundedBox"/>
             <MenuItem Header="Donut" Command="{Binding CreateEntityCommand}" CommandParameter="torus"/>
             <MenuItem Header="Pyramid" Command="{Binding CreateEntityCommand}" CommandParameter="pyramid"/>
+            <MenuItem Header="Plane" Command="{Binding CreateEntityCommand}" CommandParameter="plane"/>
+            <MenuItem Header="Cylinder" Command="{Binding CreateEntityCommand}" CommandParameter="cylinder"/>
+            <MenuItem Header="Capsule" Command="{Binding CreateEntityCommand}" CommandParameter="capsule"/>
+            <MenuItem Header="Cone" Command="{Binding CreateEntityCommand}" CommandParameter="cone"/>
         </MenuItem>
           <!--Other Menus-->
         <MenuItem Header="Help" Foreground="#ccc">

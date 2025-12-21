@@ -264,6 +264,10 @@ namespace DivisionEngine.Editor.ViewModels
                     "roundedBox" => DefaultEntities.SDFRoundedBox(),
                     "torus" => DefaultEntities.SDFTorus(),
                     "pyramid" => DefaultEntities.SDFPyramid(),
+                    "plane" => DefaultEntities.SDFPlane(),
+                    "cylinder" => DefaultEntities.SDFCylinder(),
+                    "capsule" => DefaultEntities.SDFCapsule(),
+                    "cone" => DefaultEntities.SDFCone(),
                     _ => DefaultEntities.EmptyTransform()
                 };
                 Debug.Info($"Created {entityType} entity with ID: {entityId}");

@@ -126,7 +126,7 @@ namespace DivisionEngine
         }
 
         // Vertical version, for performance
-        private float CapsuleSDF(float3 pt, float h, float r)
+        private float CapsuleSDF(float3 pt, float r, float h)
         {
             pt.Y -= Hlsl.Clamp(pt.Y, 0.0f, h);
             return Hlsl.Length(pt) - r;
@@ -154,14 +154,14 @@ namespace DivisionEngine
                     dist = TorusSDF(transformedPt, sdfPrimitives[i].parameters.XY);
                 else if (sdfPrimitives[i].type == 4) // Adds pyramid SDFs
                     dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
-                else if (sdfPrimitives[i].type == 5) // Adds pyramid SDFs
-                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
-                else if (sdfPrimitives[i].type == 6) // Adds pyramid SDFs
-                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
-                else if (sdfPrimitives[i].type == 7) // Adds pyramid SDFs
-                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
-                else if (sdfPrimitives[i].type == 8) // Adds pyramid SDFs
-                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
+                else if (sdfPrimitives[i].type == 5) // Adds plane SDFs
+                    dist = PlaneSDF(transformedPt, sdfPrimitives[i].parameters.XYZ, sdfPrimitives[i].parameters.W);
+                else if (sdfPrimitives[i].type == 6) // Adds cylinder SDFs
+                    dist = CylinderSDF(transformedPt, sdfPrimitives[i].parameters.X, sdfPrimitives[i].parameters.Y);
+                else if (sdfPrimitives[i].type == 7) // Adds capsule SDFs
+                    dist = CapsuleSDF(transformedPt, sdfPrimitives[i].parameters.X, sdfPrimitives[i].parameters.Y);
+                else if (sdfPrimitives[i].type == 8) // Adds cone SDFs
+                    dist = ConeSDF(transformedPt, sdfPrimitives[i].parameters.XY, sdfPrimitives[i].parameters.Z);
                 else // Default sphere SDF
                     dist = SphereSDF(transformedPt, sdfPrimitives[i].parameters.X);
 

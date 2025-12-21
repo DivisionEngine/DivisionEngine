@@ -82,5 +82,45 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SoftShadows());
             return sdf;
         }
+
+        public static uint SDFPlane(string name = "New Plane")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint sdf = W.CreateTransformEntity(name);
+            W.AddComponent(sdf, new SDFPlane());
+            W.AddComponent(sdf, new SoftShadows());
+            return sdf;
+        }
+
+        public static uint SDFCylinder(string name = "New Cylinder")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint sdf = W.CreateTransformEntity(name);
+            W.AddComponent(sdf, new SDFCylinder());
+            W.AddComponent(sdf, new SoftShadows());
+            return sdf;
+        }
+
+        public static uint SDFCapsule(string name = "New Capsule")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint sdf = W.CreateTransformEntity(name);
+            W.AddComponent(sdf, new SDFCapsule());
+            W.AddComponent(sdf, new SoftShadows());
+            return sdf;
+        }
+
+        public static uint SDFCone(string name = "New Cone")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint sdf = W.CreateTransformEntity(name);
+            W.AddComponent(sdf, new SDFCone());
+            W.AddComponent(sdf, new SoftShadows());
+            return sdf;
+        }
     }
 }
