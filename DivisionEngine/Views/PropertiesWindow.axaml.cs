@@ -14,9 +14,12 @@ using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Editor;
 
+/// <summary>
+/// Represents the properties window in the Division editor.
+/// </summary>
 public partial class PropertiesWindow : EditorWindow
 {
-    private static PropertiesWindow? current;
+    private static readonly List<PropertiesWindow?> currentWindows = [];
 
     private readonly StackPanel propertiesPanel;
     private readonly ScrollViewer scrollViewer;
@@ -65,14 +68,31 @@ public partial class PropertiesWindow : EditorWindow
         mainPanel.Children.Add(scrollViewer);
         this.FindControl<Border>("MainBorder")!.Child = mainPanel;
 
-        current = this;
+        currentWindows.Add(this);
     }
 
     /// <summary>
-    /// Make the properties window display all entityIds
+    /// Has the properties window load the components for an entity.
     /// </summary>
-    /// <param name="entityId"></param>
-    public static void LoadEntityComponents(uint entityId) => current!.SetupPropertiesForEntity(entityId);
+    /// <param name="entityId">Entity to load components for</param>
+    public static void LoadEntityComponents(uint entityId)
+    {
+        ValidatePropertiesWindows();
+        foreach (PropertiesWindow? window in currentWindows)
+            window!.SetupPropertiesForEntity(entityId);
+    }
+
+    /// <summary>
+    /// Makes sure all properties windows in current list are active.
+    /// </summary>
+    private static void ValidatePropertiesWindows()
+    {
+        foreach (PropertiesWindow? window in currentWindows.ToArray()) // Dont forget to create iterator copy
+        {
+            if (window == null || !window.IsLoaded)
+                currentWindows.Remove(window);
+        }
+    }
 
     public bool SetupPropertiesForEntity(uint entityId)
     {
