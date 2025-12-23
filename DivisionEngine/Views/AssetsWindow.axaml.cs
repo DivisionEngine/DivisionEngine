@@ -228,10 +228,10 @@ public partial class AssetsWindow : EditorWindow
         Border folderBorder = new Border
         {
             Width = 80,
-            Height = 80,
-            Background = EditorColor.FromRGB(0x22, 0x22, 0x22),
+            Height = 85,
+            Background = EditorColor.FromRGB(24, 24, 24),
             BorderThickness = new Thickness(1),
-            BorderBrush = EditorColor.FromRGB(0x44, 0x44, 0x44),
+            BorderBrush = EditorColor.FromRGB(68, 68, 68),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(5),
             Padding = new Thickness(5),
@@ -240,7 +240,6 @@ public partial class AssetsWindow : EditorWindow
         StackPanel folderStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Spacing = 5,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -249,7 +248,8 @@ public partial class AssetsWindow : EditorWindow
             Kind = MaterialIconKind.Folder,
             Width = 48,
             Height = 48,
-            Foreground = EditorColor.FromColor(ColorPalette.Mint)
+            Foreground = EditorColor.FromColor(ColorPalette.Mint),
+            Margin = new Thickness(0, 0, 0, 5)
         };
 
         // Folder name (truncated if too long)
@@ -264,7 +264,7 @@ public partial class AssetsWindow : EditorWindow
             TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 70
+            MaxWidth = 80
         };
 
         folderStack.Children.Add(folderIcon);
@@ -274,11 +274,11 @@ public partial class AssetsWindow : EditorWindow
         // Hover effect
         folderBorder.PointerEntered += (s, e) =>
         {
-            folderBorder.Background = EditorColor.FromRGB(0x33, 0x33, 0x33);
+            folderBorder.Background = EditorColor.FromRGB(17, 17, 17);
         };
         folderBorder.PointerExited += (s, e) =>
         {
-            folderBorder.Background = EditorColor.FromRGB(0x22, 0x22, 0x22);
+            folderBorder.Background = EditorColor.FromRGB(24, 24, 24);
         };
 
         // Add double-click to open folder
@@ -291,8 +291,8 @@ public partial class AssetsWindow : EditorWindow
         // Add context menu
         ContextMenu contextMenu = new ContextMenu
         {
-            Background = EditorColor.FromRGB(0x33, 0x33, 0x33),
-            BorderBrush = EditorColor.FromRGB(0x55, 0x55, 0x55)
+            Background = EditorColor.FromRGB(68, 68, 68),
+            BorderBrush = EditorColor.FromRGB(128, 128, 128)
         };
         contextMenu.Items.Add(CreateMenuItem("Open", MaterialIconKind.FolderOpen, () =>
         {
@@ -321,10 +321,10 @@ public partial class AssetsWindow : EditorWindow
         Border fileBorder = new Border
         {
             Width = 80,
-            Height = 80,
-            Background = EditorColor.FromRGB(0x22, 0x22, 0x22),
+            Height = 85,
+            Background = EditorColor.FromRGB(24, 24, 24),
             BorderThickness = new Thickness(1),
-            BorderBrush = EditorColor.FromRGB(0x44, 0x44, 0x44),
+            BorderBrush = EditorColor.FromRGB(68, 68, 68),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(5),
             Padding = new Thickness(5),
@@ -333,7 +333,6 @@ public partial class AssetsWindow : EditorWindow
         StackPanel fileStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Spacing = 5,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -353,14 +352,14 @@ public partial class AssetsWindow : EditorWindow
             TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 70
+            MaxWidth = 80
         };
 
         // File extension
         TextBlock extensionText = new TextBlock
         {
             Text = file.Extension.ToUpper(),
-            Foreground = Brushes.Gray,
+            Foreground = Brushes.LightGray,
             FontSize = 8,
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -373,11 +372,11 @@ public partial class AssetsWindow : EditorWindow
         // Hover effect
         fileBorder.PointerEntered += (s, e) =>
         {
-            fileBorder.Background = EditorColor.FromRGB(0x33, 0x33, 0x33);
+            fileBorder.Background = EditorColor.FromRGB(17, 17, 17);
         };
         fileBorder.PointerExited += (s, e) =>
         {
-            fileBorder.Background = EditorColor.FromRGB(0x22, 0x22, 0x22);
+            fileBorder.Background = EditorColor.FromRGB(24, 24, 24);
         };
 
         // Add double-click to open file
@@ -390,8 +389,8 @@ public partial class AssetsWindow : EditorWindow
         // Add context menu
         ContextMenu contextMenu = new ContextMenu
         {
-            Background = EditorColor.FromRGB(0x33, 0x33, 0x33),
-            BorderBrush = EditorColor.FromRGB(0x55, 0x55, 0x55)
+            Background = EditorColor.FromRGB(68, 68, 68),
+            BorderBrush = EditorColor.FromRGB(128, 128, 128)
         };
         contextMenu.Items.Add(CreateMenuItem("Open", MaterialIconKind.FileDocument, () =>
         {
@@ -419,26 +418,30 @@ public partial class AssetsWindow : EditorWindow
     {
         MaterialIconKind iconKind = extension.ToLower() switch
         {
-            ".png" or ".jpg" or ".jpeg" or ".bmp" or ".tga" or ".tiff" => MaterialIconKind.Image,
-            ".obj" or ".fbx" or ".gltf" or ".glb" or ".stl" => MaterialIconKind.CubeOutline,
-            ".wav" or ".mp3" or ".ogg" or ".flac" => MaterialIconKind.Music,
-            ".cs" or ".js" or ".ts" or ".cpp" or ".h" => MaterialIconKind.CodeBraces,
-            ".json" or ".xml" or ".yml" or ".yaml" => MaterialIconKind.CodeJson,
-            ".txt" or ".md" or ".rtf" => MaterialIconKind.TextBox,
-            ".shader" or ".hlsl" or ".glsl" => MaterialIconKind.Eyedropper,
-            ".mat" or ".material" => MaterialIconKind.Palette,
-            ".scene" or ".prefab" => MaterialIconKind.ViewDashboard,
+            ".png" or ".jpg" or ".jpeg" or ".bmp" or ".tga" or ".tiff" or ".ico" => MaterialIconKind.Image,
+            //".obj" or ".fbx" or ".gltf" or ".glb" or ".stl" => MaterialIconKind.CubeOutline,
+            ".wav" or ".mp3" or ".ogg" or ".flac" => MaterialIconKind.Audio,
+            ".cs" or ".js" or ".ts" or ".cpp" or ".h" or ".manifest" => MaterialIconKind.CodeBraces,
+            ".dll" => MaterialIconKind.Library,
+            ".json" or ".xml" or ".yml" or ".yaml" or ".axaml" => MaterialIconKind.CodeJson,
+            ".txt" or ".md" or ".rtf" or ".csproj" or ".gitignore" or ".gitattributes" or ".sln" => MaterialIconKind.TextBox,
+            ".shader" or ".hlsl" => MaterialIconKind.Eyedropper,
+            ".mat" => MaterialIconKind.Palette,
+            ".wld" => MaterialIconKind.ViewDashboard,
             _ => MaterialIconKind.FileDocument
         };
         float4 iconColor = extension.ToLower() switch
         {
-            ".png" or ".jpg" or ".jpeg" or ".bmp" => ColorPalette.SkyBlue,
-            ".obj" or ".fbx" or ".gltf" => ColorPalette.LightSeaGreen,
-            ".wav" or ".mp3" or ".ogg" => ColorPalette.Purple,
-            ".cs" or ".js" or ".ts" => ColorPalette.Gold,
-            ".json" or ".xml" => ColorPalette.PaleGreen,
-            ".shader" or ".hlsl" => ColorPalette.Violet,
-            ".mat" or ".material" => ColorPalette.Orange,
+            ".png" or ".jpg" or ".jpeg" or ".bmp" or ".tga" or ".tiff" or ".ico" => ColorPalette.SkyBlue,
+            //".obj" or ".fbx" or ".gltf" or ".glb" or ".stl" => ColorPalette.LightSeaGreen,
+            ".wav" or ".mp3" or ".ogg" or ".flac" => ColorPalette.Coral,
+            ".cs" or ".js" or ".ts" or ".cpp" or ".h" or ".manifest" => ColorPalette.Khaki,
+            ".dll" => ColorPalette.SandyBrown,
+            ".json" or ".xml" or ".yml" or ".yaml" or ".axaml" => ColorPalette.PaleGreen,
+            ".txt" or ".md" or ".rtf" or ".csproj" or ".gitignore" or ".gitattributes" or ".sln" => ColorPalette.Khaki,
+            ".shader" or ".hlsl" => ColorPalette.SalmonPink,
+            ".mat" => ColorPalette.Orange,
+            ".wld" => ColorPalette.PaleGreen,
             _ => ColorPalette.Gray,
         };
         return new MaterialIcon
@@ -446,7 +449,8 @@ public partial class AssetsWindow : EditorWindow
             Kind = iconKind,
             Width = 48,
             Height = 48,
-            Foreground = EditorColor.FromColor(iconColor)
+            Foreground = EditorColor.FromColor(iconColor),
+            Margin = new Thickness(0, 0, 0, 5)
         };
     }
 
