@@ -98,7 +98,10 @@ namespace DivisionEngine.Editor.ViewModels
                     {
                         bool success = ProjectManager.LoadProject(projectPath);
                         if (success)
+                        {
                             Debug.Info($"Project loaded successfully: {ProjectManager.CurrentProjectName}");
+                            AssetsWindow.LoadAssetsForCurrentProject();
+                        }
                         else Debug.Error($"Failed to load project: {projectPath}");
                     }
                     else Debug.Error("Selected folder is not a valid Division Engine project");
@@ -199,7 +202,7 @@ namespace DivisionEngine.Editor.ViewModels
                 if (success)
                 {
                     Debug.Info($"Project saved successfully: {projectName}");
-                    // Update UI, window title, etc.
+                    AssetsWindow.LoadAssetsForCurrentProject();
                 }
                 else
                 {

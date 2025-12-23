@@ -5,15 +5,21 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using DivisionEngine.MathLib;
 using DivisionEngine.Projects;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using Path = System.IO.Path;
 
 namespace DivisionEngine.Editor;
 
+/// <summary>
+/// Represents all loaded assets windows.
+/// </summary>
 public partial class AssetsWindow : EditorWindow
 {
     private static readonly List<AssetsWindow?> currentWindows = [];
@@ -23,7 +29,10 @@ public partial class AssetsWindow : EditorWindow
 
     private readonly StackPanel header;
     private readonly TextBlock headerText;
-    private readonly TextBlock assetCountText;
+    private readonly TextBlock itemCountText;
+    private readonly Button upDirButton;
+
+    private string currentPath;
 
     public AssetsWindow()
     {
@@ -32,8 +41,8 @@ public partial class AssetsWindow : EditorWindow
         assetsPanel = new WrapPanel
         {
             Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,            
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
         };
         scrollViewer = new ScrollViewer
         {
@@ -56,37 +65,62 @@ public partial class AssetsWindow : EditorWindow
             FontWeight = FontWeight.Bold,
             Foreground = Brushes.White,
             Margin = new Thickness(5),
+            VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center
         };
-        assetCountText = new TextBlock
+        itemCountText = new TextBlock
         {
-            Text = "0 assets",
-            FontSize = 10,
-            Foreground = Brushes.Gray,
+            Text = "0 items",
+            FontSize = 12,
+            Foreground = EditorColor.FromRGB(128, 128, 128),
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(10, 0, 0, 0)
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(5)
         };
-        header.Children.Add(headerText);
-        header.Children.Add(assetCountText);
-
-        StackPanel mainPanel = new StackPanel
+        MaterialIcon upFolderIcon = new MaterialIcon
         {
-            Orientation = Orientation.Vertical,
-            Spacing = 0
+            Kind = MaterialIconKind.FolderUpload,
+            Width = 16,
+            Height = 16,
+            Foreground = EditorColor.FromRGB(68, 68, 68),
         };
+        upDirButton = new Button
+        {
+            Content = upFolderIcon,
+            Background = EditorColor.FromRGB(12, 12, 12),
+            Margin = new Thickness(2, 2, 2, 2),
+            Padding = new Thickness(4, 2, 4, 2)
+        };
+        upDirButton.Click += (s, e) => NavigateUpOneLevel();
+        header.Children.Add(upDirButton);
+        header.Children.Add(headerText);
+        header.Children.Add(itemCountText);
 
-        mainPanel.Children.Add(header);
-        mainPanel.Children.Add(new Border
+        Border separatorBorder = new Border
         {
             Background = EditorColor.FromRGB(68, 68, 68),
-            Height = 1,
-            Margin = new Thickness(0, 0, 0, 5)
-        });
-        mainPanel.Children.Add(scrollViewer);
-        this.FindControl<Border>("MainBorder")!.Child = mainPanel;
+            Height = 1
+        };
+        Grid grid = new Grid
+        {
+            RowDefinitions =
+            {
+                new RowDefinition(30, GridUnitType.Pixel), // Header
+                new RowDefinition(1, GridUnitType.Pixel),  // Separator
+                new RowDefinition(1, GridUnitType.Star),   // Scrollable area (takes remaining space)
+            }
+        };
+        Grid.SetRow(header, 0);
+        Grid.SetRow(separatorBorder, 1);
+        Grid.SetRow(scrollViewer, 2);
+        grid.Children.Add(header);
+        grid.Children.Add(separatorBorder);
+        grid.Children.Add(scrollViewer);
+        this.FindControl<Border>("MainBorder")!.Child = grid;
 
+        currentPath = string.Empty;
         currentWindows.Add(this);
-        LoadAssetsForCurrentProject();
+        Dispatcher.UIThread.Post(LoadAssetsForCurrentProject);
     }
 
     /// <summary>
@@ -95,8 +129,19 @@ public partial class AssetsWindow : EditorWindow
     public static void LoadAssetsForCurrentProject()
     {
         ValidatePropertiesWindows();
+        Debug.Info("Asset Windows: " + currentWindows.Count);
         foreach (AssetsWindow? window in currentWindows)
-            window!.SetupForCurrentProject();
+            window!.Setup(ProjectManager.CurrentProjectPath);
+    }
+
+    /// <summary>
+    /// Has the assets window load all assets at a path.
+    /// </summary>
+    public static void LoadAssets(string path)
+    {
+        ValidatePropertiesWindows();
+        foreach (AssetsWindow? window in currentWindows)
+            window!.Setup(path);
     }
 
     /// <summary>
@@ -111,19 +156,31 @@ public partial class AssetsWindow : EditorWindow
         }
     }
 
-    private bool SetupForCurrentProject()
+    private bool Setup(string? path)
     {
-        if (ProjectManager.CurrentProjectPath == null || ProjectManager.CurrentProjectName == null)
+        if (string.IsNullOrEmpty(path))
         {
             Debug.Warning("Could not load assets, no project is loaded");
             headerText.Text = "No Project Loaded";
-            assetCountText.Text = "0 assets";
+            itemCountText.Text = "0 items";
             return false;
         }
+        currentPath = path;
         assetsPanel.Children.Clear();
 
-        headerText.Text = ProjectManager.CurrentProjectPath;
-        Dispatcher.UIThread.Post(() => LoadAssetsAtPath(ProjectManager.CurrentProjectPath));
+        headerText.Text = path;
+        Dispatcher.UIThread.Post(() => LoadAssetsAtPath(path));
+        return true;
+    }
+
+    private bool NavigateUpOneLevel()
+    {
+        if (string.IsNullOrEmpty(currentPath)) return false;
+
+        DirectoryInfo dir = new DirectoryInfo(currentPath);
+        if (dir.Parent == null) return false;
+
+        Dispatcher.UIThread.Post(() => LoadAssets(dir.Parent.FullName));
         return true;
     }
 
@@ -132,53 +189,43 @@ public partial class AssetsWindow : EditorWindow
         try
         {
             DirectoryInfo pathInfo = new DirectoryInfo(path);
-
             if (!pathInfo.Exists)
             {
-                // Assets directory doesn't exist, show message
-                ShowEmptyState("Assets folder is empty");
-                assetCountText.Text = "0 assets";
+                ShowEmptyState("Directory does not exist");
+                itemCountText.Text = "0 items";
                 return;
             }
 
-            // Clear existing assets
-            assetsPanel.Children.Clear();
-
-            // Load folders first
-            var folders = pathInfo.GetDirectories();
-            foreach (var folder in folders)
-            {
-                CreateFolderAsset(folder);
-            }
+            // Load folders
+            DirectoryInfo[] folders = pathInfo.GetDirectories();
+            foreach (var folder in folders) CreateFolderAsset(folder);
 
             // Load files
-            var files = pathInfo.GetFiles();
-            foreach (var file in files)
-            {
-                CreateFileAsset(file);
-            }
+            FileInfo[] files = pathInfo.GetFiles();
+            foreach (var file in files) CreateFileAsset(file);
 
             // Update count
             int totalAssets = folders.Length + files.Length;
-            assetCountText.Text = $"{totalAssets} asset{(totalAssets != 1 ? "s" : "")}";
+            itemCountText.Text = $"{totalAssets} item{(totalAssets != 1 ? "s" : "")}";
 
             // Show empty state if no assets
-            if (totalAssets == 0)
-            {
-                ShowEmptyState("No assets found");
-            }
+            if (totalAssets == 0) ShowEmptyState("No Items");
         }
         catch (Exception ex)
         {
             Debug.Error($"Failed to load assets: {ex.Message}");
             ShowEmptyState($"Error: {ex.Message}");
-            assetCountText.Text = "Error";
+            itemCountText.Text = "Error";
         }
     }
 
+    /// <summary>
+    /// Creates a folder asset and adds it to the list.
+    /// </summary>
+    /// <param name="folder">Folder to add to list</param>
     private void CreateFolderAsset(DirectoryInfo folder)
     {
-        var folderBorder = new Border
+        Border folderBorder = new Border
         {
             Width = 80,
             Height = 80,
@@ -190,32 +237,26 @@ public partial class AssetsWindow : EditorWindow
             Padding = new Thickness(5),
             Cursor = new Cursor(StandardCursorType.Hand)
         };
-
-        var folderStack = new StackPanel
+        StackPanel folderStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
             Spacing = 5,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
-
-        // Folder icon using MaterialIcons
-        var folderIcon = new MaterialIcon
+        MaterialIcon folderIcon = new MaterialIcon
         {
             Kind = MaterialIconKind.Folder,
-            Width = 32,
-            Height = 32,
-            Foreground = Brushes.SteelBlue
+            Width = 48,
+            Height = 48,
+            Foreground = EditorColor.FromColor(ColorPalette.Mint)
         };
 
         // Folder name (truncated if too long)
         string folderName = folder.Name;
-        if (folderName.Length > 10)
-        {
-            folderName = folderName.Substring(0, 8) + "..";
-        }
+        if (folderName.Length > 10) folderName = string.Concat(folderName.AsSpan(0, 8), "..");
 
-        var folderNameText = new TextBlock
+        TextBlock folderNameText = new TextBlock
         {
             Text = folderName,
             Foreground = Brushes.White,
@@ -235,7 +276,6 @@ public partial class AssetsWindow : EditorWindow
         {
             folderBorder.Background = EditorColor.FromRGB(0x33, 0x33, 0x33);
         };
-
         folderBorder.PointerExited += (s, e) =>
         {
             folderBorder.Background = EditorColor.FromRGB(0x22, 0x22, 0x22);
@@ -244,42 +284,42 @@ public partial class AssetsWindow : EditorWindow
         // Add double-click to open folder
         folderBorder.DoubleTapped += (s, e) =>
         {
-            Debug.Info($"Opening folder: {folder.Name}");
-            // Future: Navigate into folder
+            string newPath = folder.FullName;
+            Dispatcher.UIThread.Post(() => LoadAssets(newPath));
         };
 
         // Add context menu
-        var contextMenu = new ContextMenu
+        ContextMenu contextMenu = new ContextMenu
         {
             Background = EditorColor.FromRGB(0x33, 0x33, 0x33),
             BorderBrush = EditorColor.FromRGB(0x55, 0x55, 0x55)
         };
-
         contextMenu.Items.Add(CreateMenuItem("Open", MaterialIconKind.FolderOpen, () =>
         {
+            Process.Start("explorer.exe", folder.FullName);
             Debug.Info($"Opening folder: {folder.Name}");
         }));
-
         contextMenu.Items.Add(CreateMenuItem("Rename", MaterialIconKind.Pencil, () =>
         {
             Debug.Info($"Renaming folder: {folder.Name}");
         }));
-
         contextMenu.Items.Add(new Separator());
-
         contextMenu.Items.Add(CreateMenuItem("Delete", MaterialIconKind.Delete, () =>
         {
             Debug.Info($"Deleting folder: {folder.Name}");
         }, Brushes.Red));
 
         folderBorder.ContextMenu = contextMenu;
-
         assetsPanel.Children.Add(folderBorder);
     }
 
+    /// <summary>
+    /// Creates a file asset and adds it to the list.
+    /// </summary>
+    /// <param name="file">File to add to list</param>
     private void CreateFileAsset(FileInfo file)
     {
-        var fileBorder = new Border
+        Border fileBorder = new Border
         {
             Width = 80,
             Height = 80,
@@ -291,8 +331,7 @@ public partial class AssetsWindow : EditorWindow
             Padding = new Thickness(5),
             Cursor = new Cursor(StandardCursorType.Hand)
         };
-
-        var fileStack = new StackPanel
+        StackPanel fileStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
             Spacing = 5,
@@ -301,16 +340,13 @@ public partial class AssetsWindow : EditorWindow
         };
 
         // File icon based on extension
-        var fileIcon = CreateFileIcon(file.Extension);
+        MaterialIcon fileIcon = CreateFileIcon(file.Extension);
 
         // File name (truncated if too long)
         string fileName = Path.GetFileNameWithoutExtension(file.Name);
-        if (fileName.Length > 10)
-        {
-            fileName = fileName.Substring(0, 8) + "..";
-        }
+        if (fileName.Length > 10) fileName = string.Concat(fileName.AsSpan(0, 8), "..");
 
-        var fileNameText = new TextBlock
+        TextBlock fileNameText = new TextBlock
         {
             Text = fileName,
             Foreground = Brushes.White,
@@ -322,7 +358,7 @@ public partial class AssetsWindow : EditorWindow
         };
 
         // File extension
-        var extensionText = new TextBlock
+        TextBlock extensionText = new TextBlock
         {
             Text = file.Extension.ToUpper(),
             Foreground = Brushes.Gray,
@@ -340,7 +376,6 @@ public partial class AssetsWindow : EditorWindow
         {
             fileBorder.Background = EditorColor.FromRGB(0x33, 0x33, 0x33);
         };
-
         fileBorder.PointerExited += (s, e) =>
         {
             fileBorder.Background = EditorColor.FromRGB(0x22, 0x22, 0x22);
@@ -354,40 +389,34 @@ public partial class AssetsWindow : EditorWindow
         };
 
         // Add context menu
-        var contextMenu = new ContextMenu
+        ContextMenu contextMenu = new ContextMenu
         {
             Background = EditorColor.FromRGB(0x33, 0x33, 0x33),
             BorderBrush = EditorColor.FromRGB(0x55, 0x55, 0x55)
         };
-
         contextMenu.Items.Add(CreateMenuItem("Open", MaterialIconKind.FileDocument, () =>
         {
             Debug.Info($"Opening file: {file.Name}");
         }));
-
         contextMenu.Items.Add(CreateMenuItem("Rename", MaterialIconKind.Pencil, () =>
         {
             Debug.Info($"Renaming file: {file.Name}");
         }));
-
         contextMenu.Items.Add(CreateMenuItem("Copy Path", MaterialIconKind.ContentCopy, () =>
         {
             Debug.Info($"Copying path: {file.FullName}");
         }));
-
         contextMenu.Items.Add(new Separator());
-
         contextMenu.Items.Add(CreateMenuItem("Delete", MaterialIconKind.Delete, () =>
         {
             Debug.Info($"Deleting file: {file.Name}");
         }, Brushes.Red));
 
         fileBorder.ContextMenu = contextMenu;
-
         assetsPanel.Children.Add(fileBorder);
     }
 
-    private MaterialIcon CreateFileIcon(string extension)
+    private static MaterialIcon CreateFileIcon(string extension)
     {
         MaterialIconKind iconKind = extension.ToLower() switch
         {
@@ -402,31 +431,29 @@ public partial class AssetsWindow : EditorWindow
             ".scene" or ".prefab" => MaterialIconKind.ViewDashboard,
             _ => MaterialIconKind.FileDocument
         };
-
-        Color iconColor = extension.ToLower() switch
+        float4 iconColor = extension.ToLower() switch
         {
-            ".png" or ".jpg" or ".jpeg" or ".bmp" => Colors.LightSkyBlue,
-            ".obj" or ".fbx" or ".gltf" => Colors.LightSeaGreen,
-            ".wav" or ".mp3" or ".ogg" => Colors.MediumPurple,
-            ".cs" or ".js" or ".ts" => Colors.Gold,
-            ".json" or ".xml" => Colors.LightGreen,
-            ".shader" or ".hlsl" => Colors.Violet,
-            ".mat" or ".material" => Colors.Orange,
-            _ => Colors.LightGray
+            ".png" or ".jpg" or ".jpeg" or ".bmp" => ColorPalette.SkyBlue,
+            ".obj" or ".fbx" or ".gltf" => ColorPalette.LightSeaGreen,
+            ".wav" or ".mp3" or ".ogg" => ColorPalette.Purple,
+            ".cs" or ".js" or ".ts" => ColorPalette.Gold,
+            ".json" or ".xml" => ColorPalette.PaleGreen,
+            ".shader" or ".hlsl" => ColorPalette.Violet,
+            ".mat" or ".material" => ColorPalette.Orange,
+            _ => ColorPalette.Gray,
         };
-
         return new MaterialIcon
         {
             Kind = iconKind,
-            Width = 32,
-            Height = 32,
-            Foreground = new SolidColorBrush(iconColor)
+            Width = 48,
+            Height = 48,
+            Foreground = EditorColor.FromColor(iconColor)
         };
     }
 
-    private MenuItem CreateMenuItem(string text, MaterialIconKind icon, Action action, IBrush? foreground = null)
+    private static MenuItem CreateMenuItem(string text, MaterialIconKind icon, Action action, IBrush? foreground = null)
     {
-        var menuItem = new MenuItem
+        MenuItem menuItem = new MenuItem
         {
             Header = new StackPanel
             {
@@ -450,7 +477,6 @@ public partial class AssetsWindow : EditorWindow
             },
             Foreground = foreground ?? Brushes.White
         };
-
         menuItem.Click += (s, e) => action();
         return menuItem;
     }
@@ -458,8 +484,7 @@ public partial class AssetsWindow : EditorWindow
     private void ShowEmptyState(string message)
     {
         assetsPanel.Children.Clear();
-
-        var emptyStack = new StackPanel
+        StackPanel emptyStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
             Spacing = 10,
@@ -467,23 +492,20 @@ public partial class AssetsWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(20)
         };
-
-        var icon = new MaterialIcon
+        MaterialIcon icon = new MaterialIcon
         {
             Kind = MaterialIconKind.FolderOpenOutline,
-            Width = 48,
-            Height = 48,
+            Width = 64,
+            Height = 64,
             Foreground = Brushes.Gray
         };
-
-        var messageText = new TextBlock
+        TextBlock messageText = new TextBlock
         {
             Text = message,
             Foreground = Brushes.Gray,
             FontStyle = FontStyle.Italic,
             HorizontalAlignment = HorizontalAlignment.Center
         };
-
         emptyStack.Children.Add(icon);
         emptyStack.Children.Add(messageText);
         assetsPanel.Children.Add(emptyStack);

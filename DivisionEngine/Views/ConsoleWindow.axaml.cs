@@ -92,13 +92,12 @@ public partial class ConsoleWindow : EditorWindow
         Debug.ClearLogs();
     }
 
+    private void Debug_OnLogUpdate(LogEntry obj) => Dispatcher.UIThread.Post(() => CreateLogEntry(obj, autoScroll));
     private void LoadAllCurrentLogs()
     {
         foreach (LogEntry log in Debug.Logs)
             Dispatcher.UIThread.Post(() => CreateLogEntry(log, false));
     }
-
-    private void Debug_OnLogUpdate(LogEntry obj) => Dispatcher.UIThread.Post(() => CreateLogEntry(obj, autoScroll));
 
     private void CreateLogEntry(LogEntry log, bool scrollToEnd)
     {
