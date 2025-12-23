@@ -78,7 +78,7 @@ namespace DivisionEngine.Editor.ViewModels
         {
             try
             {
-                App.SetEditorRendering(false);
+                App.SetEditorRenderingAsync(false);
 
                 // Open folder dialog for selecting project directory
                 var result = await mainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
@@ -107,7 +107,7 @@ namespace DivisionEngine.Editor.ViewModels
                     else Debug.Error("Selected folder is not a valid Division Engine project");
                 }
 
-                App.SetEditorRendering(true);
+                App.SetEditorRenderingAsync(true);
             }
             catch (Exception ex)
             {
@@ -146,7 +146,7 @@ namespace DivisionEngine.Editor.ViewModels
 
             try
             {
-                App.SetEditorRendering(false);
+                App.SetEditorRenderingAsync(false);
 
                 // Step 1: Get project name
                 var projectNameDialog = new ProjectNameDialog();
@@ -155,7 +155,7 @@ namespace DivisionEngine.Editor.ViewModels
                 if (string.IsNullOrWhiteSpace(projectName))
                 {
                     Debug.Info("Save cancelled: No project name provided");
-                    App.SetEditorRendering(true);
+                    App.SetEditorRenderingAsync(true);
                     return;
                 }
 
@@ -170,7 +170,7 @@ namespace DivisionEngine.Editor.ViewModels
                 if (folderResult.Count == 0 || string.IsNullOrEmpty(folderResult[0].Path.LocalPath))
                 {
                     Debug.Info("Save cancelled: No folder selected");
-                    App.SetEditorRendering(true);
+                    App.SetEditorRenderingAsync(true);
                     return;
                 }
 
@@ -190,7 +190,7 @@ namespace DivisionEngine.Editor.ViewModels
                     if (!overwrite)
                     {
                         Debug.Info("Save cancelled: User chose not to overwrite");
-                        App.SetEditorRendering(true);
+                        App.SetEditorRenderingAsync(true);
                         return;
                     }
                 }
@@ -209,7 +209,7 @@ namespace DivisionEngine.Editor.ViewModels
                     Debug.Error("Failed to save project");
                 }
 
-                App.SetEditorRendering(true);
+                App.SetEditorRenderingAsync(true);
             }
             catch (Exception ex)
             {

@@ -144,5 +144,60 @@
             float3 t = qVec.Cross(vector).Multiply(2.0f);
             return vector.Add(t.Multiply(quaternion.W)).Add(qVec.Cross(t));
         }
+
+        /*/// <summary>
+        /// Converts a quaternion to Euler angles (roll, pitch, yaw) in radians.
+        /// Euler angles are returned in XYZ order (roll = X, pitch = Y, yaw = Z).
+        /// </summary>
+        /// <param name="q">Quaternion (x, y, z, w)</param>
+        /// <returns>Euler angles in radians (x=roll, y=pitch, z=yaw)</returns>
+        public static float3 ToEulerAngles(this float4 q)
+        {
+            // Normalize the quaternion
+            float4 qn = q.Normalize();
+
+            float x = qn.X;
+            float y = qn.Y;
+            float z = qn.Z;
+            float w = qn.W;
+
+            // Roll (x-axis rotation)
+            float sinr_cosp = 2.0f * (w * x + y * z);
+            float cosr_cosp = 1.0f - 2.0f * (x * x + y * y);
+            float roll = (float)Math.Atan2(sinr_cosp, cosr_cosp);
+
+            // Pitch (y-axis rotation)
+            float sinp = 2.0f * (w * y - z * x);
+            float pitch;
+            if (Math.Abs(sinp) >= 1.0f)
+            {
+                // Use 90 degrees if out of range
+                pitch = (float)Math.CopySign(PI / 2.0f, sinp);
+            }
+            else
+            {
+                pitch = (float)Math.Asin(sinp);
+            }
+
+            // Yaw (z-axis rotation)
+            float siny_cosp = 2.0f * (w * z + x * y);
+            float cosy_cosp = 1.0f - 2.0f * (y * y + z * z);
+            float yaw = (float)Math.Atan2(siny_cosp, cosy_cosp);
+
+            return new float3(roll, pitch, yaw);
+        }
+
+        /// <summary>
+        /// Converts a quaternion to Euler angles in degrees.
+        /// </summary>
+        public static float3 ToEulerAnglesDegrees(this float4 q)
+        {
+            float3 radians = q.ToEulerAngles();
+            return new float3(
+                radians.X * (180.0f / Math.PI),
+                radians.Y * (180.0f / Math.PI),
+                radians.Z * (180.0f / Math.PI)
+            );
+        }*/
     }
 }

@@ -213,7 +213,7 @@ public partial class PropertiesWindow : EditorWindow
         };
 
         fieldPanel.Children.Add(nameLabel);
-        Control editorControl = new Control();
+        Control? editorControl = new Control();
 
         // Check each type of field editor value possible
 
@@ -347,64 +347,68 @@ public partial class PropertiesWindow : EditorWindow
         }
         else if (fieldValue != null && fieldType == typeof(float4))
         {
-            // Check if this float4 is a color
             ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>();
-            if (colorAttr != null)
-                return CreateColorFieldEditor(field, component, colorAttr);
+            RotationAttribute? rotAttr = field.GetCustomAttribute<RotationAttribute>();
+            if (colorAttr != null) // Check if this float4 is a color
+                editorControl = CreateColorFieldEditor(field, component, colorAttr);
+            else if (rotAttr != null) // Check if this float4 is a quaternion rotation
+                editorControl = CreateRotationFieldEditor(field, component, rotAttr);
+            else
+            {
+                float4 value = (float4)fieldValue;
+                StackPanel vectorPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
 
-            float4 value = (float4)fieldValue;
-            StackPanel vectorPanel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center
-            };
+                NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) => { value.X = val; field.SetValue(component, value); });
+                NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) => { value.Y = val; field.SetValue(component, value); });
+                NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) => { value.Z = val; field.SetValue(component, value); });
+                NumericUpDown wBox = CreateFloatNumericBox(value.W, (val) => { value.W = val; field.SetValue(component, value); });
 
-            NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) => { value.X = val; field.SetValue(component, value); });
-            NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) => { value.Y = val; field.SetValue(component, value); });
-            NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) => { value.Z = val; field.SetValue(component, value); });
-            NumericUpDown wBox = CreateFloatNumericBox(value.W, (val) => { value.W = val; field.SetValue(component, value); });
+                vectorPanel.Children.Add(new TextBlock
+                {
+                    Text = "X",
+                    Foreground = Brushes.LightGray,
+                    FontSize = 9,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(2, 0, 2, 0)
+                });
+                vectorPanel.Children.Add(xBox);
+                vectorPanel.Children.Add(new TextBlock
+                {
+                    Text = "Y",
+                    Foreground = Brushes.LightGray,
+                    FontSize = 9,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(2, 0, 2, 0)
+                });
+                vectorPanel.Children.Add(yBox);
+                vectorPanel.Children.Add(new TextBlock
+                {
+                    Text = "Z",
+                    Foreground = Brushes.LightGray,
+                    FontSize = 9,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(2, 0, 2, 0)
+                });
+                vectorPanel.Children.Add(zBox);
+                vectorPanel.Children.Add(new TextBlock
+                {
+                    Text = "W",
+                    Foreground = Brushes.LightGray,
+                    FontSize = 9,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(2, 0, 2, 0)
+                });
+                vectorPanel.Children.Add(wBox);
 
-            vectorPanel.Children.Add(new TextBlock
-            {
-                Text = "X",
-                Foreground = Brushes.LightGray,
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
-            });
-            vectorPanel.Children.Add(xBox);
-            vectorPanel.Children.Add(new TextBlock
-            {
-                Text = "Y",
-                Foreground = Brushes.LightGray,
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
-            });
-            vectorPanel.Children.Add(yBox);
-            vectorPanel.Children.Add(new TextBlock
-            {
-                Text = "Z",
-                Foreground = Brushes.LightGray,
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
-            });
-            vectorPanel.Children.Add(zBox);
-            vectorPanel.Children.Add(new TextBlock
-            {
-                Text = "W",
-                Foreground = Brushes.LightGray,
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
-            });
-            vectorPanel.Children.Add(wBox);
-
-            editorControl = vectorPanel;
+                editorControl = vectorPanel;
+            }
         }
 
-        fieldPanel.Children.Add(editorControl);
+        fieldPanel.Children.Add(editorControl!);
         return fieldPanel;
     }
 
@@ -463,31 +467,11 @@ public partial class PropertiesWindow : EditorWindow
         return numericBox;
     }
 
-    private static StackPanel? CreateColorFieldEditor(FieldInfo field, IComponent component, ColorAttribute colorAttr)
+    private static Button? CreateColorFieldEditor(FieldInfo field, IComponent component, ColorAttribute colorAttr)
     {
         var fieldValue = field.GetValue(component);
         if (fieldValue == null) return null;
         float4 colorValue = (float4)fieldValue;
-
-        StackPanel fieldPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        // Field name
-        CultureInfo cultureInfo = Thread.CurrentThread.CurrentCulture;
-        TextInfo textInfo = cultureInfo.TextInfo;
-        string formattedFieldName = textInfo.ToTitleCase(Regex.Replace(field.Name, @"(\p{Ll})(\p{Lu})", "$1 $2"));
-
-        TextBlock nameLabel = new TextBlock
-        {
-            Text = formattedFieldName,
-            FontSize = 12,
-            Foreground = Brushes.LightGray,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        fieldPanel.Children.Add(nameLabel);
 
         // Color preview button with ColorPicker flyout
         Button colorButton = new Button
@@ -500,13 +484,6 @@ public partial class PropertiesWindow : EditorWindow
             CornerRadius = new CornerRadius(3),
             Margin = new Thickness(8, 0, 8, 0),
             HorizontalContentAlignment = HorizontalAlignment.Left
-        };
-        Border colorPreview = new Border
-        {
-            Width = 12,
-            Height = 12,
-            Background = colorButton.Background,
-            CornerRadius = new CornerRadius(2)
         };
 
         // Create ColorPicker
@@ -563,13 +540,62 @@ public partial class PropertiesWindow : EditorWindow
 
             // Update component
             field.SetValue(component, newColor);
-
-            // Update button appearance
-            colorButton.Background = new SolidColorBrush(selectedColor);
-            colorPreview.Background = new SolidColorBrush(selectedColor);
+            colorButton.Background = new SolidColorBrush(selectedColor); // Update button appearance
         };
 
-        fieldPanel.Children.Add(colorButton);
-        return fieldPanel;
+        return colorButton;
+    }
+
+    private static StackPanel? CreateRotationFieldEditor(FieldInfo field, IComponent component, RotationAttribute colorAttr)
+    {
+        var fieldValue = field.GetValue(component);
+        if (fieldValue == null) return null;
+        float4 quaternionValue = (float4)fieldValue;
+
+        float3 eulerValue = Math.QuaternionToEuler(quaternionValue);
+        StackPanel eulerRotationPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        NumericUpDown xBox = CreateFloatNumericBox(eulerValue.X, (val) =>
+        { eulerValue.X = val; field.SetValue(component, Math.EulerToQuaternion(eulerValue)); });
+
+        NumericUpDown yBox = CreateFloatNumericBox(eulerValue.Y, (val) =>
+        { eulerValue.Y = val; field.SetValue(component, Math.EulerToQuaternion(eulerValue)); });
+
+        NumericUpDown zBox = CreateFloatNumericBox(eulerValue.Z, (val) =>
+        { eulerValue.Z = val; field.SetValue(component, Math.EulerToQuaternion(eulerValue)); });
+
+        eulerRotationPanel.Children.Add(new TextBlock
+        {
+            Text = "X",
+            Foreground = Brushes.LightGray,
+            FontSize = 9,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0)
+        });
+        eulerRotationPanel.Children.Add(xBox);
+        eulerRotationPanel.Children.Add(new TextBlock
+        {
+            Text = "Y",
+            Foreground = Brushes.LightGray,
+            FontSize = 9,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0)
+        });
+        eulerRotationPanel.Children.Add(yBox);
+        eulerRotationPanel.Children.Add(new TextBlock
+        {
+            Text = "Z",
+            Foreground = Brushes.LightGray,
+            FontSize = 9,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0)
+        });
+        eulerRotationPanel.Children.Add(zBox);
+
+        return eulerRotationPanel;
     }
 }

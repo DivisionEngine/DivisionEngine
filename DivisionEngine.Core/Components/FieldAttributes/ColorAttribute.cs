@@ -1,5 +1,8 @@
 ﻿namespace DivisionEngine.Components.FieldAttributes
 {
+    /// <summary>
+    /// Used for specifying float4 fields as colors.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
     public class ColorAttribute : Attribute
     {

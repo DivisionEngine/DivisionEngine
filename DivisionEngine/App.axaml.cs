@@ -40,7 +40,7 @@ namespace DivisionEngine.Editor
         /// Sets whether the editor renders using a render pipeline.
         /// </summary>
         /// <param name="rendering">Whether the editor is rendering</param>
-        public static void SetEditorRendering(bool rendering)
+        public static async Task SetEditorRenderingAsync(bool rendering)
         {
             if (rendering)
             {
@@ -48,7 +48,12 @@ namespace DivisionEngine.Editor
                 // Start the SDFRenderer in a separate thread
                 Renderer = new RenderPipeline();
                 Renderer.BindCurrentWorld(); // Binds default world
-                Task.Run(() => Renderer.Run(RequestedFPS, true));
+                _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
+
+                // Silk.NET input handling
+                while (Renderer == null || Renderer!.RendererWindow == null)
+                    await Task.Delay(1); // Wait for the renderer to load
+                Renderer.RendererWindow!.Load += SilkNetInputSetup;
             }
             else
             {
@@ -148,7 +153,7 @@ namespace DivisionEngine.Editor
         /// <summary>
         /// Setup input handling for borderless Silk.Net threaded render GL window.
         /// </summary>
-        private static void SilkNetInputSetup()
+        public static void SilkNetInputSetup()
         {
             lock (Renderer!.SyncLock)
             {

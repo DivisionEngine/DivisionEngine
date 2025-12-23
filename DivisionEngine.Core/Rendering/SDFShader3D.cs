@@ -58,7 +58,7 @@ namespace DivisionEngine
         {
             float3 objPos = pt - position;
             objPos = RotateVector(objPos, rotation);
-            objPos *= scale;
+            objPos /= Hlsl.Max(scale, new float3(EPSILON, EPSILON, EPSILON)); // Make sure not dividing by 0.
             return objPos;
         }
 

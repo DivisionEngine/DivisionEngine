@@ -93,14 +93,24 @@
         /// <summary>
         /// Computes the angle (in radians) whose tangent is the quotient of two specified numbers, y and x.
         /// </summary>
-        /// <returns>The angle in radius</returns>
+        /// <returns>The angle in radians</returns>
         public static float Atan2(float y, float x) => (float)System.Math.Atan2(y, x);
         public static float Pow(float x, float y) => (float)System.Math.Pow(x, y);
         public static float Exp(float x) => (float)System.Math.Exp(x);
         public static float Log(float x) => (float)System.Math.Log(x);
         public static float Log(float x, float newBase) => (float)System.Math.Log(x, newBase);
         public static float Log10(float x) => (float)System.Math.Log10(x);
+        /// <summary>
+        /// Floors a value to a whole number.
+        /// </summary>
+        /// <param name="x">Value to floor</param>
+        /// <returns>Floored value</returns>
         public static float Floor(float x) => (float)System.Math.Floor(x);
+        /// <summary>
+        /// Floors a value to an integer.
+        /// </summary>
+        /// <param name="x">Value to floor</param>
+        /// <returns>Floored integer value</returns>
         public static int FloorToInt(float x) => (int)System.Math.Floor(x);
         public static float Ceiling(float x) => (float)System.Math.Ceiling(x);
         public static int CeilingToInt(float x) => (int)System.Math.Ceiling(x);
@@ -108,16 +118,44 @@
         public static int RoundToInt(float x) => (int)System.Math.Round(x);
         public static int Sign(float x) => System.Math.Sign(x);
         public static int Sign(int x) => System.Math.Sign(x);
+        /// <summary>
+        /// Finds the max between two floating point values.
+        /// </summary>
+        /// <param name="a">Float a</param>
+        /// <param name="b">Float b</param>
+        /// <returns>Max between a and b</returns>
         public static float Max(float a, float b) => (a > b) ? a : b;
+        /// <summary>
+        /// Finds the max between two integers.
+        /// </summary>
+        /// <param name="a">Integer a</param>
+        /// <param name="b">Integer b</param>
+        /// <returns>Max between a and b</returns>
         public static int Max(int a, int b) => (a > b) ? a : b;
+        /// <summary>
+        /// Finds the min between two floating point values.
+        /// </summary>
+        /// <param name="a">Float a</param>
+        /// <param name="b">Float b</param>
+        /// <returns>Min between a and b</returns>
         public static float Min(float a, float b) => (a < b) ? a : b;
+        /// <summary>
+        /// Finds the min between two integers.
+        /// </summary>
+        /// <param name="a">Integer a</param>
+        /// <param name="b">Integer b</param>
+        /// <returns>Min between a and b</returns>
         public static int Min(int a, int b) => (a < b) ? a : b;
 
         public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
         public static int Lerp(int a, int b, float t) => (int)(a + (b - a) * Clamp01(t));
         public static float LerpUnclamped(float a, float b, float t) => a + (b - a) * t;
         public static int LerpUnclamped(int a, int b, float t) => (int)(a + (b - a) * t);
-
+        /// <summary>
+        /// Finds the square root of a value.
+        /// </summary>
+        /// <param name="x">Value to root</param>
+        /// <returns>Square root of value</returns>
         public static float Sqrt(float x) => (float)System.Math.Sqrt(x);
 
         /// <summary>
@@ -204,6 +242,11 @@
             return angle;
         }
 
+        /// <summary>
+        /// Converts a quaternion to Euler radian angles.
+        /// </summary>
+        /// <param name="q">Quaternion to convert</param>
+        /// <returns>Euler radian angle result</returns>
         public static float3 QuaternionToEuler(this float4 q)
         {
             // Roll (x-axis rotation)
@@ -226,6 +269,11 @@
             return new float3(roll, pitch, yaw);
         }
 
+        /// <summary>
+        /// Converts Euler angles (in radians) to a quaternion.
+        /// </summary>
+        /// <param name="euler">Euler radians</param>
+        /// <returns>Quaternion conversion value</returns>
         public static float4 EulerToQuaternion(this float3 euler)
         {
             // Abbreviations for the various angular functions
@@ -241,5 +289,13 @@
             float z = (float)(sy * cr * cp - cy * sr * sp);
             return new float4(x, y, z, w);
         }
+
+        /// <summary>
+        /// Copies the sign from one number onto the value of another.
+        /// </summary>
+        /// <param name="magnitude">Value to sign</param>
+        /// <param name="sign">Sign to copy to value</param>
+        /// <returns>Signed value</returns>
+        public static float CopySign(float magnitude, float sign) => Abs(magnitude) * Sign(sign);
     }
 }
