@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine.Components.SDFs
+﻿using DivisionEngine.Components.FieldAttributes;
+
+namespace DivisionEngine.Components.SDFs
 {
     /// <summary>
     /// Represents a SDF sphere.
@@ -14,7 +16,7 @@
             radius = 1f;
         }
 
-        public float4 color;
+        [Color] public float4 color;
         public float radius;
     }
 }

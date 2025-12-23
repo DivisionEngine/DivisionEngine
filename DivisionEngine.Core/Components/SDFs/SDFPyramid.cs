@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine.Components.SDFs
+﻿using DivisionEngine.Components.FieldAttributes;
+
+namespace DivisionEngine.Components.SDFs
 {
     /// <summary>
     /// Represents a pyramid SDF.
@@ -14,7 +16,7 @@
             height = 2f;
         }
 
-        public float4 color;
+        [Color] public float4 color;
         public float height;
     }
 }

@@ -254,7 +254,7 @@ public partial class AssetsWindow : EditorWindow
 
         // Folder name (truncated if too long)
         string folderName = folder.Name;
-        if (folderName.Length > 10) folderName = string.Concat(folderName.AsSpan(0, 8), "..");
+        if (folderName.Length > 12) folderName = string.Concat(folderName.AsSpan(0, 10), "..");
 
         TextBlock folderNameText = new TextBlock
         {
@@ -297,7 +297,6 @@ public partial class AssetsWindow : EditorWindow
         contextMenu.Items.Add(CreateMenuItem("Open", MaterialIconKind.FolderOpen, () =>
         {
             Process.Start("explorer.exe", folder.FullName);
-            Debug.Info($"Opening folder: {folder.Name}");
         }));
         contextMenu.Items.Add(CreateMenuItem("Rename", MaterialIconKind.Pencil, () =>
         {
@@ -344,7 +343,7 @@ public partial class AssetsWindow : EditorWindow
 
         // File name (truncated if too long)
         string fileName = Path.GetFileNameWithoutExtension(file.Name);
-        if (fileName.Length > 10) fileName = string.Concat(fileName.AsSpan(0, 8), "..");
+        if (fileName.Length > 12) fileName = string.Concat(fileName.AsSpan(0, 10), "..");
 
         TextBlock fileNameText = new TextBlock
         {

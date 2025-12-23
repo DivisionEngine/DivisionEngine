@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine.Components.SDFs
+﻿using DivisionEngine.Components.FieldAttributes;
+
+namespace DivisionEngine.Components.SDFs
 {
     /// <summary>
     /// Represents a rounded box SDF.
@@ -15,7 +17,7 @@
             bevel = 0.05f;
         }
 
-        public float4 color;
+        [Color] public float4 color;
         public float3 size;
         public float bevel;
     }

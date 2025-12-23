@@ -4,6 +4,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using DivisionEngine.Components.FieldAttributes;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -112,6 +113,10 @@ public partial class PropertiesWindow : EditorWindow
         return true;
     }
 
+    /// <summary>
+    /// Displays all components for an entity.
+    /// </summary>
+    /// <param name="entityId">Entity to display values for</param>
     private void DisplayEntityComponents(uint entityId)
     {
         List<IComponent> entityComps = W.GetAllComponents(entityId);
@@ -144,10 +149,10 @@ public partial class PropertiesWindow : EditorWindow
 
         headerPanel.Children.Add(componentName);
         headerBorder.Child = headerPanel;
-
         propertiesPanel.Children.Add(headerBorder);
 
         // Create fields editor
+
         StackPanel fieldsPanel = new StackPanel
         {
             Orientation = Orientation.Vertical,
@@ -173,10 +178,19 @@ public partial class PropertiesWindow : EditorWindow
         if (fieldsPanel.Children.Count > 0) propertiesPanel.Children.Add(fieldsBorder);
     }
 
+    /// <summary>
+    /// Creates an editor for a FieldInfo field type.
+    /// </summary>
+    /// <param name="field">Field to pull data from</param>
+    /// <param name="component">Component this field resides on</param>
+    /// <param name="entityId">Entity the field resides on</param>
+    /// <returns>A StackPanel field editor object</returns>
     private static StackPanel? CreateFieldEditor(FieldInfo field, IComponent component, uint entityId)
     {
         Type fieldType = field.FieldType;
         var fieldValue = field.GetValue(component);
+
+        // Setup field panel
 
         StackPanel fieldPanel = new StackPanel
         {
@@ -200,6 +214,8 @@ public partial class PropertiesWindow : EditorWindow
 
         fieldPanel.Children.Add(nameLabel);
         Control editorControl = new Control();
+
+        // Check each type of field editor value possible
 
         if (fieldValue != null && fieldType == typeof(float))
         {
@@ -331,6 +347,11 @@ public partial class PropertiesWindow : EditorWindow
         }
         else if (fieldValue != null && fieldType == typeof(float4))
         {
+            // Check if this float4 is a color
+            ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>();
+            if (colorAttr != null)
+                return CreateColorFieldEditor(field, component, colorAttr);
+
             float4 value = (float4)fieldValue;
             StackPanel vectorPanel = new StackPanel
             {
@@ -442,8 +463,113 @@ public partial class PropertiesWindow : EditorWindow
         return numericBox;
     }
 
-    public void SetupPropertiesForWorld(World world)
+    private static StackPanel? CreateColorFieldEditor(FieldInfo field, IComponent component, ColorAttribute colorAttr)
     {
+        var fieldValue = field.GetValue(component);
+        if (fieldValue == null) return null;
+        float4 colorValue = (float4)fieldValue;
 
+        StackPanel fieldPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        // Field name
+        CultureInfo cultureInfo = Thread.CurrentThread.CurrentCulture;
+        TextInfo textInfo = cultureInfo.TextInfo;
+        string formattedFieldName = textInfo.ToTitleCase(Regex.Replace(field.Name, @"(\p{Ll})(\p{Lu})", "$1 $2"));
+
+        TextBlock nameLabel = new TextBlock
+        {
+            Text = formattedFieldName,
+            FontSize = 12,
+            Foreground = Brushes.LightGray,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        fieldPanel.Children.Add(nameLabel);
+
+        // Color preview button with ColorPicker flyout
+        Button colorButton = new Button
+        {
+            Height = 25,
+            MinWidth = 100,
+            Background = EditorColor.FromColor(colorValue),
+            BorderThickness = new Thickness(1),
+            BorderBrush = Brushes.Gray,
+            CornerRadius = new CornerRadius(3),
+            Margin = new Thickness(8, 0, 8, 0),
+            HorizontalContentAlignment = HorizontalAlignment.Left
+        };
+        Border colorPreview = new Border
+        {
+            Width = 12,
+            Height = 12,
+            Background = colorButton.Background,
+            CornerRadius = new CornerRadius(2)
+        };
+
+        // Create ColorPicker
+        ColorPicker colorPicker = new ColorPicker
+        {
+            Width = 280,
+            Height = 320,
+            Color = EditorColor.FromColor(colorValue).Color,
+            IsAlphaVisible = colorAttr.ShowAlpha,
+            IsAccentColorsVisible = true,
+            IsColorSpectrumVisible = true,
+            IsColorPreviewVisible = true,
+            IsColorComponentsVisible = true,
+            IsHexInputVisible = false,
+        };
+
+        // Configure for HDR if needed
+        if (colorAttr.HDR)
+        {
+            // For HDR colors, you might want to create a custom color picker
+            // or adjust the ColorPicker to handle values > 1
+            Debug.Warning("HDR color picker not fully implemented - using standard picker");
+        }
+
+        // Create flyout
+        Flyout flyout = new Flyout
+        {
+            Content = new Border
+            {
+                Background = EditorColor.FromRGB(40, 40, 40),
+                Padding = new Thickness(10),
+                CornerRadius = new CornerRadius(5),
+                BorderThickness = new Thickness(1),
+                BorderBrush = EditorColor.FromRGB(80, 80, 80),
+                Child = colorPicker
+            },
+            Placement = PlacementMode.BottomEdgeAlignedLeft,
+            ShowMode = FlyoutShowMode.Standard
+        };
+
+        colorButton.Flyout = flyout;
+
+        // Update on color change
+        colorPicker.ColorChanged += (s, e) =>
+        {
+            Color selectedColor = colorPicker.Color;
+
+            // Convert to float4
+            float4 newColor = new float4(
+                selectedColor.R / 255f,
+                selectedColor.G / 255f,
+                selectedColor.B / 255f,
+                selectedColor.A / 255f);
+
+            // Update component
+            field.SetValue(component, newColor);
+
+            // Update button appearance
+            colorButton.Background = new SolidColorBrush(selectedColor);
+            colorPreview.Background = new SolidColorBrush(selectedColor);
+        };
+
+        fieldPanel.Children.Add(colorButton);
+        return fieldPanel;
     }
 }

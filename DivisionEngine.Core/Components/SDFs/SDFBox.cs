@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine.Components.SDFs
+﻿using DivisionEngine.Components.FieldAttributes;
+
+namespace DivisionEngine.Components.SDFs
 {
     /// <summary>
     /// Represents a box SDF.
@@ -14,7 +16,7 @@
             size = new float3(1f, 1f, 1f);
         }
 
-        public float4 color;
+        [Color] public float4 color;
         public float3 size;
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine.Components.SDFs
+﻿using DivisionEngine.Components.FieldAttributes;
+
+namespace DivisionEngine.Components.SDFs
 {
     /// <summary>
     /// Represents a SDF donut shape.
@@ -15,7 +17,7 @@
             ringRadius = 1f;
         }
 
-        public float4 color;
+        [Color] public float4 color;
         public float wholeRadius;
         public float ringRadius;
     }
