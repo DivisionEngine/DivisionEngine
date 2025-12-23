@@ -94,9 +94,13 @@ public partial class PropertiesWindow : EditorWindow
         }
     }
 
-    public bool SetupPropertiesForEntity(uint entityId)
+    private bool SetupPropertiesForEntity(uint entityId)
     {
-        if (WorldManager.CurrentWorld == null || !W.EntityExists(entityId)) return false;
+        if (WorldManager.CurrentWorld == null || !W.EntityExists(entityId))
+        {
+            Debug.Warning("Could not load entity, world is null or entity does not exist");
+            return false;
+        }
         propertiesPanel.Children.Clear();
 
         string entityName = W.TryGetEntityName(entityId);

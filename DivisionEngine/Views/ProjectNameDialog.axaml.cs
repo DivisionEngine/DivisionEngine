@@ -2,6 +2,9 @@ using Avalonia.Controls;
 
 namespace DivisionEngine.Editor;
 
+/// <summary>
+/// Used for creating a new project name.
+/// </summary>
 public partial class ProjectNameDialog : Window
 {
     public string ProjectName { get; set; } = "NewProject";

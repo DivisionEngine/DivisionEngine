@@ -106,9 +106,14 @@ namespace DivisionEngine.Rendering
         /// </summary>
         private void OnClosing()
         {
+            device?.Dispose();
             renderTex?.Dispose();
             worldBuffer?.Dispose();
             primitivesBuffer?.Dispose();
+            device = null;
+            renderTex = null;
+            worldBuffer = null;
+            primitivesBuffer = null;
             if (closeWindowWithCloseEvent) Close?.Invoke(); // Invoke the close event if there are any subscribers
         }
 
@@ -163,30 +168,53 @@ namespace DivisionEngine.Rendering
             // Check if primitives exist
             if (sdfPrimitivesDTO.Length < 1) return;
 
-            // Build compute render texture
-            if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight)
+            // Check if device is disposed
+            if (device == null)
             {
-                renderTex?.Dispose();
-                renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                pixels = new float4[texWidth * texHeight];
+                Debug.Warning("Renderer: GraphicsDevice is null or disposed");
+                return;
             }
 
-            // Build and copy buffers
             try
             {
+                // Build compute render texture
+                if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight || pixels == null)
+                {
+                    renderTex?.Dispose();
+                    renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                    pixels = new float4[texWidth * texHeight];
+                }
+
+                // Build and copy buffers
                 worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
                 worldBuffer.CopyFrom([worldDTO]);
 
                 primitivesBuffer?.Dispose();
-                primitivesBuffer = device!.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
+                primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
+                if (primitivesBuffer == null) return;
 
                 // Dispatch SDF compute shader
                 SDFShader3D shader = new SDFShader3D(renderTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
                 device?.For(texWidth, texHeight, shader);
 
-                renderTex.CopyTo(pixels!);
+                renderTex?.CopyTo(pixels!);
             }
-            catch (ObjectDisposedException) { Debug.Warning("Renderer: Disposed buffers before finished rendering"); }
+            catch (ObjectDisposedException ex)
+            {
+                Debug.Warning($"Renderer: Object disposed during rendering: {ex.Message}");
+                renderTex?.Dispose(); // Reinitialize buffers on next frame
+                worldBuffer?.Dispose();
+                primitivesBuffer?.Dispose();
+                renderTex = null;
+                worldBuffer = null;
+                primitivesBuffer = null;
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                Debug.Error($"Renderer: Invalid operation during ComputeSharp execution: {ex.Message}");
+                return;
+            }
             //renderTex.Dispose(); // No longer need dispose because of "using" included in front of renderTex declaration
 
             // Push compute texture to openGL rendered quad (via Silk.Net)

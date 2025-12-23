@@ -44,7 +44,7 @@ namespace DivisionEngine.Editor
         {
             if (rendering)
             {
-                //Renderer?.Stop();
+                if (Renderer != null && Renderer.RendererWindow != null) Renderer.Stop();
                 // Start the SDFRenderer in a separate thread
                 Renderer = new RenderPipeline();
                 Renderer.BindCurrentWorld(); // Binds default world
