@@ -129,7 +129,6 @@ public partial class AssetsWindow : EditorWindow
     public static void LoadAssetsForCurrentProject()
     {
         ValidatePropertiesWindows();
-        Debug.Info("Asset Windows: " + currentWindows.Count);
         foreach (AssetsWindow? window in currentWindows)
             window!.Setup(ProjectManager.CurrentProjectPath);
     }

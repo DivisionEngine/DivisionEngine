@@ -7,19 +7,5 @@
                     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
                     x:Class="DivisionEngine.Editor.EnvironmentWindow"
                     x:DataType="vm:EnvironmentWindowViewModel">
-  <DockPanel>
-    <StackPanel DockPanel.Dock="Top">
-      <StackPanel.Styles>
-        <Style Selector="StackPanel">
-          <Setter Property="Background" Value="#444"/>
-          <Setter Property="Orientation" Value="Horizontal"/>
-        </Style>
-      </StackPanel.Styles>
-
-      <TextBlock Text="Test"></TextBlock>
-    </StackPanel>
-
-    <Panel x:Name="RenderVisualizerFrame"/>
-  </DockPanel>
-
+  <Border x:Name="MainBorder" Background="#222"/>
 </local:EditorWindow>

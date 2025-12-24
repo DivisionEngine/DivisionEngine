@@ -1,6 +1,8 @@
 using Avalonia;
-using Avalonia.Threading;
-using System;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using System.Collections.Generic;
 
 namespace DivisionEngine.Editor;
 
@@ -9,65 +11,112 @@ namespace DivisionEngine.Editor;
 /// </summary>
 public partial class EnvironmentWindow : EditorWindow
 {
-    private readonly DispatcherTimer? renderWindowUpdate;
+    private static readonly List<EnvironmentWindow?> currentWindows = [];
+
+    private readonly DockPanel mainPanel;
+    public readonly Panel renderVisualizerFrame;
+    private readonly StackPanel headerPanel;
+    private readonly TextBlock headerText;
+
+    //public Panel RenderVisualizerFrame => renderVisualizerFrame;
 
     public EnvironmentWindow()
     {
         InitializeComponent();
 
-        // Initialize the render window update timer
-        renderWindowUpdate = new DispatcherTimer
+        // Create main dock panel
+        mainPanel = new DockPanel
         {
-            Interval = TimeSpan.FromMilliseconds(100) // Approximately 10 FPS
+            Background = Brushes.Transparent
         };
-        renderWindowUpdate.Tick += (_, _) => UpdateRendererPosition();
-        renderWindowUpdate.Start(); // Start the render window tracking update loop
+        headerPanel = new StackPanel
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            Orientation = Orientation.Horizontal,
+            Height = 30,
+            VerticalAlignment = VerticalAlignment.Center,
+            Spacing = 5,
+            Margin = new Thickness(0, 0, 0, 0)
+        };
+        headerText = new TextBlock
+        {
+            Text = "Environment View",
+            FontSize = 12,
+            FontWeight = FontWeight.Bold,
+            Foreground = Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(8, 0, 8, 0)
+        };
 
-        this.GetObservable(IsVisibleProperty).Subscribe(SetVisible);
+        // Add controls to header
+        headerPanel.Children.Add(headerText);
+        DockPanel.SetDock(headerPanel, Dock.Top);
+        mainPanel.Children.Add(headerPanel);
+        Border separator = new Border
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            Height = 1
+        };
+        DockPanel.SetDock(separator, Dock.Top);
+        mainPanel.Children.Add(separator);
+
+        renderVisualizerFrame = new Panel
+        {
+            Background = EditorColor.FromRGB(12, 12, 12),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
+        mainPanel.Children.Add(renderVisualizerFrame);
+
+        this.FindControl<Border>("MainBorder")!.Child = mainPanel;
+        currentWindows.Add(this);
     }
 
-    private void UserControl_Unloaded(object? sender, VisualTreeAttachmentEventArgs e) => SetVisible(false);
+    /// <summary>
+    /// Updates the window title/header text.
+    /// </summary>
+    /// <param name="text">New header text</param>
+    public void SetHeaderText(string text) => headerText.Text = text;
 
-    // Fully implement this so environment window can be added and removed
-    public void SetVisible(bool visible)
+    /// <summary>
+    /// Sets the render frame size.
+    /// </summary>
+    /// <param name="width">Width in pixels</param>
+    /// <param name="height">Height in pixels</param>
+    public void SetRenderFrameSize(int width, int height)
     {
-        if (visible)
+        renderVisualizerFrame.Width = width;
+        renderVisualizerFrame.Height = height;
+    }
+
+    /// <summary>
+    /// Makes sure all environment windows in current list are active.
+    /// </summary>
+    private static void ValidateEnvironmentWindows()
+    {
+        foreach (EnvironmentWindow? window in currentWindows.ToArray()) // Don't forget to create iterator copy
         {
-            //App.SetEditorRendering(true);
-            renderWindowUpdate?.Start();
-            UpdateRendererPosition();
-            Debug.Info("Environment Window: Activated");
-        }
-        else
-        {
-            renderWindowUpdate?.Stop();
-            //App.SetEditorRendering(false);
-            Debug.Info("Environment Window: Deactivated");
+            if (window == null || !window.IsLoaded)
+                currentWindows.Remove(window);
         }
     }
 
     /// <summary>
-    /// Updates the position, size, and visibility of the renderer's window to match the current position and
-    /// dimensions of the <see cref="RenderBackground"/> element.
+    /// Gets the first active environment window.
     /// </summary>
-    private void UpdateRendererPosition()
+    public static EnvironmentWindow? GetFirstActiveWindow()
     {
-        try
-        {
-            if (RenderVisualizerFrame == null || App.Renderer?.RendererWindow == null)
-                return;
-            if (RenderVisualizerFrame.Bounds.Width <= 0 || RenderVisualizerFrame.Bounds.Height <= 0)
-                return;
+        ValidateEnvironmentWindows();
+        return currentWindows.Count > 0 ? currentWindows[0] : null;
+    }
 
-            PixelPoint screenPoint = RenderVisualizerFrame.PointToScreen(new Point(0, 0));
-            Size size = RenderVisualizerFrame.Bounds.Size;
-
-            App.Renderer.RendererWindow!.Position = new Silk.NET.Maths.Vector2D<int>(screenPoint.X, screenPoint.Y);
-            App.Renderer.RendererWindow.Size = new Silk.NET.Maths.Vector2D<int>((int)size.Width, (int)size.Height);
-        }
-        catch
-        {
-            Debug.Error("Failed to update renderer window position.");
-        }
+    /// <summary>
+    /// Gets all active environment windows.
+    /// </summary>
+    public static EnvironmentWindow?[] GetActiveWindows()
+    {
+        ValidateEnvironmentWindows();
+        return [.. currentWindows];
     }
 }

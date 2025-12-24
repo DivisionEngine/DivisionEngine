@@ -6,7 +6,9 @@
         x:Class="DivisionEngine.Editor.ProjectNameDialog"
         xmlns:local="using:DivisionEngine.Editor"
         x:DataType="local:ProjectNameDialog"
-        Title="Project Name">
+        Title="Project Name"
+        WindowStartupLocation="CenterOwner"
+        Background="#111">
   <StackPanel Margin="20" Spacing="15">
         <TextBlock Text="Enter Project Name:" FontSize="14"/>
         <TextBox Text="{Binding ProjectName}" Watermark="MyProject" FontSize="14"/>

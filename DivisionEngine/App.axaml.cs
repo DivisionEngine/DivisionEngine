@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 namespace DivisionEngine.Editor
 {
     /// <summary>
-    /// Main editor application backend.
+    /// Divsion Engine editor application backend.
     /// </summary>
     public partial class App : Application
     {
@@ -23,9 +23,25 @@ namespace DivisionEngine.Editor
         /// Reference to the Division SDF render pipeline.
         /// </summary>
         public static RenderPipeline? Renderer { get; private set; }
+
+        /// <summary>
+        /// Current input system for the Division editor.
+        /// </summary>
         public static InputSystem? UserInput { get; private set; }
 
+        /// <summary>
+        /// Whether the engine is currently rendering to a target window.
+        /// </summary>
+        public static bool RendererVisible { get; private set; }
+
+        /// <summary>
+        /// Constant FPS ms Division maintains in the editor.
+        /// </summary>
         public const long EngineCoreFrameTime = 16; // Around 60 fps
+
+        /// <summary>
+        /// Constant FPS rate Division maintains in the editor.
+        /// </summary>
         public const double RequestedFPS = 60;
 
         /// <summary>
@@ -54,14 +70,20 @@ namespace DivisionEngine.Editor
                 while (Renderer == null || Renderer!.RendererWindow == null)
                     await Task.Delay(1); // Wait for the renderer to load
                 Renderer.RendererWindow!.Load += SilkNetInputSetup;
+
+                RendererVisible = true;
             }
             else
             {
+                RendererVisible = false;
                 Renderer!.Stop();
                 Renderer = null;
             }
         }
 
+        /// <summary>
+        /// Runs when Avalonia finishes initialization.
+        /// </summary>
         public override void OnFrameworkInitializationCompleted()
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -93,6 +115,7 @@ namespace DivisionEngine.Editor
                         Environment.Exit(0);
                     });
                 };
+                RendererVisible = true;
 
                 // Initialize the input system
                 UserInput = new InputSystem();
@@ -157,26 +180,33 @@ namespace DivisionEngine.Editor
         {
             lock (Renderer!.SyncLock)
             {
-                IInputContext? input = Renderer!.RendererWindow!.CreateInput();
-                foreach (var keyboard in input.Keyboards) // Keyboard handling
+                try
                 {
-                    keyboard.KeyDown += (kb, key, code) => UserInput!.SetKeyDown(EditorInput.SilkNetToKeyCode(key));
-                    keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(EditorInput.SilkNetToKeyCode(key));
-                }
-
-                Vector2D<int> screenSizeInt = Renderer!.RendererWindow!.Size;
-                float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
-                foreach (var mouse in input.Mice) // Mouse handling
-                {
-                    mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(EditorInput.SilkNetToMouseCode(code));
-                    mouse.MouseUp += (m, code) => UserInput!.SetMouseKeyUp(EditorInput.SilkNetToMouseCode(code));
-
-                    mouse.MouseMove += (m, pos) =>
+                    IInputContext? input = Renderer!.RendererWindow!.CreateInput();
+                    foreach (var keyboard in input.Keyboards) // Keyboard handling
                     {
-                        float2 posConverted = new float2(pos.X, pos.Y);
-                        UserInput!.SetMousePosition(posConverted);
-                        UserInput!.SetRelativeMousePosition(posConverted, screenSize);
-                    };
+                        keyboard.KeyDown += (kb, key, code) => UserInput!.SetKeyDown(EditorInput.SilkNetToKeyCode(key));
+                        keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(EditorInput.SilkNetToKeyCode(key));
+                    }
+
+                    Vector2D<int> screenSizeInt = Renderer!.RendererWindow!.Size;
+                    float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
+                    foreach (var mouse in input.Mice) // Mouse handling
+                    {
+                        mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(EditorInput.SilkNetToMouseCode(code));
+                        mouse.MouseUp += (m, code) => UserInput!.SetMouseKeyUp(EditorInput.SilkNetToMouseCode(code));
+
+                        mouse.MouseMove += (m, pos) =>
+                        {
+                            float2 posConverted = new float2(pos.X, pos.Y);
+                            UserInput!.SetMousePosition(posConverted);
+                            UserInput!.SetRelativeMousePosition(posConverted, screenSize);
+                        };
+                    }
+                }
+                catch (InvalidOperationException ex)
+                {
+                    Debug.Warning($"Renderer already has input: {ex.Message}");
                 }
             }
         }
@@ -184,14 +214,12 @@ namespace DivisionEngine.Editor
         private void DisableAvaloniaDataAnnotationValidation()
         {
             // Get an array of plugins to remove
-            var dataValidationPluginsToRemove =
-                BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
+            DataAnnotationsValidationPlugin[]? dataValidationPluginsToRemove =
+                [.. BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>()];
 
             // remove each entry found
             foreach (var plugin in dataValidationPluginsToRemove)
-            {
                 BindingPlugins.DataValidators.Remove(plugin);
-            }
         }
     }
 }

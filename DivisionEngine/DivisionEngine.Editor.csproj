@@ -41,8 +41,4 @@
   <ItemGroup>
     <ProjectReference Include="..\DivisionEngine.Core\DivisionEngine.Core.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Systems\" />
-  </ItemGroup>
 </Project>
