@@ -24,6 +24,7 @@ public partial class PropertiesWindow : EditorWindow
 
     private readonly StackPanel propertiesPanel;
     private readonly ScrollViewer scrollViewer;
+    private readonly StackPanel header;
     private readonly TextBlock headerText;
 
     private uint curEntityId;
@@ -43,6 +44,12 @@ public partial class PropertiesWindow : EditorWindow
             Content = propertiesPanel,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
+        header = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Background = EditorColor.FromRGB(28, 28, 28),
+            VerticalAlignment = VerticalAlignment.Top
+        };
         headerText = new TextBlock
         {
             Text = "No Selection",
@@ -50,8 +57,9 @@ public partial class PropertiesWindow : EditorWindow
             FontWeight = FontWeight.Bold,
             Foreground = Brushes.White,
             Margin = new Thickness(5),
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Left
         };
+        header.Children.Add(headerText);
 
         StackPanel mainPanel = new StackPanel
         {
@@ -59,12 +67,11 @@ public partial class PropertiesWindow : EditorWindow
             Spacing = 0
         };
 
-        mainPanel.Children.Add(headerText);
+        mainPanel.Children.Add(header);
         mainPanel.Children.Add(new Border
         {
             Background = EditorColor.FromRGB(68, 68, 68),
-            Height = 1,
-            Margin = new Thickness(0, 0, 0, 5)
+            Height = 1
         });
         mainPanel.Children.Add(scrollViewer);
         this.FindControl<Border>("MainBorder")!.Child = mainPanel;

@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using DivisionEngine.Editor.Systems;
 using System.Collections.Generic;
 
 namespace DivisionEngine.Editor;
@@ -32,22 +31,20 @@ public partial class EnvironmentWindow : EditorWindow
         };
         headerPanel = new StackPanel
         {
-            Background = EditorColor.FromRGB(68, 68, 68),
+            Background = EditorColor.FromRGB(28, 28, 28),
             Orientation = Orientation.Horizontal,
-            Height = 30,
+            Height = 25,
             VerticalAlignment = VerticalAlignment.Center,
-            Spacing = 5,
-            Margin = new Thickness(0, 0, 0, 0)
         };
         headerText = new TextBlock
         {
-            Text = "Environment View",
+            Text = "Environment tools area",
             FontSize = 12,
-            FontWeight = FontWeight.Bold,
+            FontWeight = FontWeight.Regular,
             Foreground = Brushes.White,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(8, 0, 8, 0)
+            Margin = new Thickness(4, 0, 4, 0)
         };
 
         // Add controls to header
@@ -64,6 +61,17 @@ public partial class EnvironmentWindow : EditorWindow
 
         renderVisualizerFrame = new Panel
         {
+            Children = {
+                new TextBlock
+                {
+                    Text = "Cannot have multiple environment windows",
+                    Foreground = Brushes.LightGray,
+                    FontSize = 14,
+                    FontWeight = FontWeight.Light,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                }
+            },
             Background = EditorColor.FromRGB(12, 12, 12),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch

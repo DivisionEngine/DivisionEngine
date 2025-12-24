@@ -3,12 +3,18 @@ using Avalonia.Controls;
 namespace DivisionEngine.Editor;
 
 /// <summary>
-/// Used for creating a new project name.
+/// Used when creating a new project.
 /// </summary>
 public partial class ProjectNameDialog : Window
 {
+    /// <summary>
+    /// Name of new project.
+    /// </summary>
     public string ProjectName { get; set; } = "NewProject";
 
+    /// <summary>
+    /// Create a new project name dialog.
+    /// </summary>
     public ProjectNameDialog()
     {
         InitializeComponent();
