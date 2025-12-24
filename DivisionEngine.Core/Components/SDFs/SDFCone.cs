@@ -17,7 +17,7 @@ namespace DivisionEngine.Components.SDFs
             height = 3f;
         }
 
-        [Color] public float4 color;
+        [Color(false)] public float4 color;
         public float2 cone;
         public float height;
     }

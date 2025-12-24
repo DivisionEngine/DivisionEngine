@@ -474,64 +474,37 @@ public partial class PropertiesWindow : EditorWindow
         return numericBox;
     }
 
-    private static Button? CreateColorFieldEditor(FieldInfo field, IComponent component, ColorAttribute colorAttr)
+    private static StackPanel? CreateColorFieldEditor(FieldInfo field, IComponent component, ColorAttribute colorAttr)
     {
         var fieldValue = field.GetValue(component);
         if (fieldValue == null) return null;
         float4 colorValue = (float4)fieldValue;
 
-        // Color preview button with ColorPicker flyout
-        Button colorButton = new Button
+        StackPanel fieldPanel = new StackPanel
         {
-            Height = 25,
-            MinWidth = 100,
-            Background = EditorColor.FromColor(colorValue),
-            BorderThickness = new Thickness(1),
-            BorderBrush = Brushes.Gray,
-            CornerRadius = new CornerRadius(3),
-            Margin = new Thickness(8, 0, 8, 0),
-            HorizontalContentAlignment = HorizontalAlignment.Left
+            Orientation = Orientation.Horizontal,
+            MinHeight = 10,
+            VerticalAlignment = VerticalAlignment.Center
         };
 
-        // Create ColorPicker
         ColorPicker colorPicker = new ColorPicker
         {
-            Width = 280,
-            Height = 320,
+            Width = 150,
+            Height = 20,
             Color = EditorColor.FromColor(colorValue).Color,
             IsAlphaVisible = colorAttr.ShowAlpha,
-            IsAccentColorsVisible = true,
-            IsColorSpectrumVisible = true,
+            IsColorSpectrumVisible = true, // Shows as a simple color button
             IsColorPreviewVisible = true,
             IsColorComponentsVisible = true,
-            IsHexInputVisible = false,
+            IsComponentTextInputVisible = false,
+            IsComponentSliderVisible = true,
+            IsAlphaEnabled = colorAttr.ShowAlpha,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            IsHexInputVisible = true,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            FontSize = 12,
         };
-
-        // Configure for HDR if needed
-        if (colorAttr.HDR)
-        {
-            // For HDR colors, you might want to create a custom color picker
-            // or adjust the ColorPicker to handle values > 1
-            Debug.Warning("HDR color picker not fully implemented - using standard picker");
-        }
-
-        // Create flyout
-        Flyout flyout = new Flyout
-        {
-            Content = new Border
-            {
-                Background = EditorColor.FromRGB(40, 40, 40),
-                Padding = new Thickness(10),
-                CornerRadius = new CornerRadius(5),
-                BorderThickness = new Thickness(1),
-                BorderBrush = EditorColor.FromRGB(80, 80, 80),
-                Child = colorPicker
-            },
-            Placement = PlacementMode.BottomEdgeAlignedLeft,
-            ShowMode = FlyoutShowMode.Standard
-        };
-
-        colorButton.Flyout = flyout;
 
         // Update on color change
         colorPicker.ColorChanged += (s, e) =>
@@ -547,10 +520,10 @@ public partial class PropertiesWindow : EditorWindow
 
             // Update component
             field.SetValue(component, newColor);
-            colorButton.Background = new SolidColorBrush(selectedColor); // Update button appearance
         };
 
-        return colorButton;
+        fieldPanel.Children.Add(colorPicker);
+        return fieldPanel;
     }
 
     private static StackPanel? CreateRotationFieldEditor(FieldInfo field, IComponent component, RotationAttribute colorAttr)

@@ -58,8 +58,10 @@ namespace DivisionEngine.Editor
         /// <param name="rendering">Whether the editor is rendering</param>
         public static async Task SetEditorRenderingAsync(bool rendering)
         {
-            if (rendering)
+            if (rendering && !RendererVisible)
             {
+                RendererVisible = true;
+
                 if (Renderer != null && Renderer.RendererWindow != null) Renderer.Stop();
                 // Start the SDFRenderer in a separate thread
                 Renderer = new RenderPipeline();
@@ -70,8 +72,6 @@ namespace DivisionEngine.Editor
                 while (Renderer == null || Renderer!.RendererWindow == null)
                     await Task.Delay(1); // Wait for the renderer to load
                 Renderer.RendererWindow!.Load += SilkNetInputSetup;
-
-                RendererVisible = true;
             }
             else
             {

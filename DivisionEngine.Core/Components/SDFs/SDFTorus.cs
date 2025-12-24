@@ -17,7 +17,7 @@ namespace DivisionEngine.Components.SDFs
             ringRadius = 1f;
         }
 
-        [Color] public float4 color;
+        [Color(false)] public float4 color;
         public float wholeRadius;
         public float ringRadius;
     }

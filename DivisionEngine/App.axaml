@@ -16,6 +16,7 @@
       <!--Theme-->
       <FluentTheme DensityStyle="Compact"/>
       <materialIcons:MaterialIconStyles/>
+      <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
 
         <!--Division Engine Default Control Styling-->
       

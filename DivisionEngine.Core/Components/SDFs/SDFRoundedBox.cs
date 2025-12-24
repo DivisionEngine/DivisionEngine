@@ -17,7 +17,7 @@ namespace DivisionEngine.Components.SDFs
             bevel = 0.05f;
         }
 
-        [Color] public float4 color;
+        [Color(false)] public float4 color;
         public float3 size;
         public float bevel;
     }

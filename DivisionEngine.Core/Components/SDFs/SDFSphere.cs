@@ -16,7 +16,7 @@ namespace DivisionEngine.Components.SDFs
             radius = 1f;
         }
 
-        [Color] public float4 color;
+        [Color(false)] public float4 color;
         public float radius;
     }
 }

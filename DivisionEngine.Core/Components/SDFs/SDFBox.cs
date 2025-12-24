@@ -16,7 +16,7 @@ namespace DivisionEngine.Components.SDFs
             size = new float3(1f, 1f, 1f);
         }
 
-        [Color] public float4 color;
+        [Color(false)] public float4 color;
         public float3 size;
     }
 }
