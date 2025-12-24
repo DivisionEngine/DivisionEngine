@@ -26,10 +26,11 @@ namespace DivisionEngine.Editor.Systems
             Dispatcher.UIThread.Post(UpdateRenderer, DispatcherPriority.Render);
         }
 
-        public static void SetVisible(bool visible)
-        {
-            _ = App.SetEditorRenderingAsync(visible);
-        }
+        /// <summary>
+        /// Sets whether the Silk.NET physical render window is enabled.
+        /// </summary>
+        /// <param name="visible">Whether the OpenGL renderer is visible</param>
+        public static void SetVisible(bool visible) => _ = App.SetEditorRenderingAsync(visible);
 
         /// <summary>
         /// Updates the render position, size, and visibility.
@@ -68,6 +69,7 @@ namespace DivisionEngine.Editor.Systems
                 }
                 else
                 {
+                    if (App.RendererVisible) SetVisible(false);
                     prevVisible = false;
                 }
             }

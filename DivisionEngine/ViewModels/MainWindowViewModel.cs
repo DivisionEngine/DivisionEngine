@@ -1,6 +1,7 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
+using DivisionEngine.Editor.Systems;
 using DivisionEngine.Projects;
 using ReactiveUI;
 using System;
@@ -270,6 +271,9 @@ namespace DivisionEngine.Editor.ViewModels
                 "World" => new WorldWindowViewModel(),
                 _ => null
             };
+
+            if (args[0] == "Environment" && !App.RendererVisible) // Re-enable render window if disabled.
+                RenderWindowManagementSystem.SetVisible(true);
 
             if (vm == null)
             {
