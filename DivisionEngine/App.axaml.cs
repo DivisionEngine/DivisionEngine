@@ -92,7 +92,8 @@ namespace DivisionEngine.Editor
                 // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
                 DisableAvaloniaDataAnnotationValidation();
                 desktop.MainWindow = new MainWindow();
-                desktop.MainWindow.DataContext = new MainWindowViewModel(desktop.MainWindow);
+                MainWindowViewModel vm = new MainWindowViewModel(desktop.MainWindow);
+                desktop.MainWindow.DataContext = vm;
 
                 // Create default world for editor
                 WorldManager.CreateDefaultWorld(true);
@@ -126,6 +127,9 @@ namespace DivisionEngine.Editor
                 {
                     Renderer?.RendererWindow?.Close();
                 };
+
+                // Close when menu item exit clicked
+                vm.RequestClose += () => desktop.Shutdown();
             }
 
             base.OnFrameworkInitializationCompleted();
