@@ -22,6 +22,11 @@ namespace DivisionEngine.Editor;
 /// </summary>
 public partial class AssetsWindow : EditorWindow
 {
+    public enum ViewState
+    {
+        Tiles, List
+    }
+
     private static readonly List<AssetsWindow?> currentWindows = [];
 
     private readonly ScrollViewer scrollViewer;
@@ -31,7 +36,10 @@ public partial class AssetsWindow : EditorWindow
     private readonly TextBlock headerText;
     private readonly TextBlock itemCountText;
     private readonly Button upDirButton;
+    private readonly Button viewButton;
+    private readonly MaterialIcon viewButtonIcon;
 
+    private ViewState viewState;
     private string currentPath;
 
     public AssetsWindow()
@@ -80,19 +88,35 @@ public partial class AssetsWindow : EditorWindow
         MaterialIcon upFolderIcon = new MaterialIcon
         {
             Kind = MaterialIconKind.FolderUpload,
-            Width = 16,
-            Height = 16,
-            Foreground = EditorColor.FromRGB(68, 68, 68),
+            Width = 18,
+            Height = 18,
+            Foreground = EditorColor.FromRGB(80, 80, 80),
         };
         upDirButton = new Button
         {
             Content = upFolderIcon,
             Background = EditorColor.FromRGB(12, 12, 12),
             Margin = new Thickness(2, 2, 2, 2),
-            Padding = new Thickness(4, 2, 4, 2)
+            Padding = new Thickness(3, 1, 3, 1)
+        };
+        viewButtonIcon = new MaterialIcon
+        {
+            Kind = MaterialIconKind.FormatListBulleted,
+            Width = 18,
+            Height = 18,
+            Foreground = EditorColor.FromRGB(80, 80, 80),
+        };
+        viewButton = new Button
+        {
+            Content = viewButtonIcon,
+            Background = EditorColor.FromRGB(12, 12, 12),
+            Margin = new Thickness(2, 2, 2, 2),
+            Padding = new Thickness(3, 1, 3, 1)
         };
         upDirButton.Click += (s, e) => NavigateUpOneLevel();
+        viewButton.Click += (s, e) => ToggleViewState();
         header.Children.Add(upDirButton);
+        header.Children.Add(viewButton);
         header.Children.Add(headerText);
         header.Children.Add(itemCountText);
 
@@ -118,9 +142,27 @@ public partial class AssetsWindow : EditorWindow
         grid.Children.Add(scrollViewer);
         this.FindControl<Border>("MainBorder")!.Child = grid;
 
+        viewState = ViewState.Tiles;
         currentPath = string.Empty;
         currentWindows.Add(this);
         Dispatcher.UIThread.Post(LoadAssetsForCurrentProject);
+    }
+
+    /// <summary>
+    /// Toggles between view states.
+    /// </summary>
+    private void ToggleViewState()
+    {
+        if (viewState == ViewState.Tiles)
+        {
+            viewState = ViewState.List;
+            viewButtonIcon.Kind = MaterialIconKind.ViewGrid;
+        }
+        else
+        {
+            viewState = ViewState.Tiles;
+            viewButtonIcon.Kind = MaterialIconKind.FormatListBulleted;
+        }
     }
 
     /// <summary>

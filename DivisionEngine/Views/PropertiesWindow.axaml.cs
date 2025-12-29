@@ -5,6 +5,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components.FieldAttributes;
+using Material.Icons;
+using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -526,13 +528,16 @@ public partial class PropertiesWindow : EditorWindow
         return fieldPanel;
     }
 
-    private static StackPanel? CreateRotationFieldEditor(FieldInfo field, IComponent component, RotationAttribute colorAttr)
+    private static StackPanel? CreateRotationFieldEditor(FieldInfo field, IComponent component, RotationAttribute rotAttr)
     {
         var fieldValue = field.GetValue(component);
         if (fieldValue == null) return null;
         float4 quaternionValue = (float4)fieldValue;
 
         float3 eulerValue = Math.QuaternionToEuler(quaternionValue);
+        if (rotAttr.Degrees)
+            eulerValue = new float3(Math.Rad2Deg * eulerValue.X, Math.Rad2Deg * eulerValue.Y, Math.Rad2Deg * eulerValue.Z);
+
         StackPanel eulerRotationPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -540,13 +545,29 @@ public partial class PropertiesWindow : EditorWindow
         };
 
         NumericUpDown xBox = CreateFloatNumericBox(eulerValue.X, (val) =>
-        { eulerValue.X = val; field.SetValue(component, Math.EulerToQuaternion(eulerValue)); });
-
+        {
+            if (rotAttr.Degrees) val *= Math.Deg2Rad;
+            eulerValue.X = val; 
+            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
+        });
         NumericUpDown yBox = CreateFloatNumericBox(eulerValue.Y, (val) =>
-        { eulerValue.Y = val; field.SetValue(component, Math.EulerToQuaternion(eulerValue)); });
-
+        {
+            if (rotAttr.Degrees) val *= Math.Deg2Rad;
+            eulerValue.Y = val;
+            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
+        });
         NumericUpDown zBox = CreateFloatNumericBox(eulerValue.Z, (val) =>
-        { eulerValue.Z = val; field.SetValue(component, Math.EulerToQuaternion(eulerValue)); });
+        {
+            if (rotAttr.Degrees) val *= Math.Deg2Rad;
+            eulerValue.Z = val;
+            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
+        });
+        if (rotAttr.Degrees)
+        {
+            xBox.Increment = 5;
+            yBox.Increment = 5;
+            zBox.Increment = 5;
+        }
 
         eulerRotationPanel.Children.Add(new TextBlock
         {
@@ -575,6 +596,29 @@ public partial class PropertiesWindow : EditorWindow
             Margin = new Thickness(2, 0, 2, 0)
         });
         eulerRotationPanel.Children.Add(zBox);
+
+        if (rotAttr.Degrees)
+        {
+            eulerRotationPanel.Children.Add(new MaterialIcon
+            {
+                Kind = MaterialIconKind.Rotate360,
+                Foreground = Brushes.LightGray,
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(2, 0, 2, 0)
+            });
+        }
+        else
+        {
+            eulerRotationPanel.Children.Add(new MaterialIcon
+            {
+                Kind = MaterialIconKind.Pi,
+                Foreground = Brushes.LightGray,
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(2, 0, 2, 0)
+            });
+        }
 
         return eulerRotationPanel;
     }

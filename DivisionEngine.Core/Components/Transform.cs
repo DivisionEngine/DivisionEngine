@@ -19,7 +19,7 @@ namespace DivisionEngine.Components
         }
 
         public float3 position;
-        [Rotation] public float4 rotation;
+        [Rotation(true)] public float4 rotation;
         public float3 scaling;
 
         public float3 Forward => new float3(0, 0, -1).Transform(Matrix.CreateMatrix4x4FromQuaternion(rotation).ToMatrix4x4());
