@@ -4,6 +4,8 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Material.Icons;
+using Material.Icons.Avalonia;
 
 namespace DivisionEngine.Editor;
 
@@ -110,6 +112,11 @@ public partial class ConsoleWindow : EditorWindow
             logList.Children.RemoveAt(0);
     }
 
+    /// <summary>
+    /// Builds the control for a long entry in the console window.
+    /// </summary>
+    /// <param name="log">Log entry to build</param>
+    /// <returns>Log entry container element</returns>
     private static Border CreateLogControl(LogEntry log)
     {
         Border logBorder = new Border()
@@ -121,35 +128,69 @@ public partial class ConsoleWindow : EditorWindow
             Margin = new Thickness(6, 2, 6, 2),
         };
 
-        StackPanel logElements = new StackPanel
+        Grid grid = new Grid
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 0,
+            ColumnDefinitions =
+        {
+            new ColumnDefinition(GridLength.Auto), // Timestamp
+            new ColumnDefinition(GridLength.Auto), // Level
+            new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Message (takes remaining space)
+            new ColumnDefinition(GridLength.Auto), // Delete button
+        }
         };
 
-        logElements.Children.AddRange(
-        [
-            new TextBlock
+        // Timestamp
+        grid.Children.Add(new TextBlock
+        {
+            Text = $"[{log.Timestamp.TimeOfDay:hh':'mm':'ss':'fff}]",
+            FontSize = 12,
+            Foreground = Brushes.Gray,
+            Margin = new Thickness(0, 0, 4, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        Grid.SetColumn(grid.Children[^1], 0);
+
+        // Level
+        grid.Children.Add(new TextBlock
+        {
+            Text = $"[{log.Level}]",
+            FontSize = 12,
+            Foreground = GetLogColor(log.Level),
+            Margin = new Thickness(0, 0, 4, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        Grid.SetColumn(grid.Children[^1], 1);
+
+        // Message
+        grid.Children.Add(new TextBlock
+        {
+            Text = log.Message,
+            FontSize = 12,
+            Foreground = Brushes.White,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        Grid.SetColumn(grid.Children[^1], 2);
+
+        // Delete button
+        grid.Children.Add(new Button
+        {
+            Content = new MaterialIcon
             {
-                Text = $"[{log.Timestamp.TimeOfDay:hh':'mm':'ss':'fff}]",
-                FontSize = 12,
-                Foreground = Brushes.Gray,
-            },
-            new TextBlock
-            {
-                Text = $"[{log.Level}]",
-                FontSize = 12,
-                Foreground = GetLogColor(log.Level),
-            },
-            new TextBlock
-            {
-                Text = log.Message,
-                FontSize = 12,
+                Kind = MaterialIconKind.Delete,
+                Width = 12,
+                Height = 12,
                 Foreground = Brushes.White,
             },
-        ]);
+            Background = EditorColor.FromRGB(68, 68, 68),
+            Padding = new Thickness(2),
+            Margin = new Thickness(4, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        });
+        Grid.SetColumn(grid.Children[^1], 3);
 
-        logBorder.Child = logElements;
+        logBorder.Child = grid;
         return logBorder;
     }
 

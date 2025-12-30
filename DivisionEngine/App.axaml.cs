@@ -174,7 +174,7 @@ namespace DivisionEngine.Editor
             while (Renderer == null || Renderer!.RendererWindow == null)
                 await Task.Delay(1); // Wait for the renderer to load
 
-            Renderer!.RendererWindow.Load += SilkNetInputSetup;
+            Renderer.RendererWindow.Load += SilkNetInputSetup;
         }
 
         /// <summary>
