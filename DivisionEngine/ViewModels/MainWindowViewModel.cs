@@ -234,6 +234,7 @@ namespace DivisionEngine.Editor.ViewModels
                     "empty" => DefaultEntities.Empty(),
                     "emptyTransform" => DefaultEntities.EmptyTransform(),
                     "camera" => DefaultEntities.Camera(),
+                    "environment" => DefaultEntities.Environment(),
                     "sphere" => DefaultEntities.SDFSphere(),
                     "box" => DefaultEntities.SDFBox(),
                     "roundedBox" => DefaultEntities.SDFRoundedBox(),

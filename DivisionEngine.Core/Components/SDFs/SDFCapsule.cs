@@ -1,4 +1,5 @@
 ﻿using DivisionEngine.Components.FieldAttributes;
+using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Components.SDFs
 {
@@ -12,7 +13,7 @@ namespace DivisionEngine.Components.SDFs
         /// </summary>
         public SDFCapsule()
         {
-            color = new float4(1f, 1f, 1f, 1f);
+            color = ColorPalette.White;
             height = 3f;
             radius = 1f;
         }

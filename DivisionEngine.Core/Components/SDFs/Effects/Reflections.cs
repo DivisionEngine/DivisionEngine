@@ -5,7 +5,10 @@
     /// </summary>
     public class Reflections : IComponent
     {
-        public Reflections() { }
+        public Reflections()
+        {
+            maxRaySteps = 64;
+        }
 
         public int maxRaySteps;
     }

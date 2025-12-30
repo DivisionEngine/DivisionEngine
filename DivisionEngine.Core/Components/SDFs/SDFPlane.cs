@@ -1,4 +1,5 @@
 ﻿using DivisionEngine.Components.FieldAttributes;
+using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Components.SDFs
 {
@@ -12,7 +13,7 @@ namespace DivisionEngine.Components.SDFs
         /// </summary>
         public SDFPlane()
         {
-            color = new float4(1f, 1f, 1f, 1f);
+            color = ColorPalette.White;
             normal = new float3(0f, 1f, 0f);
             h = 1f;
         }

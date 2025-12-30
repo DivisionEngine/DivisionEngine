@@ -2,6 +2,7 @@
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.MathLib;
+using Environment = DivisionEngine.Components.Environment;
 
 namespace DivisionEngine
 {
@@ -33,6 +34,9 @@ namespace DivisionEngine
             });
             newDefaultWorld.AddComponent(cameraEntity, new Camera());
             newDefaultWorld.AddComponent(cameraEntity, new Player());
+
+            uint environmentEntity = newDefaultWorld.CreateEntity("Environment");
+            newDefaultWorld.AddComponent(environmentEntity, new Environment());
 
             uint sphereEntity = newDefaultWorld.CreateTransformEntity("Sphere");
             newDefaultWorld.AddComponent(sphereEntity, new SDFSphere

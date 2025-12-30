@@ -1,7 +1,9 @@
 ﻿using DivisionEngine.Components;
+using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Rendering;
+using Environment = DivisionEngine.Components.Environment;
 
 namespace DivisionEngine.Systems
 {
@@ -21,23 +23,29 @@ namespace DivisionEngine.Systems
         public static SDFPrimitiveObjectDTO[] PreparedPrimitivesDTO { get; private set; } = [];
 
         /// <summary>
+        /// Prepared settings for all SDF lights in the world.
+        /// </summary>
+        public static SDFLightDTO[] PreparedLightsDTO { get; private set; } = [];
+
+        /// <summary>
         /// Called right before the world is rendered to screen.
         /// </summary>
         public override void Render()
         {
-            (PreparedWorldDTO, PreparedPrimitivesDTO) = GetFullWorldSDFData();
+            (PreparedWorldDTO, PreparedPrimitivesDTO, PreparedLightsDTO) = GetFullWorldSDFData();
         }
 
         /// <summary>
         /// Translates the world to a GPU-relevant format.
         /// </summary>
         /// <returns>ECS world information as data buffers</returns>
-        public static (SDFWorldDTO, SDFPrimitiveObjectDTO[]) GetFullWorldSDFData()
+        public static (SDFWorldDTO, SDFPrimitiveObjectDTO[], SDFLightDTO[]) GetFullWorldSDFData()
         {
             SDFWorldDTO worldData = new SDFWorldDTO();
             List<SDFPrimitiveObjectDTO> sdfPrimitives = [];
+            List<SDFLightDTO> sdfLights = [];
 
-            // Gather camera world data
+            // Gather camera data
             foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
             {
                 worldData.cameraOrigin = transform.position;
@@ -49,7 +57,45 @@ namespace DivisionEngine.Systems
                 break; // Use first camera
             }
 
-            // Gather and translate all primitives and effects
+            // Gather environment data
+            foreach (var (_, environment) in W.QueryData<Environment>())
+            {
+                worldData.backgroundColor = environment.backgroundColor;
+                break; // Use first environment
+            }
+
+            // Gather and transform all lights
+            foreach (var (id, transform) in W.QueryData<Transform>())
+            {
+                // Setup
+                SDFLightDTO curLight = new SDFLightDTO
+                {
+                    type = -1,
+                    position = transform.position,
+                    rotation = transform.rotation,
+                };
+                
+                // Effects
+                if (W.HasComponent<DirectionalLight>(id))
+                {
+                    DirectionalLight light = W.GetComponent<DirectionalLight>(id)!;
+                    curLight.color = light.color;
+                    curLight.intensity = light.intensity;
+                }
+                if (W.HasComponent<PointLight>(id))
+                {
+                    PointLight light = W.GetComponent<PointLight>(id)!;
+                    curLight.color = light.color;
+                    curLight.intensity = light.intensity;
+                }
+
+                // Space to add more lights in the future
+
+                // Add the current light
+                if (curLight.type != -1) sdfLights.Add(curLight);
+            }
+
+            // Gather and transform all primitives and effects
             foreach (var (id, transform) in W.QueryData<Transform>())
             {
                 // Setup
@@ -67,6 +113,19 @@ namespace DivisionEngine.Systems
                     SoftShadows shadows = W.GetComponent<SoftShadows>(id)!;
                     curPrimitive.shadowEffects = new bool2(shadows.shadowCaster, shadows.shadowReceiver);
                     curPrimitive.shadowDistances = new float2(shadows.minDistance, shadows.maxDistance);
+                }
+                if (W.HasComponent<Reflections>(id))
+                {
+                    Reflections reflect = W.GetComponent<Reflections>(id)!;
+                    curPrimitive.hasReflection = true;
+                    curPrimitive.reflectionMaxSteps = reflect.maxRaySteps;
+                }
+                if (W.HasComponent<Refractions>(id))
+                {
+                    Refractions refract = W.GetComponent<Refractions>(id)!;
+                    curPrimitive.hasRefraction = true;
+                    curPrimitive.refractionMaxSteps = refract.maxRaySteps;
+                    curPrimitive.ior = refract.indexOfRefraction;
                 }
 
                 // Primitives
@@ -139,7 +198,8 @@ namespace DivisionEngine.Systems
                 // Add the current primitive
                 if (curPrimitive.type != -1) sdfPrimitives.Add(curPrimitive);
             }
-            return (worldData, sdfPrimitives.ToArray());
+
+            return (worldData, sdfPrimitives.ToArray(), sdfLights.ToArray());
         }
     }
 }

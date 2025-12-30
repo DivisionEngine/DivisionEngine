@@ -68,10 +68,21 @@ namespace DivisionEngine.Editor
                 Renderer.BindCurrentWorld(); // Binds default world
                 _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
 
+                Renderer.Close += () =>
+                {
+                    // Shutdown UI Thread
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (Current!.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                            desktop.Shutdown();
+                        Environment.Exit(0);
+                    });
+                };
+
                 // Silk.NET input handling
                 while (Renderer == null || Renderer!.RendererWindow == null)
                     await Task.Delay(1); // Wait for the renderer to load
-                Renderer.RendererWindow!.Load += SilkNetInputSetup;
+                Renderer.RendererWindow.Load += SilkNetInputSetup;
             }
             else
             {
@@ -104,26 +115,11 @@ namespace DivisionEngine.Editor
                 // Start the editor engine loop
                 StartEditorEngineLoop();
 
-                // Start the SDFRenderer in a separate thread
-                Renderer = new RenderPipeline();
-                Renderer.BindCurrentWorld(); // Binds default world
-                Task.Run(() => Renderer.Run(RequestedFPS, true));
-
-                // Handle renderer close behavior
-                Renderer.Close += () =>
-                {
-                    // Shutdown UI Thread
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        desktop.Shutdown();
-                        Environment.Exit(0);
-                    });
-                };
-                RendererVisible = true;
-
                 // Initialize the input system
                 UserInput = new InputSystem();
-                SetupInput(desktop);
+
+                // Start the SDFRenderer in a separate thread
+                _ = SetEditorRenderingAsync(true);
 
                 // Close the renderer window when the application exits
                 desktop.Exit += (_, _) =>
@@ -170,14 +166,6 @@ namespace DivisionEngine.Editor
             // Avalonia input handling
             desktop.MainWindow!.KeyUp += (s, e) => UserInput?.SetKeyUp(EditorInput.AvaloniaToKeyCode(e.Key));
             desktop.MainWindow.KeyDown += (s, e) => UserInput?.SetKeyDown(EditorInput.AvaloniaToKeyCode(e.Key));
-
-            // Expand to include avalonia 
-
-            // Silk.NET input handling
-            while (Renderer == null || Renderer!.RendererWindow == null)
-                await Task.Delay(1); // Wait for the renderer to load
-
-            Renderer.RendererWindow.Load += SilkNetInputSetup;
         }
 
         /// <summary>

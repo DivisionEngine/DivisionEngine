@@ -214,6 +214,25 @@ namespace DivisionEngine
             return 0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res);
         }
 
+        private float Refraction(float3 rayOrigin, float3 rayDir, float minDist, float maxDist)
+        {
+            float res = 1.0f;
+            float rayDist = minDist;
+
+            for (int i = 0; i < 100 && rayDist < maxDist; i++)
+            {
+                float2 sceneSDF = WorldSDF(rayOrigin + rayDist * rayDir, true);
+                res = Hlsl.Min(res, sceneSDF.X / (0.5f * rayDist));
+                rayDist += Hlsl.Clamp(sceneSDF.X, 0.005f, 0.05f);
+
+                if (res < -1.0f || rayDist > maxDist)
+                    break;
+            }
+
+            res = Hlsl.Max(res, -1.0f);
+            return 0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res);
+        }
+
         // New soft-shadow technique:
         // Reference: https://iquilezles.org/articles/rmshadows/
         private float SoftShadow2(float3 rayOrigin, float3 rayDir, float mint, float maxt, float lightAngle)
@@ -253,7 +272,7 @@ namespace DivisionEngine
             // SDF Raymarch Pass
             float totalDist = 0.0f;
             int closestObjIndex = -1;
-            float3 outputColor = new float3(0f, 0f, 0f);
+            float3 outputColor = worldData[0].backgroundColor.XYZ;
             float3 hitPoint = rayOrigin;
 
             int maxSteps = worldData[0].maxRaySteps;

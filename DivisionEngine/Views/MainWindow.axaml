@@ -53,6 +53,7 @@
             <MenuItem Header="Empty Transform" Command="{Binding CreateEntityCommand}" CommandParameter="emptyTransform"/>
             <Separator/>
             <MenuItem Header="Camera" Command="{Binding CreateEntityCommand}" CommandParameter="camera"/>
+            <MenuItem Header="Environment" Command="{Binding CreateEntityCommand}" CommandParameter="environment"/>
             <Separator/>
             <MenuItem Header="Sphere" Command="{Binding CreateEntityCommand}" CommandParameter="sphere"/>
             <MenuItem Header="Box" Command="{Binding CreateEntityCommand}" CommandParameter="box"/>

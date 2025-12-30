@@ -49,6 +49,7 @@ namespace DivisionEngine.Rendering
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadOnlyBuffer<SDFWorldDTO>? worldBuffer;
         private ReadOnlyBuffer<SDFPrimitiveObjectDTO>? primitivesBuffer;
+        private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
         private float4[]? pixels;
 
         // World variables
@@ -110,10 +111,12 @@ namespace DivisionEngine.Rendering
             renderTex?.Dispose();
             worldBuffer?.Dispose();
             primitivesBuffer?.Dispose();
+            lightsBuffer?.Dispose();
             device = null;
             renderTex = null;
             worldBuffer = null;
             primitivesBuffer = null;
+            lightsBuffer = null;
             if (closeWindowWithCloseEvent) Close?.Invoke(); // Invoke the close event if there are any subscribers
         }
 
@@ -159,14 +162,17 @@ namespace DivisionEngine.Rendering
             // Gather SDF world information
             SDFWorldDTO worldDTO;
             SDFPrimitiveObjectDTO[] sdfPrimitivesDTO;
+            SDFLightDTO[] sdfLightsDTO;
             lock (SyncLock)
             {
                 worldDTO = SDFRenderSystem.PreparedWorldDTO;
                 sdfPrimitivesDTO = SDFRenderSystem.PreparedPrimitivesDTO;
+                sdfLightsDTO = SDFRenderSystem.PreparedLightsDTO;
             }
 
-            // Check if primitives exist
+            // Check if buffers will be null
             if (sdfPrimitivesDTO.Length < 1) return;
+            //if (sdfLightsDTO.Length < 1) return;
 
             // Check if device is disposed
             if (device == null)
@@ -192,6 +198,9 @@ namespace DivisionEngine.Rendering
                 primitivesBuffer?.Dispose();
                 primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
                 if (primitivesBuffer == null) return;
+                //lightsBuffer?.Dispose();
+                //lightsBuffer = device?.AllocateReadOnlyBuffer(sdfLightsDTO);
+                //if (lightsBuffer == null) return;
 
                 // Dispatch SDF compute shader
                 SDFShader3D shader = new SDFShader3D(renderTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
@@ -205,9 +214,11 @@ namespace DivisionEngine.Rendering
                 renderTex?.Dispose(); // Reinitialize buffers on next frame
                 worldBuffer?.Dispose();
                 primitivesBuffer?.Dispose();
+                lightsBuffer?.Dispose();
                 renderTex = null;
                 worldBuffer = null;
                 primitivesBuffer = null;
+                lightsBuffer = null;
                 return;
             }
             catch (InvalidOperationException ex)
@@ -325,8 +336,7 @@ namespace DivisionEngine.Rendering
                 string info = gl.GetShaderInfoLog(shader);
                 Debug.Error($"{name} Compile Error: {info}");
             }
-            else
-                Debug.Info($"{name} Compiled Successfully");
+            else Debug.Info($"{name} Compiled Successfully");
         }
 
         /// <summary>
@@ -343,8 +353,7 @@ namespace DivisionEngine.Rendering
                 string info = gl.GetProgramInfoLog(program);
                 Debug.Error($"Shader Program Link Error: {info}");
             }
-            else
-                Debug.Info("Shader Program Linked Successfully");
+            else Debug.Info("Shader Program Linked Successfully");
         }
     }
 

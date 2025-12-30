@@ -33,6 +33,15 @@ namespace DivisionEngine.Editor
             return camera;
         }
 
+        public static uint Environment(string name = "New Environment")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint environment = W.CreateEntity(name);
+            W.AddComponent(environment, new Environment());
+            return environment;
+        }
+
         public static uint SDFSphere(string name = "New Sphere")
         {
             if (WorldManager.CurrentWorld == null)

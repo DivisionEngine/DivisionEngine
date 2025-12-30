@@ -5,8 +5,13 @@
     /// </summary>
     public class Refractions : IComponent
     {
-        public Refractions() { }
+        public Refractions()
+        {
+            maxRaySteps = 64;
+            indexOfRefraction = 1.333f;
+        }
 
         public int maxRaySteps;
+        public float indexOfRefraction;
     }
 }
