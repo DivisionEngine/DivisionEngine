@@ -76,8 +76,11 @@ namespace DivisionEngine.Editor
             else
             {
                 RendererVisible = false;
-                Renderer!.Stop();
-                Renderer = null;
+                if (Renderer != null)
+                {
+                    Renderer!.Stop();
+                    Renderer = null;
+                }
             }
         }
 

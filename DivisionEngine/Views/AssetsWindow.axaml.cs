@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -43,7 +44,7 @@ public partial class AssetsWindow : EditorWindow
 
     // Header
     private readonly StackPanel header;
-    private readonly TextBlock headerText;
+    private readonly TextBox directoryField;
     private readonly TextBlock itemCountText;
     private readonly Button upDirButton;
     private readonly Button viewButton;
@@ -124,17 +125,19 @@ public partial class AssetsWindow : EditorWindow
         {
             Background = EditorColor.FromRGB(28, 28, 28),
             Orientation = Orientation.Horizontal,
-            Spacing = 0,
+            Spacing = 2,
             Height = 30,
             VerticalAlignment = VerticalAlignment.Top,
         };
-        headerText = new TextBlock
+        directoryField = new TextBox
         {
-            Text = "No Project Loaded",
-            FontSize = 12,
-            FontWeight = FontWeight.Bold,
+            Text = string.Empty,
+            Watermark = "No Project Loaded",
+            FontSize = 11,
             Foreground = Brushes.White,
             Margin = new Thickness(5),
+            BorderThickness = new Thickness(0),
+            Background = EditorColor.FromRGB(20, 20, 20),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
@@ -175,11 +178,12 @@ public partial class AssetsWindow : EditorWindow
             Margin = new Thickness(2, 2, 2, 2),
             Padding = new Thickness(3, 1, 3, 1),
         };
+        directoryField.TextChanged += DirectoryField_TextChanged;
         upDirButton.Click += (s, e) => NavigateUpOneLevel();
         viewButton.Click += (s, e) => ToggleViewState();
         header.Children.Add(upDirButton);
         header.Children.Add(viewButton);
-        header.Children.Add(headerText);
+        header.Children.Add(directoryField);
         header.Children.Add(itemCountText);
 
         // Build assets window layout
@@ -210,6 +214,26 @@ public partial class AssetsWindow : EditorWindow
         currentPath = string.Empty;
         currentWindows.Add(this);
         Dispatcher.UIThread.Post(LoadAssetsForCurrentProject);
+    }
+
+    /// <summary>
+    /// Called when the director field is updated.
+    /// </summary>
+    private void DirectoryField_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        string? newPath = directoryField.Text;
+        if (!string.IsNullOrEmpty(newPath) && Directory.Exists(newPath))
+        {
+            currentPath = newPath;
+
+            // Clear panels
+            assetsTilePanel.Children.Clear();
+            listNamePanel.Children.Clear();
+            listSizePanel.Children.Clear();
+
+            // Dispatch asset loading
+            Dispatcher.UIThread.Post(() => LoadAssetsAtPath(newPath));
+        }
     }
 
     /// <summary>
@@ -254,7 +278,8 @@ public partial class AssetsWindow : EditorWindow
         if (string.IsNullOrEmpty(path))
         {
             Debug.Warning("Could not load assets, no project is loaded");
-            headerText.Text = "No Project Loaded";
+            directoryField.Watermark = "No Project Loaded";
+            directoryField.Text = string.Empty;
             itemCountText.Text = "0 items";
             return false;
         }
@@ -266,8 +291,8 @@ public partial class AssetsWindow : EditorWindow
         listSizePanel.Children.Clear();
 
         // Dispatch asset loading
-        headerText.Text = path;
-        Dispatcher.UIThread.Post(() => LoadAssetsAtPath(path));
+        if (path == directoryField.Text) Dispatcher.UIThread.Post(() => LoadAssetsAtPath(path));
+        else directoryField.Text = path;
         return true;
     }
 
