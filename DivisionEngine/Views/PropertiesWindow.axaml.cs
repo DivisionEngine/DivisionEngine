@@ -265,7 +265,7 @@ public partial class PropertiesWindow : EditorWindow
         else if (fieldValue != null && fieldType == typeof(bool))
         {
             bool value = (bool)fieldValue;
-            CheckBox textBox = new CheckBox
+            CheckBox checkBox = new CheckBox
             {
                 IsChecked = value,
                 IsDefault = false,
@@ -275,11 +275,11 @@ public partial class PropertiesWindow : EditorWindow
                 VerticalContentAlignment = VerticalAlignment.Center
             };
 
-            textBox.IsCheckedChanged += (s, e) =>
+            checkBox.IsCheckedChanged += (s, e) =>
             {
-                field.SetValue(component, textBox.IsChecked);
+                field.SetValue(component, checkBox.IsChecked);
             };
-            editorControl = textBox;
+            editorControl = checkBox;
         }
         else if (fieldValue != null && fieldType == typeof(float2))
         {
@@ -415,6 +415,27 @@ public partial class PropertiesWindow : EditorWindow
 
                 editorControl = vectorPanel;
             }
+        }
+        else if (fieldValue != null && fieldType == typeof(DateTime))
+        {
+            DateTime value = (DateTime)fieldValue;
+            CalendarDatePicker dateTimePicker = new CalendarDatePicker
+            {
+                SelectedDate = value,
+                BorderThickness = new Thickness(0),
+                VerticalAlignment = VerticalAlignment.Center,
+                CornerRadius = new CornerRadius(4),
+                FontSize = 11,
+                Background = EditorColor.FromRGB(28, 28, 28),
+                Foreground = Brushes.White,
+                VerticalContentAlignment = VerticalAlignment.Center,
+            };
+
+            dateTimePicker.SelectedDateChanged += (s, e) =>
+            {
+                field.SetValue(component, dateTimePicker.SelectedDate);
+            };
+            editorControl = dateTimePicker;
         }
 
         fieldPanel.Children.Add(editorControl!);
@@ -562,8 +583,19 @@ public partial class PropertiesWindow : EditorWindow
             eulerValue.Z = val;
             field.SetValue(component, Math.EulerToQuaternion(eulerValue));
         });
+
+        MaterialIcon rotateTypeIcon = new MaterialIcon
+        {
+            Kind = MaterialIconKind.Pi,
+            Foreground = Brushes.LightGray,
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0)
+        };
+
         if (rotAttr.Degrees)
         {
+            rotateTypeIcon.Kind = MaterialIconKind.Rotate360;
             xBox.Increment = 5;
             yBox.Increment = 5;
             zBox.Increment = 5;
@@ -596,30 +628,7 @@ public partial class PropertiesWindow : EditorWindow
             Margin = new Thickness(2, 0, 2, 0)
         });
         eulerRotationPanel.Children.Add(zBox);
-
-        if (rotAttr.Degrees)
-        {
-            eulerRotationPanel.Children.Add(new MaterialIcon
-            {
-                Kind = MaterialIconKind.Rotate360,
-                Foreground = Brushes.LightGray,
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
-            });
-        }
-        else
-        {
-            eulerRotationPanel.Children.Add(new MaterialIcon
-            {
-                Kind = MaterialIconKind.Pi,
-                Foreground = Brushes.LightGray,
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
-            });
-        }
-
+        eulerRotationPanel.Children.Add(rotateTypeIcon);
         return eulerRotationPanel;
     }
 }
