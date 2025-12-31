@@ -1,4 +1,4 @@
-﻿namespace DivisionEngine.Components.SDFs
+﻿namespace DivisionEngine.Components.SDFs.Primitives
 {
     /// <summary>
     /// Represents a SDF sphere.

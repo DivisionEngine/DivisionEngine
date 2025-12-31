@@ -1,14 +1,14 @@
-﻿namespace DivisionEngine.Components.SDFs
+﻿namespace DivisionEngine.Components.SDFs.Primitives
 {
     /// <summary>
-    /// Represents a capsule SDF.
+    /// Represents a cylinder SDF.
     /// </summary>
-    public class SDFCapsule : IComponent
+    public class SDFCylinder : IComponent
     {
         /// <summary>
-        /// Capsule with radius of 1.0 and height of 3.0.
+        /// Cylinder with radius 1.0 and height 3.0.
         /// </summary>
-        public SDFCapsule()
+        public SDFCylinder()
         {
             height = 3f;
             radius = 1f;
