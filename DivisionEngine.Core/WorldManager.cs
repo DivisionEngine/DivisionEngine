@@ -30,7 +30,7 @@ namespace DivisionEngine
             uint cameraEntity = newDefaultWorld.CreateEntity("Camera");
             newDefaultWorld.AddComponent(cameraEntity, new Transform
             {
-                position = new float3(0, 0, 7)
+                position = new float3(0, 0, 7),
             });
             newDefaultWorld.AddComponent(cameraEntity, new Camera());
             newDefaultWorld.AddComponent(cameraEntity, new Player());
@@ -41,33 +41,42 @@ namespace DivisionEngine
             uint sphereEntity = newDefaultWorld.CreateTransformEntity("Sphere");
             newDefaultWorld.AddComponent(sphereEntity, new SDFSphere
             {
-                color = ColorPalette.Khaki,
-                radius = 3f
+                radius = 3f,
+            });
+            newDefaultWorld.AddComponent(sphereEntity, new SDFMaterial
+            {
+                albedoColor = ColorPalette.Khaki,
             });
             newDefaultWorld.AddComponent(sphereEntity, new SoftShadows());
 
             uint roundedBoxEntity = newDefaultWorld.CreateEntity("Rounded Box");
             newDefaultWorld.AddComponent(roundedBoxEntity, new Transform
             {
-                position = new float3(0, -4, 0)
+                position = new float3(0, -4, 0),
             });
             newDefaultWorld.AddComponent(roundedBoxEntity, new SDFRoundedBox
             {
-                color = ColorPalette.DeepSkyBlue,
                 size = new float3(20f, 2f, 20f),
-                bevel = 0.25f
+                bevel = 0.25f,
+            });
+            newDefaultWorld.AddComponent(roundedBoxEntity, new SDFMaterial
+            {
+                albedoColor = ColorPalette.DeepSkyBlue,
             });
             newDefaultWorld.AddComponent(roundedBoxEntity, new SoftShadows());
 
             uint boxEntity = newDefaultWorld.CreateEntity("Box");
             newDefaultWorld.AddComponent(boxEntity, new Transform
             {
-                position = new float3(3, 2, 3)
+                position = new float3(3, 2, 3),
             });
             newDefaultWorld.AddComponent(boxEntity, new SDFBox
             {
-                color = ColorPalette.Crimson,
-                size = new float3(1f, 2f, 1f)
+                size = new float3(1f, 2f, 1f),
+            });
+            newDefaultWorld.AddComponent(boxEntity, new SDFMaterial
+            {
+                albedoColor = ColorPalette.Crimson,
             });
             newDefaultWorld.AddComponent(boxEntity, new SoftShadows());
 

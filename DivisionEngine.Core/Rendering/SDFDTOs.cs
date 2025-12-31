@@ -29,8 +29,12 @@ namespace DivisionEngine.Rendering
         public float3 position; // 12b
         public float4 rotation; // 16b
         public float3 scaling; // 12b
-        public float4 color; // 16b
         public float4 parameters; // 16b
+
+        // Material Properties
+        public float4 color; // 16b
+        public float metallic; // 4b
+        public float roughness; // 4b
 
         // Effects
         public float2 shadowDistances; // 8b

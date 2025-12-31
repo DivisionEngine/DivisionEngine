@@ -431,6 +431,12 @@ namespace DivisionEngine
             }
         }
 
+        /// <summary>
+        /// Queries the world to find entities with component types and returns the component data.
+        /// </summary>
+        /// <typeparam name="T1">First type of component to search for</typeparam>
+        /// <typeparam name="T2">Second type of component to search for</typeparam>
+        /// <returns>Tuple of (entityId, T1 component, T2 component)</returns>
         public IEnumerable<(uint, T1, T2)> QueryData<T1, T2>()
             where T1 : IComponent where T2 : IComponent
         {
@@ -442,6 +448,18 @@ namespace DivisionEngine
             }
         }
 
+        /// <summary>
+        /// Queries all entities that have components of the specified types and returns their identifiers along with
+        /// the associated component instances.
+        /// </summary>
+        /// <remarks>The returned sequence includes only entities that have all three specified component
+        /// types. The order of the results is not guaranteed.</remarks>
+        /// <typeparam name="T1">The type of the first component to query. Must implement <see cref="IComponent"/>.</typeparam>
+        /// <typeparam name="T2">The type of the second component to query. Must implement <see cref="IComponent"/>.</typeparam>
+        /// <typeparam name="T3">The type of the third component to query. Must implement <see cref="IComponent"/>.</typeparam>
+        /// <returns>An enumerable collection of tuples, each containing the entity identifier and the corresponding instances of
+        /// <typeparamref name="T1"/>, <typeparamref name="T2"/>, and <typeparamref name="T3"/> for entities that
+        /// possess all specified components.</returns>
         public IEnumerable<(uint, T1, T2, T3)> QueryData<T1, T2, T3>()
             where T1 : IComponent where T2 : IComponent where T3 : IComponent
         {
@@ -454,6 +472,17 @@ namespace DivisionEngine
             }
         }
 
+        /// <summary>
+        /// Returns an enumerable collection of entity IDs and their associated components matching the specified
+        /// component types.
+        /// </summary>
+        /// <remarks>The order of components in the returned array matches the order of the specified
+        /// component types. This method performs a query for entities that have all the requested component types and
+        /// yields their IDs along with the corresponding components.</remarks>
+        /// <param name="componentTypes">An array of component types to query for. Each entity in the result will have all of these component types
+        /// present. Cannot be null or contain null elements.</param>
+        /// <returns>An enumerable sequence of tuples, each containing the entity ID and an array of components corresponding to
+        /// the specified types. The sequence is empty if no entities match the query.</returns>
         public IEnumerable<(uint, IComponent[])> QueryData(params Type[] componentTypes)
         {
             foreach (uint entityId in Query(componentTypes))

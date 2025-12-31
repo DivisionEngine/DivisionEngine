@@ -106,7 +106,14 @@ namespace DivisionEngine.Systems
                     rotation = transform.rotation,
                     scaling = transform.scaling,
                 };
-                
+
+                // Material
+                if (W.HasComponent<SDFMaterial>(id))
+                {
+                    SDFMaterial mat = W.GetComponent<SDFMaterial>(id)!;
+                    curPrimitive.color = mat.albedoColor;
+                }
+
                 // Effects
                 if (W.HasComponent<SoftShadows>(id))
                 {
@@ -133,63 +140,54 @@ namespace DivisionEngine.Systems
                 {
                     SDFSphere sphere = W.GetComponent<SDFSphere>(id)!;
                     curPrimitive.type = 0; // Sphere type
-                    curPrimitive.color = sphere.color;
                     curPrimitive.parameters = new float4(sphere.radius, 0f, 0f, 0f);
                 }
                 if (W.HasComponent<SDFBox>(id)) // Check box primitive
                 {
                     SDFBox box = W.GetComponent<SDFBox>(id)!;
                     curPrimitive.type = 1; // Box type
-                    curPrimitive.color = box.color;
                     curPrimitive.parameters = new float4(box.size.X, box.size.Y, box.size.Z, 0f);
                 }
                 if (W.HasComponent<SDFRoundedBox>(id)) // Check rounded box primitive
                 {
                     SDFRoundedBox roundedBox = W.GetComponent<SDFRoundedBox>(id)!;
                     curPrimitive.type = 2; // Rounded box type
-                    curPrimitive.color = roundedBox.color;
                     curPrimitive.parameters = new float4(roundedBox.size.X, roundedBox.size.Y, roundedBox.size.Z, roundedBox.bevel);
                 }
                 if (W.HasComponent<SDFTorus>(id)) // Check torus primitive
                 {
                     SDFTorus torus = W.GetComponent<SDFTorus>(id)!;
                     curPrimitive.type = 3; // Torus type
-                    curPrimitive.color = torus.color;
                     curPrimitive.parameters = new float4(torus.wholeRadius, torus.ringRadius, 0f, 0f);
                 }
                 if (W.HasComponent<SDFPyramid>(id)) // Check pyramid primitive
                 {
                     SDFPyramid pyramid = W.GetComponent<SDFPyramid>(id)!;
                     curPrimitive.type = 4; // Pyramid type
-                    curPrimitive.color = pyramid.color;
                     curPrimitive.parameters = new float4(pyramid.height, 0f, 0f, 0f);
                 }
                 if (W.HasComponent<SDFPlane>(id)) // Check plane primitive
                 {
                     SDFPlane plane = W.GetComponent<SDFPlane>(id)!;
                     curPrimitive.type = 5; // Plane type
-                    curPrimitive.color = plane.color;
                     curPrimitive.parameters = new float4(plane.normal.X, plane.normal.Y, plane.normal.Z, plane.h);
                 }
                 if (W.HasComponent<SDFCylinder>(id)) // Check cylinder primitive
                 {
                     SDFCylinder cylinder = W.GetComponent<SDFCylinder>(id)!;
                     curPrimitive.type = 6; // Cylinder type
-                    curPrimitive.color = cylinder.color;
                     curPrimitive.parameters = new float4(cylinder.radius, cylinder.height, 0f, 0f);
                 }
                 if (W.HasComponent<SDFCapsule>(id)) // Check capsule primitive
                 {
                     SDFCapsule capsule = W.GetComponent<SDFCapsule>(id)!;
                     curPrimitive.type = 7; // Capsule type
-                    curPrimitive.color = capsule.color;
                     curPrimitive.parameters = new float4(capsule.radius, capsule.height, 0f, 0f);
                 }
                 if (W.HasComponent<SDFCone>(id)) // Check cone primitive
                 {
                     SDFCone cone = W.GetComponent<SDFCone>(id)!;
                     curPrimitive.type = 8; // Cone type
-                    curPrimitive.color = cone.color;
                     curPrimitive.parameters = new float4(cone.cone.X, cone.cone.Y, cone.height, 0f);
                 }
 
