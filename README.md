@@ -15,8 +15,10 @@ Picture this:
 - ECS backend, fast data handling
 - Convenient editor tooling
 
-Editor Mockup (*Preview*):
+### Editor Preview Screenshots:
 <img width="1919" height="1032" alt="Screenshot 2025-12-01 163210" src="https://github.com/user-attachments/assets/01b89a41-aa90-4db8-871c-c42fd6083751" />
+
+<img width="1909" height="1033" alt="Screenshot 2025-12-23 200053" src="https://github.com/user-attachments/assets/675f88bc-c275-40bc-8b11-a787e3b5c86f" />
 
 ## What Are SDFs?
 
