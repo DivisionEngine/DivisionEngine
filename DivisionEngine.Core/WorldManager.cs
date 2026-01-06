@@ -1,6 +1,7 @@
 ﻿using DivisionEngine.Components;
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
+using DivisionEngine.Components.SDFs.Primitives;
 using DivisionEngine.MathLib;
 using Environment = DivisionEngine.Components.Environment;
 

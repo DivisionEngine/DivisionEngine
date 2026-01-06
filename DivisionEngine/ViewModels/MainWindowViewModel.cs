@@ -6,6 +6,7 @@ using DivisionEngine.Projects;
 using ReactiveUI;
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -216,8 +217,11 @@ namespace DivisionEngine.Editor.ViewModels
         [RelayCommand]
         private void About()
         {
-            Debug.Info("About Help Triggered");
-            // Implement About Help functionality here
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/DivisionEngine/DivisionEngine",
+                UseShellExecute = true,
+            });
         }
 
         /// <summary>
