@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using DivisionEngine.Editor.Systems;
+using DivisionEngine.Rendering;
 using System.Collections.Generic;
 
 namespace DivisionEngine.Editor;
@@ -17,7 +18,7 @@ public partial class EnvironmentWindow : EditorWindow
     private readonly DockPanel mainPanel;
     public readonly Panel renderVisualizerFrame;
     private readonly StackPanel headerPanel;
-    private readonly TextBlock headerText;
+    private readonly ComboBox debugMode;
 
     //public Panel RenderVisualizerFrame => renderVisualizerFrame;
 
@@ -28,7 +29,7 @@ public partial class EnvironmentWindow : EditorWindow
         // Create main dock panel
         mainPanel = new DockPanel
         {
-            Background = Brushes.Transparent
+            Background = Brushes.Transparent,
         };
         headerPanel = new StackPanel
         {
@@ -37,25 +38,39 @@ public partial class EnvironmentWindow : EditorWindow
             Height = 25,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        headerText = new TextBlock
+        TextBlock debugModeText = new TextBlock
         {
-            Text = "Environment tools area",
+            Text = "Debug Mode",
             FontSize = 12,
             FontWeight = FontWeight.Regular,
-            Foreground = Brushes.White,
+            Foreground = EditorColor.FromRGB(128, 128, 128),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(4, 0, 4, 0)
+            Margin = new Thickness(4, 2, 4, 2),
         };
+        debugMode = new ComboBox
+        {
+            ItemsSource = new[] { "None", "Depth", "World Normals" },
+            SelectedIndex = 0,
+            FontSize = 12,
+            FontWeight = FontWeight.Regular,
+            BorderThickness = new Thickness(0),
+            Background = EditorColor.FromRGB(17, 17, 17),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(4, 2, 4, 2),
+        };
+        debugMode.SelectionChanged += DebugMode_SelectionChanged;
 
         // Add controls to header
-        headerPanel.Children.Add(headerText);
+        headerPanel.Children.Add(debugModeText);
+        headerPanel.Children.Add(debugMode);
         DockPanel.SetDock(headerPanel, Dock.Top);
         mainPanel.Children.Add(headerPanel);
         Border separator = new Border
         {
             Background = EditorColor.FromRGB(68, 68, 68),
-            Height = 1
+            Height = 1,
         };
         DockPanel.SetDock(separator, Dock.Top);
         mainPanel.Children.Add(separator);
@@ -70,12 +85,12 @@ public partial class EnvironmentWindow : EditorWindow
                     FontSize = 14,
                     FontWeight = FontWeight.Light,
                     VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Center
+                    HorizontalAlignment = HorizontalAlignment.Center,
                 }
             },
             Background = EditorColor.FromRGB(12, 12, 12),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch
+            VerticalAlignment = VerticalAlignment.Stretch,
         };
         mainPanel.Children.Add(renderVisualizerFrame);
 
@@ -86,11 +101,11 @@ public partial class EnvironmentWindow : EditorWindow
         currentWindows.Add(this);
     }
 
-    /// <summary>
-    /// Updates the window title/header text.
-    /// </summary>
-    /// <param name="text">New header text</param>
-    public void SetHeaderText(string text) => headerText.Text = text;
+    private void DebugMode_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        RenderPipeline.DebugMode mode = (RenderPipeline.DebugMode)debugMode.SelectedIndex;
+        if (App.Renderer != null) App.Renderer!.debugMode = mode;
+    }
 
     /// <summary>
     /// Sets the render frame size.

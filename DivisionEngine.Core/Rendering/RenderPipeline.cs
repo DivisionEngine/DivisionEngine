@@ -14,6 +14,11 @@ namespace DivisionEngine.Rendering
     /// </summary>
     public class RenderPipeline
     {
+        public enum DebugMode
+        {
+            None = 0, Depth = 1, WorldNormals = 2,
+        }
+
         // Special variables
         public readonly Lock SyncLock = new Lock(); // Synchronization lock for thread safety
         private bool closeWindowWithCloseEvent = true;
@@ -21,12 +26,13 @@ namespace DivisionEngine.Rendering
         // OpenGL variables
         private GL? gl;
         private GraphicsDevice? device; // Graphics device for ComputeSharp operations
-        private uint glTexture, shaderProgram;
+        private uint glTexture, glShaderProgram;
 
         // Rendering variables
         public IWindow? RendererWindow;
         public bool InputReady { get; private set; } = false; // Indicates if the renderer is ready to process input
         public event Action? Close; // Event to handle window close actions
+        public DebugMode debugMode = DebugMode.None; // Current debug mode, if any
 
         /// <summary>
         /// Stops the renderer window from running.
@@ -144,7 +150,7 @@ namespace DivisionEngine.Rendering
             device = GraphicsDevice.GetDefault();
 
             Debug.Info("Renderer: Compiling OpenGL Shader Program");
-            shaderProgram = CompileShaders();
+            glShaderProgram = CompileShaders();
             gl!.GenVertexArrays(1, out uint vao);
             gl.BindVertexArray(vao); // Bind the Vertex Array Object (VAO)
             Debug.Info("Renderer: VAO Bound");
@@ -220,8 +226,16 @@ namespace DivisionEngine.Rendering
                 SDFShader3D shader = new SDFShader3D(renderTex, depthNormalsTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
                 device?.For(texWidth, texHeight, shader);
 
-                renderTex?.CopyTo(pixels!);
                 depthNormalsTex?.CopyTo(depthNormalPixels!); // In the future only activate when debugging or in use for effects
+                lock (SyncLock)
+                {
+                    if (debugMode != DebugMode.None)
+                    {
+                        SDFDebug3D debugShader = new SDFDebug3D(renderTex!, depthNormalsTex!, (int)debugMode); // Call debug visulization shader
+                        device?.For(texWidth, texHeight, debugShader);
+                    }
+                }
+                renderTex?.CopyTo(pixels!); // Copy rendered result to CPU
             }
             catch (ObjectDisposedException ex)
             {
@@ -248,7 +262,7 @@ namespace DivisionEngine.Rendering
             // Push compute texture to openGL rendered quad (via Silk.Net)
             unsafe
             {
-                fixed (float4* dataPtr = depthNormalPixels) // This should be set to whatever debug mode is currently active
+                fixed (float4* dataPtr = pixels) // This should be set to whatever debug mode is currently active
                 {
                     gl!.BindTexture(TextureTarget.Texture2D, glTexture);
                     gl.TexImage2D(
@@ -267,11 +281,11 @@ namespace DivisionEngine.Rendering
             gl.Viewport(0, 0, (uint)texWidth, (uint)texHeight);
             gl.ClearColor(0f, 0f, 0f, 1f);
             gl.Clear((uint)ClearBufferMask.ColorBufferBit);
-            gl.UseProgram(shaderProgram);
+            gl.UseProgram(glShaderProgram);
 
             gl.ActiveTexture(TextureUnit.Texture0);
             gl.BindTexture(TextureTarget.Texture2D, glTexture);
-            int loc = gl.GetUniformLocation(shaderProgram, "tex");
+            int loc = gl.GetUniformLocation(glShaderProgram, "tex");
             gl.Uniform1(loc, 0);
 
             gl.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
