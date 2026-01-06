@@ -264,7 +264,7 @@ namespace DivisionEngine
             int2 pixel = ThreadIds.XY; // Get pixel position
             texture[pixel] = new float4(0, 0, 0, 0); // Clear render texture
             depthNormals[pixel] = new float4(0, 0, 0, 0); // Clear depth and normal texture
-            objectIdBuffer[pixel.X * (int)width + pixel.Y] = -1; // Clear object ID buffer
+            objectIdBuffer[pixel.X + pixel.Y * (int)width] = -1; // Clear object ID buffer
 
             // Get uv coord
             float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
@@ -312,7 +312,7 @@ namespace DivisionEngine
 
                 // Update data buffers
                 outputNormal = normal;
-                objectIdBuffer[pixel.X * (int)width + pixel.Y] = closestObjIndex;
+                objectIdBuffer[pixel.X + pixel.Y * (int)width] = closestObjIndex;
 
                 float ambientLightAmt = 0.05f;
                 float diffuseLightAmt = NormalLighting(normal);

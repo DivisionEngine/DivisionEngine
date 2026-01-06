@@ -20,10 +20,10 @@ namespace DivisionEngine
         int width) : IComputeShader
     {
 
-        private float3 IntToColor(int id)
+        private float3 IntToColor(uint id)
         {
             // Mix the bits using prime numbers
-            uint hash = (uint)id;
+            uint hash = id;
             hash ^= hash >> 16;
             hash *= 0x85ebca6b;
             hash ^= hash >> 13;
@@ -51,7 +51,7 @@ namespace DivisionEngine
                 renderTex[pixel] = new float4(depthNormals[pixel].GBA, 1); // Output visual world normal buffer
             else if (debugMode == 3)
             {
-                float3 objColor = IntToColor(objectIdBuffer[pixel.X * width + pixel.Y]);
+                float3 objColor = IntToColor((uint)objectIdBuffer[pixel.X + pixel.Y * width]);
                 renderTex[pixel] = new float4(objColor, 1); // Output visual world normal buffer
             }
             else renderTex[pixel] = new float4(0, 0, 0, 1); // Default path --> clear output
