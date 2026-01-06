@@ -52,6 +52,8 @@ namespace DivisionEngine.Systems
                 worldData.cameraOrigin = transform.position;
                 worldData.cameraToWorld = camera.cameraToWorld;
                 worldData.cameraInverseProj = camera.inverseProjectionMatrix;
+                worldData.nearPlane = camera.nearClip;
+                worldData.farPlane = camera.farClip;
 
                 worldData.maxRaySteps = camera.maxRaySteps;
                 worldData.maxShadowRaySteps = camera.maxShadowRaySteps;

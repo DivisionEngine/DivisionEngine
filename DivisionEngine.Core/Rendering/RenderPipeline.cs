@@ -45,12 +45,16 @@ namespace DivisionEngine.Rendering
             return false;
         }
 
-        // Buffer storage
+        // Render texture storage
         private ReadWriteTexture2D<float4>? renderTex;
+        private ReadWriteTexture2D<float4>? depthNormalsTex;
+
+        // Buffer storage
         private ReadOnlyBuffer<SDFWorldDTO>? worldBuffer;
         private ReadOnlyBuffer<SDFPrimitiveObjectDTO>? primitivesBuffer;
         private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
         private float4[]? pixels;
+        private float4[]? depthNormalPixels;
 
         // World variables
         public float Time;
@@ -109,11 +113,13 @@ namespace DivisionEngine.Rendering
         {
             device?.Dispose();
             renderTex?.Dispose();
+            depthNormalsTex?.Dispose();
             worldBuffer?.Dispose();
             primitivesBuffer?.Dispose();
             lightsBuffer?.Dispose();
             device = null;
             renderTex = null;
+            depthNormalsTex = null;
             worldBuffer = null;
             primitivesBuffer = null;
             lightsBuffer = null;
@@ -183,12 +189,20 @@ namespace DivisionEngine.Rendering
 
             try
             {
-                // Build compute render texture
+                // Build render texture
                 if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight || pixels == null)
                 {
                     renderTex?.Dispose();
                     renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
                     pixels = new float4[texWidth * texHeight];
+                }
+
+                // Build depth and normal texture
+                if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || depthNormalPixels == null)
+                {
+                    depthNormalsTex?.Dispose();
+                    depthNormalsTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                    depthNormalPixels = new float4[texWidth * texHeight];
                 }
 
                 // Build and copy buffers
@@ -203,19 +217,23 @@ namespace DivisionEngine.Rendering
                 //if (lightsBuffer == null) return;
 
                 // Dispatch SDF compute shader
-                SDFShader3D shader = new SDFShader3D(renderTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
+                SDFShader3D shader = new SDFShader3D(renderTex, depthNormalsTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
                 device?.For(texWidth, texHeight, shader);
 
                 renderTex?.CopyTo(pixels!);
+                depthNormalsTex?.CopyTo(depthNormalPixels!); // In the future only activate when debugging or in use for effects
             }
             catch (ObjectDisposedException ex)
             {
                 Debug.Warning($"Renderer: Object disposed during rendering: {ex.Message}");
                 renderTex?.Dispose(); // Reinitialize buffers on next frame
+                depthNormalsTex?.Dispose();
                 worldBuffer?.Dispose();
                 primitivesBuffer?.Dispose();
                 lightsBuffer?.Dispose();
+                device = null;
                 renderTex = null;
+                depthNormalsTex = null;
                 worldBuffer = null;
                 primitivesBuffer = null;
                 lightsBuffer = null;
@@ -226,12 +244,11 @@ namespace DivisionEngine.Rendering
                 Debug.Error($"Renderer: Invalid operation during ComputeSharp execution: {ex.Message}");
                 return;
             }
-            //renderTex.Dispose(); // No longer need dispose because of "using" included in front of renderTex declaration
 
             // Push compute texture to openGL rendered quad (via Silk.Net)
             unsafe
             {
-                fixed (float4* dataPtr = pixels)
+                fixed (float4* dataPtr = depthNormalPixels) // This should be set to whatever debug mode is currently active
                 {
                     gl!.BindTexture(TextureTarget.Texture2D, glTexture);
                     gl.TexImage2D(

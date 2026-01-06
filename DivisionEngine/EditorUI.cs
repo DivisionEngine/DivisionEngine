@@ -24,7 +24,6 @@ namespace DivisionEngine.Editor
                 if (current is TabItem tabItem) return tabItem;
                 current = current.Parent as Control;
             }
-            Debug.Warning("Could not find parent tab control");
             return null;
         }
 

@@ -8,13 +8,12 @@ namespace DivisionEngine
     [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
     public readonly partial struct SDFShader3D(
         ReadWriteTexture2D<float4> texture,
+        ReadWriteTexture2D<float4> depthNormals,
         float width,
         float height,
         ReadOnlyBuffer<SDFWorldDTO> worldData,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
     {
-
-        const float MAX_RAYMARCH_DISTANCE = 10000.0f;
         const float EPSILON = 0.0001f;
         const float MIN_TRAVERSE_DIST = 100000000.0f;
         readonly float3 sunDir = new float3(0.5f, 0.8f, 0.3f);
@@ -162,7 +161,7 @@ namespace DivisionEngine
                     dist = CapsuleSDF(transformedPt, sdfPrimitives[i].parameters.X, sdfPrimitives[i].parameters.Y);
                 else if (sdfPrimitives[i].type == 8) // Adds cone SDFs
                     dist = ConeSDF(transformedPt, sdfPrimitives[i].parameters.XY, sdfPrimitives[i].parameters.Z);
-                else // Default sphere SDF
+                else // Default to sphere SDF
                     dist = SphereSDF(transformedPt, sdfPrimitives[i].parameters.X);
 
                 if (dist < minDist)
@@ -172,6 +171,7 @@ namespace DivisionEngine
                 }
             }
 
+            // Return packaged minimum SDF distance and closest object index
             return new float2(minDist, closest);
         }
 
@@ -262,6 +262,7 @@ namespace DivisionEngine
         {
             int2 pixel = ThreadIds.XY; // Get pixel position
             texture[pixel] = new float4(0, 0, 0, 0); // Clear render texture
+            depthNormals[pixel] = new float4(0, 0, 0, 0); // Clear depth and normal texture
 
             // Get uv coord
             float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
@@ -269,11 +270,15 @@ namespace DivisionEngine
             float3 rayDir = GetCameraRayDir(uv);
             float3 rayOrigin = worldData[0].cameraOrigin;
 
-            // SDF Raymarch Pass
-            float totalDist = 0.0f;
-            int closestObjIndex = -1;
-            float3 outputColor = worldData[0].backgroundColor.XYZ;
+            // SDF raymarch variables
+            float totalDist = worldData[0].nearPlane; // Start at near clip plane
+            float farClipPlane = worldData[0].farPlane;
+            int closestObjIndex = -1; // Clear initial object index
+            float3 outputColor = worldData[0].backgroundColor.XYZ; // Set output skybox color
             float3 hitPoint = rayOrigin;
+
+            // SDF depth and normal variables
+            float3 outputNormal = new float3(0, 0, 0);
 
             int maxSteps = worldData[0].maxRaySteps;
             for (int step = 0; step < maxSteps; step++)
@@ -294,7 +299,7 @@ namespace DivisionEngine
                 totalDist += worldDist;
 
                 // Ray missed all SDFs
-                if (totalDist > MAX_RAYMARCH_DISTANCE)
+                if (totalDist > farClipPlane)
                     break;
             }
 
@@ -302,6 +307,7 @@ namespace DivisionEngine
             {
                 // Calculate objectColor, lighting, normals, etc. eventually
                 float3 normal = FastNormal(hitPoint);
+                outputNormal = normal;
 
                 float ambientLightAmt = 0.05f;
                 float diffuseLightAmt = NormalLighting(normal);
@@ -319,6 +325,7 @@ namespace DivisionEngine
             }
 
             texture[pixel] = new float4(outputColor, 1.0f);
+            depthNormals[pixel] = new float4(totalDist / (farClipPlane - worldData[0].nearPlane), outputNormal);
         }
     }
 }

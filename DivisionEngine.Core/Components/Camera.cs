@@ -8,12 +8,12 @@ namespace DivisionEngine.Components
     public class Camera : IComponent
     {
         /// <summary>
-        /// Creates a camera with Fov = 70, max ray steps = 256.
+        /// Creates a camera with Fov = 75, max ray steps = 256.
         /// </summary>
         public Camera()
         {
-            fov = 70f;
-            nearClip = 0.1f;
+            fov = 75f;
+            nearClip = 0.01f;
             farClip = 10000f;
 
             viewMatrix = Matrix.Identity4x4;
