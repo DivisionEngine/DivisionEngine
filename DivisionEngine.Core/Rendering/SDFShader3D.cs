@@ -7,10 +7,11 @@ namespace DivisionEngine
     [GeneratedComputeShaderDescriptor]
     [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
     public readonly partial struct SDFShader3D(
-        ReadWriteTexture2D<float4> texture,
-        ReadWriteTexture2D<float4> depthNormals,
         float width,
         float height,
+        ReadWriteTexture2D<float4> texture,
+        ReadWriteTexture2D<float4> depthNormals,
+        ReadWriteBuffer<int> objectIdBuffer,
         ReadOnlyBuffer<SDFWorldDTO> worldData,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
     {
@@ -263,6 +264,7 @@ namespace DivisionEngine
             int2 pixel = ThreadIds.XY; // Get pixel position
             texture[pixel] = new float4(0, 0, 0, 0); // Clear render texture
             depthNormals[pixel] = new float4(0, 0, 0, 0); // Clear depth and normal texture
+            objectIdBuffer[pixel.X * (int)width + pixel.Y] = -1; // Clear object ID buffer
 
             // Get uv coord
             float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
@@ -307,7 +309,10 @@ namespace DivisionEngine
             {
                 // Calculate objectColor, lighting, normals, etc. eventually
                 float3 normal = FastNormal(hitPoint);
+
+                // Update data buffers
                 outputNormal = normal;
+                objectIdBuffer[pixel.X * (int)width + pixel.Y] = closestObjIndex;
 
                 float ambientLightAmt = 0.05f;
                 float diffuseLightAmt = NormalLighting(normal);

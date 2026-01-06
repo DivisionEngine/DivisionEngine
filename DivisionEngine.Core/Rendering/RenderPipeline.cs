@@ -16,7 +16,7 @@ namespace DivisionEngine.Rendering
     {
         public enum DebugMode
         {
-            None = 0, Depth = 1, WorldNormals = 2,
+            None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3,
         }
 
         // Special variables
@@ -54,6 +54,7 @@ namespace DivisionEngine.Rendering
         // Render texture storage
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadWriteTexture2D<float4>? depthNormalsTex;
+        private ReadWriteBuffer<int>? objectIdBuffer;
 
         // Buffer storage
         private ReadOnlyBuffer<SDFWorldDTO>? worldBuffer;
@@ -61,6 +62,7 @@ namespace DivisionEngine.Rendering
         private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
         private float4[]? pixels;
         private float4[]? depthNormalPixels;
+        private int[]? objectIDs;
 
         // World variables
         public float Time;
@@ -120,12 +122,14 @@ namespace DivisionEngine.Rendering
             device?.Dispose();
             renderTex?.Dispose();
             depthNormalsTex?.Dispose();
+            objectIdBuffer?.Dispose();
             worldBuffer?.Dispose();
             primitivesBuffer?.Dispose();
             lightsBuffer?.Dispose();
             device = null;
             renderTex = null;
             depthNormalsTex = null;
+            objectIdBuffer = null;
             worldBuffer = null;
             primitivesBuffer = null;
             lightsBuffer = null;
@@ -211,6 +215,14 @@ namespace DivisionEngine.Rendering
                     depthNormalPixels = new float4[texWidth * texHeight];
                 }
 
+                // Build objectIdBuffer
+                if (objectIdBuffer == null || objectIdBuffer.Length != (texWidth * texHeight) || objectIDs == null)
+                {
+                    objectIdBuffer?.Dispose();
+                    objectIdBuffer = device!.AllocateReadWriteBuffer<int>(texWidth * texHeight);
+                    objectIDs = new int[texWidth * texHeight];
+                }
+
                 // Build and copy buffers
                 worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
                 worldBuffer.CopyFrom([worldDTO]);
@@ -223,16 +235,18 @@ namespace DivisionEngine.Rendering
                 //if (lightsBuffer == null) return;
 
                 // Dispatch SDF compute shader
-                SDFShader3D shader = new SDFShader3D(renderTex, depthNormalsTex, texWidth, texHeight, worldBuffer, primitivesBuffer);
+                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, renderTex, depthNormalsTex, objectIdBuffer, worldBuffer, primitivesBuffer);
                 device?.For(texWidth, texHeight, shader);
 
                 depthNormalsTex?.CopyTo(depthNormalPixels!); // In the future only activate when debugging or in use for effects
+                objectIdBuffer?.CopyTo(objectIDs!); // In the future only activate when debugging or in use for effects
                 lock (SyncLock)
                 {
-                    if (debugMode != DebugMode.None)
+                    if (debugMode != DebugMode.None && renderTex != null && depthNormalsTex != null && objectIdBuffer != null)
                     {
-                        SDFDebug3D debugShader = new SDFDebug3D(renderTex!, depthNormalsTex!, (int)debugMode); // Call debug visulization shader
-                        device?.For(texWidth, texHeight, debugShader);
+                        SDFDebug3D debugShader = new SDFDebug3D(renderTex, depthNormalsTex, objectIdBuffer,
+                            (int)debugMode, texWidth);
+                        device?.For(texWidth, texHeight, debugShader); // Call debug visulization shader
                     }
                 }
                 renderTex?.CopyTo(pixels!); // Copy rendered result to CPU
@@ -242,12 +256,14 @@ namespace DivisionEngine.Rendering
                 Debug.Warning($"Renderer: Object disposed during rendering: {ex.Message}");
                 renderTex?.Dispose(); // Reinitialize buffers on next frame
                 depthNormalsTex?.Dispose();
+                objectIdBuffer?.Dispose();
                 worldBuffer?.Dispose();
                 primitivesBuffer?.Dispose();
                 lightsBuffer?.Dispose();
                 device = null;
                 renderTex = null;
                 depthNormalsTex = null;
+                objectIdBuffer = null;
                 worldBuffer = null;
                 primitivesBuffer = null;
                 lightsBuffer = null;

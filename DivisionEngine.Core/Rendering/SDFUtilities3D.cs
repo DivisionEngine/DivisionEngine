@@ -15,8 +15,29 @@ namespace DivisionEngine
     public readonly partial struct SDFDebug3D(
         ReadWriteTexture2D<float4> renderTex,
         ReadWriteTexture2D<float4> depthNormals,
-        int debugMode) : IComputeShader
+        ReadWriteBuffer<int> objectIdBuffer,
+        int debugMode,
+        int width) : IComputeShader
     {
+
+        private float3 IntToColor(int id)
+        {
+            // Mix the bits using prime numbers
+            uint hash = (uint)id;
+            hash ^= hash >> 16;
+            hash *= 0x85ebca6b;
+            hash ^= hash >> 13;
+            hash *= 0xc2b2ae35;
+            hash ^= hash >> 16;
+
+            // Convert to float in [0,1] range
+            float r = (hash & 0xFF) / 255.0f;
+            float g = ((hash >> 8) & 0xFF) / 255.0f;
+            float b = ((hash >> 16) & 0xFF) / 255.0f;
+
+            // Ensure minimum brightness and saturation
+            return Hlsl.Max(new float3(r, g, b), 0.2f);
+        }
 
         public void Execute()
         {
@@ -28,6 +49,11 @@ namespace DivisionEngine
             }
             else if (debugMode == 2)
                 renderTex[pixel] = new float4(depthNormals[pixel].GBA, 1); // Output visual world normal buffer
+            else if (debugMode == 3)
+            {
+                float3 objColor = IntToColor(objectIdBuffer[pixel.X * width + pixel.Y]);
+                renderTex[pixel] = new float4(objColor, 1); // Output visual world normal buffer
+            }
             else renderTex[pixel] = new float4(0, 0, 0, 1); // Default path --> clear output
         }
     }
