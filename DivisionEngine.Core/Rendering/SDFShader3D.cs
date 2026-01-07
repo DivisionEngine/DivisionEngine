@@ -1,5 +1,6 @@
 ﻿using ComputeSharp;
 using DivisionEngine.Rendering;
+using Silk.NET.OpenGL;
 
 #pragma warning disable CA1416 // Validate platform compatibility
 namespace DivisionEngine
@@ -188,12 +189,6 @@ namespace DivisionEngine
             return Hlsl.Normalize(n);
         }
 
-        // Calculates the lighting amount based on a normal vector
-        private float NormalLighting(float3 normal)
-        {
-            return Hlsl.Clamp(Hlsl.Dot(Hlsl.Normalize(sunDir), normal), 0, 1);
-        }
-
         // Calculates shadows
         // Adapted: https://www.shadertoy.com/view/lsKcDD
         private float SoftShadow(float3 rayOrigin, float3 rayDir, float minDist, float maxDist)
@@ -251,38 +246,116 @@ namespace DivisionEngine
             return 0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res);
         }
 
-        private float3 GetMaterialColor(int objIndex)
-        {
-            if (objIndex < 0 || objIndex > sdfPrimitives.Length)
-                return new float3(0.0f, 0.0f, 0.0f);
-
-            return sdfPrimitives[objIndex].color.XYZ;
-        }
-
         // PBR functions: https://chat.deepseek.com/share/bbtq3pqgcx353c6yqw
         // Fresnel reflectance (Schlick's approximation)
-        private float FresnelSchlick(float cosTheta, float f0)
+        private float3 FresnelSchlickRGB(float cosTheta, float3 f0)
         {
-            return f0 + (1.0f - f0) * Hlsl.Pow(1.0f - cosTheta, 5.0f);
-        }
-
-        // Calculate base reflectance F0 based on material properties
-        private float CalculateF0(float metallic, float specular, float3 albedo)
-        {
-            // Metals use albedo as F0, dielectrics use specular
-            return Hlsl.Lerp(0.04f * specular, Hlsl.Max(Hlsl.Max(albedo.X, albedo.Y), albedo.Z), metallic);
+            return f0 + (new float3(1f, 1f, 1f) - f0) * Hlsl.Pow(1.0f - cosTheta, 5.0f);
         }
 
         // Get material F0 for Fresnel calculations
-        private float GetMaterialF0(int objIndex)
+        private float3 GetMaterialF0(int objIndex)
         {
             float metallic = sdfPrimitives[objIndex].metallic;
             float specular = sdfPrimitives[objIndex].specular;
             float3 albedo = sdfPrimitives[objIndex].color.XYZ;
 
-            return CalculateF0(metallic, specular, albedo);
+            float dielectricF0 = 0.04f * specular;
+            return Hlsl.Lerp(new float3(dielectricF0, dielectricF0, dielectricF0), albedo, metallic); 
         }
 
+        // Reference: https://chat.deepseek.com/share/qk6oisykt5bop6h9hn
+        // GGX/Towbridge-Reitz normal distribution function (D term)
+        private float GGX_Distribution(float NdotH, float roughness)
+        {
+            float a2 = roughness * roughness;
+            a2 = a2 * a2; // roughness^4 for perceptually linear roughness
+            float denom = NdotH * NdotH * (a2 - 1.0f) + 1.0f;
+            return a2 / (3.14159265f * denom * denom);
+        }
+
+        // Schlick-GGX geometry function (G term) with Smith's method
+        private float GGX_Geometry(float NdotV, float roughness)
+        {
+            float r = roughness + 1.0f;
+            float k = r * r / 8.0f; // Direct lighting
+            float denom = NdotV * (1.0f - k) + k;
+            return NdotV / denom;
+        }
+
+        // Cook-Torrance specular BRDF
+        private float3 CookTorranceSpecular(float3 normal, float3 viewDir, float3 lightDir, float3 halfwayDir, float roughness, float3 fresnelRGB)
+        {
+            float NdotV = Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f);
+            float NdotL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
+            float NdotH = Hlsl.Max(Hlsl.Dot(normal, halfwayDir), 0f);
+            //float VdotH = Hlsl.Max(Hlsl.Dot(viewDir, halfwayDir), 0f);
+
+            // Early exit if surface is backfacing
+            if (NdotL <= 0.0f || NdotV <= 0.0f)
+                return float3.Zero;
+
+            float D = GGX_Distribution(NdotH, roughness); // Distribution
+            float G = GGX_Geometry(NdotV, roughness) * GGX_Geometry(NdotL, roughness); // Geometry
+
+            // Cook-Torrance specular BRDF
+            return D * G * fresnelRGB / Hlsl.Max(4.0f * NdotV * NdotL, EPSILON);
+        }
+
+        /*// Adapted from: https://github.com/pboechat/cook_torrance/blob/master/application/shaders/cook_torrance_colored.fs.glsl
+        private float3 CookTorrance(float3 materialDiffuseColor,
+            float3 materialSpecularColor,
+            float3 normal,
+            float3 lightDir,
+            float3 viewDir,
+            float3 lightColor,
+            float roughness,
+            float f0)
+        {
+            float NdotL = Hlsl.Max(0, Hlsl.Dot(normal, lightDir));
+            float Rs = 0.0f;
+            if (NdotL > 0)
+            {
+                float3 H = Hlsl.Normalize(lightDir + viewDir);
+                float NdotH = Hlsl.Max(0, Hlsl.Dot(normal, H));
+                float NdotV = Hlsl.Max(0, Hlsl.Dot(normal, viewDir));
+                float VdotH = Hlsl.Max(0, Hlsl.Dot(lightDir, H));
+
+                // Fresnel reflectance
+                float F = Hlsl.Pow(1.0f - VdotH, 5.0f);
+                F *= 1.0f - f0;
+                F += f0;
+
+                // Microfacet distribution by Beckmann
+                float m_squared = roughness * roughness;
+                float r1 = 1.0f / (4.0f * m_squared * Hlsl.Pow(NdotH, 4.0f));
+                float r2 = (NdotH * NdotH - 1.0f) / (m_squared * NdotH * NdotH);
+                float D = r1 * Hlsl.Exp(r2);
+
+                // Geometric shadowing
+                float two_NdotH = 2.0f * NdotH;
+                float g1 = two_NdotH * NdotV / VdotH;
+                float g2 = two_NdotH * NdotL / VdotH;
+                float G = Hlsl.Min(1.0f, Hlsl.Min(g1, g2));
+
+                Rs = (F * D * G) / (3.1415926f * NdotL * NdotV);
+            }
+            return materialDiffuseColor * lightColor * NdotL + lightColor * materialSpecularColor * Rs;
+        }*/
+
+        private float3 DebugBRDF(float3 N, float3 V, float3 L, float3 H, float roughness, float3 F0)
+        {
+            float NdotV = Hlsl.Max(Hlsl.Dot(N, V), 0.0f);
+            float NdotL = Hlsl.Max(Hlsl.Dot(N, L), 0.0f);
+            float NdotH = Hlsl.Max(Hlsl.Dot(N, H), 0.0f);
+
+            float D = GGX_Distribution(NdotH, roughness);
+            float G = GGX_Geometry(NdotV, roughness) * GGX_Geometry(NdotL, roughness);
+            float3 F = FresnelSchlickRGB(Hlsl.Max(Hlsl.Dot(V, H), 0.0f), F0);
+
+            // Return RGB with: R = D, G = G, B = average(F)
+            return new float3(D, G, (F.X + F.Y + F.Z) / 3.0f);
+        }
         public void Execute()
         {
             int2 pixel = ThreadIds.XY; // Get pixel position
@@ -333,27 +406,66 @@ namespace DivisionEngine
             {
                 // Calculate objectColor, lighting, normals, etc. eventually
                 float3 normal = FastNormal(hitPoint);
+                float3 viewDir = -rayDir;
 
                 // Update data buffers
                 outputNormal = normal;
                 objectIdBuffer[pixel.X + pixel.Y * (int)width] = closestObjIndex;
 
-                float ambientLightAmt = 0.05f;
-                float diffuseLightAmt = NormalLighting(normal);
-                float shadowAmt = 1.0f;
+                // Get material
+                float3 albedoColor = sdfPrimitives[closestObjIndex].color.RGB;
+                float metallic = sdfPrimitives[closestObjIndex].metallic;
+                float roughness = sdfPrimitives[closestObjIndex].roughness;
+                //float ior = sdfPrimitives[closestObjIndex].ior;
+                float3 F0 = GetMaterialF0(closestObjIndex);
 
+                // Default light values
+                float ambientLightAmt = 0.15f;
+                float lightAngle = 0.25f;
+
+                // Light vectors
+                float3 lightDir = Hlsl.Normalize(sunDir);
+                float3 halfVec = Hlsl.Normalize(viewDir + lightDir);
+
+                // Fresnel
+                float VdotH = Hlsl.Max(Hlsl.Dot(viewDir, halfVec), 0f);
+                float3 fresnel = FresnelSchlickRGB(VdotH, F0);
+
+                // Specular term
+                float3 specular = CookTorranceSpecular(normal, viewDir, lightDir, halfVec, roughness, F0);
+
+                // Shadows
+                float shadowAmt = 1f;
                 float3 shadowOrigin = hitPoint + normal * EPSILON;
-
                 float2 shadowDistances = sdfPrimitives[closestObjIndex].shadowDistances;
                 if (sdfPrimitives[closestObjIndex].shadowEffects.Y)
-                    shadowAmt = SoftShadow2(shadowOrigin, Hlsl.Normalize(sunDir), shadowDistances.X, shadowDistances.Y, 0.25f);
+                    shadowAmt = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, lightAngle);
 
-                float3 materialColor = GetMaterialColor(closestObjIndex);
+                // Dot products
+                //float NdotV = Hlsl.Max(Hlsl.Dot(normal, viewDir), 0.0f);
+                float NdotL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0.0f);
 
-                outputColor = materialColor * (ambientLightAmt + diffuseLightAmt * shadowAmt);
+                // Multiple scattering compensation (for rough surfaces)
+                float3 energyCompensation = 1f + roughness * (1f - metallic);
+                specular *= energyCompensation;
+
+                // Diffuse term
+                float3 diffuse = float3.Zero;
+                if (metallic < 0.99f) // Energy conservation
+                {
+                    float3 kD = (new float3(1f, 1f, 1f) - fresnel) * (1f - metallic);
+                    diffuse = kD * albedoColor / 3.14159265f;
+                }
+
+                // Lighting
+                float3 directLighting = (diffuse + specular) * NdotL * shadowAmt;
+                float3 ambient = albedoColor * ambientLightAmt * (1f - metallic);
+
+                // Final color (NO extra kD multiplication!)
+                outputColor = ambient + directLighting;
             }
 
-            texture[pixel] = new float4(outputColor, 1.0f);
+            texture[pixel] = new float4(outputColor, 1f);
             depthNormals[pixel] = new float4(totalDist / (farClipPlane - worldData[0].nearPlane), outputNormal);
         }
     }

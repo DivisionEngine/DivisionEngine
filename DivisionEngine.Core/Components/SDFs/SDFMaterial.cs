@@ -12,7 +12,7 @@ namespace DivisionEngine.Components.SDFs
         {
             albedoColor = ColorPalette.White;
             metallic = 0f;
-            roughness = 1f;
+            roughness = 0.5f;
             specular = 0.5f;
             ior = 1.0f;
         }

@@ -115,6 +115,10 @@ namespace DivisionEngine.Systems
                 {
                     SDFMaterial mat = W.GetComponent<SDFMaterial>(id)!;
                     curPrimitive.color = mat.albedoColor;
+                    curPrimitive.metallic = mat.metallic;
+                    curPrimitive.roughness = mat.roughness;
+                    curPrimitive.specular = mat.specular;
+                    curPrimitive.ior = mat.ior;
                 }
 
                 // Effects
