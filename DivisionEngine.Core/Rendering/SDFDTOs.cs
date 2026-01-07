@@ -39,6 +39,7 @@ namespace DivisionEngine.Rendering
         public float roughness; // 4b
         public float specular; // 4b
         public float ior; // 4b
+        public float ao; // 4b
 
         // Effect Properties
         public float2 shadowDistances; // 8b

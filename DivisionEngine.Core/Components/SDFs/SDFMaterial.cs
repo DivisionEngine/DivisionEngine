@@ -9,7 +9,7 @@ namespace DivisionEngine.Components.SDFs
     public class SDFMaterial : IComponent
     {
         /// <summary>
-        /// White material with metallic = 0, roughness = 0.5, specular = 0.5, and ior = 1.
+        /// White material with metallic = 0, roughness = 0.5, specular = 0.5, ior = 1, and ao = 0.
         /// </summary>
         public SDFMaterial()
         {
@@ -17,13 +17,15 @@ namespace DivisionEngine.Components.SDFs
             metallic = 0f;
             roughness = 0.5f;
             specular = 0.5f;
-            ior = 1.0f;
+            indexOfRefraction = 1.0f;
+            ambientOcclusion = 0f;
         }
 
         [Color(false)] public float4 albedoColor;
         public float metallic;
         public float roughness;
         public float specular;
-        public float ior;
+        public float indexOfRefraction;
+        public float ambientOcclusion;
     }
 }

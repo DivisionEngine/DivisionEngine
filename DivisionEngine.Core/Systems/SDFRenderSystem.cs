@@ -118,7 +118,8 @@ namespace DivisionEngine.Systems
                     curPrimitive.metallic = mat.metallic;
                     curPrimitive.roughness = mat.roughness;
                     curPrimitive.specular = mat.specular;
-                    curPrimitive.ior = mat.ior;
+                    curPrimitive.ior = mat.indexOfRefraction;
+                    curPrimitive.ao = mat.ambientOcclusion;
                 }
 
                 // Effects
@@ -139,7 +140,6 @@ namespace DivisionEngine.Systems
                     Refractions refract = W.GetComponent<Refractions>(id)!;
                     curPrimitive.hasRefraction = true;
                     curPrimitive.refractionMaxSteps = refract.maxRaySteps;
-                    curPrimitive.ior = refract.indexOfRefraction;
                 }
 
                 // Primitives

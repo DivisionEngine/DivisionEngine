@@ -456,7 +456,8 @@ namespace DivisionEngine
                 float3 albedoColor = sdfPrimitives[closestObjIndex].color.RGB;
                 float metallic = sdfPrimitives[closestObjIndex].metallic;
                 float roughness = sdfPrimitives[closestObjIndex].roughness;
-                //float ior = sdfPrimitives[closestObjIndex].ior;
+                float ior = sdfPrimitives[closestObjIndex].ior;
+                float ao = sdfPrimitives[closestObjIndex].ao;
                 float3 F0 = GetMaterialF0(closestObjIndex);
 
                 // Default light values
@@ -499,13 +500,17 @@ namespace DivisionEngine
 
                 // Lighting
                 float3 directLighting = (diffuse + specular) * NdotL * shadowAmt;
-                float3 ambient = albedoColor * ambientLightAmt * (1f - metallic);
+                float aoAmt = Hlsl.Lerp(1f, stepCost, ao); // fix this in the future
+                float3 ambient = albedoColor * ambientLightAmt * (1f - metallic) * aoAmt;
 
                 // Final color (NO extra kD multiplication!)
                 outputColor = ambient + directLighting;
+                
+                // Debug shadows
+                if (outputMode == 2) outputColor = new float3(shadowAmt, shadowAmt, shadowAmt);
             }
 
-            if (outputMode == 1) outputColor = new float3(stepCost, stepCost, stepCost);
+            if (outputMode == 1) outputColor = new float3(stepCost, stepCost, stepCost); // Debug ray steps
             texture[pixel] = new float4(outputColor, 1f);
             depthNormals[pixel] = new float4(totalDist / (farClipPlane - worldData[0].nearPlane), outputNormal);
         }

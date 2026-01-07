@@ -16,7 +16,7 @@ namespace DivisionEngine.Rendering
     {
         public enum DebugMode
         {
-            None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3, RaySteps = 4
+            None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3, RaySteps = 4, Shadows = 5
         }
 
         // Special variables
@@ -152,6 +152,7 @@ namespace DivisionEngine.Rendering
 
             // Load graphics device
             device = GraphicsDevice.GetDefault();
+            device.DeviceLost += Device_DeviceLost;
 
             Debug.Info("Renderer: Compiling OpenGL Shader Program");
             glShaderProgram = CompileShaders();
@@ -160,6 +161,16 @@ namespace DivisionEngine.Rendering
             Debug.Info("Renderer: VAO Bound");
 
             InputReady = true; // Set input ready to true after OpenGL context is initialized
+        }
+
+        /// <summary>
+        /// Debug and attempt to rebuild on device lost.
+        /// </summary>
+        private void Device_DeviceLost(object? sender, DeviceLostEventArgs e)
+        {
+            Debug.Error($"Renderer: Graphics Device Lost!\nCause: {e.Reason}");
+            try { device = GraphicsDevice.GetDefault(); }
+            catch(Exception ex) { Debug.Error($"Renderer: Could not get default graphics device: {ex.Message}"); }
         }
 
         /// <summary>
