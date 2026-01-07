@@ -48,7 +48,7 @@ public partial class EnvironmentWindow : EditorWindow
         };
         debugMode = new ComboBox
         {
-            ItemsSource = new[] { "None", "Depth", "World Normals", "Object ID", "Ray Steps", "Shadows" },
+            ItemsSource = new[] { "None", "Depth", "World Normals", "Object ID", "Ray Steps", "Shadows", "BRDF" },
             SelectedIndex = 0,
             FontSize = 12,
             FontWeight = FontWeight.Regular,

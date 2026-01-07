@@ -232,19 +232,20 @@ namespace DivisionEngine
 
         // New soft-shadow technique:
         // Reference: https://iquilezles.org/articles/rmshadows/
-        private float SoftShadow2(float3 rayOrigin, float3 rayDir, float mint, float maxt, float lightAngle)
+        private float2 SoftShadow2(float3 rayOrigin, float3 rayDir, float mint, float maxt, float lightAngle)
         {
             float res = 1.0f;
             float t = mint;
+            float2 h = new float2(0, 0);
             for (int i = 0; i < worldData[0].maxShadowRaySteps && t < maxt; i++)
             {
-                float h = WorldSDF(rayOrigin + t * rayDir, true).X;
-                res = Hlsl.Min(res, h / (lightAngle * t));
-                t += Hlsl.Clamp(h, 0.005f, 0.50f);
+                h = WorldSDF(rayOrigin + t * rayDir, true);
+                res = Hlsl.Min(res, h.X / (lightAngle * t));
+                t += Hlsl.Clamp(h.X, 0.005f, 0.50f);
                 if (res < -1.0f || t > maxt) break;
             }
             res = Hlsl.Max(res, -1.0f);
-            return 0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res);
+            return new float2(0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res), h.Y);
         }
 
         // PBR functions: https://chat.deepseek.com/share/bbtq3pqgcx353c6yqw
@@ -476,11 +477,11 @@ namespace DivisionEngine
                 float3 specular = CookTorranceSpecular(normal, viewDir, lightDir, halfVec, roughness, F0);
 
                 // Shadows
-                float shadowAmt = 1f;
+                float2 shadowValues = new float2(1f, 0f);
                 float3 shadowOrigin = hitPoint + normal * EPSILON;
                 float2 shadowDistances = sdfPrimitives[closestObjIndex].shadowDistances;
                 if (sdfPrimitives[closestObjIndex].shadowEffects.Y)
-                    shadowAmt = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, lightAngle);
+                    shadowValues = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, lightAngle);
 
                 // Dot products
                 //float NdotV = Hlsl.Max(Hlsl.Dot(normal, viewDir), 0.0f);
@@ -499,7 +500,7 @@ namespace DivisionEngine
                 }
 
                 // Lighting
-                float3 directLighting = (diffuse + specular) * NdotL * shadowAmt;
+                float3 directLighting = (diffuse + specular) * NdotL * shadowValues.X;
                 float aoAmt = Hlsl.Lerp(1f, stepCost, ao); // fix this in the future
                 float3 ambient = albedoColor * ambientLightAmt * (1f - metallic) * aoAmt;
 
@@ -507,7 +508,8 @@ namespace DivisionEngine
                 outputColor = ambient + directLighting;
                 
                 // Debug shadows
-                if (outputMode == 2) outputColor = new float3(shadowAmt, shadowAmt, shadowAmt);
+                if (outputMode == 2) outputColor = new float3(shadowValues.X, shadowValues.Y / sdfPrimitives.Length, 0f);
+                else if (outputMode == 3) outputColor = DebugBRDF(normal, viewDir, lightDir, halfVec, roughness, F0);
             }
 
             if (outputMode == 1) outputColor = new float3(stepCost, stepCost, stepCost); // Debug ray steps

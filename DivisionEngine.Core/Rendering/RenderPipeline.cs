@@ -16,7 +16,7 @@ namespace DivisionEngine.Rendering
     {
         public enum DebugMode
         {
-            None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3, RaySteps = 4, Shadows = 5
+            None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3, RaySteps = 4, Shadows = 5, BRDF = 6
         }
 
         // Special variables
