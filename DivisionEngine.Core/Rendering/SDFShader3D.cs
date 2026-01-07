@@ -10,6 +10,7 @@ namespace DivisionEngine
     public readonly partial struct SDFShader3D(
         float width,
         float height,
+        int outputMode,
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadWriteBuffer<int> objectIdBuffer,
@@ -356,6 +357,44 @@ namespace DivisionEngine
             // Return RGB with: R = D, G = G, B = average(F)
             return new float3(D, G, (F.X + F.Y + F.Z) / 3.0f);
         }
+
+        // Depth of Field section:
+        private float2 RandomPointOnDisk(uint seed, float2 pixel)
+        {
+            // Hash-based random (replace with your preferred method)
+            float r1 = Hlsl.Frac(Hlsl.Sin(seed * 12.9898f + pixel.X * 78.233f + pixel.Y * 37.719f) * 43758.5453f);
+            float r2 = Hlsl.Frac(Hlsl.Sin(seed * 4.2719f + pixel.X * 63.726f + pixel.Y * 19.357f) * 13758.5453f);
+
+            // Map to disk (uniform distribution)
+            float theta = r1 * 2.0f * 3.14159265f;
+            float radius = Hlsl.Sqrt(r2);
+
+            return new float2(Hlsl.Cos(theta), Hlsl.Sin(theta)) * radius;
+        }
+
+        private float3 GetCameraRayDirWithDOF(float2 uv, float3 cameraOrigin, float3 cameraForward,
+                                             float3 cameraRight, float3 cameraUp, float focusDistance,
+                                             float apertureSize, uint seed)
+        {
+            // Original ray direction (your existing method)
+            float3 rayDir = GetCameraRayDir(uv);
+
+            // If no DoF, return original
+            if (apertureSize < 0.001f)
+                return rayDir;
+
+            // Calculate focal point
+            float3 focalPoint = cameraOrigin + rayDir * focusDistance;
+
+            // Jitter ray origin on aperture disk
+            float2 diskUV = RandomPointOnDisk(seed, uv * 1000.0f);
+            float3 apertureOffset = (cameraRight * diskUV.X + cameraUp * diskUV.Y) * apertureSize;
+            float3 newRayOrigin = cameraOrigin + apertureOffset;
+
+            // New ray direction toward focal point
+            return Hlsl.Normalize(focalPoint - newRayOrigin);
+        }
+
         public void Execute()
         {
             int2 pixel = ThreadIds.XY; // Get pixel position
@@ -379,8 +418,8 @@ namespace DivisionEngine
             // SDF depth and normal variables
             float3 outputNormal = new float3(0, 0, 0);
 
-            int maxSteps = worldData[0].maxRaySteps;
-            for (int step = 0; step < maxSteps; step++)
+            int maxSteps = worldData[0].maxRaySteps, step;
+            for (step = 0; step < maxSteps; step++)
             {
                 // Accumulate ray position
                 hitPoint = rayOrigin + rayDir * totalDist;
@@ -401,6 +440,7 @@ namespace DivisionEngine
                 if (totalDist > farClipPlane)
                     break;
             }
+            float stepCost = step / (float)maxSteps;
 
             if (closestObjIndex > -1)
             {
@@ -443,7 +483,7 @@ namespace DivisionEngine
 
                 // Dot products
                 //float NdotV = Hlsl.Max(Hlsl.Dot(normal, viewDir), 0.0f);
-                float NdotL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0.0f);
+                float NdotL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
 
                 // Multiple scattering compensation (for rough surfaces)
                 float3 energyCompensation = 1f + roughness * (1f - metallic);
@@ -465,6 +505,7 @@ namespace DivisionEngine
                 outputColor = ambient + directLighting;
             }
 
+            if (outputMode == 1) outputColor = new float3(stepCost, stepCost, stepCost);
             texture[pixel] = new float4(outputColor, 1f);
             depthNormals[pixel] = new float4(totalDist / (farClipPlane - worldData[0].nearPlane), outputNormal);
         }

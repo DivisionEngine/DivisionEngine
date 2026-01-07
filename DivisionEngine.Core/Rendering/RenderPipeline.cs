@@ -16,7 +16,7 @@ namespace DivisionEngine.Rendering
     {
         public enum DebugMode
         {
-            None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3,
+            None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3, RaySteps = 4
         }
 
         // Special variables
@@ -235,14 +235,17 @@ namespace DivisionEngine.Rendering
                 //if (lightsBuffer == null) return;
 
                 // Dispatch SDF compute shader
-                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, renderTex, depthNormalsTex, objectIdBuffer, worldBuffer, primitivesBuffer);
+                int outputMode = 0;
+                if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
+                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode,
+                    renderTex, depthNormalsTex, objectIdBuffer, worldBuffer, primitivesBuffer);
                 device?.For(texWidth, texHeight, shader);
 
                 depthNormalsTex?.CopyTo(depthNormalPixels!); // In the future only activate when debugging or in use for effects
                 objectIdBuffer?.CopyTo(objectIDs!); // In the future only activate when debugging or in use for effects
                 lock (SyncLock)
                 {
-                    if (debugMode != DebugMode.None && renderTex != null && depthNormalsTex != null && objectIdBuffer != null)
+                    if ((int)debugMode > 0 && (int)debugMode < 4 && renderTex != null && depthNormalsTex != null && objectIdBuffer != null)
                     {
                         SDFDebug3D debugShader = new SDFDebug3D(renderTex, depthNormalsTex, objectIdBuffer,
                             (int)debugMode, texWidth);

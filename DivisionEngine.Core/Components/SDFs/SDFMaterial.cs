@@ -8,6 +8,9 @@ namespace DivisionEngine.Components.SDFs
     /// </summary>
     public class SDFMaterial : IComponent
     {
+        /// <summary>
+        /// White material with metallic = 0, roughness = 0.5, specular = 0.5, and ior = 1.
+        /// </summary>
         public SDFMaterial()
         {
             albedoColor = ColorPalette.White;

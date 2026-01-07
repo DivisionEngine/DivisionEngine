@@ -20,8 +20,6 @@ public partial class EnvironmentWindow : EditorWindow
     private readonly StackPanel headerPanel;
     private readonly ComboBox debugMode;
 
-    //public Panel RenderVisualizerFrame => renderVisualizerFrame;
-
     public EnvironmentWindow()
     {
         InitializeComponent();
@@ -50,7 +48,7 @@ public partial class EnvironmentWindow : EditorWindow
         };
         debugMode = new ComboBox
         {
-            ItemsSource = new[] { "None", "Depth", "World Normals", "Object ID" },
+            ItemsSource = new[] { "None", "Depth", "World Normals", "Object ID", "Ray Steps" },
             SelectedIndex = 0,
             FontSize = 12,
             FontWeight = FontWeight.Regular,
@@ -60,7 +58,7 @@ public partial class EnvironmentWindow : EditorWindow
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(4, 2, 4, 2),
         };
-        debugMode.SelectionChanged += DebugMode_SelectionChanged;
+        debugMode.SelectionChanged += (e, s) => UpdateRendererDebugMode();
 
         // Add controls to header
         headerPanel.Children.Add(debugModeText);
@@ -101,7 +99,22 @@ public partial class EnvironmentWindow : EditorWindow
         currentWindows.Add(this);
     }
 
-    private void DebugMode_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    /// <summary>
+    /// Syncs the environment window tool values to the renderer window.
+    /// </summary>
+    public static void SyncToolValuesToRenderer()
+    {
+        if (App.RendererVisible)
+        {
+            for (int i = 0; i < currentWindows.Count; i++)
+                currentWindows[i]?.UpdateRendererDebugMode();
+        }
+    }
+
+    /// <summary>
+    /// Updates the render window's debug mode.
+    /// </summary>
+    private void UpdateRendererDebugMode()
     {
         RenderPipeline.DebugMode mode = (RenderPipeline.DebugMode)debugMode.SelectedIndex;
         if (App.Renderer != null) App.Renderer!.debugMode = mode;

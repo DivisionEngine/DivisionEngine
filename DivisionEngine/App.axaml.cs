@@ -78,6 +78,7 @@ namespace DivisionEngine.Editor
                         Environment.Exit(0);
                     });
                 };
+                EnvironmentWindow.SyncToolValuesToRenderer(); // Sync tool values
 
                 // Silk.NET input handling
                 while (Renderer == null || Renderer!.RendererWindow == null)
