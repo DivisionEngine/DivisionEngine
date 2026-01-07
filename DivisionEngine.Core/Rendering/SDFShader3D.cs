@@ -259,6 +259,30 @@ namespace DivisionEngine
             return sdfPrimitives[objIndex].color.XYZ;
         }
 
+        // PBR functions: https://chat.deepseek.com/share/bbtq3pqgcx353c6yqw
+        // Fresnel reflectance (Schlick's approximation)
+        private float FresnelSchlick(float cosTheta, float f0)
+        {
+            return f0 + (1.0f - f0) * Hlsl.Pow(1.0f - cosTheta, 5.0f);
+        }
+
+        // Calculate base reflectance F0 based on material properties
+        private float CalculateF0(float metallic, float specular, float3 albedo)
+        {
+            // Metals use albedo as F0, dielectrics use specular
+            return Hlsl.Lerp(0.04f * specular, Hlsl.Max(Hlsl.Max(albedo.X, albedo.Y), albedo.Z), metallic);
+        }
+
+        // Get material F0 for Fresnel calculations
+        private float GetMaterialF0(int objIndex)
+        {
+            float metallic = sdfPrimitives[objIndex].metallic;
+            float specular = sdfPrimitives[objIndex].specular;
+            float3 albedo = sdfPrimitives[objIndex].color.XYZ;
+
+            return CalculateF0(metallic, specular, albedo);
+        }
+
         public void Execute()
         {
             int2 pixel = ThreadIds.XY; // Get pixel position

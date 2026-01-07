@@ -13,10 +13,14 @@ namespace DivisionEngine.Components.SDFs
             albedoColor = ColorPalette.White;
             metallic = 0f;
             roughness = 1f;
+            specular = 0.5f;
+            ior = 1.0f;
         }
 
         [Color(false)] public float4 albedoColor;
         public float metallic;
         public float roughness;
+        public float specular;
+        public float ior;
     }
 }

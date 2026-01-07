@@ -37,15 +37,16 @@ namespace DivisionEngine.Rendering
         public float4 color; // 16b
         public float metallic; // 4b
         public float roughness; // 4b
+        public float specular; // 4b
+        public float ior; // 4b
 
-        // Effects
+        // Effect Properties
         public float2 shadowDistances; // 8b
         public bool2 shadowEffects; // 8b
         public Bool hasReflection; // 4b - must use ComputeSharp.Bool type when in DTO
         public Bool hasRefraction; // 4b
         public int reflectionMaxSteps; // 4b
         public int refractionMaxSteps; // 4b
-        public float ior; // 4b
     }
 
     /// <summary>
