@@ -101,30 +101,38 @@ public class GameStartup
     /// <summary>
     /// Setup input handling for Silk.Net threaded render GL window.
     /// </summary>
-    private static void SilkNetInputSetup()
+    public static void SilkNetInputSetup()
     {
         lock (Renderer!.SyncLock)
         {
-            IInputContext? input = Renderer!.RendererWindow!.CreateInput();
-            foreach (var keyboard in input.Keyboards) // Keyboard handling
+            try
             {
-                keyboard.KeyDown += (kb, key, code) => UserInput!.SetKeyDown(PlayerInput.SilkNetToKeyCode(key));
-                keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(PlayerInput.SilkNetToKeyCode(key));
-            }
-
-            Vector2D<int> screenSizeInt = Renderer!.RendererWindow!.Size;
-            float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
-            foreach (var mouse in input.Mice) // Mouse handling
-            {
-                mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(PlayerInput.SilkNetToMouseCode(code));
-                mouse.MouseUp += (m, code) => UserInput!.SetMouseKeyUp(PlayerInput.SilkNetToMouseCode(code));
-
-                mouse.MouseMove += (m, pos) =>
+                IInputContext? input = Renderer!.RendererWindow!.CreateInput();
+                foreach (var keyboard in input.Keyboards) // Keyboard handling
                 {
-                    float2 posConverted = new float2(pos.X, pos.Y);
-                    UserInput!.SetMousePosition(posConverted);
-                    UserInput!.SetRelativeMousePosition(posConverted, screenSize);
-                };
+                    keyboard.KeyDown += (kb, key, code) => UserInput!.SetKeyDown(PlayerInput.SilkNetToKeyCode(key));
+                    keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(PlayerInput.SilkNetToKeyCode(key));
+                }
+
+                foreach (var mouse in input.Mice) // Mouse handling
+                {
+                    mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(PlayerInput.SilkNetToMouseCode(code));
+                    mouse.MouseUp += (m, code) => UserInput!.SetMouseKeyUp(PlayerInput.SilkNetToMouseCode(code));
+
+                    mouse.MouseMove += (m, pos) =>
+                    {
+                        float2 posConverted = new float2(pos.X, pos.Y);
+                        UserInput!.SetMousePosition(posConverted);
+
+                        Vector2D<int> screenSizeInt = Renderer!.RendererWindow!.Size;
+                        float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
+                        UserInput!.SetRelativeMousePosition(posConverted, screenSize);
+                    };
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                Debug.Warning($"Renderer already has input: {ex.Message}");
             }
         }
     }

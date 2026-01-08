@@ -185,8 +185,6 @@ namespace DivisionEngine.Editor
                         keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(EditorInput.SilkNetToKeyCode(key));
                     }
 
-                    Vector2D<int> screenSizeInt = Renderer!.RendererWindow!.Size;
-                    float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
                     foreach (var mouse in input.Mice) // Mouse handling
                     {
                         mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(EditorInput.SilkNetToMouseCode(code));
@@ -196,6 +194,9 @@ namespace DivisionEngine.Editor
                         {
                             float2 posConverted = new float2(pos.X, pos.Y);
                             UserInput!.SetMousePosition(posConverted);
+
+                            Vector2D<int> screenSizeInt = Renderer!.RendererWindow!.Size;
+                            float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
                             UserInput!.SetRelativeMousePosition(posConverted, screenSize);
                         };
                     }
