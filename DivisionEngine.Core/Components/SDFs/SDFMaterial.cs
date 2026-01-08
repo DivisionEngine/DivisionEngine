@@ -18,7 +18,7 @@ namespace DivisionEngine.Components.SDFs
             roughness = 0.5f;
             specular = 0.5f;
             indexOfRefraction = 1.0f;
-            ambientOcclusion = 0f;
+            ambientOcclusion = 0.3f;
         }
 
         [Color(false)] public float4 albedoColor;

@@ -128,6 +128,12 @@ namespace DivisionEngine
             return Hlsl.Length(pt) - r;
         }
 
+        /// <summary>
+        /// Calculates the SDF distance for the world at a point.
+        /// </summary>
+        /// <param name="point">World position to evaluate</param>
+        /// <param name="shadowCastCheck">Should the tracer verify shadow casters</param>
+        /// <returns>Float2 representing the min distance, and closest object</returns>
         private float2 WorldSDF(float3 point, bool shadowCastCheck)
         {
             float minDist = MIN_TRAVERSE_DIST;
@@ -230,20 +236,26 @@ namespace DivisionEngine
 
         // New soft-shadow technique:
         // Reference: https://iquilezles.org/articles/rmshadows/
-        private float2 SoftShadow2(float3 rayOrigin, float3 rayDir, float mint, float maxt, float lightAngle)
+        // New Version: https://www.shadertoy.com/view/tscSRS
+        private float2 SoftShadow2(float3 point, float3 dir, float start, float end)
         {
-            float res = 1.0f;
-            float t = mint;
-            float2 h = new float2(0, 0);
-            for (int i = 0; i < worldData[0].maxShadowRaySteps && t < maxt; i++)
+            float depth = start, dist;
+            float shadow = 1f;
+            float closestObj = -1;
+            for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
             {
-                h = WorldSDF(rayOrigin + t * rayDir, true);
-                res = Hlsl.Min(res, h.X / (lightAngle * t));
-                t += Hlsl.Clamp(h.X, 0.005f, 0.50f);
-                if (res < -1.0f || t > maxt) break;
+                float2 sdf = WorldSDF(point + depth * dir, true);
+                dist = sdf.X;
+                closestObj = sdf.Y;
+                if (depth > end || shadow < -1.0)
+                    break;
+
+                shadow = Hlsl.Min(shadow, 40f * dist / depth);
+                depth += Hlsl.Clamp(dist, 0.005f, 10f);
             }
-            res = Hlsl.Max(res, -1.0f);
-            return new float2(0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res), h.Y);
+
+            shadow = Hlsl.Max(shadow, -1f);
+            return new float2(Hlsl.SmoothStep(-1f, 0f, shadow), closestObj);
         }
 
         private float2 SoftShadowCambridge(float3 lightPos, float3 hitPoint, float renderDepth)
@@ -419,6 +431,66 @@ namespace DivisionEngine
             return Hlsl.Normalize(focalPoint - newRayOrigin);
         }
 
+        private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
+        {
+            // --- Configuration Parameters (consider moving to worldData) ---
+            const float AO_RADIUS = 1f;  // World-space sampling radius. Tune per scene!
+            const float AO_POWER = 1.5f;   // Controls contrast
+            float occlusion = 0.0f;
+            float weightSum = 0.0f;
+            float randomSeed = Hlsl.Frac(Hlsl.Sin((float)(pixel.X * 12.9898f + pixel.Y * 78.233f + frame * 37.719f)) * 43758.5453f);
+            float stepSize = AO_RADIUS / 8.0f; // Adaptive step can be better
+
+            for (int i = 0; i < 16; i++)
+            {
+                float3 randDir = GetRandomHemisphereDirection(i, 16, randomSeed, n);
+                float3 rayOrigin = p + n * EPSILON;
+                float rayDepth = 0.0f;
+                float localOcclusion = 0.0f;
+
+                for (int j = 0; j < 8; j++)
+                {
+                    float distanceToScene = WorldSDF(rayOrigin + randDir * rayDepth, false).X;
+                    if (distanceToScene < EPSILON)
+                    {
+                        localOcclusion = Hlsl.Max(localOcclusion, 1f - (rayDepth / AO_RADIUS));
+                        break;
+                    }
+                    rayDepth += Hlsl.Max(stepSize, distanceToScene);
+                    if (rayDepth >= AO_RADIUS) break;
+                }
+
+                float weight = Hlsl.Max(Hlsl.Dot(n, randDir), 0f);
+                occlusion += localOcclusion * weight;
+                weightSum += weight;
+            }
+
+            occlusion = weightSum > 0f ? occlusion / weightSum : 0f;
+            return Hlsl.Pow(Hlsl.Saturate(1f - occlusion * AO_POWER), 1f);
+        }
+
+        private float3 GetRandomHemisphereDirection(int sampleIndex, int sampleCount, float randomSeed, float3 normal)
+        {
+            // Create a random angle and height using pseudo-random sequences
+            float goldenRatio = 1.61803398875f;
+            float phi = 2.0f * 3.14159265f * (sampleIndex * goldenRatio + randomSeed) / sampleCount;
+            float cosTheta = Hlsl.Sqrt((float)(sampleIndex + 0.5f) / sampleCount); // Cosine-weighted distribution
+            float sinTheta = Hlsl.Sqrt(1.0f - cosTheta * cosTheta);
+
+            // Create a direction in a local tangent space (Z-up)
+            float3 localDir = new float3(Hlsl.Cos(phi) * sinTheta, Hlsl.Sin(phi) * sinTheta, cosTheta);
+
+            // Align local Z-axis with the surface normal
+            float3 tangent = Hlsl.Normalize(Hlsl.Cross(new float3(0.0f, 1.0f, 0.0f), normal));
+            if (Hlsl.Abs(Hlsl.Dot(tangent, tangent)) < 0.001f) // Handle near-vertical normals
+                tangent = Hlsl.Normalize(Hlsl.Cross(new float3(1.0f, 0.0f, 0.0f), normal));
+            float3 bitangent = Hlsl.Cross(normal, tangent);
+
+            // Transform local direction to world space
+            float3 worldDir = tangent * localDir.X + bitangent * localDir.Y + normal * localDir.Z;
+            return Hlsl.Normalize(worldDir);
+        }
+
         /// <summary>
         /// Actually performs the main raymarching calculations.
         /// </summary>
@@ -481,7 +553,6 @@ namespace DivisionEngine
 
                 // Default light values
                 float ambientLightAmt = 0.15f;
-                float lightAngle = 0.25f;
 
                 // Light vectors
                 float3 lightDir = Hlsl.Normalize(sunDir);
@@ -499,7 +570,7 @@ namespace DivisionEngine
                 float3 shadowOrigin = hitPoint + normal * EPSILON;
                 float2 shadowDistances = sdfPrimitives[closestObjIndex].shadowDistances;
                 if (sdfPrimitives[closestObjIndex].shadowEffects.Y)
-                    shadowValues = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, lightAngle);
+                    shadowValues = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
                     //shadowValues = SoftShadowCambridge(shadowOrigin, lightDir * 100000f, shadowDistances.Y);
 
                 // Dot products
@@ -518,10 +589,23 @@ namespace DivisionEngine
                     diffuse = kD * albedoColor / 3.14159265f;
                 }
 
+                // Ambient occlusion
+                float aoAmt = 1f;
+                /*if (ao > 0.001f)
+                {
+                    float3 aoPoint = hitPoint + normal * EPSILON;
+                    float stepDist = 0.05f;
+
+                    aoAmt = CalculatePhysicallyBasedAO(pixel, aoPoint, normal);
+
+                    // Blend with material's AO strength
+                    aoAmt = Hlsl.Lerp(1f, aoAmt, ao);
+                    //aoAmt = Hlsl.Lerp(0f, aoAmt, 1f - Hlsl.Clamp(shadowValues.X, 0, 1));
+                }*/
+
                 // Lighting
                 float3 directLighting = (diffuse + specular) * NdotL * shadowValues.X;
-                float aoAmt = Hlsl.Lerp(1f, stepCost, ao); // fix this in the future
-                float3 ambient = albedoColor * ambientLightAmt * (1f - metallic) * aoAmt;
+                float3 ambient = albedoColor * ambientLightAmt * aoAmt * (1f - metallic);
 
                 // Final color (NO extra kD multiplication!)
                 outputColor = ambient + directLighting;
@@ -535,6 +619,9 @@ namespace DivisionEngine
             return outputColor;
         }
 
+        /// <summary>
+        /// Executes the raymarching sequence.
+        /// </summary>
         public void Execute()
         {
             int2 pixel = ThreadIds.XY; // Get pixel position
@@ -547,20 +634,28 @@ namespace DivisionEngine
             uv.X *= width / height;
 
             // Camera basis vectors (simplified - you may need proper extraction)
-            float3 cameraForward = Hlsl.Normalize(new float3(worldData[0].cameraToWorld.M13,
-                                                  worldData[0].cameraToWorld.M23,
-                                                  worldData[0].cameraToWorld.M33));
-            float3 cameraRight = Hlsl.Normalize(new float3(worldData[0].cameraToWorld.M11,
-                                                worldData[0].cameraToWorld.M21,
-                                                worldData[0].cameraToWorld.M31));
-            float3 cameraUp = Hlsl.Normalize(new float3(worldData[0].cameraToWorld.M12,
-                                             worldData[0].cameraToWorld.M22,
-                                             worldData[0].cameraToWorld.M32));
+            float3 cameraForward = Hlsl.Normalize(new float3(
+                worldData[0].cameraToWorld.M31,  // Row 3, Column 1 = forward.x
+                worldData[0].cameraToWorld.M32,  // Row 3, Column 2 = forward.y
+                worldData[0].cameraToWorld.M33   // Row 3, Column 3 = forward.z
+            ));
+
+            float3 cameraRight = Hlsl.Normalize(new float3(
+                worldData[0].cameraToWorld.M11,  // Row 1, Column 1 = right.x
+                worldData[0].cameraToWorld.M12,  // Row 1, Column 2 = right.y
+                worldData[0].cameraToWorld.M13   // Row 1, Column 3 = right.z
+            ));
+
+            float3 cameraUp = Hlsl.Normalize(new float3(
+                worldData[0].cameraToWorld.M21,  // Row 2, Column 1 = up.x
+                worldData[0].cameraToWorld.M22,  // Row 2, Column 2 = up.y
+                worldData[0].cameraToWorld.M23   // Row 2, Column 3 = up.z
+            ));
 
             float3 rayOrigin = worldData[0].cameraOrigin;
             float focusDistance = worldData[0].focusDistance;
             float apertureSize = worldData[0].apertureSize;
-            int dofSamples = worldData[0].dofSamples;
+            int dofSamples = Hlsl.Max(worldData[0].dofSamples, 1);
 
             // Accumulate color for multiple samples
             float3 accumulatedColor = float3.Zero;
@@ -570,14 +665,30 @@ namespace DivisionEngine
             for (int sample = 0; sample < dofSamples; sample++)
             {
                 // Unique seed per sample
-                uint seed = (uint)(pixel.X * 1973 + pixel.Y * 9277 + sample * 26699 + frame);
+                float2 pixelCoord = (float2)pixel + new float2(0.5f, 0.5f);
+                uint seed = (uint)(pixelCoord.X * 1973 + pixelCoord.Y * 9277 + sample * 26699 + (uint)frame);
 
-                // Get ray with DoF
-                float3 rayDir = GetCameraRayDirWithDOF(uv, rayOrigin, cameraForward,
-                                                      cameraRight, cameraUp, focusDistance,
-                                                      apertureSize, seed);
+                // Get original ray direction
+                float3 rayDir = GetCameraRayDir(uv);
 
-                // Raymarch and accumulated values
+                // Apply Depth of Field if enabled
+                if (apertureSize > 0.001f)
+                {
+                    // Calculate focal point on focus plane
+                    float3 focalPoint = rayOrigin + rayDir * focusDistance;
+
+                    // Jitter on aperture disk (scaled by focus distance)
+                    float2 diskUV = RandomPointOnDisk(seed, pixelCoord);
+                    float effectiveAperture = apertureSize * focusDistance * 0.1f; // Matches Shadertoy 0.02 scale
+
+                    float3 apertureOffset = (cameraRight * diskUV.X + cameraUp * diskUV.Y) * effectiveAperture;
+                    float3 newRayOrigin = rayOrigin + apertureOffset;
+
+                    // New direction toward focal point
+                    rayDir = Hlsl.Normalize(focalPoint - newRayOrigin);
+                }
+
+                // Trace ray
                 float3 color = TraceRay(pixel, rayOrigin, rayDir, out float3 outputNormal, out float totalDist);
                 accumulatedNormal += outputNormal;
                 accumulatedColor += color;
