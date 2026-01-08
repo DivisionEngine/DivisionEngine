@@ -80,10 +80,10 @@ namespace DivisionEngine.Editor
                 };
                 EnvironmentWindow.SyncToolValuesToRenderer(); // Sync tool values
 
-                // Silk.NET input handling
-                while (Renderer == null || Renderer!.RendererWindow == null)
+                // Silk.NET input handling (wait 0.5 seconds before initializing input to avoid null reference exception)
+                while (Renderer == null || Renderer.RendererWindow == null || Renderer.RendererWindow.Time < 0.5)
                     await Task.Delay(1); // Wait for the renderer to load
-                Renderer.RendererWindow.Load += SilkNetInputSetup;
+                SilkNetInputSetup();
             }
             else
             {
@@ -121,6 +121,7 @@ namespace DivisionEngine.Editor
 
                 // Start the SDFRenderer in a separate thread
                 _ = SetEditorRenderingAsync(true);
+                SetupInput(desktop);
 
                 // Close the renderer window when the application exits
                 desktop.Exit += (_, _) =>
@@ -208,7 +209,7 @@ namespace DivisionEngine.Editor
             }
         }
 
-        private void DisableAvaloniaDataAnnotationValidation()
+        private static void DisableAvaloniaDataAnnotationValidation()
         {
             // Get an array of plugins to remove
             DataAnnotationsValidationPlugin[]? dataValidationPluginsToRemove =
