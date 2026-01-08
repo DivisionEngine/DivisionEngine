@@ -144,31 +144,31 @@ namespace DivisionEngine
                 SDFPrimitiveObjectDTO curPrimitive = sdfPrimitives[i];
                 if (shadowCastCheck && !curPrimitive.shadowEffects.X) continue;
                 float3 scaling = curPrimitive.scaling;
-                point -= curPrimitive.position; // Transform SDF
-                point = RotateVector(point, curPrimitive.rotation); // Rotate SDF
-                point /= Hlsl.Max(scaling, new float3(EPSILON, EPSILON, EPSILON)); // Make sure not dividing by 0.
+                float3 curPoint = point - curPrimitive.position; // Transform SDF
+                curPoint = RotateVector(curPoint, curPrimitive.rotation); // Rotate SDF
+                curPoint /= Hlsl.Max(scaling, new float3(EPSILON, EPSILON, EPSILON)); // Make sure not dividing by 0.
 
                 float dist;
                 if (curPrimitive.type == 0) // Adds sphere SDFs
-                    dist = SphereSDF(point, curPrimitive.parameters.X);
+                    dist = SphereSDF(curPoint, curPrimitive.parameters.X);
                 else if (curPrimitive.type == 1) // Adds box SDFs
-                    dist = BoxSDF(point, curPrimitive.parameters.XYZ);
+                    dist = BoxSDF(curPoint, curPrimitive.parameters.XYZ);
                 else if (curPrimitive.type == 2) // Adds rounded box SDFs
-                    dist = RoundedBoxSDF(point, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
+                    dist = RoundedBoxSDF(curPoint, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
                 else if (curPrimitive.type == 3) // Adds torus SDFs
-                    dist = TorusSDF(point, curPrimitive.parameters.XY);
+                    dist = TorusSDF(curPoint, curPrimitive.parameters.XY);
                 else if (curPrimitive.type == 4) // Adds pyramid SDFs
-                    dist = PyramidSDF(point, curPrimitive.parameters.X);
+                    dist = PyramidSDF(curPoint, curPrimitive.parameters.X);
                 else if (curPrimitive.type == 5) // Adds plane SDFs
-                    dist = PlaneSDF(point, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
+                    dist = PlaneSDF(curPoint, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
                 else if (curPrimitive.type == 6) // Adds cylinder SDFs
-                    dist = CylinderSDF(point, curPrimitive.parameters.X, curPrimitive.parameters.Y);
+                    dist = CylinderSDF(curPoint, curPrimitive.parameters.X, curPrimitive.parameters.Y);
                 else if (curPrimitive.type == 7) // Adds capsule SDFs
-                    dist = CapsuleSDF(point, curPrimitive.parameters.X, curPrimitive.parameters.Y);
+                    dist = CapsuleSDF(curPoint, curPrimitive.parameters.X, curPrimitive.parameters.Y);
                 else if (curPrimitive.type == 8) // Adds cone SDFs
-                    dist = ConeSDF(point, curPrimitive.parameters.XY, curPrimitive.parameters.Z);
+                    dist = ConeSDF(curPoint, curPrimitive.parameters.XY, curPrimitive.parameters.Z);
                 else // Default to sphere SDF
-                    dist = SphereSDF(point, curPrimitive.parameters.X);
+                    dist = SphereSDF(curPoint, curPrimitive.parameters.X);
 
                 dist *= Hlsl.Min(scaling.X, Hlsl.Min(scaling.Y, scaling.Z));
                 if (Hlsl.Abs(dist) < minDist)
