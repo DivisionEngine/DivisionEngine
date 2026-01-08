@@ -18,21 +18,39 @@
     /// <param name="level">Log level</param>
     public class LogEntry(string message, LogLevel level)
     {
+        /// <summary>
+        /// Time log was created.
+        /// </summary>
         public DateTime Timestamp { get; } = DateTime.Now;
+
+        /// <summary>
+        /// Log message.
+        /// </summary>
         public string Message { get; } = message;
+
+        /// <summary>
+        /// Log level.
+        /// </summary>
         public LogLevel Level { get; } = level;
 
         /// <summary>
         /// Converts log entry to a string representation.
         /// </summary>
         /// <returns>Log entry string</returns>
-        public override string ToString()
-        {
-            return $"[{Level}] {Timestamp}: {Message}";
-        }
+        public override string ToString() => $"[{Level}] {Timestamp}: {Message}";
 
-        public override bool Equals(object? obj) => obj is LogEntry entry && entry.Message == Message;
-        public override int GetHashCode() => Message.GetHashCode();
+        /// <summary>
+        /// Compares two log entries to determine if they are equal.
+        /// </summary>
+        /// <param name="obj">Other log entry</param>
+        /// <returns>Whether both log entries are equal</returns>
+        public override bool Equals(object? obj) => obj is LogEntry entry && entry.Message == Message && entry.Level == Level;
+
+        /// <summary>
+        /// Gets the hash code of this log entry.
+        /// </summary>
+        /// <returns>Log entry hash code</returns>
+        public override int GetHashCode() => Message.GetHashCode() + Level.GetHashCode();
     }
 
     /// <summary>
@@ -108,9 +126,9 @@
         public static void ClearLogs() => instance.debugLog.Clear();
 
         /// <summary>
-        /// Removes a log at a specific index i.
+        /// Removes a specific log entry.
         /// </summary>
-        /// <param name="i">Index to remove log entry at</param>
-        public static void ClearLogAtIndex(int i) => instance.debugLog.RemoveAt(i);
+        /// <param name="e">Log entry to remove</param>
+        public static void ClearLog(LogEntry e) => instance.debugLog.Remove(e);
     }
 }

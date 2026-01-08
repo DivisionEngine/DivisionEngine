@@ -97,6 +97,7 @@ public partial class ConsoleWindow : EditorWindow
     private void Debug_OnLogUpdate(LogEntry obj) => Dispatcher.UIThread.Post(() => CreateLogEntry(obj, autoScroll));
     private void LoadAllCurrentLogs()
     {
+        logList.Children.Clear();
         foreach (LogEntry log in Debug.Logs)
             Dispatcher.UIThread.Post(() => CreateLogEntry(log, false));
     }
@@ -117,7 +118,7 @@ public partial class ConsoleWindow : EditorWindow
     /// </summary>
     /// <param name="log">Log entry to build</param>
     /// <returns>Log entry container element</returns>
-    private static Border CreateLogControl(LogEntry log)
+    private Border CreateLogControl(LogEntry log)
     {
         Border logBorder = new Border()
         {
@@ -173,7 +174,7 @@ public partial class ConsoleWindow : EditorWindow
         Grid.SetColumn(grid.Children[^1], 2);
 
         // Delete button
-        grid.Children.Add(new Button
+        Button deleteButton = new Button
         {
             Content = new MaterialIcon
             {
@@ -187,11 +188,19 @@ public partial class ConsoleWindow : EditorWindow
             Margin = new Thickness(4, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
-        });
+        };
+        deleteButton.Click += (e, s) => ClickDeleteButton(log);
+        grid.Children.Add(deleteButton);
         Grid.SetColumn(grid.Children[^1], 3);
 
         logBorder.Child = grid;
         return logBorder;
+    }
+
+    private void ClickDeleteButton(LogEntry logEntry)
+    {
+        Debug.ClearLog(logEntry);
+        LoadAllCurrentLogs();
     }
 
     private static IBrush GetLogColor(LogLevel level) => level switch

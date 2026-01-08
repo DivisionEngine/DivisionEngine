@@ -81,7 +81,7 @@ namespace DivisionEngine.Editor
                 EnvironmentWindow.SyncToolValuesToRenderer(); // Sync tool values
 
                 // Silk.NET input handling (wait 0.5 seconds before initializing input to avoid null reference exception)
-                while (Renderer == null || Renderer.RendererWindow == null || Renderer.RendererWindow.Time < 0.5)
+                while (Renderer == null || Renderer.RendererWindow == null || Renderer.RendererWindow.Time < 1.0)
                     await Task.Delay(1); // Wait for the renderer to load
                 SilkNetInputSetup();
             }
