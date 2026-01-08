@@ -55,6 +55,10 @@ namespace DivisionEngine.Systems
                 worldData.nearPlane = camera.nearClip;
                 worldData.farPlane = camera.farClip;
 
+                worldData.focusDistance = camera.focusDistance;
+                worldData.apertureSize = camera.apertureSize;
+                worldData.dofSamples = camera.depthOfFieldSamples;
+
                 worldData.maxRaySteps = camera.maxRaySteps;
                 worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
                 break; // Use first camera

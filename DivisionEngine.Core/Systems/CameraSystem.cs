@@ -36,7 +36,7 @@ namespace DivisionEngine.Systems
 
         private static float4x4 CalcCameraProjectionMatrix(Camera cam)
         {
-            float fovRad = Math.Deg2Rad * cam.fov;
+            float fovRad = Math.Deg2Rad * cam.fieldOfView;
             float tanHalfFov = Math.Tan(fovRad / 2f);
 
             float m1122 = 1f / tanHalfFov; // (usually 1f / (aspect * tanHalfFov)) but aspect ratio is in shader instead

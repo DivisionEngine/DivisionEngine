@@ -248,7 +248,7 @@ namespace DivisionEngine.Rendering
                 // Dispatch SDF compute shader
                 int outputMode = 0;
                 if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
-                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode,
+                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode, TimeSystem.FrameCount,
                     renderTex, depthNormalsTex, objectIdBuffer, worldBuffer, primitivesBuffer);
                 device?.For(texWidth, texHeight, shader);
 

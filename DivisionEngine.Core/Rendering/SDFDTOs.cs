@@ -19,6 +19,11 @@ namespace DivisionEngine.Rendering
         public int maxRaySteps; // 4b
         public int maxShadowRaySteps; // 4b
         public int maxRayBounces; // 4b - used for reflections and refractions
+
+        // DoF Properties
+        public float focusDistance;
+        public float apertureSize;
+        public int dofSamples;
     }
 
     /// <summary>

@@ -3,16 +3,16 @@
 namespace DivisionEngine.Components
 {
     /// <summary>
-    /// Camera component
+    /// Represents a camera in the world.
     /// </summary>
     public class Camera : IComponent
     {
         /// <summary>
-        /// Creates a camera with Fov = 75, max ray steps = 256.
+        /// Camera with Fov = 75, max ray steps = 256, DoF samples = 6, and focus dist = 10.
         /// </summary>
         public Camera()
         {
-            fov = 75f;
+            fieldOfView = 75f;
             nearClip = 0.01f;
             farClip = 10000f;
 
@@ -21,12 +21,16 @@ namespace DivisionEngine.Components
             cameraToWorld = Matrix.Identity4x4;
             inverseProjectionMatrix = Matrix.Identity4x4;
 
+            focusDistance = 10f;
+            apertureSize = 0.01f;
+            depthOfFieldSamples = 1;
+
             maxRaySteps = 256;
             maxShadowRaySteps = 128;
         }
 
         // Camera vars
-        public float fov;
+        public float fieldOfView;
         public float nearClip;
         public float farClip;
 
@@ -34,6 +38,11 @@ namespace DivisionEngine.Components
         public float4x4 projectionMatrix;
         public float4x4 cameraToWorld; // Inverse view matrix
         public float4x4 inverseProjectionMatrix;
+
+        // Depth of field vars
+        public float focusDistance;
+        public float apertureSize;
+        public int depthOfFieldSamples;
 
         // SDF rendering vars
         public int maxRaySteps;

@@ -1,6 +1,5 @@
 ﻿using ComputeSharp;
 using DivisionEngine.Rendering;
-using Silk.NET.OpenGL;
 
 #pragma warning disable CA1416 // Validate platform compatibility
 namespace DivisionEngine
@@ -11,6 +10,7 @@ namespace DivisionEngine
         float width,
         float height,
         int outputMode,
+        int frame,
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadWriteBuffer<int> objectIdBuffer,
@@ -56,13 +56,7 @@ namespace DivisionEngine
         }
 
         // Applies translation, rotation, and scaling to a point
-        private float3 ApplyTransforms(float3 pt, float3 position, float4 rotation, float3 scale)
-        {
-            float3 objPos = pt - position;
-            objPos = RotateVector(objPos, rotation);
-            objPos /= Hlsl.Max(scale, new float3(EPSILON, EPSILON, EPSILON)); // Make sure not dividing by 0.
-            return objPos;
-        }
+        
 
         private float SphereSDF(float3 pt, float r)
         {
@@ -139,35 +133,39 @@ namespace DivisionEngine
             float minDist = MIN_TRAVERSE_DIST;
 
             int closest = -1;
-            float3 transformedPt;
             for (int i = 0; i < sdfPrimitives.Length; i++)
             {
-                if (shadowCastCheck && !sdfPrimitives[i].shadowEffects.X) continue;
-                transformedPt = ApplyTransforms(point, sdfPrimitives[i].position, sdfPrimitives[i].rotation, sdfPrimitives[i].scaling);
+                SDFPrimitiveObjectDTO curPrimitive = sdfPrimitives[i];
+                if (shadowCastCheck && !curPrimitive.shadowEffects.X) continue;
+                float3 scaling = curPrimitive.scaling;
+                point -= curPrimitive.position; // Transform SDF
+                point = RotateVector(point, curPrimitive.rotation); // Rotate SDF
+                point /= Hlsl.Max(scaling, new float3(EPSILON, EPSILON, EPSILON)); // Make sure not dividing by 0.
 
                 float dist;
-                if (sdfPrimitives[i].type == 0) // Adds sphere SDFs
-                    dist = SphereSDF(transformedPt, sdfPrimitives[i].parameters.X);
-                else if (sdfPrimitives[i].type == 1) // Adds box SDFs
-                    dist = BoxSDF(transformedPt, sdfPrimitives[i].parameters.XYZ);
-                else if (sdfPrimitives[i].type == 2) // Adds rounded box SDFs
-                    dist = RoundedBoxSDF(transformedPt, sdfPrimitives[i].parameters.XYZ, sdfPrimitives[i].parameters.W);
-                else if (sdfPrimitives[i].type == 3) // Adds torus SDFs
-                    dist = TorusSDF(transformedPt, sdfPrimitives[i].parameters.XY);
-                else if (sdfPrimitives[i].type == 4) // Adds pyramid SDFs
-                    dist = PyramidSDF(transformedPt, sdfPrimitives[i].parameters.X);
-                else if (sdfPrimitives[i].type == 5) // Adds plane SDFs
-                    dist = PlaneSDF(transformedPt, sdfPrimitives[i].parameters.XYZ, sdfPrimitives[i].parameters.W);
-                else if (sdfPrimitives[i].type == 6) // Adds cylinder SDFs
-                    dist = CylinderSDF(transformedPt, sdfPrimitives[i].parameters.X, sdfPrimitives[i].parameters.Y);
-                else if (sdfPrimitives[i].type == 7) // Adds capsule SDFs
-                    dist = CapsuleSDF(transformedPt, sdfPrimitives[i].parameters.X, sdfPrimitives[i].parameters.Y);
-                else if (sdfPrimitives[i].type == 8) // Adds cone SDFs
-                    dist = ConeSDF(transformedPt, sdfPrimitives[i].parameters.XY, sdfPrimitives[i].parameters.Z);
+                if (curPrimitive.type == 0) // Adds sphere SDFs
+                    dist = SphereSDF(point, curPrimitive.parameters.X);
+                else if (curPrimitive.type == 1) // Adds box SDFs
+                    dist = BoxSDF(point, curPrimitive.parameters.XYZ);
+                else if (curPrimitive.type == 2) // Adds rounded box SDFs
+                    dist = RoundedBoxSDF(point, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
+                else if (curPrimitive.type == 3) // Adds torus SDFs
+                    dist = TorusSDF(point, curPrimitive.parameters.XY);
+                else if (curPrimitive.type == 4) // Adds pyramid SDFs
+                    dist = PyramidSDF(point, curPrimitive.parameters.X);
+                else if (curPrimitive.type == 5) // Adds plane SDFs
+                    dist = PlaneSDF(point, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
+                else if (curPrimitive.type == 6) // Adds cylinder SDFs
+                    dist = CylinderSDF(point, curPrimitive.parameters.X, curPrimitive.parameters.Y);
+                else if (curPrimitive.type == 7) // Adds capsule SDFs
+                    dist = CapsuleSDF(point, curPrimitive.parameters.X, curPrimitive.parameters.Y);
+                else if (curPrimitive.type == 8) // Adds cone SDFs
+                    dist = ConeSDF(point, curPrimitive.parameters.XY, curPrimitive.parameters.Z);
                 else // Default to sphere SDF
-                    dist = SphereSDF(transformedPt, sdfPrimitives[i].parameters.X);
+                    dist = SphereSDF(point, curPrimitive.parameters.X);
 
-                if (dist < minDist)
+                dist *= Hlsl.Min(scaling.X, Hlsl.Min(scaling.Y, scaling.Z));
+                if (Hlsl.Abs(dist) < minDist)
                 {
                     closest = i;
                     minDist = dist;
@@ -246,6 +244,31 @@ namespace DivisionEngine
             }
             res = Hlsl.Max(res, -1.0f);
             return new float2(0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res), h.Y);
+        }
+
+        private float2 SoftShadowCambridge(float3 lightPos, float3 hitPoint, float renderDepth)
+        {
+            float3 lightDir = Hlsl.Normalize(lightPos - hitPoint);
+            float kd = 1f;
+            float lastObj = -1;
+            int step = 0;
+            for (float t = 0.1f; t < Hlsl.Length(lightPos - hitPoint) && step < renderDepth && kd > 0.001f; )
+            {
+                float2 worldSDF = WorldSDF(hitPoint + t * lightDir, true);
+                lastObj = worldSDF.Y;
+                float d = Hlsl.Abs(worldSDF.X);
+                if (d < 0.001f)
+                {
+                    kd = 0;
+                }
+                else
+                {
+                    kd = Hlsl.Min(kd, 16 * d / t);
+                }
+                t += d;
+                step++;
+            }
+            return new float2(kd, lastObj);
         }
 
         // PBR functions: https://chat.deepseek.com/share/bbtq3pqgcx353c6yqw
@@ -396,28 +419,23 @@ namespace DivisionEngine
             return Hlsl.Normalize(focalPoint - newRayOrigin);
         }
 
-        public void Execute()
+        /// <summary>
+        /// Actually performs the main raymarching calculations.
+        /// </summary>
+        /// <param name="rayOrigin">Ray origin to start at</param>
+        /// <param name="rayDir">Ray direction to travel</param>
+        /// <returns>Output raymarch color, with effects</returns>
+        private float3 TraceRay(int2 pixel, float3 rayOrigin, float3 rayDir, out float3 outputNormal, out float totalDist)
         {
-            int2 pixel = ThreadIds.XY; // Get pixel position
-            texture[pixel] = new float4(0, 0, 0, 0); // Clear render texture
-            depthNormals[pixel] = new float4(0, 0, 0, 0); // Clear depth and normal texture
-            objectIdBuffer[pixel.X + pixel.Y * (int)width] = -1; // Clear object ID buffer
-
-            // Get uv coord
-            float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
-            uv.X *= width / height;
-            float3 rayDir = GetCameraRayDir(uv);
-            float3 rayOrigin = worldData[0].cameraOrigin;
+            // SDF depth and normal variables
+            outputNormal = new float3(0, 0, 0);
 
             // SDF raymarch variables
-            float totalDist = worldData[0].nearPlane; // Start at near clip plane
+            totalDist = worldData[0].nearPlane; // Start at near clip plane
             float farClipPlane = worldData[0].farPlane;
             int closestObjIndex = -1; // Clear initial object index
             float3 outputColor = worldData[0].backgroundColor.XYZ; // Set output skybox color
             float3 hitPoint = rayOrigin;
-
-            // SDF depth and normal variables
-            float3 outputNormal = new float3(0, 0, 0);
 
             int maxSteps = worldData[0].maxRaySteps, step;
             for (step = 0; step < maxSteps; step++)
@@ -482,6 +500,7 @@ namespace DivisionEngine
                 float2 shadowDistances = sdfPrimitives[closestObjIndex].shadowDistances;
                 if (sdfPrimitives[closestObjIndex].shadowEffects.Y)
                     shadowValues = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, lightAngle);
+                    //shadowValues = SoftShadowCambridge(shadowOrigin, lightDir * 100000f, shadowDistances.Y);
 
                 // Dot products
                 //float NdotV = Hlsl.Max(Hlsl.Dot(normal, viewDir), 0.0f);
@@ -506,15 +525,73 @@ namespace DivisionEngine
 
                 // Final color (NO extra kD multiplication!)
                 outputColor = ambient + directLighting;
-                
+
                 // Debug shadows
                 if (outputMode == 2) outputColor = new float3(shadowValues.X, shadowValues.Y / sdfPrimitives.Length, 0f);
                 else if (outputMode == 3) outputColor = DebugBRDF(normal, viewDir, lightDir, halfVec, roughness, F0);
             }
 
             if (outputMode == 1) outputColor = new float3(stepCost, stepCost, stepCost); // Debug ray steps
-            texture[pixel] = new float4(outputColor, 1f);
-            depthNormals[pixel] = new float4(totalDist / (farClipPlane - worldData[0].nearPlane), outputNormal);
+            return outputColor;
+        }
+
+        public void Execute()
+        {
+            int2 pixel = ThreadIds.XY; // Get pixel position
+            texture[pixel] = new float4(0, 0, 0, 0); // Clear render texture
+            depthNormals[pixel] = new float4(0, 0, 0, 0); // Clear depth and normal texture
+            objectIdBuffer[pixel.X + pixel.Y * (int)width] = -1; // Clear object ID buffer
+
+            // Get uv coord
+            float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
+            uv.X *= width / height;
+
+            // Camera basis vectors (simplified - you may need proper extraction)
+            float3 cameraForward = Hlsl.Normalize(new float3(worldData[0].cameraToWorld.M13,
+                                                  worldData[0].cameraToWorld.M23,
+                                                  worldData[0].cameraToWorld.M33));
+            float3 cameraRight = Hlsl.Normalize(new float3(worldData[0].cameraToWorld.M11,
+                                                worldData[0].cameraToWorld.M21,
+                                                worldData[0].cameraToWorld.M31));
+            float3 cameraUp = Hlsl.Normalize(new float3(worldData[0].cameraToWorld.M12,
+                                             worldData[0].cameraToWorld.M22,
+                                             worldData[0].cameraToWorld.M32));
+
+            float3 rayOrigin = worldData[0].cameraOrigin;
+            float focusDistance = worldData[0].focusDistance;
+            float apertureSize = worldData[0].apertureSize;
+            int dofSamples = worldData[0].dofSamples;
+
+            // Accumulate color for multiple samples
+            float3 accumulatedColor = float3.Zero;
+            float3 accumulatedNormal = float3.Zero;
+            float accumulatedDistance = 0f;
+
+            for (int sample = 0; sample < dofSamples; sample++)
+            {
+                // Unique seed per sample
+                uint seed = (uint)(pixel.X * 1973 + pixel.Y * 9277 + sample * 26699 + frame);
+
+                // Get ray with DoF
+                float3 rayDir = GetCameraRayDirWithDOF(uv, rayOrigin, cameraForward,
+                                                      cameraRight, cameraUp, focusDistance,
+                                                      apertureSize, seed);
+
+                // Raymarch and accumulated values
+                float3 color = TraceRay(pixel, rayOrigin, rayDir, out float3 outputNormal, out float totalDist);
+                accumulatedNormal += outputNormal;
+                accumulatedColor += color;
+                accumulatedDistance += totalDist;
+            }
+
+            float maxPossibleDistance = worldData[0].farPlane - worldData[0].nearPlane;
+
+            // Average samples
+            float3 finalColor = accumulatedColor / dofSamples;
+            float3 finalNormal = accumulatedNormal / dofSamples;
+            float finalDist = accumulatedDistance / dofSamples;
+            texture[pixel] = new float4(finalColor, 1.0f);
+            depthNormals[pixel] = new float4(finalDist / maxPossibleDistance, finalNormal);
         }
     }
 }
