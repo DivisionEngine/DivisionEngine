@@ -132,12 +132,12 @@ public partial class ConsoleWindow : EditorWindow
         Grid grid = new Grid
         {
             ColumnDefinitions =
-        {
-            new ColumnDefinition(GridLength.Auto), // Timestamp
-            new ColumnDefinition(GridLength.Auto), // Level
-            new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Message (takes remaining space)
-            new ColumnDefinition(GridLength.Auto), // Delete button
-        }
+            {
+                new ColumnDefinition(GridLength.Auto), // Timestamp
+                new ColumnDefinition(GridLength.Auto), // Level
+                new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Message (takes remaining space)
+                new ColumnDefinition(GridLength.Auto), // Delete button
+            }
         };
 
         // Timestamp
