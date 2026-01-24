@@ -113,7 +113,7 @@ namespace DivisionEngine.Rendering
             RendererWindow.Render += OnRender;
             RendererWindow.Closing += OnClosing;
             Debug.Info("Renderer: Running Renderer");
-            if (RendererWindow != null) RendererWindow.Run();
+            RendererWindow?.Run();
             Debug.Info("Renderer: Terminated");
         }
 
