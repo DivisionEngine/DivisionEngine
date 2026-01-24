@@ -4,6 +4,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using DivisionEngine.MathLib;
 using Material.Icons;
 using Material.Icons.Avalonia;
 
@@ -17,6 +18,7 @@ public partial class ConsoleWindow : EditorWindow
     private readonly StackPanel controlsPanel;
     private readonly ScrollViewer scrollViewer;
     private readonly CheckBox autoscrollCheckbox;
+    private readonly ComboBox filterLogTypeBox;
     private readonly Button clearButton;
     private bool autoScroll;
 
@@ -33,12 +35,14 @@ public partial class ConsoleWindow : EditorWindow
             FontSize = 12,
             Height = 25,
             FontStretch = FontStretch.SemiExpanded,
-            Foreground = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(34, 34, 34)),
+            Background = EditorColor.FromRGB(17, 17, 17),
+            Foreground = EditorColor.FromColor(ColorPalette.White),
+            BorderThickness = new Thickness(0),
             Margin = new Thickness(4, 0),
             VerticalAlignment = VerticalAlignment.Center,
         };
         clearButton.Click += ClearButton_Click;
+
         autoscrollCheckbox = new CheckBox
         {
             Content = "Auto Scroll",
@@ -48,6 +52,56 @@ public partial class ConsoleWindow : EditorWindow
             Margin = new Thickness(8, 0, 0, 0)
         };
         autoscrollCheckbox.IsCheckedChanged += (s, e) => { autoScroll = autoscrollCheckbox.IsChecked.Value; };
+
+        StackPanel allLogTypes = new StackPanel {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+        };
+        StackPanel debugLogType = new StackPanel {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+        };
+        StackPanel infoLogType = new StackPanel {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+        };
+        StackPanel warnLogType = new StackPanel {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+        };
+        StackPanel errorLogType = new StackPanel {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+        };
+
+        allLogTypes.Children.Add(new MaterialIcon { Kind = MaterialIconKind.AllInclusive });
+        allLogTypes.Children.Add(new TextBlock { Text = "All" });
+        infoLogType.Children.Add(new MaterialIcon { Kind = MaterialIconKind.Info });
+        infoLogType.Children.Add(new TextBlock { Text = "Info" });
+        debugLogType.Children.Add(new MaterialIcon { Kind = MaterialIconKind.DebugStepOver });
+        debugLogType.Children.Add(new TextBlock { Text = "Debug" });
+        warnLogType.Children.Add(new MaterialIcon { Kind = MaterialIconKind.Warning, Foreground = EditorColor.FromRGB(200, 200, 0) });
+        warnLogType.Children.Add(new TextBlock { Text = "Warning" });
+        errorLogType.Children.Add(new MaterialIcon { Kind = MaterialIconKind.Error, Foreground = EditorColor.FromRGB(200, 0, 0) });
+        errorLogType.Children.Add(new TextBlock { Text = "Error" });
+        filterLogTypeBox = new ComboBox
+        {
+            Items =
+            {
+                new ComboBoxItem { Content = allLogTypes, },
+                new ComboBoxItem { Content = infoLogType, },
+                new ComboBoxItem { Content = debugLogType, },
+                new ComboBoxItem { Content = warnLogType, },
+                new ComboBoxItem { Content = errorLogType, },
+            },
+            SelectedIndex = 0,
+            Foreground = Brushes.White,
+            Background = EditorColor.FromRGB(17, 17, 17),
+            BorderThickness = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 0, 0),
+        };
+        filterLogTypeBox.SelectionChanged += (s, e) => LoadAllCurrentLogs();
 
         // Create panels
 
@@ -71,12 +125,9 @@ public partial class ConsoleWindow : EditorWindow
 
         controlsPanel.Children.Add(clearButton);
         controlsPanel.Children.Add(autoscrollCheckbox);
+        controlsPanel.Children.Add(filterLogTypeBox);
 
-        DockPanel mainPanel = new DockPanel
-        {
-            Background = EditorColor.FromRGB(45, 45, 45)
-        };
-
+        DockPanel mainPanel = new DockPanel { Background = EditorColor.FromRGB(45, 45, 45) };
         DockPanel.SetDock(controlsPanel, Dock.Top);
         mainPanel.Children.Add(controlsPanel);
         mainPanel.Children.Add(scrollViewer);
@@ -95,6 +146,7 @@ public partial class ConsoleWindow : EditorWindow
     }
 
     private void Debug_OnLogUpdate(LogEntry obj) => Dispatcher.UIThread.Post(() => CreateLogEntry(obj, autoScroll));
+
     private void LoadAllCurrentLogs()
     {
         logList.Children.Clear();
@@ -102,15 +154,21 @@ public partial class ConsoleWindow : EditorWindow
             Dispatcher.UIThread.Post(() => CreateLogEntry(log, false));
     }
 
+    /// <summary>
+    /// Creates a log entry in the log list view.
+    /// </summary>
+    /// <param name="log">Log entry to build</param>
+    /// <param name="scrollToEnd">Whether to scroll to the end when done</param>
     private void CreateLogEntry(LogEntry log, bool scrollToEnd)
     {
-        Border logContainer = CreateLogControl(log);
-        logList.Children.Add(logContainer);
-
-        if (scrollToEnd) scrollViewer.ScrollToEnd();
-
-        if (logList.Children.Count > MaxDisplayedLogEntries)
-            logList.Children.RemoveAt(0);
+        if (filterLogTypeBox.SelectedIndex == 0 || log.Level == (LogLevel)(filterLogTypeBox.SelectedIndex - 1))
+        {
+            Border logContainer = CreateLogControl(log);
+            logList.Children.Add(logContainer);
+            if (scrollToEnd) scrollViewer.ScrollToEnd();
+            if (logList.Children.Count > MaxDisplayedLogEntries)
+                logList.Children.RemoveAt(0);
+        }
     }
 
     /// <summary>

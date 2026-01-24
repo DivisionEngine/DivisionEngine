@@ -40,13 +40,16 @@ namespace DivisionEngine.Rendering
         /// <returns>If the window was successfully closed</returns>
         public bool Stop()
         {
-            if (RendererWindow != null)
+            lock (SyncLock)
             {
-                closeWindowWithCloseEvent = false;
-                RendererWindow!.Close();
-                RendererWindow = null;
-                closeWindowWithCloseEvent = true;
-                return true;
+                if (RendererWindow != null)
+                {
+                    closeWindowWithCloseEvent = false;
+                    RendererWindow!.Close();
+                    RendererWindow = null;
+                    closeWindowWithCloseEvent = true;
+                    return true;
+                }
             }
             return false;
         }

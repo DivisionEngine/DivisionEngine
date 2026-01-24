@@ -196,7 +196,8 @@ namespace DivisionEngine.Editor
                             float2 posConverted = new float2(pos.X, pos.Y);
                             UserInput!.SetMousePosition(posConverted);
 
-                            Vector2D<int> screenSizeInt = Renderer!.RendererWindow!.Size;
+                            if (Renderer == null || Renderer.RendererWindow == null) return;
+                            Vector2D<int> screenSizeInt = Renderer.RendererWindow.Size;
                             float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
                             UserInput!.SetRelativeMousePosition(posConverted, screenSize);
                         };
