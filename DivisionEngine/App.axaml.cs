@@ -25,11 +25,6 @@ namespace DivisionEngine.Editor
         public static RenderPipeline? Renderer { get; private set; }
 
         /// <summary>
-        /// Reference to the Division SDF main window API.
-        /// </summary>
-        public static MainWindowViewModel? MainWin { get; private set; }
-
-        /// <summary>
         /// Current input system for the Division editor.
         /// </summary>
         public static InputSystem? UserInput { get; private set; }
@@ -113,7 +108,6 @@ namespace DivisionEngine.Editor
                 DisableAvaloniaDataAnnotationValidation();
                 desktop.MainWindow = new MainWindow();
                 MainWindowViewModel vm = new MainWindowViewModel(desktop.MainWindow);
-                MainWin = vm;
                 desktop.MainWindow.DataContext = vm;
 
                 // Create default world for editor

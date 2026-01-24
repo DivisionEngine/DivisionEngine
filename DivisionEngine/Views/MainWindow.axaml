@@ -74,7 +74,7 @@
 
     <!--Bottom Utility Bar-->
     <StackPanel DockPanel.Dock="Bottom" Background="#444" Height="20" Orientation="Horizontal">
-        <ProgressBar IsVisible="{Binding ShowProgress}" Value="{Binding ProgressValue}" 
+        <ProgressBar IsVisible="{Binding ShowProgress, Mode=TwoWay}" Value="{Binding ProgressValue, Mode=TwoWay}" 
                      Minimum="0.0" Maximum="1.0" Height="10" Background="#222" 
                      ShowProgressText="True" FontSize="8" VerticalAlignment="Center" Margin="10,0"/>
     </StackPanel>

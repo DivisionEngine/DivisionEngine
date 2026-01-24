@@ -1,4 +1,5 @@
 ﻿using Avalonia.Controls;
+using DivisionEngine.Editor.ViewModels;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -12,21 +13,21 @@ namespace DivisionEngine.Editor
     internal static class EditorUI
     {
         /// <summary>
-        /// Literally the same as App.MainWin!.ProgressValue.
+        /// Functionally the same as MainWindowViewModel.vm!.ProgressValue!.Value.
         /// </summary>
         public static double Progress
         {
-            get { return App.MainWin!.ProgressValue; }
-            set { App.MainWin!.ProgressValue = value; }
+            get { return MainWindowViewModel.vm!.ProgressValue!.Value; }
+            set { MainWindowViewModel.vm!.ProgressValue = value; }
         }
 
         /// <summary>
-        /// Literally the same as App.MainWin!.ShowProgress.
+        /// Functionally the same as MainWindowViewModel.vm!.ShowProgress!.Value.
         /// </summary>
         public static bool ShowProgress
         {
-            get { return App.MainWin!.ShowProgress; }
-            set { App.MainWin!.ShowProgress = value; }
+            get { return MainWindowViewModel.vm!.ShowProgress!.Value; }
+            set { MainWindowViewModel.vm!.ShowProgress = value; }
         }
 
         /// <summary>

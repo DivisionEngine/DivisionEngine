@@ -103,7 +103,7 @@ namespace DivisionEngine.Rendering
             options.IsVisible = true;
             options.VSync = true;
             options.ShouldSwapAutomatically = true;
-            
+
             options.UpdatesPerSecond = requestedFPS;
             RendererWindow = Window.Create(options);
 
@@ -113,7 +113,7 @@ namespace DivisionEngine.Rendering
             RendererWindow.Render += OnRender;
             RendererWindow.Closing += OnClosing;
             Debug.Info("Renderer: Running Renderer");
-            RendererWindow.Run();
+            if (RendererWindow != null) RendererWindow.Run();
             Debug.Info("Renderer: Terminated");
         }
 

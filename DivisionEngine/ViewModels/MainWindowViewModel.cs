@@ -19,6 +19,7 @@ namespace DivisionEngine.Editor.ViewModels
     {
         // Window storage
 
+        public static MainWindowViewModel? vm;
         private readonly Window mainWindow;
 
         // Main Window Menu Commands
@@ -62,14 +63,25 @@ namespace DivisionEngine.Editor.ViewModels
 
         // Main Window API
 
+        private double? _progressVal;
+        private bool? _showProgress;
+
         /// <summary>
         /// Editor progress bar value between 0.0 and 1.0.
         /// </summary>
-        public double ProgressValue { get; set; } = 0.5;
+        public double? ProgressValue
+        {
+            get => _progressVal;
+            set => this.RaiseAndSetIfChanged(ref _progressVal, value);
+        }
         /// <summary>
         /// Enables or disables the progress bar.
         /// </summary>
-        public bool ShowProgress { get; set; } = true;
+        public bool? ShowProgress
+        {
+            get => _showProgress;
+            set => this.RaiseAndSetIfChanged(ref _showProgress, value);
+        }
 
         /// <summary>
         /// Builds the main window view model and initializes default tabs.
@@ -77,6 +89,7 @@ namespace DivisionEngine.Editor.ViewModels
         public MainWindowViewModel(Window mainWindow)
         {
             this.mainWindow = mainWindow;
+            vm = this;
 
             // Initialize default tabs
             LeftTabs.Add(new WorldWindowViewModel());
@@ -142,17 +155,22 @@ namespace DivisionEngine.Editor.ViewModels
         [RelayCommand]
         private async Task SaveProjectAs()
         {
+            EditorUI.Progress = 0;
+            ShowProgress = true;
             try
             {
                 await App.SetEditorRenderingAsync(false);
+                EditorUI.Progress = 0.25;
 
                 // Get project name
                 ProjectNameDialog projectNameDialog = new ProjectNameDialog();
                 string? projectName = await projectNameDialog.ShowDialog<string>(mainWindow);
+                EditorUI.Progress = 0.5;
 
                 if (string.IsNullOrWhiteSpace(projectName))
                 {
                     await App.SetEditorRenderingAsync(true);
+                    EditorUI.ShowProgress = false;
                     return;
                 }
 
@@ -163,10 +181,12 @@ namespace DivisionEngine.Editor.ViewModels
                     AllowMultiple = false,
                     SuggestedStartLocation = await mainWindow.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Documents)
                 });
+                EditorUI.Progress = 0.75;
 
                 if (folderResult.Count == 0 || string.IsNullOrEmpty(folderResult[0].Path.LocalPath))
                 {
                     await App.SetEditorRenderingAsync(true);
+                    EditorUI.ShowProgress = false;
                     return;
                 }
 
@@ -183,9 +203,11 @@ namespace DivisionEngine.Editor.ViewModels
                     };
 
                     bool overwrite = await confirmDialog.ShowDialog<bool>(mainWindow);
+                    EditorUI.Progress = 1.0;
                     if (!overwrite)
                     {
                         await App.SetEditorRenderingAsync(true);
+                        EditorUI.ShowProgress = false;
                         return;
                     }
                 }
@@ -195,6 +217,7 @@ namespace DivisionEngine.Editor.ViewModels
                 if (success) // Check if successfully saved project
                     AssetsWindow.LoadAssetsForCurrentProject();
                 else Debug.Error("Failed to save project");
+                EditorUI.ShowProgress = false;
 
                 await App.SetEditorRenderingAsync(true);
             }
