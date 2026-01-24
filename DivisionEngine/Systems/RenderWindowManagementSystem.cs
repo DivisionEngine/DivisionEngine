@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Threading;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace DivisionEngine.Editor.Systems
 {
@@ -69,6 +70,9 @@ namespace DivisionEngine.Editor.Systems
 
                     App.Renderer.RendererWindow!.Position = new Silk.NET.Maths.Vector2D<int>(screenPoint.X, screenPoint.Y);
                     App.Renderer.RendererWindow.Size = new Silk.NET.Maths.Vector2D<int>((int)size.Width, (int)size.Height);
+
+                    // Update window text
+                    win.widthHeightText.Text = $"(Width {(int)size.Width}px,  Height {(int)size.Height}px)";
                 }
                 else if (App.RendererVisible)
                     SetVisible(false);

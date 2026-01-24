@@ -16,9 +16,11 @@ public partial class EnvironmentWindow : EditorWindow
     private static readonly List<EnvironmentWindow?> currentWindows = [];
 
     private readonly DockPanel mainPanel;
-    public readonly Panel renderVisualizerFrame;
     private readonly StackPanel headerPanel;
     private readonly ComboBox debugMode;
+
+    public readonly Panel renderVisualizerFrame;
+    public readonly TextBlock widthHeightText;
 
     public EnvironmentWindow()
     {
@@ -60,9 +62,27 @@ public partial class EnvironmentWindow : EditorWindow
         };
         debugMode.SelectionChanged += (e, s) => UpdateRendererDebugMode();
 
+        int width = 0, height = 0;
+        if (App.Renderer != null && App.Renderer.RendererWindow != null)
+        {
+            width = App.Renderer.RendererWindow.Size.X;
+            height = App.Renderer.RendererWindow.Size.Y;
+        }
+        widthHeightText = new TextBlock
+        {
+            Text = $"(Width {width}px,  Height {height}px)",
+            FontSize = 12,
+            FontWeight = FontWeight.Regular,
+            Foreground = EditorColor.FromRGB(128, 128, 128),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(4, 2, 4, 2),
+        };
+
         // Add controls to header
         headerPanel.Children.Add(debugModeText);
         headerPanel.Children.Add(debugMode);
+        headerPanel.Children.Add(widthHeightText);
         DockPanel.SetDock(headerPanel, Dock.Top);
         mainPanel.Children.Add(headerPanel);
         Border separator = new Border

@@ -60,6 +60,17 @@ namespace DivisionEngine.Editor.ViewModels
             set => this.RaiseAndSetIfChanged(ref _selectedBottomTab, value);
         }
 
+        // Main Window API
+
+        /// <summary>
+        /// Editor progress bar value between 0.0 and 1.0.
+        /// </summary>
+        public double ProgressValue { get; set; } = 0.5;
+        /// <summary>
+        /// Enables or disables the progress bar.
+        /// </summary>
+        public bool ShowProgress { get; set; } = true;
+
         /// <summary>
         /// Builds the main window view model and initializes default tabs.
         /// </summary>

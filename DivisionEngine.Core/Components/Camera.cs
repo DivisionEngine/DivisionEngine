@@ -34,6 +34,7 @@ namespace DivisionEngine.Components
         public float nearClip;
         public float farClip;
 
+        // Matrices
         public float4x4 viewMatrix;
         public float4x4 projectionMatrix;
         public float4x4 cameraToWorld; // Inverse view matrix
