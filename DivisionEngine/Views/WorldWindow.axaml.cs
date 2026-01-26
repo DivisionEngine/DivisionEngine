@@ -21,6 +21,7 @@ public partial class WorldWindow : EditorWindow
     private readonly StackPanel entitiesPanel;
     private readonly ScrollViewer scrollViewer;
     private readonly TextBlock entitiesHeader;
+    private readonly TextBox headerSearchBox;
     private readonly StackPanel header;
     private readonly Grid mainGrid;
 
@@ -174,17 +175,39 @@ public partial class WorldWindow : EditorWindow
         {
             Orientation = Orientation.Horizontal,
             Spacing = 5,
-            Margin = new Thickness(5, 5),
+            Margin = new Thickness(5, 0),
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
         entitiesHeader = new TextBlock
         {
-            Text = "Entities: 0",
+            Text = "0",
             FontSize = 10,
             Foreground = Brushes.Gray,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        MaterialIcon searchIcon = new MaterialIcon
+        {
+            Kind = MaterialIconKind.Search,
+            Foreground = EditorColor.FromRGB(128, 128, 128),
+            Margin = new Thickness(6, 0, 0, 0),
+            Width = 12,
+            Height = 12,
+        };
+        headerSearchBox = new TextBox
+        {
+            InnerLeftContent = searchIcon,
+            Text = "",
+            Watermark = "Search Entities",
+            FontSize = 12,
+            Foreground = EditorColor.FromRGB(220, 220, 220),
+            Background = EditorColor.FromRGB(17, 17, 17),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(0),
+            VerticalAlignment = VerticalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
         header.Children.Add(entitiesHeader);
+        header.Children.Add(headerSearchBox);
 
         // Now using StackPanel
         entitiesPanel = new StackPanel
@@ -288,6 +311,6 @@ public partial class WorldWindow : EditorWindow
         // Update current entities set
         curEntities.Clear();
         curEntities.UnionWith(newEntities);
-        entitiesHeader.Text = $"Entities: {newEntities.Count}";
+        entitiesHeader.Text = $"{newEntities.Count}";
     }
 }

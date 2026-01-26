@@ -125,7 +125,7 @@ public partial class AssetsWindow : EditorWindow
             Background = EditorColor.FromRGB(28, 28, 28),
             Orientation = Orientation.Horizontal,
             Spacing = 2,
-            Height = 30,
+            Height = 32,
             VerticalAlignment = VerticalAlignment.Top,
         };
         directoryField = new TextBox
@@ -138,6 +138,7 @@ public partial class AssetsWindow : EditorWindow
             BorderThickness = new Thickness(0),
             Background = EditorColor.FromRGB(20, 20, 20),
             VerticalAlignment = VerticalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         itemCountText = new TextBlock
@@ -160,8 +161,9 @@ public partial class AssetsWindow : EditorWindow
         {
             Content = upFolderIcon,
             Background = EditorColor.FromRGB(12, 12, 12),
-            Margin = new Thickness(2, 2, 2, 2),
+            Margin = new Thickness(8, 2, 2, 2),
             Padding = new Thickness(3, 1, 3, 1),
+            VerticalAlignment = VerticalAlignment.Center,
         };
         viewButtonIcon = new MaterialIcon
         {
@@ -169,6 +171,7 @@ public partial class AssetsWindow : EditorWindow
             Width = 18,
             Height = 18,
             Foreground = EditorColor.FromRGB(80, 80, 80),
+            VerticalAlignment = VerticalAlignment.Center,
         };
         viewButton = new Button
         {
@@ -176,6 +179,7 @@ public partial class AssetsWindow : EditorWindow
             Background = EditorColor.FromRGB(12, 12, 12),
             Margin = new Thickness(2, 2, 2, 2),
             Padding = new Thickness(3, 1, 3, 1),
+            VerticalAlignment = VerticalAlignment.Center,
         };
         directoryField.TextChanged += DirectoryField_TextChanged;
         upDirButton.Click += (s, e) => NavigateUpOneLevel();
@@ -195,7 +199,7 @@ public partial class AssetsWindow : EditorWindow
         {
             RowDefinitions =
             {
-                new RowDefinition(30, GridUnitType.Pixel), // Header
+                new RowDefinition(32, GridUnitType.Pixel), // Header
                 new RowDefinition(1, GridUnitType.Pixel),  // Separator
                 new RowDefinition(1, GridUnitType.Star),   // Scrollable area (takes remaining space)
             }
