@@ -44,7 +44,9 @@ public partial class PropertiesWindow : EditorWindow
         scrollViewer = new ScrollViewer
         {
             Content = propertiesPanel,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Top
         };
         header = new StackPanel
         {
@@ -63,20 +65,35 @@ public partial class PropertiesWindow : EditorWindow
         };
         header.Children.Add(headerText);
 
-        StackPanel mainPanel = new StackPanel
+        Grid mainGrid = new Grid
         {
-            Orientation = Orientation.Vertical,
-            Spacing = 0
+            RowDefinitions =
+            {
+                new RowDefinition(GridLength.Auto),  // Header
+                new RowDefinition(GridLength.Auto),  // Separator
+                new RowDefinition(GridLength.Star)   // ScrollViewer (expands)
+            }
         };
 
-        mainPanel.Children.Add(header);
-        mainPanel.Children.Add(new Border
+        // Add header to row 0
+        header.SetValue(Grid.RowProperty, 0);
+        mainGrid.Children.Add(header);
+
+        // Add separator to row 1
+        Border separator = new Border
         {
             Background = EditorColor.FromRGB(68, 68, 68),
             Height = 1
-        });
-        mainPanel.Children.Add(scrollViewer);
-        this.FindControl<Border>("MainBorder")!.Child = mainPanel;
+        };
+        separator.SetValue(Grid.RowProperty, 1);
+        mainGrid.Children.Add(separator);
+
+        // Add scrollViewer to row 2
+        scrollViewer.SetValue(Grid.RowProperty, 2);
+        mainGrid.Children.Add(scrollViewer);
+
+        // Use Grid instead of StackPanel
+        this.FindControl<Border>("MainBorder")!.Child = mainGrid;
 
         currentWindows.Add(this);
     }
