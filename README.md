@@ -15,11 +15,6 @@ Picture this:
 - ECS backend, fast data handling
 - Convenient editor tooling
 
-### Editor Preview Screenshots:
-<img width="1919" height="1032" alt="Screenshot 2025-12-01 163210" src="https://github.com/user-attachments/assets/01b89a41-aa90-4db8-871c-c42fd6083751" />
-
-<img width="1909" height="1033" alt="Screenshot 2025-12-23 200053" src="https://github.com/user-attachments/assets/675f88bc-c275-40bc-8b11-a787e3b5c86f" />
-
 ## What Are SDFs?
 
 *Signed Distance Fields* are spatial fields that store information represented as a grid sampling of the closest distance to the surface of an object defined as a polygonal model. Usually, the convention of using negative values inside the object and positive values outside the object is applied. Signed distance fields are important in computer graphics and related fields. Often, they are used for collision detection in cloth animation, soft-body physics effects, malleable geometry, volumetric effects, and fluid simulation.
@@ -29,14 +24,6 @@ Picture this:
 
 *ECS* or an entity-component-system framework is a way of organizing game data such that it is memory efficient and hyper-performant. Entities are simply IDs with components stored as a dictionary in an "ECS World" object. Systems are code files written that operate on an awake --> update --> fixed update --> render schedule, allowing components to be manipulated during different engine loops/stages. For more information on ECS, check out how the Unity game engine implemented its ECS framework here: https://unity.com/ecs
 
-### Resources:
-Follow the development: https://trello.com/b/mWtyHBMf/division-engine
-
-Tutorials by Inigo Quilez (Not sponsored, just useful for learning constructive geometry):
-- Build mathematical worlds: https://youtu.be/0ifChJ0nJfM?si=ypKU1rz-8JloPlj2
-- Build a 3D landscape: https://youtu.be/BFld4EBO2RE?si=EASXvq-ez2qBOIHN
-- Paint a 3D character with math: https://youtu.be/8--5LwHRhjk?si=fH9QwvCz6dLptHE1
-
 ## Framework
 
 Division Engine is built using three core packages: Silk.NET, ComputeSharp, and AvaloniaUI.
@@ -44,3 +31,20 @@ Check them out here:
 - [Silk.NET](https://github.com/dotnet/Silk.NET)
 - [ComputeSharp](https://github.com/Sergio0694/ComputeSharp)
 - [AvaloniaUI](https://github.com/AvaloniaUI/Avalonia)
+
+## Resources:
+Follow the development: https://trello.com/b/mWtyHBMf/division-engine
+
+Tutorials by Inigo Quilez (Not sponsored, just useful for learning constructive geometry):
+- Build mathematical worlds: https://youtu.be/0ifChJ0nJfM?si=ypKU1rz-8JloPlj2
+- Build a 3D landscape: https://youtu.be/BFld4EBO2RE?si=EASXvq-ez2qBOIHN
+- Paint a 3D character with math: https://youtu.be/8--5LwHRhjk?si=fH9QwvCz6dLptHE1
+
+## Editor Preview Screenshots:
+<img width="1919" height="1032" alt="Screenshot 2025-12-01 163210" src="https://github.com/user-attachments/assets/01b89a41-aa90-4db8-871c-c42fd6083751" />
+
+<img width="1919" height="1033" alt="Screenshot 2026-01-25 170407" src="https://github.com/user-attachments/assets/1221d415-1abd-4541-9be0-7228564daae9" />
+
+<img width="1919" height="1032" alt="Screenshot 2026-01-25 170551" src="https://github.com/user-attachments/assets/92eabc3d-170d-4246-a2a7-1e5b05ad6760" />
+
+
