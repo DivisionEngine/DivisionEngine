@@ -7,6 +7,8 @@ using Avalonia.Threading;
 using DivisionEngine.MathLib;
 using Material.Icons;
 using Material.Icons.Avalonia;
+using System;
+using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Editor;
 
@@ -178,6 +180,9 @@ public partial class ConsoleWindow : EditorWindow
     /// <returns>Log entry container element</returns>
     private Border CreateLogControl(LogEntry log)
     {
+        // Check if the message contains newlines or is too long
+        bool isMultiLine = log.Message.Contains('\n') || log.Message.Length > 100;
+
         Border logBorder = new Border()
         {
             BorderBrush = new SolidColorBrush(Color.FromRgb(68, 68, 68)),
@@ -185,51 +190,99 @@ public partial class ConsoleWindow : EditorWindow
             Padding = new Thickness(4),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(6, 2, 6, 2),
+            Background = EditorColor.FromRGB(40, 40, 40)
         };
 
-        Grid grid = new Grid
+        StackPanel mainPanel = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            Spacing = 4
+        };
+
+        // Header row (always visible)
+        Grid headerGrid = new Grid
         {
             ColumnDefinitions =
             {
+                new ColumnDefinition(GridLength.Auto), // Expand button
                 new ColumnDefinition(GridLength.Auto), // Timestamp
                 new ColumnDefinition(GridLength.Auto), // Level
-                new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Message
+                new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Message (truncated)
                 new ColumnDefinition(GridLength.Auto), // Delete button
             }
         };
 
-        // Timestamp
-        grid.Children.Add(new TextBlock
+        // Expand/collapse button (only for multi-line logs)
+        Button? expandButton = null;
+        if (isMultiLine)
         {
-            Text = $"[{log.Timestamp.TimeOfDay:hh':'mm':'ss':'fff}]",
-            FontSize = 12,
+            expandButton = new Button
+            {
+                Content = new MaterialIcon
+                {
+                    Kind = MaterialIconKind.ChevronRight,
+                    Width = 12,
+                    Height = 12,
+                    Foreground = Brushes.Gray,
+                },
+                Background = Brushes.Transparent,
+                Padding = new Thickness(2),
+                Margin = new Thickness(0, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                BorderThickness = new Thickness(0),
+                Width = 20,
+                Height = 20
+            };
+            headerGrid.Children.Add(expandButton);
+            Grid.SetColumn(expandButton, 0);
+        }
+
+        // Timestamp
+        int columnOffset = isMultiLine ? 1 : 0;
+        headerGrid.Children.Add(new TextBlock
+        {
+            Text = $"[{log.Timestamp.TimeOfDay:hh':'mm':'ss'.'fff}]",
+            FontSize = 11,
             Foreground = Brushes.Gray,
             Margin = new Thickness(0, 0, 4, 0),
             VerticalAlignment = VerticalAlignment.Center
         });
-        Grid.SetColumn(grid.Children[^1], 0);
+        Grid.SetColumn(headerGrid.Children[^1], columnOffset);
 
         // Level
-        grid.Children.Add(new TextBlock
+        headerGrid.Children.Add(new TextBlock
         {
             Text = $"[{log.Level}]",
-            FontSize = 12,
+            FontSize = 11,
             Foreground = GetLogColor(log.Level),
             Margin = new Thickness(0, 0, 4, 0),
             VerticalAlignment = VerticalAlignment.Center
         });
-        Grid.SetColumn(grid.Children[^1], 1);
+        Grid.SetColumn(headerGrid.Children[^1], columnOffset + 1);
 
-        // Message
-        grid.Children.Add(new TextBlock
+        // Truncated message (single line)
+        string displayMessage = log.Message;
+        if (isMultiLine)
         {
-            Text = log.Message,
-            FontSize = 12,
+            // Get first line or truncate
+            var firstNewline = log.Message.IndexOf('\n');
+            if (firstNewline >= 0)
+                displayMessage = string.Concat(log.Message.AsSpan(0, Math.Min(firstNewline, 100)), "...");
+            else if (log.Message.Length > 100)
+                displayMessage = string.Concat(log.Message.AsSpan(0, 100), "...");
+        }
+
+        TextBlock messageText = new TextBlock
+        {
+            Text = displayMessage,
+            FontSize = 11,
             Foreground = Brushes.White,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center
-        });
-        Grid.SetColumn(grid.Children[^1], 2);
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.NoWrap
+        };
+        headerGrid.Children.Add(messageText);
+        Grid.SetColumn(headerGrid.Children[^1], columnOffset + 2);
 
         // Delete button
         Button deleteButton = new Button
@@ -246,12 +299,73 @@ public partial class ConsoleWindow : EditorWindow
             Margin = new Thickness(4, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
+            Width = 24,
+            Height = 24
         };
         deleteButton.Click += (e, s) => ClickDeleteButton(log);
-        grid.Children.Add(deleteButton);
-        Grid.SetColumn(grid.Children[^1], 3);
+        headerGrid.Children.Add(deleteButton);
+        Grid.SetColumn(headerGrid.Children[^1], columnOffset + 3);
 
-        logBorder.Child = grid;
+        mainPanel.Children.Add(headerGrid);
+
+        // Expanded content area (hidden by default)
+        Border? expandedContent = null;
+        if (isMultiLine)
+        {
+            expandedContent = new Border
+            {
+                Background = EditorColor.FromRGB(35, 35, 35),
+                BorderBrush = EditorColor.FromRGB(68, 68, 68),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 6),
+                Margin = new Thickness(isMultiLine ? 24 : 0, 4, 0, 0),
+                IsVisible = false
+            };
+
+            // Full message with proper formatting
+            TextBlock fullMessage = new TextBlock
+            {
+                Text = log.Message,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                TextWrapping = TextWrapping.Wrap,
+                FontFamily = FontFamily.Parse("Consolas, Courier New, monospace")
+            };
+
+            // If there's a stack trace, format it nicely
+            if (log.Message.Contains("StackTrace:") || log.Message.Contains("at "))
+            {
+                // You could parse and format stack traces here
+                // For now, just use the full message
+            }
+
+            expandedContent.Child = fullMessage;
+            mainPanel.Children.Add(expandedContent);
+
+            // Set up expand/collapse functionality
+            bool isExpanded = false;
+            expandButton!.Click += (s, e) =>
+            {
+                isExpanded = !isExpanded;
+                expandedContent.IsVisible = isExpanded;
+
+                if (expandButton.Content is MaterialIcon icon)
+                    icon.Kind = isExpanded ? MaterialIconKind.ChevronDown : MaterialIconKind.ChevronRight;
+
+                // Adjust auto-scroll if enabled
+                if (isExpanded && autoScroll)
+                {
+                    // Small delay to allow layout to update
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        scrollViewer.ScrollToEnd();
+                    }, DispatcherPriority.Background);
+                }
+            };
+        }
+
+        logBorder.Child = mainPanel;
         return logBorder;
     }
 
