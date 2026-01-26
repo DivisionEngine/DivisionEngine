@@ -5,6 +5,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components;
+using Material.Icons;
+using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,7 +49,7 @@ public partial class WorldWindow : EditorWindow
             // Set up visual appearance
             Background = EditorColor.FromRGB(30, 30, 30);
             BorderBrush = EditorColor.FromRGB(30, 30, 30);
-            BorderThickness = new Thickness(1);
+            BorderThickness = new Thickness(0);
             Margin = new Thickness(0, 0);
             Padding = new Thickness(10, 2);
             CornerRadius = new CornerRadius(0);
@@ -95,21 +97,35 @@ public partial class WorldWindow : EditorWindow
         {
             ContextMenu menu = new ContextMenu
             {
-                Background = EditorColor.FromRGB(40, 40, 40),
+                Background = EditorColor.FromRGB(24, 24, 24),
                 BorderBrush = EditorColor.FromRGB(68, 68, 68),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(0),
+                Padding = new Thickness(0),
             };
 
             List<MenuItem> menuItems = [];
 
+            // Rename entity
+            MenuItem renameItem = new MenuItem
+            {
+                Header = "Rename",
+                Icon = new MaterialIcon { Kind = MaterialIconKind.Rename, FontSize = 12, Margin = new Thickness(0) },
+                Background = Brushes.Transparent,
+                Foreground = Brushes.White,
+                Margin = new Thickness(0),
+            };
+            //renameItem.Click += (s, e) => W.DuplicateEntity(entityId);
+            menuItems.Add(renameItem);
+
             // Duplicate entity
             MenuItem duplicateItem = new MenuItem
             {
-                Header = "Duplicate Entity",
-                Icon = new TextBlock { Text = "⎘", FontSize = 12, Margin = new Thickness(0, 0, 8, 0) },
+                Header = "Duplicate",
+                Icon = new MaterialIcon { Kind = MaterialIconKind.ContentDuplicate, FontSize = 12, Margin = new Thickness(0) },
                 Background = Brushes.Transparent,
                 Foreground = Brushes.White,
+                Margin = new Thickness(0),
             };
             duplicateItem.Click += (s, e) => W.DuplicateEntity(entityId);
             menuItems.Add(duplicateItem);
@@ -117,10 +133,11 @@ public partial class WorldWindow : EditorWindow
             // Delete entity
             MenuItem deleteItem = new MenuItem
             {
-                Header = "Delete Entity",
-                Icon = new TextBlock { Text = "🗑️", FontSize = 12, Margin = new Thickness(0, 0, 8, 0) },
+                Header = "Delete",
+                Icon = new MaterialIcon { Kind = MaterialIconKind.Delete, FontSize = 12, Margin = new Thickness(0) },
                 Background = Brushes.Transparent,
-                Foreground = Brushes.Red,
+                Foreground = EditorColor.FromRGB(220, 68, 68),
+                Margin = new Thickness(0),
             };
             deleteItem.Click += (s, e) => W.DestroyEntity(entityId);
             menuItems.Add(deleteItem);

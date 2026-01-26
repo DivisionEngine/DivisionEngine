@@ -190,26 +190,25 @@ public partial class ConsoleWindow : EditorWindow
             Padding = new Thickness(4),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(6, 2, 6, 2),
-            Background = EditorColor.FromRGB(40, 40, 40)
+            Background = EditorColor.FromRGB(40, 40, 40),
         };
-
         StackPanel mainPanel = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Spacing = 4
+            Spacing = 4,
         };
 
-        // Header row (always visible)
+        // Header row
         Grid headerGrid = new Grid
         {
             ColumnDefinitions =
             {
-                new ColumnDefinition(GridLength.Auto), // Expand button
-                new ColumnDefinition(GridLength.Auto), // Timestamp
-                new ColumnDefinition(GridLength.Auto), // Level
-                new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Message (truncated)
-                new ColumnDefinition(GridLength.Auto), // Delete button
-            }
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(new GridLength(1, GridUnitType.Star)),
+                new ColumnDefinition(GridLength.Auto),
+            },
         };
 
         // Expand/collapse button (only for multi-line logs)
@@ -231,7 +230,7 @@ public partial class ConsoleWindow : EditorWindow
                 VerticalAlignment = VerticalAlignment.Center,
                 BorderThickness = new Thickness(0),
                 Width = 20,
-                Height = 20
+                Height = 20,
             };
             headerGrid.Children.Add(expandButton);
             Grid.SetColumn(expandButton, 0);
@@ -245,7 +244,7 @@ public partial class ConsoleWindow : EditorWindow
             FontSize = 11,
             Foreground = Brushes.Gray,
             Margin = new Thickness(0, 0, 4, 0),
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
         });
         Grid.SetColumn(headerGrid.Children[^1], columnOffset);
 
@@ -256,7 +255,7 @@ public partial class ConsoleWindow : EditorWindow
             FontSize = 11,
             Foreground = GetLogColor(log.Level),
             Margin = new Thickness(0, 0, 4, 0),
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
         });
         Grid.SetColumn(headerGrid.Children[^1], columnOffset + 1);
 
@@ -272,14 +271,14 @@ public partial class ConsoleWindow : EditorWindow
                 displayMessage = string.Concat(log.Message.AsSpan(0, 100), "...");
         }
 
-        TextBlock messageText = new TextBlock
+        SelectableTextBlock messageText = new SelectableTextBlock
         {
             Text = displayMessage,
             FontSize = 11,
             Foreground = Brushes.White,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
-            TextWrapping = TextWrapping.NoWrap
+            TextWrapping = TextWrapping.NoWrap,
         };
         headerGrid.Children.Add(messageText);
         Grid.SetColumn(headerGrid.Children[^1], columnOffset + 2);
@@ -320,17 +319,17 @@ public partial class ConsoleWindow : EditorWindow
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(8, 6),
                 Margin = new Thickness(isMultiLine ? 24 : 0, 4, 0, 0),
-                IsVisible = false
+                IsVisible = false,
             };
 
             // Full message with proper formatting
-            TextBlock fullMessage = new TextBlock
+            SelectableTextBlock fullMessage = new SelectableTextBlock
             {
                 Text = log.Message,
                 FontSize = 11,
                 Foreground = Brushes.White,
                 TextWrapping = TextWrapping.Wrap,
-                FontFamily = FontFamily.Parse("Consolas, Courier New, monospace")
+                FontFamily = FontFamily.Parse("Consolas, Courier New, monospace"),
             };
 
             // If there's a stack trace, format it nicely
@@ -356,7 +355,6 @@ public partial class ConsoleWindow : EditorWindow
                 // Adjust auto-scroll if enabled
                 if (isExpanded && autoScroll)
                 {
-                    // Small delay to allow layout to update
                     Dispatcher.UIThread.Post(() =>
                     {
                         scrollViewer.ScrollToEnd();
