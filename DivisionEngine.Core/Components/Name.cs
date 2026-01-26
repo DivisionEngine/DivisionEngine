@@ -23,5 +23,10 @@
         }
 
         public string? name;
+
+        public IComponent Clone() => new Name
+        {
+            name = name,
+        };
     }
 }

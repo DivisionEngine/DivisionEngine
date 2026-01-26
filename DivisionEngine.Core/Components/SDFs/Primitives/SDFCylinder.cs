@@ -16,5 +16,11 @@
 
         public float height;
         public float radius;
+
+        public IComponent Clone() => new SDFCylinder
+        {
+            height = height,
+            radius = radius,
+        };
     }
 }

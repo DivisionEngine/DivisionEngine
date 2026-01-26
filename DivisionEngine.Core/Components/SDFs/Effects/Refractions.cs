@@ -13,5 +13,11 @@
 
         public int maxRaySteps;
         public float indexOfRefraction;
+
+        public IComponent Clone() => new Refractions
+        {
+            maxRaySteps = maxRaySteps,
+            indexOfRefraction = indexOfRefraction,
+        };
     }
 }

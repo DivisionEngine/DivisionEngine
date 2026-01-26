@@ -14,5 +14,10 @@
         }
 
         public float height;
+
+        public IComponent Clone() => new SDFPyramid
+        {
+            height = height,
+        };
     }
 }

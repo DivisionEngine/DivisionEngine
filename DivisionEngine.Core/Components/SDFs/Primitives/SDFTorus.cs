@@ -16,5 +16,11 @@
 
         public float wholeRadius;
         public float ringRadius;
+
+        public IComponent Clone() => new SDFTorus
+        {
+            wholeRadius = wholeRadius,
+            ringRadius = ringRadius,
+        };
     }
 }

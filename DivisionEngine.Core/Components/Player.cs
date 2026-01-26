@@ -18,5 +18,12 @@
         public float movementSpeed;
         public float mouseSensitivity;
         public float sprintMultiplier;
+
+        public IComponent Clone() => new Player
+        {
+            movementSpeed = movementSpeed,
+            mouseSensitivity = mouseSensitivity,
+            sprintMultiplier = sprintMultiplier,
+        };
     }
 }

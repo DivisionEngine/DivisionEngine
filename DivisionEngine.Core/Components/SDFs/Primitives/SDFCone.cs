@@ -16,5 +16,11 @@
 
         public float2 cone;
         public float height;
+
+        public IComponent Clone() => new SDFCone
+        {
+            cone = cone,
+            height = height,
+        };
     }
 }

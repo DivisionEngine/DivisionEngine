@@ -48,5 +48,24 @@ namespace DivisionEngine.Components
         // SDF rendering vars
         public int maxRaySteps;
         public int maxShadowRaySteps;
+
+        public IComponent Clone() => new Camera
+        {
+            fieldOfView = fieldOfView,
+            nearClip = nearClip,
+            farClip = farClip,
+
+            viewMatrix = viewMatrix,
+            projectionMatrix = projectionMatrix,
+            cameraToWorld = cameraToWorld,
+            inverseProjectionMatrix = inverseProjectionMatrix,
+
+            focusDistance = focusDistance,
+            apertureSize = apertureSize,
+            depthOfFieldSamples = depthOfFieldSamples,
+
+            maxRaySteps = maxRaySteps,
+            maxShadowRaySteps = maxShadowRaySteps,
+        };
     }
 }

@@ -14,5 +14,10 @@
         }
 
         public float3 size;
+
+        public IComponent Clone() => new SDFBox
+        {
+            size = size,
+        };
     }
 }

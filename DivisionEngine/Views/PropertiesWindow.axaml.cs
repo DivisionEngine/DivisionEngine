@@ -48,6 +48,11 @@ public partial class PropertiesWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Top
         };
+        Border separator = new Border
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            Height = 1
+        };
         header = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -69,30 +74,17 @@ public partial class PropertiesWindow : EditorWindow
         {
             RowDefinitions =
             {
-                new RowDefinition(GridLength.Auto),  // Header
-                new RowDefinition(GridLength.Auto),  // Separator
-                new RowDefinition(GridLength.Star)   // ScrollViewer (expands)
+                new RowDefinition(GridLength.Auto),
+                new RowDefinition(GridLength.Auto),
+                new RowDefinition(GridLength.Star),
             }
         };
-
-        // Add header to row 0
         header.SetValue(Grid.RowProperty, 0);
-        mainGrid.Children.Add(header);
-
-        // Add separator to row 1
-        Border separator = new Border
-        {
-            Background = EditorColor.FromRGB(68, 68, 68),
-            Height = 1
-        };
         separator.SetValue(Grid.RowProperty, 1);
-        mainGrid.Children.Add(separator);
-
-        // Add scrollViewer to row 2
         scrollViewer.SetValue(Grid.RowProperty, 2);
+        mainGrid.Children.Add(header);
+        mainGrid.Children.Add(separator);
         mainGrid.Children.Add(scrollViewer);
-
-        // Use Grid instead of StackPanel
         this.FindControl<Border>("MainBorder")!.Child = mainGrid;
 
         currentWindows.Add(this);

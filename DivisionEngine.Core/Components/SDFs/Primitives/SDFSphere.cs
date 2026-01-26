@@ -14,5 +14,10 @@
         }
 
         public float radius;
+
+        public IComponent Clone() => new SDFSphere
+        {
+            radius = radius,
+        };
     }
 }

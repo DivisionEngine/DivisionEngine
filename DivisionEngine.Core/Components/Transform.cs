@@ -28,5 +28,12 @@ namespace DivisionEngine.Components
         public float3 Down => rotation.RotateVector(new float3(0, -1, 0)).Normalize();
         public float3 Left => rotation.RotateVector(new float3(-1, 0, 0)).Normalize();
         public float3 Right => new float3(1, 0, 0).Transform(Matrix.CreateMatrix4x4FromQuaternion(rotation).ToMatrix4x4());
+
+        public IComponent Clone() => new Transform
+        {
+            position = position,
+            rotation = rotation,
+            scaling = scaling,
+        };
     }
 }

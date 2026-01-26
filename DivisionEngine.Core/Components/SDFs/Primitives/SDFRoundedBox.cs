@@ -16,5 +16,11 @@
 
         public float3 size;
         public float bevel;
+
+        public IComponent Clone() => new SDFRoundedBox
+        {
+            size = size,
+            bevel = bevel,
+        };
     }
 }

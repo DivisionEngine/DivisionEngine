@@ -11,5 +11,10 @@
         }
 
         public int maxRaySteps;
+
+        public IComponent Clone() => new Reflections
+        {
+            maxRaySteps = maxRaySteps,
+        };
     }
 }

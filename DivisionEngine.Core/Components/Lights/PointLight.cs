@@ -17,5 +17,12 @@ namespace DivisionEngine.Components.Lights
         public float4 color;
         public float intensity;
         public float radius;
+
+        public IComponent Clone() => new PointLight
+        {
+            color = color,
+            intensity = intensity,
+            radius = radius,
+        };
     }
 }

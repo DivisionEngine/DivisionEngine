@@ -43,6 +43,13 @@ namespace DivisionEngine
         public static uint CreateTransformEntity(string name) => WorldManager.CurrentWorld!.CreateTransformEntity(name);
 
         /// <summary>
+        /// Creates a new entity with all the components and their values as another source entity.
+        /// </summary>
+        /// <param name="sourceEntityId">Entity source id to clone from</param>
+        /// <returns>The duplicated entity id created</returns>
+        public static uint DuplicateEntity(uint sourceEntityId) => WorldManager.CurrentWorld!.DuplicateEntity(sourceEntityId);
+
+        /// <summary>
         /// Destroy an entity in the world.
         /// </summary>
         /// <param name="entityId">Entity to destroy</param>

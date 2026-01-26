@@ -181,7 +181,7 @@ namespace DivisionEngine.Systems
                 {
                     SDFPlane plane = W.GetComponent<SDFPlane>(id)!;
                     curPrimitive.type = 5; // Plane type
-                    curPrimitive.parameters = new float4(plane.normal.X, plane.normal.Y, plane.normal.Z, plane.h);
+                    curPrimitive.parameters = new float4(plane.normal.X, plane.normal.Y, plane.normal.Z, plane.height);
                 }
                 if (W.HasComponent<SDFCylinder>(id)) // Check cylinder primitive
                 {

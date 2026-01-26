@@ -114,6 +114,25 @@ namespace DivisionEngine
         }
 
         /// <summary>
+        /// Creates a new entity with all the components and their values as another source entity.
+        /// </summary>
+        /// <param name="sourceEntityId">Entity source id to clone from</param>
+        /// <returns>The duplicated entity id created</returns>
+        public uint DuplicateEntity(uint sourceEntityId)
+        {
+            if (!EntityExists(sourceEntityId)) return sourceEntityId;
+            List<IComponent> components = GetAllComponents(sourceEntityId);
+            uint id = CreateEntity();
+
+            for (int i = 0; i < components.Count; i++)
+            {
+                AddComponent(id, components[i].Clone());
+                Debug.Error($"Component: {components[i].GetType()}");
+            }
+            return id;
+        }
+
+        /// <summary>
         /// Destroy an entity in the world.
         /// </summary>
         /// <param name="entityId">Entity to destroy</param>
@@ -122,10 +141,7 @@ namespace DivisionEngine
         {
             if (entities.Remove(entityId))
             {
-                foreach (Type t in components.Keys)
-                {
-                    components[t].Remove(entityId);    
-                }
+                foreach (Type t in components.Keys) components[t].Remove(entityId);
                 return true;
             }
             return false;
@@ -262,10 +278,10 @@ namespace DivisionEngine
         /// <returns>True if the component was added</returns>
         public bool AddComponent<T>(uint entityId, T component) where T : IComponent
         {
-            if (!entities.Contains(entityId))
+            if (!EntityExists(entityId))
                 return false;
 
-            Type type = typeof(T);
+            Type type = component.GetType();
             if (components.ContainsKey(type))
             {
                 if (!components[type].ContainsKey(entityId))
@@ -293,7 +309,7 @@ namespace DivisionEngine
         public bool RemoveComponent<T>(uint entityId) where T : IComponent
         {
             Type type = typeof(T);
-            if (entities.Contains(entityId) && components.TryGetValue(type, out var value))
+            if (EntityExists(entityId) && components.TryGetValue(type, out var value))
             {
                 bool removed = value.Remove(entityId);
                 if (value.Count < 1)

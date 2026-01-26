@@ -22,5 +22,14 @@
 
         public float minDistance;
         public float maxDistance;
+
+        public IComponent Clone() => new SoftShadows
+        {
+            shadowCaster = shadowCaster,
+            shadowReceiver = shadowReceiver,
+
+            minDistance = minDistance,
+            maxDistance = maxDistance,
+        };
     }
 }

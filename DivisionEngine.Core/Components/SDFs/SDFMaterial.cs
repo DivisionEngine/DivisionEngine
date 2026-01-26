@@ -27,5 +27,15 @@ namespace DivisionEngine.Components.SDFs
         public float specular;
         public float indexOfRefraction;
         public float ambientOcclusion;
+
+        public IComponent Clone() => new SDFMaterial
+        {
+            albedoColor = albedoColor,
+            metallic = metallic,
+            roughness = roughness,
+            specular = specular,
+            indexOfRefraction = indexOfRefraction,
+            ambientOcclusion = ambientOcclusion,
+        };
     }
 }

@@ -17,5 +17,10 @@ namespace DivisionEngine.Components
         }
 
         [Color(true)] public float4 backgroundColor;
+
+        public IComponent Clone() => new Environment
+        {
+            backgroundColor = backgroundColor,
+        };
     }
 }

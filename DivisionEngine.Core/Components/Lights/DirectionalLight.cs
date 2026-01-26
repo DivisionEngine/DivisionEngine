@@ -17,5 +17,12 @@ namespace DivisionEngine.Components.Lights
         public float4 color;
         public float3 direction;
         public float intensity;
+
+        public IComponent Clone() => new DirectionalLight
+        {
+            color = color,
+            direction = direction,
+            intensity = intensity,
+        };
     }
 }

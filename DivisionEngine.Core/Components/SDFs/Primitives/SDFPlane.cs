@@ -11,10 +11,16 @@
         public SDFPlane()
         {
             normal = new float3(0f, 1f, 0f);
-            h = 1f;
+            height = 1f;
         }
 
         public float3 normal;
-        public float h;
+        public float height;
+
+        public IComponent Clone() => new SDFPlane
+        {
+            normal = normal,
+            height = height,
+        };
     }
 }
