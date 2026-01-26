@@ -193,7 +193,7 @@ public partial class ConsoleWindow : EditorWindow
             {
                 new ColumnDefinition(GridLength.Auto), // Timestamp
                 new ColumnDefinition(GridLength.Auto), // Level
-                new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Message (takes remaining space)
+                new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Message
                 new ColumnDefinition(GridLength.Auto), // Delete button
             }
         };
