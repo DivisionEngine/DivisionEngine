@@ -34,26 +34,6 @@ namespace DivisionEngine.Rendering
         public event Action? Close; // Event to handle window close actions
         public DebugMode debugMode = DebugMode.None; // Current debug mode, if any
 
-        /// <summary>
-        /// Stops the renderer window from running.
-        /// </summary>
-        /// <returns>If the window was successfully closed</returns>
-        public bool Stop()
-        {
-            lock (SyncLock)
-            {
-                if (RendererWindow != null)
-                {
-                    closeWindowWithCloseEvent = false;
-                    RendererWindow!.Close();
-                    RendererWindow = null;
-                    closeWindowWithCloseEvent = true;
-                    return true;
-                }
-            }
-            return false;
-        }
-
         // Render texture storage
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadWriteTexture2D<float4>? depthNormalsTex;
@@ -122,21 +102,44 @@ namespace DivisionEngine.Rendering
         /// </summary>
         private void OnClosing()
         {
-            device?.Dispose();
-            renderTex?.Dispose();
-            depthNormalsTex?.Dispose();
-            objectIdBuffer?.Dispose();
-            worldBuffer?.Dispose();
-            primitivesBuffer?.Dispose();
-            lightsBuffer?.Dispose();
-            device = null;
-            renderTex = null;
-            depthNormalsTex = null;
-            objectIdBuffer = null;
-            worldBuffer = null;
-            primitivesBuffer = null;
-            lightsBuffer = null;
-            if (closeWindowWithCloseEvent) Close?.Invoke(); // Invoke the close event if there are any subscribers
+            lock (SyncLock)
+            {
+                device?.Dispose();
+                renderTex?.Dispose();
+                depthNormalsTex?.Dispose();
+                objectIdBuffer?.Dispose();
+                worldBuffer?.Dispose();
+                primitivesBuffer?.Dispose();
+                lightsBuffer?.Dispose();
+                device = null;
+                renderTex = null;
+                depthNormalsTex = null;
+                objectIdBuffer = null;
+                worldBuffer = null;
+                primitivesBuffer = null;
+                lightsBuffer = null;
+                if (closeWindowWithCloseEvent) Close?.Invoke(); // Invoke the close event if there are any subscribers
+            }
+        }
+
+        /// <summary>
+        /// Stops the renderer window from running.
+        /// </summary>
+        /// <returns>If the window was successfully closed</returns>
+        public bool Stop()
+        {
+            lock (SyncLock)
+            {
+                if (RendererWindow != null)
+                {
+                    closeWindowWithCloseEvent = false;
+                    RendererWindow!.Close();
+                    RendererWindow = null;
+                    closeWindowWithCloseEvent = true;
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
