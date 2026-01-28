@@ -26,7 +26,7 @@ namespace DivisionEngine.Components.SDFs
         [Range(0f, 1f)] public float roughness;
         public float specular;
         public float indexOfRefraction;
-        public float ambientOcclusion;
+        [Range(0f, 1f)] public float ambientOcclusion;
 
         public IComponent Clone() => new SDFMaterial
         {

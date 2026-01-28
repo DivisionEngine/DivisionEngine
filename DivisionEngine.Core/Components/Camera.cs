@@ -1,4 +1,5 @@
-﻿using DivisionEngine.MathLib;
+﻿using DivisionEngine.Components.FieldAttributes;
+using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Components
 {
@@ -43,7 +44,7 @@ namespace DivisionEngine.Components
         // Depth of field vars
         public float focusDistance;
         public float apertureSize;
-        public int depthOfFieldSamples;
+        [Range(0, 10)] public int depthOfFieldSamples;
 
         // SDF rendering vars
         public int maxRaySteps;
