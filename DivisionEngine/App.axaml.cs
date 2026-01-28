@@ -121,7 +121,7 @@ namespace DivisionEngine.Editor
 
                 // Start the SDFRenderer in a separate thread
                 _ = SetEditorRenderingAsync(true);
-                SetupInput(desktop);
+                //SetupAvaloniaInput(desktop); //re-enable this later potentially
 
                 // Close the renderer window when the application exits
                 desktop.Exit += (_, _) =>
@@ -163,7 +163,7 @@ namespace DivisionEngine.Editor
         /// Sets up input handling for the Division Engine editor.
         /// </summary>
         /// <param name="desktop">The desktop application lifetime for Avalonia UI.</param>
-        private static async void SetupInput(IClassicDesktopStyleApplicationLifetime desktop)
+        private static async void SetupAvaloniaInput(IClassicDesktopStyleApplicationLifetime desktop)
         {
             // Avalonia input handling
             desktop.MainWindow!.KeyUp += (s, e) => UserInput?.SetKeyUp(EditorInput.AvaloniaToKeyCode(e.Key));
