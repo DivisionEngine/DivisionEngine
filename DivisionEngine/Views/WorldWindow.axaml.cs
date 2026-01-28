@@ -29,6 +29,7 @@ public partial class WorldWindow : EditorWindow
     private readonly Dictionary<uint, EntityItemControl> entityControls;
 
     private readonly HashSet<uint> curEntities;
+    private string searchFilter = string.Empty;
 
     /// <summary>
     /// Represents an item in the entity display list used by this window's stack panel, internal only.
@@ -40,8 +41,11 @@ public partial class WorldWindow : EditorWindow
         private readonly TextBlock nameText;
         private readonly StackPanel panel;
         private readonly ContextMenu contextMenu;
+        private readonly TextBox renameTextBox;
+        private bool isRenaming = false;
 
         public uint EntityId => entityId;
+        public string? CurrentName => nameText.Text;
 
         public EntityItemControl(uint entityId, World? world)
         {
@@ -76,25 +80,59 @@ public partial class WorldWindow : EditorWindow
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(2, 0, 0, 0),
             };
+            renameTextBox = new TextBox
+            {
+                Watermark = "Rename",
+                FontSize = 12,
+                IsVisible = false,
+                Margin = new Thickness(2, 0, 0, 0),
+                MinWidth = 100,
+                Foreground = EditorColor.FromRGB(220, 220, 220),
+                Background = EditorColor.FromRGB(17, 17, 17),
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(0),
+                VerticalAlignment = VerticalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+            };
+
+            // Handle rename textbox events
+            renameTextBox.KeyDown += (s, e) =>
+            {
+                if (e.Key == Avalonia.Input.Key.Enter)
+                    FinishRename();
+                else if (e.Key == Avalonia.Input.Key.Escape)
+                    CancelRename();
+            };
+            renameTextBox.LostFocus += (s, e) => FinishRename();
 
             panel.Children.Add(idText);
             panel.Children.Add(nameText);
+            panel.Children.Add(renameTextBox);
             Child = panel;
 
-            // Build context menu
-            contextMenu = CreateContextMenu(entityId);
-
-            // Initial update
-            UpdateDisplay(world);
+            contextMenu = CreateContextMenu(entityId); // Build context menu
+            UpdateDisplay(world); // Update world display
 
             // Add handlers
-            PointerPressed += (s, e) => PropertiesWindow.LoadEntityComponents(entityId);
-            ContextRequested += (s, e) => { contextMenu?.Open(this); e.Handled = true; };
-            PointerEntered += (s, e) => { Background = EditorColor.FromRGB(17, 17, 17); };
-            PointerExited += (s, e) => { Background = EditorColor.FromRGB(30, 30, 30); };
+            PointerPressed += (s, e) => { if (!isRenaming) PropertiesWindow.LoadEntityComponents(entityId); };
+            ContextRequested += (s, e) =>
+            {
+                if (!isRenaming)
+                {
+                    contextMenu?.Open(this);
+                    e.Handled = true;
+                }
+            };
+            PointerEntered += (s, e) => { if (!isRenaming) Background = EditorColor.FromRGB(17, 17, 17); };
+            PointerExited += (s, e) => { if (!isRenaming) Background = EditorColor.FromRGB(30, 30, 30); };
         }
 
-        private static ContextMenu CreateContextMenu(uint entityId)
+        /// <summary>
+        /// Creates the context menu for entities in the world window.
+        /// </summary>
+        /// <param name="entityId">Entity to create context menu for</param>
+        /// <returns>Context menu control for entity</returns>
+        private ContextMenu CreateContextMenu(uint entityId)
         {
             ContextMenu menu = new ContextMenu
             {
@@ -104,7 +142,6 @@ public partial class WorldWindow : EditorWindow
                 CornerRadius = new CornerRadius(0),
                 Padding = new Thickness(0),
             };
-
             List<MenuItem> menuItems = [];
 
             // Rename entity
@@ -116,7 +153,7 @@ public partial class WorldWindow : EditorWindow
                 Foreground = Brushes.White,
                 Margin = new Thickness(0),
             };
-            //renameItem.Click += (s, e) => W.DuplicateEntity(entityId);
+            renameItem.Click += (s, e) => StartRename();
             menuItems.Add(renameItem);
 
             // Duplicate entity
@@ -147,8 +184,73 @@ public partial class WorldWindow : EditorWindow
             return menu;
         }
 
+        /// <summary>
+        /// Starts the rename operation for entities.
+        /// </summary>
+        public void StartRename()
+        {
+            if (isRenaming) return;
+            isRenaming = true;
+            nameText.IsVisible = false;
+            renameTextBox.IsVisible = true;
+            renameTextBox.Text = nameText.Text?.Replace($"Entity_{entityId}", "");
+            renameTextBox.Focus();
+            renameTextBox.SelectAll();
+
+            // Change background to indicate renaming state
+            Background = EditorColor.FromRGB(68, 68, 68);
+        }
+
+        /// <summary>
+        /// Finalizes the rename operation.
+        /// </summary>
+        public void FinishRename()
+        {
+            if (!isRenaming) return;
+            string? newName = renameTextBox.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(newName))
+                newName = $"Entity_{entityId}";
+
+            // Update the entity name in the world
+            if (WorldManager.CurrentWorld != null)
+            {
+                if (W.HasComponent<Name>(entityId))
+                {
+                    Name? nameComp = W.GetComponent<Name>(entityId);
+                    nameComp!.name = newName;
+                }
+                else W.AddComponent(entityId, new Name(newName));
+            }
+
+            CancelRename();
+            UpdateDisplay(WorldManager.CurrentWorld);
+        }
+
+        /// <summary>
+        /// Cancels the renaming operation.
+        /// </summary>
+        public void CancelRename()
+        {
+            if (!isRenaming) return;
+            isRenaming = false;
+            nameText.IsVisible = true;
+            renameTextBox.IsVisible = false;
+
+            // Restore normal appearance
+            Background = EditorColor.FromRGB(30, 30, 30);
+            BorderBrush = EditorColor.FromRGB(30, 30, 30);
+            BorderThickness = new Thickness(0);
+        }
+
+        /// <summary>
+        /// Updates the display name during the world window tick.
+        /// </summary>
+        /// <param name="world">World to update names from</param>
         public void UpdateDisplay(World? world)
         {
+            // Don't update if we're currently renaming
+            if (isRenaming) return;
+
             string displayName;
             if (world != null && world.HasComponent<Name>(entityId))
             {
@@ -159,6 +261,20 @@ public partial class WorldWindow : EditorWindow
             }
             else displayName = $"Entity_{entityId}";
             nameText.Text = displayName;
+        }
+
+        /// <summary>
+        /// Checks if the entity is still visible with a search filter enabled.
+        /// </summary>
+        /// <param name="filter">Search filter</param>
+        /// <returns>If the entity is still visible</returns>
+        public bool IsVisibleWithFilter(string filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter) ||
+                entityId.ToString().Contains(filter, StringComparison.OrdinalIgnoreCase) || // Search in entity ID
+                CurrentName!.Contains(filter, StringComparison.OrdinalIgnoreCase)) // Search in entity name
+                return true;
+            return false;
         }
     }
 
@@ -206,6 +322,8 @@ public partial class WorldWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
+        headerSearchBox.TextChanged += OnSearchTextChanged;
+
         header.Children.Add(entitiesHeader);
         header.Children.Add(headerSearchBox);
 
@@ -229,7 +347,7 @@ public partial class WorldWindow : EditorWindow
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
 
-        // Create main grid with proper row definitions
+        // Create main grid with row definitions
         mainGrid = new Grid
         {
             RowDefinitions =
@@ -255,8 +373,36 @@ public partial class WorldWindow : EditorWindow
         worldWinUpdater.Start();
     }
 
+    private void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        searchFilter = headerSearchBox.Text?.Trim() ?? string.Empty;
+        ApplySearchFilter();
+    }
+
     /// <summary>
-    /// Called when the world window updates (4fps).
+    /// Applies a search filter from the header search field.
+    /// </summary>
+    private void ApplySearchFilter()
+    {
+        // Filter entities
+        if (string.IsNullOrWhiteSpace(searchFilter))
+        {
+            foreach (var control in entityControls.Values)
+                control.IsVisible = true;
+        }
+        else
+        {
+            foreach (var control in entityControls.Values)
+                control.IsVisible = control.IsVisibleWithFilter(searchFilter);
+        }
+
+        // Update entity count display
+        int visibleCount = entityControls.Values.Count(c => c.IsVisible);
+        entitiesHeader.Text = $"{visibleCount} / {entityControls.Count}";
+    }
+
+    /// <summary>
+    /// Called when the world window updates.
     /// </summary>
     private void WorldWinUpdater_Tick(object? sender, EventArgs e)
     {
@@ -264,12 +410,10 @@ public partial class WorldWindow : EditorWindow
         World w = WorldManager.CurrentWorld;
 
         // Update existing entity displays
-        foreach (var entityId in curEntities.ToList())
+        foreach (uint entityId in curEntities.ToList())
         {
-            if (entityControls.TryGetValue(entityId, out var control))
-            {
+            if (entityControls.TryGetValue(entityId, out EntityItemControl? control))
                 control.UpdateDisplay(w);
-            }
         }
 
         // Update the list of entities
@@ -284,25 +428,22 @@ public partial class WorldWindow : EditorWindow
         if (WorldManager.CurrentWorld == null) return;
         HashSet<uint> newEntities = WorldManager.CurrentWorld.entities;
 
-        // Remove entities that no longer exist
-        foreach (uint entityId in curEntities.ToList())
+        foreach (uint entityId in curEntities.ToList()) // Remove entities that no longer exist
         {
             if (!newEntities.Contains(entityId))
             {
-                if (entityControls.TryGetValue(entityId, out var control))
+                if (entityControls.TryGetValue(entityId, out EntityItemControl? control))
                 {
                     entitiesPanel.Children.Remove(control);
                     entityControls.Remove(entityId);
                 }
             }
         }
-
-        // Add new entities
-        foreach (uint entityId in newEntities)
+        foreach (uint entityId in newEntities) // Add new entities
         {
             if (!curEntities.Contains(entityId))
             {
-                var control = new EntityItemControl(entityId, WorldManager.CurrentWorld);
+                EntityItemControl control = new EntityItemControl(entityId, WorldManager.CurrentWorld);
                 entityControls[entityId] = control;
                 entitiesPanel.Children.Add(control);
             }
@@ -311,6 +452,10 @@ public partial class WorldWindow : EditorWindow
         // Update current entities set
         curEntities.Clear();
         curEntities.UnionWith(newEntities);
-        entitiesHeader.Text = $"{newEntities.Count}";
+        ApplySearchFilter(); // Apply search filter after updating entities
+
+        // Update entity count display
+        int visibleCount = entityControls.Values.Count(c => c.IsVisible);
+        entitiesHeader.Text = $"{visibleCount} / {entityControls.Count}";
     }
 }
