@@ -98,10 +98,8 @@ public partial class WorldWindow : EditorWindow
             // Handle rename textbox events
             renameTextBox.KeyDown += (s, e) =>
             {
-                if (e.Key == Avalonia.Input.Key.Enter)
-                    FinishRename();
-                else if (e.Key == Avalonia.Input.Key.Escape)
-                    CancelRename();
+                if (e.Key == Avalonia.Input.Key.Enter) FinishRename();
+                else if (e.Key == Avalonia.Input.Key.Escape) CancelRename();
             };
             renameTextBox.LostFocus += (s, e) => FinishRename();
 
@@ -248,7 +246,6 @@ public partial class WorldWindow : EditorWindow
         /// <param name="world">World to update names from</param>
         public void UpdateDisplay(World? world)
         {
-            // Don't update if we're currently renaming
             if (isRenaming) return;
 
             string displayName;
@@ -313,7 +310,7 @@ public partial class WorldWindow : EditorWindow
         {
             InnerLeftContent = searchIcon,
             Text = "",
-            Watermark = "Search Entities",
+            Watermark = "Search Entities...",
             FontSize = 12,
             Foreground = EditorColor.FromRGB(220, 220, 220),
             Background = EditorColor.FromRGB(17, 17, 17),
@@ -323,7 +320,6 @@ public partial class WorldWindow : EditorWindow
             VerticalContentAlignment = VerticalAlignment.Center,
         };
         headerSearchBox.TextChanged += OnSearchTextChanged;
-
         header.Children.Add(entitiesHeader);
         header.Children.Add(headerSearchBox);
 
@@ -367,7 +363,7 @@ public partial class WorldWindow : EditorWindow
 
         worldWinUpdater = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(250)
+            Interval = TimeSpan.FromMilliseconds(250),
         };
         worldWinUpdater.Tick += WorldWinUpdater_Tick;
         worldWinUpdater.Start();
@@ -384,7 +380,6 @@ public partial class WorldWindow : EditorWindow
     /// </summary>
     private void ApplySearchFilter()
     {
-        // Filter entities
         if (string.IsNullOrWhiteSpace(searchFilter))
         {
             foreach (var control in entityControls.Values)
