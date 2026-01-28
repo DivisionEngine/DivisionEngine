@@ -4,10 +4,13 @@
     [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
     public class RangeAttribute : Attribute
     {
+        public float Min { get; }
+        public float Max { get; }
 
-        public float Minimum { get; set; } = 0f;
-        public float Maximum { get; set; } = 1f;
-
-        public RangeAttribute() { }
+        public RangeAttribute(float min, float max)
+        {
+            Min = min;
+            Max = max;
+        }
     }
 }

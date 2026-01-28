@@ -1,8 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using DivisionEngine.Components.FieldAttributes;
 using Material.Icons;
@@ -209,7 +211,6 @@ public partial class PropertiesWindow : EditorWindow
         var fieldValue = field.GetValue(component);
 
         // Setup field panel
-
         StackPanel fieldPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -233,23 +234,40 @@ public partial class PropertiesWindow : EditorWindow
         fieldPanel.Children.Add(nameLabel);
         Control? editorControl = new Control();
 
-        // Check each type of field editor value possible
-
+        RangeAttribute? rangeAttr = field.GetCustomAttribute<RangeAttribute>();
         if (fieldValue != null && fieldType == typeof(float))
         {
             float value = (float)fieldValue;
-            editorControl = CreateFloatNumericBox(value, (f) => {
-                field.SetValue(component, f);
-            },
-            true);
+            if (rangeAttr != null)
+            {
+                editorControl = CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, (f) => {
+                    field.SetValue(component, f);
+                });
+            }
+            else
+            {
+                editorControl = CreateFloatNumericBox(value, (f) => {
+                    field.SetValue(component, f);
+                },
+                true);
+            }
         }
         else if (fieldValue != null && fieldType == typeof(int))
         {
             int value = (int)fieldValue;
-            editorControl = CreateIntegerNumericBox(value, (f) => {
-                field.SetValue(component, f);
-            },
-            true);
+            if (rangeAttr != null)
+            {
+                editorControl = CreateIntegerSlider(value, (int)rangeAttr.Min, (int)rangeAttr.Max, (i) => {
+                    field.SetValue(component, i);
+                });
+            }
+            else
+            {
+                editorControl = CreateIntegerNumericBox(value, (f) => {
+                    field.SetValue(component, f);
+                },
+                true);
+            }
         }
         else if (fieldValue != null && fieldType == typeof(string))
         {
@@ -451,6 +469,90 @@ public partial class PropertiesWindow : EditorWindow
         return fieldPanel;
     }
 
+    private static StackPanel CreateFloatSlider(float initialVal, float min, float max, Action<float> onValueChanged)
+    {
+        StackPanel sliderPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 4, 0)
+        };
+        Slider slider = new Slider
+        {
+            Minimum = min,
+            Maximum = max,
+            Value = initialVal,
+            Width = 100,
+            BackgroundSizing = BackgroundSizing.OuterBorderEdge,
+            Height = 20,
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = EditorColor.FromRGB(28, 28, 28),
+            Foreground = EditorColor.FromRGB(100, 100, 100)
+        };
+        TextBlock valueText = new TextBlock
+        {
+            Text = initialVal.ToString("F2"),
+            FontSize = 11,
+            Foreground = Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center,
+            MinWidth = 40
+        };
+
+        slider.ValueChanged += (s, e) =>
+        {
+            float newValue = (float)slider.Value;
+            valueText.Text = newValue.ToString("F2");
+            onValueChanged(newValue);
+        };
+        sliderPanel.Children.Add(slider);
+        sliderPanel.Children.Add(valueText);
+        return sliderPanel;
+    }
+
+    private static StackPanel CreateIntegerSlider(int initialVal, int min, int max, Action<int> onValueChanged)
+    {
+        StackPanel sliderPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 4, 0)
+        };
+        Slider slider = new Slider
+        {
+            Minimum = min,
+            Maximum = max,
+            Value = initialVal,
+            Width = 100,
+            BackgroundSizing = BackgroundSizing.OuterBorderEdge,
+            Height = 20,
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = EditorColor.FromRGB(28, 28, 28),
+            Foreground = EditorColor.FromRGB(100, 100, 100),
+            TickFrequency = 1,
+            IsSnapToTickEnabled = true
+        };
+        TextBlock valueText = new TextBlock
+        {
+            Text = initialVal.ToString(),
+            FontSize = 11,
+            Foreground = Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center,
+            MinWidth = 40
+        };
+
+        slider.ValueChanged += (s, e) =>
+        {
+            int newValue = (int)slider.Value;
+            valueText.Text = newValue.ToString();
+            onValueChanged(newValue);
+        };
+        sliderPanel.Children.Add(slider);
+        sliderPanel.Children.Add(valueText);
+        return sliderPanel;
+    }
+
     private static NumericUpDown CreateFloatNumericBox(float initialVal, Action<float> onValueChanged, bool hasSpinner = false)
     {
         NumericUpDown numericBox = new NumericUpDown
@@ -508,7 +610,7 @@ public partial class PropertiesWindow : EditorWindow
 
     private static StackPanel? CreateColorFieldEditor(FieldInfo field, IComponent component, ColorAttribute colorAttr)
     {
-        var fieldValue = field.GetValue(component);
+        object? fieldValue = field.GetValue(component);
         if (fieldValue == null) return null;
         float4 colorValue = (float4)fieldValue;
 
@@ -560,7 +662,7 @@ public partial class PropertiesWindow : EditorWindow
 
     private static StackPanel? CreateRotationFieldEditor(FieldInfo field, IComponent component, RotationAttribute rotAttr)
     {
-        var fieldValue = field.GetValue(component);
+        object? fieldValue = field.GetValue(component);
         if (fieldValue == null) return null;
         float4 quaternionValue = (float4)fieldValue;
 
@@ -573,7 +675,6 @@ public partial class PropertiesWindow : EditorWindow
             Orientation = Orientation.Horizontal,
             VerticalAlignment = VerticalAlignment.Center
         };
-
         NumericUpDown xBox = CreateFloatNumericBox(eulerValue.X, (val) =>
         {
             if (rotAttr.Degrees) val *= Math.Deg2Rad;
@@ -592,7 +693,6 @@ public partial class PropertiesWindow : EditorWindow
             eulerValue.Z = val;
             field.SetValue(component, Math.EulerToQuaternion(eulerValue));
         });
-
         MaterialIcon rotateTypeIcon = new MaterialIcon
         {
             Kind = MaterialIconKind.Pi,

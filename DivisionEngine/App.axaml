@@ -21,51 +21,50 @@
         <!--Division Engine Default Control Styling-->
       
         <!--Grid Splitter Styles-->
-      <Style Selector="GridSplitter">
-        <Setter Property="Background" Value="#444"/>
-        <Setter Property="MinHeight" Value="1"/>
-        <Setter Property="MinWidth" Value="1"/>
-      </Style>
+        <Style Selector="GridSplitter">
+            <Setter Property="Background" Value="#444"/>
+            <Setter Property="MinHeight" Value="1"/>
+            <Setter Property="MinWidth" Value="1"/>
+        </Style>
 
         <!--Tab Control Styles-->
-      <Style Selector="TabControl">
-        <Setter Property="Background" Value="#111"/>
-        <Setter Property="Padding" Value="0"/>
-        
-      </Style>
-      <Style Selector="TabControl /template/ avalonia_controls_presenters|ItemsPresenter#PART_ItemsPresenter">
-        <Setter Property="Margin" Value="0,0,0,0"/>
-      </Style>
+        <Style Selector="TabControl">
+            <Setter Property="Background" Value="#111"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="TabControl /template/ avalonia_controls_presenters|ItemsPresenter#PART_ItemsPresenter">
+            <Setter Property="Margin" Value="0,0,0,0"/>
+        </Style>
       
         <!--Tab Item Styles-->
-      <Style Selector="TabItem">
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="FontSize" Value="14"/>
-        <Setter Property="Padding" Value="0,0,0,0"/>
-      </Style>
-      <Style Selector="TabItem:selected">
-        <Setter Property="Background" Value="#222"/>
-        <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush" Value="#111"/>
-      </Style>
-      <Style Selector="TabItem:pointerover">
-        <Setter Property="Background" Value="#aaa"/>
-      </Style>
-      <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
-        <Setter Property="Background" Value="DarkCyan"/>
-        <Setter Property="Height" Value="1"/>
-        <Setter Property="Margin" Value="0,0,0,0"/>
-      </Style>
-      <Style Selector="TabItem /template/ avalonia_controls_presenters|ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Padding" Value="4,2,4,2"/>
-      </Style>
+        <Style Selector="TabItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="0,0,0,0"/>
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Background" Value="#222"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#111"/>
+        </Style>
+        <Style Selector="TabItem:pointerover">
+            <Setter Property="Background" Value="#aaa"/>
+        </Style>
+        <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+            <Setter Property="Background" Value="DarkCyan"/>
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,0"/>
+        </Style>
+        <Style Selector="TabItem /template/ avalonia_controls_presenters|ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Padding" Value="4,2,4,2"/>
+        </Style>
       
         <!--Menu Item Styles-->
-      <Style Selector="MenuItem">
-        <Setter Property="Foreground" Value="#bbb"/>
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Padding" Value="6,4,6,4"/>
-      </Style>
+        <Style Selector="MenuItem">
+            <Setter Property="Foreground" Value="#bbb"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="6,4,6,4"/>
+        </Style>
     </Application.Styles>
   
 </Application>

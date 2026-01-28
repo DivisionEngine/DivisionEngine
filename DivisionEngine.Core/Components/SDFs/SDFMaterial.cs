@@ -22,8 +22,8 @@ namespace DivisionEngine.Components.SDFs
         }
 
         [Color(false)] public float4 albedoColor;
-        public float metallic;
-        public float roughness;
+        [Range(0f, 1f)] public float metallic;
+        [Range(0f, 1f)] public float roughness;
         public float specular;
         public float indexOfRefraction;
         public float ambientOcclusion;
