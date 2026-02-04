@@ -66,7 +66,7 @@ namespace DivisionEngine.Editor
 
                     if (tabItem != null && tabItem.DataContext is EditorWindowViewModel viewModel)
                     {
-                        var contextMenu = CreateTabContextMenu(panelType, viewModel);
+                        ContextMenu contextMenu = CreateTabContextMenu(panelType, viewModel);
                         contextMenu.Open(tabItem);
                         e.Handled = true;
                     }
@@ -217,7 +217,7 @@ namespace DivisionEngine.Editor
                 },
                 MinWidth = 280, // Ensure minimum width
                 Margin = new Thickness(0, 2, 0, 2),
-                HorizontalAlignment = HorizontalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
             };
 
             MaterialIcon icon = new MaterialIcon
