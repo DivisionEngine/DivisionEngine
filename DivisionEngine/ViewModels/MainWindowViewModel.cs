@@ -1,7 +1,9 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
+using DivisionEngine.Components;
 using DivisionEngine.Editor.Systems;
+using DivisionEngine.Editor.Tasks;
 using DivisionEngine.Projects;
 using ReactiveUI;
 using System;
@@ -155,22 +157,22 @@ namespace DivisionEngine.Editor.ViewModels
         [RelayCommand]
         private async Task SaveProjectAs()
         {
-            EditorUI.Progress = 0;
+            EditorTask t = EditorTaskManager.Create("Test Task", "Test Description", 0f);
             ShowProgress = true;
             try
             {
                 await App.SetEditorRenderingAsync(false);
-                EditorUI.Progress = 0.25;
+                EditorTaskManager.Update(t.Id, 0.25f);
 
                 // Get project name
                 ProjectNameDialog projectNameDialog = new ProjectNameDialog();
                 string? projectName = await projectNameDialog.ShowDialog<string>(mainWindow);
-                EditorUI.Progress = 0.5;
+                EditorTaskManager.Update(t.Id, 0.5f);
 
                 if (string.IsNullOrWhiteSpace(projectName))
                 {
                     await App.SetEditorRenderingAsync(true);
-                    EditorUI.ShowProgress = false;
+                    EditorTaskManager.Complete(t.Id);
                     return;
                 }
 
@@ -181,12 +183,12 @@ namespace DivisionEngine.Editor.ViewModels
                     AllowMultiple = false,
                     SuggestedStartLocation = await mainWindow.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Documents)
                 });
-                EditorUI.Progress = 0.75;
+                EditorTaskManager.Update(t.Id, 0.75f);
 
                 if (folderResult.Count == 0 || string.IsNullOrEmpty(folderResult[0].Path.LocalPath))
                 {
                     await App.SetEditorRenderingAsync(true);
-                    EditorUI.ShowProgress = false;
+                    EditorTaskManager.Complete(t.Id);
                     return;
                 }
 
@@ -203,11 +205,11 @@ namespace DivisionEngine.Editor.ViewModels
                     };
 
                     bool overwrite = await confirmDialog.ShowDialog<bool>(mainWindow);
-                    EditorUI.Progress = 1.0;
+                    EditorTaskManager.Update(t.Id, 1f);
                     if (!overwrite)
                     {
                         await App.SetEditorRenderingAsync(true);
-                        EditorUI.ShowProgress = false;
+                        EditorTaskManager.Complete(t.Id);
                         return;
                     }
                 }
@@ -217,13 +219,14 @@ namespace DivisionEngine.Editor.ViewModels
                 if (success) // Check if successfully saved project
                     AssetsWindow.LoadAssetsForCurrentProject();
                 else Debug.Error("Failed to save project");
-                EditorUI.ShowProgress = false;
+                EditorTaskManager.Complete(t.Id);
 
                 await App.SetEditorRenderingAsync(true);
             }
             catch (Exception ex)
             {
                 Debug.Error($"Error saving project: {ex.Message}");
+                EditorTaskManager.Complete(t.Id);
             }
         }
 

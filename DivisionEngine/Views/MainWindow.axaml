@@ -73,11 +73,32 @@
     </StackPanel>
 
     <!--Bottom Utility Bar-->
-    <StackPanel DockPanel.Dock="Bottom" Background="#444" Height="20" Orientation="Horizontal">
-        <ProgressBar IsVisible="{Binding ShowProgress, Mode=TwoWay}" Value="{Binding ProgressValue, Mode=TwoWay}" 
-                     Minimum="0.0" Maximum="1.0" Height="10" Background="#222" 
-                     ShowProgressText="True" FontSize="8" VerticalAlignment="Center" Margin="10,0"/>
-    </StackPanel>
+    <Grid DockPanel.Dock="Bottom" Background="#444" Height="24">
+        <Grid HorizontalAlignment="Right" VerticalAlignment="Center" Width="200">
+            <!-- Progress Bar -->
+            <ProgressBar x:Name="UniversalProgressBar" Height="18" Background="#111" Foreground="#FF6A00" Cursor="Hand" IsHitTestVisible="True">
+                <ProgressBar.ContextMenu>
+                    <ContextMenu x:Name="TaskContextMenu" Background="#222" BorderBrush="#444" MinWidth="280"/>
+                </ProgressBar.ContextMenu>
+            </ProgressBar>
+            <TextBlock x:Name="ProgressPercentageText"
+                       Text="0%"
+                       FontSize="10"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsHitTestVisible="False"/>
+            <TextBlock x:Name="TaskCountText"
+                       Text="0"
+                       FontSize="10"
+                       Foreground="White"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       Margin="0,0,4,0"
+                       IsHitTestVisible="False"/>
+        </Grid>
+    </Grid>
 
     <!--Basic Grid Layout-->
     <Grid ColumnDefinitions="*, 2, 300">
