@@ -63,14 +63,17 @@ namespace DivisionEngine.Editor
                 RendererVisible = true;
 
                 if (Renderer != null && Renderer.RendererWindow != null) Renderer.Stop();
-                // Start the SDFRenderer in a separate thread
+
                 Renderer = new RenderPipeline();
-                Renderer.BindCurrentWorld(); // Binds default world
+                Renderer.BindCurrentWorld();
+
+                // Subscribe to input context creation BEFORE starting the renderer
+                Renderer.InputContextCreated += SetupInputHandlers;
+
                 _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
 
                 Renderer.Close += () =>
                 {
-                    // Shutdown UI Thread
                     Dispatcher.UIThread.Post(() =>
                     {
                         if (Current!.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -78,12 +81,10 @@ namespace DivisionEngine.Editor
                         Environment.Exit(0);
                     });
                 };
-                EnvironmentWindow.SyncToolValuesToRenderer(); // Sync tool values
 
-                // Silk.NET input handling (wait 0.5 seconds before initializing input to avoid null reference exception)
-                while (Renderer == null || Renderer.RendererWindow == null || Renderer.RendererWindow.Time < 1.0)
-                    await Task.Delay(1); // Wait for the renderer to load
-                SilkNetInputSetup();
+                // Wait for renderer to be ready
+                // while (Renderer == null || !Renderer.InputReady) await Task.Delay(1);
+                EnvironmentWindow.SyncToolValuesToRenderer(); // Update environment window tools
             }
             else
             {
@@ -171,43 +172,34 @@ namespace DivisionEngine.Editor
         }
 
         /// <summary>
-        /// Setup input handling for borderless Silk.Net threaded render GL window.
+        /// Setup input handling for borderless Silk.NET threaded render GLFW window.
         /// </summary>
-        public static void SilkNetInputSetup()
+        private static void SetupInputHandlers(IInputContext input)
         {
-            lock (Renderer!.SyncLock)
+            Debug.Info("Setup Input Handlers: Configuring input...");
+            foreach (IKeyboard keyboard in input.Keyboards)
             {
-                try
-                {
-                    IInputContext? input = Renderer!.RendererWindow!.CreateInput();
-                    foreach (var keyboard in input.Keyboards) // Keyboard handling
-                    {
-                        keyboard.KeyDown += (kb, key, code) => UserInput!.SetKeyDown(EditorInput.SilkNetToKeyCode(key));
-                        keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(EditorInput.SilkNetToKeyCode(key));
-                    }
-
-                    foreach (var mouse in input.Mice) // Mouse handling
-                    {
-                        mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(EditorInput.SilkNetToMouseCode(code));
-                        mouse.MouseUp += (m, code) => UserInput!.SetMouseKeyUp(EditorInput.SilkNetToMouseCode(code));
-
-                        mouse.MouseMove += (m, pos) =>
-                        {
-                            float2 posConverted = new float2(pos.X, pos.Y);
-                            UserInput!.SetMousePosition(posConverted);
-
-                            if (Renderer == null || Renderer.RendererWindow == null) return;
-                            Vector2D<int> screenSizeInt = Renderer.RendererWindow.Size;
-                            float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
-                            UserInput!.SetRelativeMousePosition(posConverted, screenSize);
-                        };
-                    }
-                }
-                catch (InvalidOperationException ex)
-                {
-                    Debug.Warning($"Renderer already has input: {ex.Message}");
-                }
+                keyboard.KeyDown += (kb, key, code) => UserInput?.SetKeyDown(EditorInput.SilkNetToKeyCode(key));
+                keyboard.KeyUp += (kb, key, code) => UserInput?.SetKeyUp(EditorInput.SilkNetToKeyCode(key));
             }
+
+            foreach (IMouse mouse in input.Mice)
+            {
+                mouse.MouseDown += (m, code) => UserInput?.SetMouseKeyDown(EditorInput.SilkNetToMouseCode(code));
+                mouse.MouseUp += (m, code) => UserInput?.SetMouseKeyUp(EditorInput.SilkNetToMouseCode(code));
+
+                mouse.MouseMove += (m, pos) =>
+                {
+                    float2 posConverted = new float2(pos.X, pos.Y);
+                    UserInput?.SetMousePosition(posConverted);
+
+                    if (Renderer == null || Renderer.RendererWindow == null) return;
+                    Vector2D<int> screenSizeInt = Renderer.RendererWindow.Size;
+                    float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
+                    UserInput?.SetRelativeMousePosition(posConverted, screenSize);
+                };
+            }
+            Debug.Info("Setup Input Handlers: Input configured successfully");
         }
 
         private static void DisableAvaloniaDataAnnotationValidation()

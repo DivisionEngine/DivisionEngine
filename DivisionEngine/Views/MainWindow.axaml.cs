@@ -55,6 +55,11 @@ namespace DivisionEngine.Editor
             };
         }
 
+        /// <summary>
+        /// Attaches a context menu to each tab control element.
+        /// </summary>
+        /// <param name="tabControl">Tab control to attach menu to</param>
+        /// <param name="panelType">Panel type of tab control</param>
         private void AttachContextMenuToTabControl(TabControl tabControl, string panelType)
         {
             tabControl.AddHandler(PointerReleasedEvent, (sender, e) =>
@@ -74,6 +79,12 @@ namespace DivisionEngine.Editor
             }, RoutingStrategies.Tunnel);
         }
 
+        /// <summary>
+        /// Creates the context menu for each tab.
+        /// </summary>
+        /// <param name="panelType">Tab panel type</param>
+        /// <param name="viewModel">Tab editor view model</param>
+        /// <returns>Generated tab context menu</returns>
         private ContextMenu CreateTabContextMenu(string panelType, EditorWindowViewModel viewModel)
         {
             ContextMenu contextMenu = new ContextMenu();
@@ -100,6 +111,9 @@ namespace DivisionEngine.Editor
             return contextMenu;
         }
 
+        /// <summary>
+        /// Initializes the universal progress bar at the bottom of the editor.
+        /// </summary>
         private void SetupUniversalProgressBar()
         {
             EditorTaskManager.TasksChanged += UpdateUniversalProgressBar;
@@ -113,6 +127,9 @@ namespace DivisionEngine.Editor
             UpdateUniversalProgressBar();
         }
 
+        /// <summary>
+        /// Updates the universal progress bar at the bottom of the editor.
+        /// </summary>
         private void UpdateUniversalProgressBar()
         {
             List<EditorTask> tasks = [.. EditorTaskManager.GetAll()];
@@ -148,7 +165,11 @@ namespace DivisionEngine.Editor
             }
             UpdateTaskContextMenu(tasks);
         }
-
+        
+        /// <summary>
+        /// Updates the editor task manager context menu.
+        /// </summary>
+        /// <param name="tasks">List of tasks in the context menu</param>
         private void UpdateTaskContextMenu(List<EditorTask> tasks)
         {
             TaskContextMenu.Items.Clear();
@@ -170,6 +191,7 @@ namespace DivisionEngine.Editor
                     Header = CreateTaskMenuItem(task),
                     Foreground = Brushes.White,
                     MinWidth = 280,
+                    Padding = new Thickness(20, 0, 0, 0),
                 };
                 TaskContextMenu.Items.Add(menuItem);
             }
@@ -199,6 +221,11 @@ namespace DivisionEngine.Editor
             }
         }
 
+        /// <summary>
+        /// Builds the menu item for each editor task.
+        /// </summary>
+        /// <param name="task">Task to create menu item for</param>
+        /// <returns>Grid element representing task</returns>
         private static Grid CreateTaskMenuItem(EditorTask task)
         {
             Grid grid = new Grid

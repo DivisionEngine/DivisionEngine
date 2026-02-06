@@ -49,6 +49,7 @@ namespace DivisionEngine
                 albedoColor = ColorPalette.Khaki,
             });
             newDefaultWorld.AddComponent(sphereEntity, new SoftShadows());
+            newDefaultWorld.AddComponent(sphereEntity, new Reflections());
 
             uint roundedBoxEntity = newDefaultWorld.CreateEntity("Rounded Box");
             newDefaultWorld.AddComponent(roundedBoxEntity, new Transform

@@ -27,7 +27,6 @@ public class GameStartup
     public static void Main(string[] args)
     {
         UserInput = new InputSystem();
-        SetupInput();
 
         // Replace with project path from startup args eventually.
         LoadProjectOrDefaultWorld(string.Empty);
@@ -38,6 +37,8 @@ public class GameStartup
 
         // Run render pipeline
         Renderer = new RenderPipeline();
+        Renderer.InputContextCreated += SetupInputHandlers; // Subscribe input handling at correct time!
+
         Renderer.BindCurrentWorld(); // Bind loaded project
         Renderer.Run(RequestedFPS, false);
 
@@ -63,8 +64,7 @@ public class GameStartup
                 Thread.Sleep(frameTime);
             }
         }
-        catch (OperationCanceledException)
-        { }
+        catch (OperationCanceledException) { }
         finally { EngineCore.Stop(); }
     }
 
@@ -87,53 +87,33 @@ public class GameStartup
     }
 
     /// <summary>
-    /// Configures the input system for the player build.
+    /// Setup input handling for borderless Silk.NET threaded render GLFW window.
     /// </summary>
-    private static async void SetupInput()
+    private static void SetupInputHandlers(IInputContext input)
     {
-        // Silk.NET input handling
-        while (Renderer == null || Renderer!.RendererWindow == null)
-            await Task.Delay(1); // Wait for the renderer to load
-
-        Renderer!.RendererWindow.Load += SilkNetInputSetup;
-    }
-
-    /// <summary>
-    /// Setup input handling for Silk.Net threaded render GL window.
-    /// </summary>
-    public static void SilkNetInputSetup()
-    {
-        lock (Renderer!.SyncLock)
+        Debug.Info("Setup Input Handlers: Configuring input...");
+        foreach (IKeyboard keyboard in input.Keyboards)
         {
-            try
-            {
-                IInputContext? input = Renderer!.RendererWindow!.CreateInput();
-                foreach (var keyboard in input.Keyboards) // Keyboard handling
-                {
-                    keyboard.KeyDown += (kb, key, code) => UserInput!.SetKeyDown(PlayerInput.SilkNetToKeyCode(key));
-                    keyboard.KeyUp += (kb, key, code) => UserInput!.SetKeyUp(PlayerInput.SilkNetToKeyCode(key));
-                }
-
-                foreach (var mouse in input.Mice) // Mouse handling
-                {
-                    mouse.MouseDown += (m, code) => UserInput!.SetMouseKeyDown(PlayerInput.SilkNetToMouseCode(code));
-                    mouse.MouseUp += (m, code) => UserInput!.SetMouseKeyUp(PlayerInput.SilkNetToMouseCode(code));
-
-                    mouse.MouseMove += (m, pos) =>
-                    {
-                        float2 posConverted = new float2(pos.X, pos.Y);
-                        UserInput!.SetMousePosition(posConverted);
-
-                        Vector2D<int> screenSizeInt = Renderer!.RendererWindow!.Size;
-                        float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
-                        UserInput!.SetRelativeMousePosition(posConverted, screenSize);
-                    };
-                }
-            }
-            catch (InvalidOperationException ex)
-            {
-                Debug.Warning($"Renderer already has input: {ex.Message}");
-            }
+            keyboard.KeyDown += (kb, key, code) => UserInput?.SetKeyDown(PlayerInput.SilkNetToKeyCode(key));
+            keyboard.KeyUp += (kb, key, code) => UserInput?.SetKeyUp(PlayerInput.SilkNetToKeyCode(key));
         }
+
+        foreach (IMouse mouse in input.Mice)
+        {
+            mouse.MouseDown += (m, code) => UserInput?.SetMouseKeyDown(PlayerInput.SilkNetToMouseCode(code));
+            mouse.MouseUp += (m, code) => UserInput?.SetMouseKeyUp(PlayerInput.SilkNetToMouseCode(code));
+
+            mouse.MouseMove += (m, pos) =>
+            {
+                float2 posConverted = new float2(pos.X, pos.Y);
+                UserInput?.SetMousePosition(posConverted);
+
+                if (Renderer == null || Renderer.RendererWindow == null) return;
+                Vector2D<int> screenSizeInt = Renderer.RendererWindow.Size;
+                float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
+                UserInput?.SetRelativeMousePosition(posConverted, screenSize);
+            };
+        }
+        Debug.Info("Setup Input Handlers: Input configured successfully");
     }
 }

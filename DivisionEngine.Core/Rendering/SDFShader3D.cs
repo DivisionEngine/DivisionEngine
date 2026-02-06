@@ -36,7 +36,6 @@ namespace DivisionEngine
             return Hlsl.Normalize(Hlsl.Mul(worldData[0].cameraToWorld, 
                 new float4(Hlsl.Mul(worldData[0].cameraInverseProj, new float4(coord, 0.0f, 1.0f)).XYZ, 0.0f)).XYZ);
         }*/
-
         
         // Quaternion ref: https://gist.github.com/mattatz/40a91588d5fb38240403f198a938a593
         // Quaternion multiplication
@@ -54,9 +53,6 @@ namespace DivisionEngine
             float4 r_c = r * new float4(-1, -1, -1, 1);
             return Qmul(r, Qmul(new float4(v, 0), r_c)).XYZ;
         }
-
-        // Applies translation, rotation, and scaling to a point
-        
 
         private float SphereSDF(float3 pt, float r)
         {

@@ -1,5 +1,6 @@
 ﻿using ComputeSharp;
 using DivisionEngine.Systems;
+using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 using System.Diagnostics.CodeAnalysis;
@@ -32,6 +33,7 @@ namespace DivisionEngine.Rendering
         public IWindow? RendererWindow;
         public bool InputReady { get; private set; } = false; // Indicates if the renderer is ready to process input
         public event Action? Close; // Event to handle window close actions
+        public event Action<IInputContext>? InputContextCreated; // Event called when input context is created, for handler setup on other threads (Avalonia)
         public DebugMode debugMode = DebugMode.None; // Current debug mode, if any
 
         // Render texture storage
@@ -72,29 +74,36 @@ namespace DivisionEngine.Rendering
         /// loading and rendering.</remarks>
         public void Run(double requestedFPS, bool editorMode)
         {
-            WindowOptions options = WindowOptions.Default;
-            if (editorMode)
+            try
             {
-                options.TopMost = true;
-                options.WindowBorder = WindowBorder.Hidden;
+                WindowOptions options = WindowOptions.Default;
+                if (editorMode)
+                {
+                    options.TopMost = true;
+                    options.WindowBorder = WindowBorder.Hidden;
+                }
+                options.Title = "SDF Scene";
+                options.IsVisible = true;
+                options.VSync = true;
+                options.ShouldSwapAutomatically = true;
+                options.UpdatesPerSecond = requestedFPS;
+
+                RendererWindow = Window.Create(options);
+                Debug.Info($"Renderer: Created Render Window on thread {Environment.CurrentManagedThreadId}");
+
+                closeWindowWithCloseEvent = true;
+                RendererWindow.Load += OnLoad;
+                RendererWindow.Render += OnRender;
+                RendererWindow.Closing += OnClosing;
+
+                Debug.Info("Renderer: Starting window run loop");
+                RendererWindow.Run();
             }
-
-            options.Title = "SDF Scene";
-            options.IsVisible = true;
-            options.VSync = true;
-            options.ShouldSwapAutomatically = true;
-
-            options.UpdatesPerSecond = requestedFPS;
-            RendererWindow = Window.Create(options);
-
-            closeWindowWithCloseEvent = true;
-            Debug.Info("Renderer: Created Render Window");
-            RendererWindow.Load += OnLoad;
-            RendererWindow.Render += OnRender;
-            RendererWindow.Closing += OnClosing;
-            Debug.Info("Renderer: Running Renderer");
-            RendererWindow?.Run();
-            Debug.Info("Renderer: Terminated");
+            catch (Exception ex)
+            {
+                Debug.Error($"Renderer: Failed to run window - {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                throw;
+            }
         }
 
         /// <summary>
@@ -163,10 +172,25 @@ namespace DivisionEngine.Rendering
             Debug.Info("Renderer: Compiling OpenGL Shader Program");
             glShaderProgram = CompileShaders();
             gl!.GenVertexArrays(1, out uint vao);
-            gl.BindVertexArray(vao); // Bind the Vertex Array Object (VAO)
+            gl.BindVertexArray(vao);
             Debug.Info("Renderer: VAO Bound");
 
-            InputReady = true; // Set input ready to true after OpenGL context is initialized
+            try
+            {
+                Debug.Info("Renderer: Creating input context...");
+                IInputContext? inputContext = RendererWindow!.CreateInput(); // Must create input context on same thread as render window!
+                if (inputContext != null)
+                {
+                    Debug.Info("Renderer: Input context created successfully");
+                    InputContextCreated?.Invoke(inputContext);
+                }
+                else Debug.Error("Renderer: Failed to create input context");
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Renderer: Exception creating input context: {ex.Message}");
+            }
+            InputReady = true;
         }
 
         /// <summary>
