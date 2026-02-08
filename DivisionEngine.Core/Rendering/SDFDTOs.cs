@@ -21,9 +21,12 @@ namespace DivisionEngine.Rendering
         public int maxRayBounces; // 4b - used for reflections and refractions
 
         // DoF Properties
-        public float focusDistance;
-        public float apertureSize;
-        public int dofSamples;
+        public float focusDistance; // 4b
+        public float apertureSize; // 4b
+        public int dofSamples; // 4b
+
+        // Denoise Properties
+        public int enableDenoise; // 4b
     }
 
     /// <summary>

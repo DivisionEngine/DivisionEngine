@@ -50,6 +50,9 @@ namespace DivisionEngine.Components
         public int maxRaySteps;
         public int maxShadowRaySteps;
 
+        // Denoising Variables
+        public bool enableDenoise;
+
         public IComponent Clone() => new Camera
         {
             fieldOfView = fieldOfView,
@@ -67,6 +70,8 @@ namespace DivisionEngine.Components
 
             maxRaySteps = maxRaySteps,
             maxShadowRaySteps = maxShadowRaySteps,
+
+            enableDenoise = enableDenoise,
         };
     }
 }

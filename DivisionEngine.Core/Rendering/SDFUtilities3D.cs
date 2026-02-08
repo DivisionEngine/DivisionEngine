@@ -1,6 +1,7 @@
-﻿using ComputeSharp;
+﻿#pragma warning disable CA1416 // Validate platform compatibility
 
-#pragma warning disable CA1416 // Validate platform compatibility
+using ComputeSharp;
+
 namespace DivisionEngine
 {
 

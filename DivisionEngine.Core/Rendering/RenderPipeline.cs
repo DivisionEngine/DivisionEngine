@@ -53,6 +53,10 @@ namespace DivisionEngine.Rendering
         public float Time;
         public World? boundWorld;
 
+        // Denoising
+        private ReadWriteTexture2D<float4>? denoisedTex;
+        private ReadOnlyBuffer<int>? objectIdReadOnlyBuffer; // Denoise needs ReadOnly version
+
         /// <summary>
         /// Binds the WorldManager.CurrentWorld to this render pipeline.
         /// </summary>
@@ -115,15 +119,19 @@ namespace DivisionEngine.Rendering
             {
                 device?.Dispose();
                 renderTex?.Dispose();
+                denoisedTex?.Dispose();
                 depthNormalsTex?.Dispose();
                 objectIdBuffer?.Dispose();
+                objectIdReadOnlyBuffer?.Dispose();
                 worldBuffer?.Dispose();
                 primitivesBuffer?.Dispose();
                 lightsBuffer?.Dispose();
                 device = null;
                 renderTex = null;
+                denoisedTex = null;
                 depthNormalsTex = null;
                 objectIdBuffer = null;
+                objectIdReadOnlyBuffer = null;
                 worldBuffer = null;
                 primitivesBuffer = null;
                 lightsBuffer = null;
@@ -207,8 +215,7 @@ namespace DivisionEngine.Rendering
         /// Called when the frame must be rendered.
         /// </summary>
         /// <param name="delta">Window delta</param>
-        [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
-        private void OnRender(double delta)
+        /*private void OnRender(double delta)
         {
             boundWorld?.CallRender(); // Calls the render loop on the bound world
 
@@ -278,7 +285,7 @@ namespace DivisionEngine.Rendering
                 // Dispatch SDF compute shader
                 int outputMode = 0;
                 if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
-                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode, TimeSystem.FrameCount,
+                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode,
                     renderTex, depthNormalsTex, objectIdBuffer, worldBuffer, primitivesBuffer);
                 device?.For(texWidth, texHeight, shader);
 
@@ -323,6 +330,188 @@ namespace DivisionEngine.Rendering
             unsafe
             {
                 fixed (float4* dataPtr = pixels) // This should be set to whatever debug mode is currently active
+                {
+                    gl!.BindTexture(TextureTarget.Texture2D, glTexture);
+                    gl.TexImage2D(
+                        TextureTarget.Texture2D,
+                        0,
+                        (int)InternalFormat.Rgba32f,
+                        (uint)texWidth,
+                        (uint)texHeight,
+                        0,
+                        PixelFormat.Rgba,
+                        PixelType.Float,
+                        dataPtr);
+                }
+            }
+
+            gl.Viewport(0, 0, (uint)texWidth, (uint)texHeight);
+            gl.ClearColor(0f, 0f, 0f, 1f);
+            gl.Clear((uint)ClearBufferMask.ColorBufferBit);
+            gl.UseProgram(glShaderProgram);
+
+            gl.ActiveTexture(TextureUnit.Texture0);
+            gl.BindTexture(TextureTarget.Texture2D, glTexture);
+            int loc = gl.GetUniformLocation(glShaderProgram, "tex");
+            gl.Uniform1(loc, 0);
+
+            gl.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
+            gl.Finish();
+        }*/
+
+        private void OnRender(double delta)
+        {
+            boundWorld?.CallRender();
+
+            int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
+            if (texWidth < 1 || texHeight < 1) return;
+
+            SDFWorldDTO worldDTO;
+            SDFPrimitiveObjectDTO[] sdfPrimitivesDTO;
+            SDFLightDTO[] sdfLightsDTO;
+            lock (SyncLock)
+            {
+                worldDTO = SDFRenderSystem.PreparedWorldDTO;
+                sdfPrimitivesDTO = SDFRenderSystem.PreparedPrimitivesDTO;
+                sdfLightsDTO = SDFRenderSystem.PreparedLightsDTO;
+            }
+
+            if (sdfPrimitivesDTO.Length < 1) return;
+            if (device == null)
+            {
+                Debug.Warning("Renderer: GraphicsDevice is null or disposed");
+                return;
+            }
+
+            try
+            {
+                // Build render texture
+                if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight || pixels == null)
+                {
+                    renderTex?.Dispose();
+                    renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                    pixels = new float4[texWidth * texHeight];
+                }
+
+                // Build denoised texture (for post-process)
+                if (denoisedTex == null || denoisedTex.Width != texWidth || denoisedTex.Height != texHeight)
+                {
+                    denoisedTex?.Dispose();
+                    denoisedTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                }
+
+                // Build depth and normal texture
+                if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || depthNormalPixels == null)
+                {
+                    depthNormalsTex?.Dispose();
+                    depthNormalsTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                    depthNormalPixels = new float4[texWidth * texHeight];
+                }
+
+                // Build objectIdBuffer (ReadWrite for SDF shader)
+                if (objectIdBuffer == null || objectIdBuffer.Length != (texWidth * texHeight) || objectIDs == null)
+                {
+                    objectIdBuffer?.Dispose();
+                    objectIdBuffer = device!.AllocateReadWriteBuffer<int>(texWidth * texHeight);
+                    objectIDs = new int[texWidth * texHeight];
+                }
+
+                // Build and copy buffers
+                worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
+                worldBuffer.CopyFrom([worldDTO]);
+
+                primitivesBuffer?.Dispose();
+                primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
+                if (primitivesBuffer == null) return;
+
+                // Dispatch SDF compute shader
+                int outputMode = 0;
+                if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
+                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode,
+                    renderTex, depthNormalsTex, objectIdBuffer, worldBuffer, primitivesBuffer);
+                device?.For(texWidth, texHeight, shader);
+
+                // Handle debug modes
+                lock (SyncLock)
+                {
+                    if ((int)debugMode > 0 && (int)debugMode < 4 && renderTex != null && depthNormalsTex != null && objectIdBuffer != null)
+                    {
+                        SDFDebug3D debugShader = new SDFDebug3D(renderTex, depthNormalsTex, objectIdBuffer,
+                            (int)debugMode, texWidth);
+                        device?.For(texWidth, texHeight, debugShader);
+                    }
+                }
+
+                // Run denoise pass (if enabled and not in debug mode)
+                ReadWriteTexture2D<float4> finalTexture = renderTex;
+                if (worldDTO.enableDenoise == 1 && debugMode == DebugMode.None)
+                {
+                    // Create ReadOnly version of objectIdBuffer for denoise shader
+                    objectIdReadOnlyBuffer?.Dispose();
+                    objectIdReadOnlyBuffer = device?.AllocateReadOnlyBuffer(objectIDs!);
+
+                    if (objectIdReadOnlyBuffer != null && denoisedTex != null)
+                    {
+                        // Convert renderTex to ReadOnlyTexture2D by creating temporary copy
+                        // ComputeSharp limitation: need to use Upload pattern
+                        var uploadTex = device?.AllocateReadOnlyTexture2D<float4>(texWidth, texHeight);
+                        if (uploadTex != null)
+                        {
+                            renderTex?.CopyTo(pixels!);
+                            uploadTex.CopyFrom(pixels!);
+
+                            DenoiseShader denoiseShader = new DenoiseShader(
+                                texWidth, texHeight, uploadTex,
+                                denoisedTex,
+                                depthNormalsTex!,
+                                primitivesBuffer,
+                                objectIdReadOnlyBuffer);
+
+                            device?.For(texWidth, texHeight, denoiseShader);
+                            finalTexture = denoisedTex;
+
+                            uploadTex.Dispose();
+                        }
+                    }
+                }
+
+                // Copy final result for output buffers
+                depthNormalsTex?.CopyTo(depthNormalPixels!);
+                objectIdBuffer?.CopyTo(objectIDs!);
+                finalTexture?.CopyTo(pixels!); // Copy denoised or original result
+            }
+            catch (ObjectDisposedException ex)
+            {
+                Debug.Warning($"Renderer: Object disposed during rendering: {ex.Message}");
+                renderTex?.Dispose();
+                denoisedTex?.Dispose();
+                depthNormalsTex?.Dispose();
+                objectIdBuffer?.Dispose();
+                objectIdReadOnlyBuffer?.Dispose();
+                worldBuffer?.Dispose();
+                primitivesBuffer?.Dispose();
+                lightsBuffer?.Dispose();
+                device = null;
+                renderTex = null;
+                denoisedTex = null;
+                depthNormalsTex = null;
+                objectIdBuffer = null;
+                objectIdReadOnlyBuffer = null;
+                worldBuffer = null;
+                primitivesBuffer = null;
+                lightsBuffer = null;
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                Debug.Error($"Renderer: Invalid operation during ComputeSharp execution: {ex.Message}");
+                return;
+            }
+
+            // Push final texture to OpenGL
+            unsafe
+            {
+                fixed (float4* dataPtr = pixels)
                 {
                     gl!.BindTexture(TextureTarget.Texture2D, glTexture);
                     gl.TexImage2D(

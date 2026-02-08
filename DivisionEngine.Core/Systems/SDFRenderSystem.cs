@@ -61,6 +61,10 @@ namespace DivisionEngine.Systems
 
                 worldData.maxRaySteps = camera.maxRaySteps;
                 worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
+
+                if (camera.enableDenoise) worldData.enableDenoise = 1;
+                else worldData.enableDenoise = 0;
+
                 break; // Use first camera
             }
 
