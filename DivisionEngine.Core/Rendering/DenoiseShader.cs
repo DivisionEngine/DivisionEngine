@@ -7,13 +7,13 @@ namespace DivisionEngine.Rendering
     [GeneratedComputeShaderDescriptor]
     [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
     public readonly partial struct DenoiseShader(
-    float width,
-    float height,
-    ReadOnlyTexture2D<float4> inputTexture,
-    ReadWriteTexture2D<float4> outputTexture,
-    ReadWriteTexture2D<float4> depthNormals,
-    ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
-    ReadOnlyBuffer<int> objectIdBuffer) : IComputeShader
+        float width,
+        float height,
+        ReadOnlyTexture2D<float4> inputTexture,
+        ReadWriteTexture2D<float4> outputTexture,
+        ReadWriteTexture2D<float4> depthNormals,
+        ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
+        ReadOnlyBuffer<int> objectIdBuffer) : IComputeShader
     {
         // More forgiving thresholds for noisy reflections
         const float DEPTH_THRESHOLD = 0.2f;  // Increased from 0.1f

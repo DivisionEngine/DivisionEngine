@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
+using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components.FieldAttributes;
@@ -238,16 +239,28 @@ public partial class PropertiesWindow : EditorWindow
             float value = (float)fieldValue;
             if (rangeAttr != null)
             {
-                editorControl = CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, (f) => {
+                StackPanel floatControl = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                };
+                NumericUpDown floatBox = CreateFloatNumericBox(value, (f) =>
+                {
                     field.SetValue(component, f);
+                }, false);
+                StackPanel floatSlider = CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, (f) =>
+                {
+                    field.SetValue(component, f);
+                    floatBox.Value = (decimal)f;
                 });
+                floatControl.Children.Add(floatSlider);
+                floatControl.Children.Add(floatBox);
+                editorControl = floatControl;
             }
             else
             {
                 editorControl = CreateFloatNumericBox(value, (f) => {
                     field.SetValue(component, f);
-                },
-                true);
+                }, true);
             }
         }
         else if (fieldValue != null && fieldType == typeof(int))
@@ -255,16 +268,26 @@ public partial class PropertiesWindow : EditorWindow
             int value = (int)fieldValue;
             if (rangeAttr != null)
             {
-                editorControl = CreateIntegerSlider(value, (int)rangeAttr.Min, (int)rangeAttr.Max, (i) => {
+                StackPanel intControl = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                };
+                NumericUpDown intBox = CreateIntegerNumericBox(value, (f) => {
+                    field.SetValue(component, f);
+                }, false);
+                StackPanel intSlider = CreateIntegerSlider(value, (int)rangeAttr.Min, (int)rangeAttr.Max, (i) => {
                     field.SetValue(component, i);
+                    intBox.Value = i;
                 });
+                intControl.Children.Add(intSlider);
+                intControl.Children.Add(intBox);
+                editorControl = intControl;
             }
             else
             {
                 editorControl = CreateIntegerNumericBox(value, (f) => {
                     field.SetValue(component, f);
-                },
-                true);
+                }, true);
             }
         }
         else if (fieldValue != null && fieldType == typeof(string))
@@ -488,23 +511,23 @@ public partial class PropertiesWindow : EditorWindow
             Background = EditorColor.FromRGB(28, 28, 28),
             Foreground = EditorColor.FromRGB(100, 100, 100)
         };
-        TextBlock valueText = new TextBlock
-        {
-            Text = initialVal.ToString("F2"),
-            FontSize = 11,
-            Foreground = Brushes.White,
-            VerticalAlignment = VerticalAlignment.Center,
-            MinWidth = 40
-        };
+        //TextBlock valueText = new TextBlock
+        //{
+        //    Text = initialVal.ToString("F2"),
+        //    FontSize = 11,
+        //    Foreground = Brushes.White,
+        //    VerticalAlignment = VerticalAlignment.Center,
+        //    MinWidth = 40
+        //};
 
         slider.ValueChanged += (s, e) =>
         {
             float newValue = (float)slider.Value;
-            valueText.Text = newValue.ToString("F2");
+            //valueText.Text = newValue.ToString("F2");
             onValueChanged(newValue);
         };
         sliderPanel.Children.Add(slider);
-        sliderPanel.Children.Add(valueText);
+        //sliderPanel.Children.Add(valueText);
         return sliderPanel;
     }
 
@@ -531,23 +554,23 @@ public partial class PropertiesWindow : EditorWindow
             TickFrequency = 1,
             IsSnapToTickEnabled = true
         };
-        TextBlock valueText = new TextBlock
-        {
-            Text = initialVal.ToString(),
-            FontSize = 11,
-            Foreground = Brushes.White,
-            VerticalAlignment = VerticalAlignment.Center,
-            MinWidth = 40
-        };
+        //TextBlock valueText = new TextBlock
+        //{
+        //    Text = initialVal.ToString(),
+        //    FontSize = 11,
+        //    Foreground = Brushes.White,
+        //    VerticalAlignment = VerticalAlignment.Center,
+        //    MinWidth = 40
+        //};
 
         slider.ValueChanged += (s, e) =>
         {
             int newValue = (int)slider.Value;
-            valueText.Text = newValue.ToString();
+            //valueText.Text = newValue.ToString();
             onValueChanged(newValue);
         };
         sliderPanel.Children.Add(slider);
-        sliderPanel.Children.Add(valueText);
+        //sliderPanel.Children.Add(valueText);
         return sliderPanel;
     }
 

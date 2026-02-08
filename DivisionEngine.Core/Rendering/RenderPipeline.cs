@@ -443,7 +443,7 @@ namespace DivisionEngine.Rendering
                 }
 
                 // Run denoise pass (if enabled and not in debug mode)
-                ReadWriteTexture2D<float4> finalTexture = renderTex;
+                ReadWriteTexture2D<float4>? finalTexture = renderTex;
                 if (worldDTO.enableDenoise == 1 && debugMode == DebugMode.None)
                 {
                     // Create ReadOnly version of objectIdBuffer for denoise shader

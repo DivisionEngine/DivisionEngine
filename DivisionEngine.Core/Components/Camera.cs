@@ -9,7 +9,7 @@ namespace DivisionEngine.Components
     public class Camera : IComponent
     {
         /// <summary>
-        /// Camera with Fov = 75, max ray steps = 256, DoF samples = 6, and focus dist = 10.
+        /// Camera with Fov = 75, max ray steps = 256, focus dist = 10, and denoise = true.
         /// </summary>
         public Camera()
         {
@@ -28,6 +28,8 @@ namespace DivisionEngine.Components
 
             maxRaySteps = 256;
             maxShadowRaySteps = 128;
+
+            enableDenoise = true;
         }
 
         // Camera vars

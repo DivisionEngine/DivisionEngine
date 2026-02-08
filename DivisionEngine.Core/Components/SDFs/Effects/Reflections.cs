@@ -1,4 +1,6 @@
-﻿namespace DivisionEngine.Components.SDFs.Effects
+﻿using DivisionEngine.Components.FieldAttributes;
+
+namespace DivisionEngine.Components.SDFs.Effects
 {
     /// <summary>
     /// Allows SDF objects to receive reflections.
@@ -7,14 +9,14 @@
     {
         public Reflections()
         {
-            maxRaySteps = 64;
+            maxBounces = 2;
         }
 
-        public int maxRaySteps;
+        [Range(1, 16)] public int maxBounces;
 
         public IComponent Clone() => new Reflections
         {
-            maxRaySteps = maxRaySteps,
+            maxBounces = maxBounces,
         };
     }
 }

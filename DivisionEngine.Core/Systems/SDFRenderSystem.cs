@@ -141,7 +141,7 @@ namespace DivisionEngine.Systems
                 {
                     Reflections reflect = W.GetComponent<Reflections>(id)!;
                     curPrimitive.hasReflection = true;
-                    curPrimitive.reflectionMaxSteps = reflect.maxRaySteps;
+                    curPrimitive.reflectionMaxBounces = reflect.maxBounces;
                 }
                 if (W.HasComponent<Refractions>(id))
                 {

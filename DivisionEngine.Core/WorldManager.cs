@@ -66,6 +66,7 @@ namespace DivisionEngine
                 albedoColor = ColorPalette.DeepSkyBlue,
             });
             newDefaultWorld.AddComponent(roundedBoxEntity, new SoftShadows());
+            newDefaultWorld.AddComponent(roundedBoxEntity, new Reflections());
 
             uint boxEntity = newDefaultWorld.CreateEntity("Box");
             newDefaultWorld.AddComponent(boxEntity, new Transform
@@ -81,6 +82,7 @@ namespace DivisionEngine
                 albedoColor = ColorPalette.Crimson,
             });
             newDefaultWorld.AddComponent(boxEntity, new SoftShadows());
+            newDefaultWorld.AddComponent(boxEntity, new Reflections());
 
             SetWorld(newDefaultWorld);
             if (makeCurrent) CurrentWorld = newDefaultWorld;

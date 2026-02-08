@@ -18,7 +18,6 @@ namespace DivisionEngine.Rendering
         public float4 backgroundColor; // 16b
         public int maxRaySteps; // 4b
         public int maxShadowRaySteps; // 4b
-        public int maxRayBounces; // 4b - used for reflections and refractions
 
         // DoF Properties
         public float focusDistance; // 4b
@@ -54,7 +53,7 @@ namespace DivisionEngine.Rendering
         public bool2 shadowEffects; // 8b
         public Bool hasReflection; // 4b - must use ComputeSharp.Bool type when in DTO
         public Bool hasRefraction; // 4b
-        public int reflectionMaxSteps; // 4b
+        public int reflectionMaxBounces; // 4b
         public int refractionMaxSteps; // 4b
     }
 
