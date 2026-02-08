@@ -21,10 +21,21 @@ namespace DivisionEngine.Rendering
         const float NORMAL_THRESHOLD = 0.85f; // Relaxed from 0.9f
         const float MIN_ROUGHNESS_BLUR = 0.05f; // Start blurring earlier
 
-        public float3 DivisionDenoise(float3 center, float3 upLeft, float3 up, float3 upRight,
-            float3 centerLeft, float3 centerRight, float3 downLeft, float3 down, float3 downRight)
+        // Use a parabola that you find using a parabolic regression to change the threshold over time in the future!
+        public float3 DivisionDenoise(float3 center, int2 pixel, int2 domain)
         {
-            float3 blurred = (upLeft + up + upRight + centerLeft + centerRight + downLeft + down + downRight) / 8;
+            float3 blurred = float3.Zero;
+            int total = 0;
+            for (int x = -domain.X; x <= domain.X; x++)
+            {
+                for (int y = -domain.Y; y <= domain.Y; y++)
+                {
+                    if (x == 0 && y == 0) continue;
+                    blurred += inputTexture[pixel + new int2(x, y)].RGB;
+                    total += 1;
+                }
+            }
+            blurred /= total;
             if (Hlsl.Distance(blurred, center) > divisionDenoise) return blurred;
             return center;
         }
@@ -39,6 +50,11 @@ namespace DivisionEngine.Rendering
             float centerDepth = centerDepthNormal.X;
             float3 centerNormal = centerDepthNormal.YZW;
             int centerObjId = objectIdBuffer[pixel.X + pixel.Y * (int)width];
+
+            // Perform custom Division Denoising
+            int2 domain = new int2(2, 2);
+            if (pixel.X > domain.X - 1 && pixel.Y > domain.Y - 1 && pixel.X < width - domain.X && pixel.Y < height - domain.Y)
+                centerColor.RGB = DivisionDenoise(centerColor.RGB, pixel, domain);
 
             // If no object hit, no blur needed
             if (centerObjId < 0)
@@ -115,13 +131,6 @@ namespace DivisionEngine.Rendering
             // Less blending for smoother surfaces, more for rough
             float blendFactor = Hlsl.SmoothStep(MIN_ROUGHNESS_BLUR, 0.7f, roughness);
             float3 finalColor = Hlsl.Lerp(centerColor.XYZ, blurredColor, blendFactor);
-
-            // Perform custom Division Denoising
-            if (pixel.X > 0 && pixel.Y > 0 && pixel.X < width && pixel.Y < height)
-                finalColor = DivisionDenoise(finalColor,
-                    inputTexture[pixel + new int2(-1, 1)].RGB, inputTexture[pixel + new int2(0, 1)].RGB, inputTexture[pixel + new int2(1, 1)].RGB,
-                    inputTexture[pixel + new int2(-1, 0)].RGB, inputTexture[pixel + new int2(1, 0)].RGB,
-                    inputTexture[pixel + new int2(-1, -1)].RGB, inputTexture[pixel + new int2(0, -1)].RGB, inputTexture[pixel + new int2(1, -1)].RGB);
 
             outputTexture[pixel] = new float4(finalColor, 1f);
         }
