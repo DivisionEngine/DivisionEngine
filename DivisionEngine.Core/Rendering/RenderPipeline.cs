@@ -362,7 +362,6 @@ namespace DivisionEngine.Rendering
         private void OnRender(double delta)
         {
             boundWorld?.CallRender();
-
             int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
             if (texWidth < 1 || texHeight < 1) return;
 
@@ -459,17 +458,13 @@ namespace DivisionEngine.Rendering
                         {
                             renderTex?.CopyTo(pixels!);
                             uploadTex.CopyFrom(pixels!);
-
                             DenoiseShader denoiseShader = new DenoiseShader(
-                                texWidth, texHeight, uploadTex,
-                                denoisedTex,
-                                depthNormalsTex!,
-                                primitivesBuffer,
-                                objectIdReadOnlyBuffer);
+                                texWidth, texHeight, worldDTO.divisionThreshold,
+                                uploadTex, denoisedTex, depthNormalsTex!,
+                                primitivesBuffer, objectIdReadOnlyBuffer);
 
                             device?.For(texWidth, texHeight, denoiseShader);
                             finalTexture = denoisedTex;
-
                             uploadTex.Dispose();
                         }
                     }

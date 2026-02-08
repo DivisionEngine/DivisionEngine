@@ -432,7 +432,7 @@ namespace DivisionEngine
                 SDFPrimitiveObjectDTO material = sdfPrimitives[closestObjIndex];
                 float3 albedoColor = material.color.RGB;
                 float metallic = material.metallic;
-                float roughness = Hlsl.Max(material.roughness, EPSILON);
+                float roughness = Hlsl.Max(material.roughness, 0.1f);
                 float specular = material.specular;
                 float ao = material.ao;
 
@@ -543,6 +543,25 @@ namespace DivisionEngine
             float3 finalNormal = accumulatedNormal / SAMPLES_PER_PIXEL;
             float finalDist = accumulatedDistance / SAMPLES_PER_PIXEL;
 
+            switch (outputMode)
+            {
+                case 0:
+                    break;
+                case 1:
+                    finalColor = float3.One * (finalDist / maxPossibleDistance);
+                    break;
+                case 2:
+                    finalColor = Hlsl.Normalize((finalNormal + 1f) / 2f);
+                    break;
+                //case 3:
+                //    finalColor = new float3(objectIdBuffer[])
+                default:
+                    break;
+            }
+
+            // Optional ACES:
+            // finalColor = Hlsl.Clamp((finalColor * (2.51f * finalColor + 0.03f)) / (finalColor * (2.43f * finalColor + 0.59f) + 0.14f), 0f, 1f);
+            
             texture[pixel] = new float4(finalColor, 1.0f);
             depthNormals[pixel] = new float4(finalDist / maxPossibleDistance, finalNormal);
         }

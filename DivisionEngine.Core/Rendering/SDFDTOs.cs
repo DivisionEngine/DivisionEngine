@@ -26,6 +26,7 @@ namespace DivisionEngine.Rendering
 
         // Denoise Properties
         public int enableDenoise; // 4b
+        public float divisionThreshold; // 4b
     }
 
     /// <summary>

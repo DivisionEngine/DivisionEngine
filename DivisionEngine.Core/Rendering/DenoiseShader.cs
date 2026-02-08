@@ -9,6 +9,7 @@ namespace DivisionEngine.Rendering
     public readonly partial struct DenoiseShader(
         float width,
         float height,
+        float divisionDenoise,
         ReadOnlyTexture2D<float4> inputTexture,
         ReadWriteTexture2D<float4> outputTexture,
         ReadWriteTexture2D<float4> depthNormals,
@@ -19,6 +20,14 @@ namespace DivisionEngine.Rendering
         const float DEPTH_THRESHOLD = 0.2f;  // Increased from 0.1f
         const float NORMAL_THRESHOLD = 0.85f; // Relaxed from 0.9f
         const float MIN_ROUGHNESS_BLUR = 0.05f; // Start blurring earlier
+
+        public float3 DivisionDenoise(float3 center, float3 upLeft, float3 up, float3 upRight,
+            float3 centerLeft, float3 centerRight, float3 downLeft, float3 down, float3 downRight)
+        {
+            float3 blurred = (upLeft + up + upRight + centerLeft + centerRight + downLeft + down + downRight) / 8;
+            if (Hlsl.Distance(blurred, center) > divisionDenoise) return blurred;
+            return center;
+        }
 
         public void Execute()
         {
@@ -54,12 +63,11 @@ namespace DivisionEngine.Rendering
             int blurRadius = (int)Hlsl.Lerp(2.0f, 8.0f, roughness);
 
             float3 colorSum = float3.Zero;
-            float weightSum = 0.0f;
+            float weightSum = 0f;
 
             // Bilateral filter with adaptive parameters
-            float spatialSigma = roughness * 3.0f + 0.5f; // Wider for rougher surfaces
-            float depthSigma = DEPTH_THRESHOLD * (1.0f + roughness); // More forgiving for rough
-
+            float spatialSigma = roughness * 3f + 0.5f; // Wider for rougher surfaces
+            float depthSigma = DEPTH_THRESHOLD * (1f + roughness); // More forgiving for rough
             for (int dy = -blurRadius; dy <= blurRadius; dy++)
             {
                 for (int dx = -blurRadius; dx <= blurRadius; dx++)
@@ -77,13 +85,13 @@ namespace DivisionEngine.Rendering
 
                     // Depth similarity with adaptive threshold
                     float depthDiff = Hlsl.Abs(centerDepth - sampleDepth);
-                    float depthWeight = Hlsl.Exp(-(depthDiff * depthDiff) / (2.0f * depthSigma * depthSigma));
+                    float depthWeight = Hlsl.Exp(-(depthDiff * depthDiff) / (2f * depthSigma * depthSigma));
 
                     // Skip if depth is too different (but more forgiving than before)
                     if (depthWeight < 0.1f) continue;
 
                     // Normal similarity with softer falloff
-                    float normalSim = Hlsl.Max(0.0f, Hlsl.Dot(centerNormal, sampleNormal));
+                    float normalSim = Hlsl.Max(0f, Hlsl.Dot(centerNormal, sampleNormal));
                     float normalWeight = Hlsl.Pow(normalSim, 2.0f); // Softer falloff than hard threshold
 
                     // Skip if normals are too different
@@ -91,7 +99,7 @@ namespace DivisionEngine.Rendering
 
                     // Spatial weight (Gaussian)
                     float spatialDist = Hlsl.Sqrt((float)(dx * dx + dy * dy));
-                    float spatialWeight = Hlsl.Exp(-(spatialDist * spatialDist) / (2.0f * spatialSigma * spatialSigma));
+                    float spatialWeight = Hlsl.Exp(-(spatialDist * spatialDist) / (2f * spatialSigma * spatialSigma));
 
                     // Combine all weights
                     float weight = spatialWeight * depthWeight * normalWeight;
@@ -108,7 +116,14 @@ namespace DivisionEngine.Rendering
             float blendFactor = Hlsl.SmoothStep(MIN_ROUGHNESS_BLUR, 0.7f, roughness);
             float3 finalColor = Hlsl.Lerp(centerColor.XYZ, blurredColor, blendFactor);
 
-            outputTexture[pixel] = new float4(finalColor, 1.0f);
+            // Perform custom Division Denoising
+            if (pixel.X > 0 && pixel.Y > 0 && pixel.X < width && pixel.Y < height)
+                finalColor = DivisionDenoise(finalColor,
+                    inputTexture[pixel + new int2(-1, 1)].RGB, inputTexture[pixel + new int2(0, 1)].RGB, inputTexture[pixel + new int2(1, 1)].RGB,
+                    inputTexture[pixel + new int2(-1, 0)].RGB, inputTexture[pixel + new int2(1, 0)].RGB,
+                    inputTexture[pixel + new int2(-1, -1)].RGB, inputTexture[pixel + new int2(0, -1)].RGB, inputTexture[pixel + new int2(1, -1)].RGB);
+
+            outputTexture[pixel] = new float4(finalColor, 1f);
         }
     }
 }

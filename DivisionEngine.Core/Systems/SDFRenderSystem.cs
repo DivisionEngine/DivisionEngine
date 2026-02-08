@@ -31,10 +31,7 @@ namespace DivisionEngine.Systems
         /// <summary>
         /// Called right before the world is rendered to screen.
         /// </summary>
-        public override void Render()
-        {
-            (PreparedWorldDTO, PreparedPrimitivesDTO, PreparedLightsDTO) = GetFullWorldSDFData();
-        }
+        public override void Render() => (PreparedWorldDTO, PreparedPrimitivesDTO, PreparedLightsDTO) = GetFullWorldSDFData();
 
         /// <summary>
         /// Translates the world to a GPU-relevant format.
@@ -72,6 +69,7 @@ namespace DivisionEngine.Systems
             foreach (var (_, environment) in W.QueryData<Environment>())
             {
                 worldData.backgroundColor = environment.backgroundColor;
+                worldData.divisionThreshold = environment.divisionDenoiseThreshold;
                 break; // Use first environment
             }
 

@@ -14,13 +14,16 @@ namespace DivisionEngine.Components
         public Environment()
         {
             backgroundColor = ColorPalette.SkyBlue;
+            divisionDenoiseThreshold = 0.15f;
         }
 
         [Color(true)] public float4 backgroundColor;
+        [Range(0f, 1f)] public float divisionDenoiseThreshold;
 
         public IComponent Clone() => new Environment
         {
             backgroundColor = backgroundColor,
+            divisionDenoiseThreshold = divisionDenoiseThreshold,
         };
     }
 }
