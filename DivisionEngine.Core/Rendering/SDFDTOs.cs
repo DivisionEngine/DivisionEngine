@@ -25,8 +25,11 @@ namespace DivisionEngine.Rendering
         public int dofSamples; // 4b
 
         // Denoise Properties
-        public int enableDenoise; // 4b
+        public int enableDivisionDenoise; // 4b
+        public int enableATrousDenoise; // 4b
         public float divisionThreshold; // 4b
+        public int divisionDomain; // 4b
+        public int aTrousStepCount; // 4b
     }
 
     /// <summary>

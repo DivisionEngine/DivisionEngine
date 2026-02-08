@@ -29,7 +29,11 @@ namespace DivisionEngine.Components
             maxRaySteps = 256;
             maxShadowRaySteps = 128;
 
-            enableDenoise = true;
+            enableDivisionDenoise = false;
+            enableATrousDenoise = false;
+            divisionDenoiseThreshold = 0.24f;
+            divisionDenoiseDomain = 2;
+            aTrousStepCount = 2;
         }
 
         // Camera vars
@@ -52,8 +56,12 @@ namespace DivisionEngine.Components
         public int maxRaySteps;
         public int maxShadowRaySteps;
 
-        // Denoising Variables
-        public bool enableDenoise;
+        // Denoise vars
+        public bool enableDivisionDenoise;
+        public bool enableATrousDenoise;
+        [Range(0f, 1f)] public float divisionDenoiseThreshold;
+        [Range(1, 4)] public int divisionDenoiseDomain;
+        [Range(1, 5)] public int aTrousStepCount;
 
         public IComponent Clone() => new Camera
         {
@@ -73,7 +81,11 @@ namespace DivisionEngine.Components
             maxRaySteps = maxRaySteps,
             maxShadowRaySteps = maxShadowRaySteps,
 
-            enableDenoise = enableDenoise,
+            enableDivisionDenoise = enableDivisionDenoise,
+            enableATrousDenoise = enableATrousDenoise,
+            divisionDenoiseThreshold = divisionDenoiseThreshold,
+            divisionDenoiseDomain = divisionDenoiseDomain,
+            aTrousStepCount = aTrousStepCount,
         };
     }
 }

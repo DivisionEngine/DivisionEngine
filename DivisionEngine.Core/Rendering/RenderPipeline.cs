@@ -1,4 +1,5 @@
 ﻿using ComputeSharp;
+using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Systems;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
@@ -53,9 +54,15 @@ namespace DivisionEngine.Rendering
         public float Time;
         public World? boundWorld;
 
+        // NEW: Bounce count tracking
+        private ReadWriteTexture2D<int>? bounceCountTexture;
+        private ReadWriteTexture2D<float4>? reconstructionTex;
+
+        // NEW: Reconstruction shader fields
+        private ReadOnlyBuffer<float>? kernelBuffer;
+
         // Denoising
         private ReadWriteTexture2D<float4>? denoisedTex;
-        private ReadOnlyBuffer<int>? objectIdReadOnlyBuffer; // Denoise needs ReadOnly version
 
         /// <summary>
         /// Binds the WorldManager.CurrentWorld to this render pipeline.
@@ -117,24 +124,7 @@ namespace DivisionEngine.Rendering
         {
             lock (SyncLock)
             {
-                device?.Dispose();
-                renderTex?.Dispose();
-                denoisedTex?.Dispose();
-                depthNormalsTex?.Dispose();
-                objectIdBuffer?.Dispose();
-                objectIdReadOnlyBuffer?.Dispose();
-                worldBuffer?.Dispose();
-                primitivesBuffer?.Dispose();
-                lightsBuffer?.Dispose();
-                device = null;
-                renderTex = null;
-                denoisedTex = null;
-                depthNormalsTex = null;
-                objectIdBuffer = null;
-                objectIdReadOnlyBuffer = null;
-                worldBuffer = null;
-                primitivesBuffer = null;
-                lightsBuffer = null;
+                CleanupResources();
                 if (closeWindowWithCloseEvent) Close?.Invoke(); // Invoke the close event if there are any subscribers
             }
         }
@@ -399,6 +389,20 @@ namespace DivisionEngine.Rendering
                     denoisedTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
                 }
 
+                // NEW: Build bounce count texture
+                if (bounceCountTexture == null || bounceCountTexture.Width != texWidth || bounceCountTexture.Height != texHeight)
+                {
+                    bounceCountTexture?.Dispose();
+                    bounceCountTexture = device!.AllocateReadWriteTexture2D<int>(texWidth, texHeight);
+                }
+
+                // NEW: Build reconstruction texture
+                if (reconstructionTex == null || reconstructionTex.Width != texWidth || reconstructionTex.Height != texHeight)
+                {
+                    reconstructionTex?.Dispose();
+                    reconstructionTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                }
+
                 // Build depth and normal texture
                 if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || depthNormalPixels == null)
                 {
@@ -423,11 +427,14 @@ namespace DivisionEngine.Rendering
                 primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
                 if (primitivesBuffer == null) return;
 
+                // NEW: Build Gaussian kernel buffer for À-Trous
+                kernelBuffer ??= device!.AllocateReadOnlyBuffer([1.0f / 16.0f, 1.0f / 4.0f, 3.0f / 8.0f, 1.0f / 4.0f, 1.0f / 16.0f]);
+
                 // Dispatch SDF compute shader
                 int outputMode = 0;
                 if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
-                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode,
-                    renderTex, depthNormalsTex, objectIdBuffer, worldBuffer, primitivesBuffer);
+                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode, TimeSystem.FrameCount,
+                    renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, worldBuffer, primitivesBuffer);
                 device?.For(texWidth, texHeight, shader);
 
                 // Handle debug modes
@@ -441,60 +448,73 @@ namespace DivisionEngine.Rendering
                     }
                 }
 
-                // Run denoise pass (if enabled and not in debug mode)
-                ReadWriteTexture2D<float4>? finalTexture = renderTex;
-                if (worldDTO.enableDenoise == 1 && debugMode == DebugMode.None)
+                // MAIN RENDERING PIPELINE WITH RECONSTRUCTION
+                ReadWriteTexture2D<float4>? currentTexture = renderTex;
+
+                // STAGE 1: Reflection Reconstruction (fix incomplete rays)
+                if (/*worldDTO.enableReflectionReconstruction == 1*/ true && debugMode == DebugMode.None)
                 {
-                    // Create ReadOnly version of objectIdBuffer for denoise shader
-                    objectIdReadOnlyBuffer?.Dispose();
-                    objectIdReadOnlyBuffer = device?.AllocateReadOnlyBuffer(objectIDs!);
-
-                    if (objectIdReadOnlyBuffer != null && denoisedTex != null)
-                    {
-                        // Convert renderTex to ReadOnlyTexture2D by creating temporary copy
-                        // ComputeSharp limitation: need to use Upload pattern
-                        var uploadTex = device?.AllocateReadOnlyTexture2D<float4>(texWidth, texHeight);
-                        if (uploadTex != null)
-                        {
-                            renderTex?.CopyTo(pixels!);
-                            uploadTex.CopyFrom(pixels!);
-                            DenoiseShader denoiseShader = new DenoiseShader(
-                                texWidth, texHeight, worldDTO.divisionThreshold,
-                                uploadTex, denoisedTex, depthNormalsTex!,
-                                primitivesBuffer, objectIdReadOnlyBuffer);
-
-                            device?.For(texWidth, texHeight, denoiseShader);
-                            finalTexture = denoisedTex;
-                            uploadTex.Dispose();
-                        }
-                    }
+                    ReflectionReconstructionShader reconstructionShader = new ReflectionReconstructionShader(
+                        texWidth, texHeight,
+                        2,      // Default: 2.0f
+                        8,    // Default: 8.0f
+                        currentTexture!,                  // Input (noisy with incomplete rays)
+                        reconstructionTex!,               // Output (reconstructed)
+                        bounceCountTexture!,              // Bounce counts per pixel
+                        depthNormalsTex!);
+                    device?.For(texWidth, texHeight, reconstructionShader);
+                    currentTexture = reconstructionTex; // Use reconstructed result
                 }
 
-                // Copy final result for output buffers
+                // STAGE 2: Division Denoising (optional)
+                if (worldDTO.enableDivisionDenoise == 1 && debugMode == DebugMode.None &&
+                    currentTexture != null && denoisedTex != null && objectIdBuffer != null)
+                {
+                    DivisionDenoiseShader denoiseShader = new DivisionDenoiseShader(
+                        texWidth, texHeight,
+                        worldDTO.divisionThreshold,
+                        worldDTO.divisionDomain,
+                        currentTexture,        // Input (could be reconstructed or raw)
+                        denoisedTex,           // Output
+                        depthNormalsTex!,
+                        primitivesBuffer,
+                        objectIdBuffer);
+                    device?.For(texWidth, texHeight, denoiseShader);
+                    currentTexture = denoisedTex;
+                }
+
+                // STAGE 3: À-Trous Denoising (multi-pass wavelet)
+                if (worldDTO.enableATrousDenoise == 1 && debugMode == DebugMode.None &&
+                    currentTexture != null && denoisedTex != null && kernelBuffer != null && objectIdBuffer != null)
+                {
+                    ReadWriteTexture2D<float4> ping = currentTexture;
+                    ReadWriteTexture2D<float4> pong = denoisedTex;
+                    int stepSize = 1;
+
+                    for (int i = 0; i < worldDTO.aTrousStepCount; i++)
+                    {
+                        ATrousDenoiseShader aTrousShader = new ATrousDenoiseShader(
+                            texWidth, texHeight, stepSize,
+                            ping, pong, depthNormalsTex!,
+                            primitivesBuffer, objectIdBuffer, kernelBuffer);
+                        device?.For(texWidth, texHeight, aTrousShader);
+
+                        // Swap buffers for next pass
+                        (ping, pong) = (pong, ping);
+                        stepSize *= 2;
+                    }
+                    currentTexture = ping; // Final result
+                }
+
+                // Copy final result for OpenGL display
                 depthNormalsTex?.CopyTo(depthNormalPixels!);
                 objectIdBuffer?.CopyTo(objectIDs!);
-                finalTexture?.CopyTo(pixels!); // Copy denoised or original result
+                currentTexture?.CopyTo(pixels!);
             }
             catch (ObjectDisposedException ex)
             {
                 Debug.Warning($"Renderer: Object disposed during rendering: {ex.Message}");
-                renderTex?.Dispose();
-                denoisedTex?.Dispose();
-                depthNormalsTex?.Dispose();
-                objectIdBuffer?.Dispose();
-                objectIdReadOnlyBuffer?.Dispose();
-                worldBuffer?.Dispose();
-                primitivesBuffer?.Dispose();
-                lightsBuffer?.Dispose();
-                device = null;
-                renderTex = null;
-                denoisedTex = null;
-                depthNormalsTex = null;
-                objectIdBuffer = null;
-                objectIdReadOnlyBuffer = null;
-                worldBuffer = null;
-                primitivesBuffer = null;
-                lightsBuffer = null;
+                CleanupResources();
                 return;
             }
             catch (InvalidOperationException ex)
@@ -630,6 +650,34 @@ namespace DivisionEngine.Rendering
             }
             else Debug.Info("Shader Program Linked Successfully");
         }
-    }
 
+        /// <summary>
+        /// Disposes of all managed memory and sets to null.
+        /// </summary>
+        private void CleanupResources()
+        {
+            renderTex?.Dispose();
+            denoisedTex?.Dispose();
+            reconstructionTex?.Dispose();
+            bounceCountTexture?.Dispose();
+            depthNormalsTex?.Dispose();
+            objectIdBuffer?.Dispose();
+            worldBuffer?.Dispose();
+            primitivesBuffer?.Dispose();
+            lightsBuffer?.Dispose();
+            kernelBuffer?.Dispose();
+
+            device = null;
+            renderTex = null;
+            denoisedTex = null;
+            reconstructionTex = null;
+            bounceCountTexture = null;
+            depthNormalsTex = null;
+            objectIdBuffer = null;
+            worldBuffer = null;
+            primitivesBuffer = null;
+            lightsBuffer = null;
+            kernelBuffer = null;
+        }
+    }
 }

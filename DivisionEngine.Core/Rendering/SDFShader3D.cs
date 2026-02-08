@@ -11,8 +11,10 @@ namespace DivisionEngine
         float width,
         float height,
         int outputMode,
+        int frameCount,
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
+        ReadWriteTexture2D<int> bounceCountTexture,  // NEW: Output bounce counts
         ReadWriteBuffer<int> objectIdBuffer,
         ReadOnlyBuffer<SDFWorldDTO> worldData,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
@@ -309,6 +311,16 @@ namespace DivisionEngine
 
         // Reflections functions:
 
+        private uint HaltonHash(uint x)
+        {
+            x = x ^ 61 ^ (x >> 16);
+            x += x << 3;
+            x ^= x >> 4;
+            x *= 0x27d4eb2d;
+            x ^= x >> 15;
+            return x;
+        }
+
         // Halton sequence generator
         private float HaltonSequence(int index, int baseNum)
         {
@@ -317,9 +329,9 @@ namespace DivisionEngine
             int i = index;
             while (i > 0)
             {
-                f = f / baseNum;
+                f /= baseNum;
                 result += f * (i % baseNum);
-                i = i / baseNum;
+                i /= baseNum;
             }
             return result;
         }
@@ -329,6 +341,67 @@ namespace DivisionEngine
         {
             return new float2(HaltonSequence(index, 2), HaltonSequence(index, 3));
         }
+
+        /*private float HaltonSequence(int index, int baseNum, uint scramble)
+        {
+            float result = 0.0f;
+            float f = 1.0f;
+            int i = index;
+            while (i > 0)
+            {
+                f /= baseNum;
+                int digit = i % baseNum;
+                // Use the scramble to permute the digit
+                uint hashed = HaltonHash(scramble + (uint)digit + (uint)baseNum * 123456u);
+                digit = (int)(hashed % (uint)baseNum);
+                result += f * digit;
+                i /= baseNum;
+            }
+            return result;
+        }
+
+        // Generate 2D Halton sample
+        private float2 Halton2D(int index)
+        {
+            uint scramble0 = (uint)(index * 1973);
+            uint scramble1 = (uint)(index * 9277);
+            return new float2(HaltonSequence(index, 2, scramble0), HaltonSequence(index, 3, scramble1));
+        }*/
+
+        // Improved halton:
+        /*private float ScrambledHalton(int index, int baseNum, int seed)
+        {
+            float result = 0f;
+            float f = 1f;
+            int i = index;
+            while (i > 0)
+            {
+                f /= baseNum;
+                int digit = i % baseNum;
+                // XOR scrambling with seed
+                int scrambled_digit = (digit + seed) % baseNum;
+                result += f * scrambled_digit;
+                i = (int)Hlsl.Floor(i / baseNum);
+            }
+            return result;
+        }
+
+        // For temporal accumulation across frames
+        private float4 GetHaltonSample2D(int pixelX, int pixelY, int sampleIndex, int frameCount)
+        {
+            // Key insight: You need DIFFERENT sequences for different purposes
+            // Use primes to avoid correlation
+
+            // Sequence 1: For camera jitter (antialiasing)
+            float sequence1 = ScrambledHalton(sampleIndex + frameCount * 97, 2, pixelX ^ pixelY);
+            float sequence2 = ScrambledHalton(sampleIndex + frameCount * 97, 3, pixelX ^ pixelY ^ 12345);
+
+            // Sequence 2: For BRDF sampling (reflections) - MUST be different!
+            float sequence3 = ScrambledHalton(sampleIndex + frameCount * 113, 5, pixelX ^ pixelY ^ 54321);
+            float sequence4 = ScrambledHalton(sampleIndex + frameCount * 113, 7, pixelX ^ pixelY ^ 98765);
+
+            return new float4(sequence1, sequence2, sequence3, sequence4);
+        }*/
 
         // Sample hemisphere with cosine-weighted distribution (for diffuse)
         private float3 CosineSampleHemisphere(float2 u, float3 normal)
@@ -373,15 +446,16 @@ namespace DivisionEngine
         /// <param name="outputNormal">Outputs surface normal</param>
         /// <param name="totalDist">Total distance traversed</param> 
         /// <returns>Output raymarch color, with effects</returns>
-        private float3 TraceRayWithReflections(int2 pixel, float3 rayOrigin, float3 rayDir, out float3 outputNormal, out float totalDist)
+        private float3 TraceRayWithReflections(int2 pixel, float3 rayOrigin, float3 rayDir, int sampleIndexInPixel,
+            out float3 outputNormal, out float totalDist, out int actualBounces)
         {
-            // Accumulated values
             float3 finalColor = float3.Zero;
             float3 throughput = float3.One;
-
             outputNormal = float3.Zero;
             totalDist = 0f;
             bool firstHit = true;
+            actualBounces = 0;  // Track how many bounces actually occurred
+
             for (int bounce = 0; bounce < 32; bounce++) // Cap software enforced bounce limit of 32
             {
                 // Raymarch
@@ -418,6 +492,7 @@ namespace DivisionEngine
                 float3 normal = FastNormal(hitPoint);
                 float3 viewDir = -rayDir;
                 float3 lightDir = Hlsl.Normalize(sunDir);
+                actualBounces = bounce + 1; // Count this bounce
 
                 // Store first hit data for output
                 if (firstHit)
@@ -436,13 +511,14 @@ namespace DivisionEngine
                 float specular = material.specular;
                 float ao = material.ao;
 
-                // Calculate F0 for Fresnel
+                // Calculate F0 for fresnel
                 float3 f0 = float3.One * 0.16f * specular * specular;
                 f0 = Hlsl.Lerp(f0, albedoColor, new float3(metallic, metallic, metallic));
 
                 // Ambient lighting
                 float3 ambientLightAmt = float3.One * 0.15f * worldData[0].backgroundColor.RGB * ao;
 
+                // Shadows
                 float2 shadowValues = new float2(1f, 0f);
                 if (material.shadowEffects.Y)
                 {
@@ -451,11 +527,10 @@ namespace DivisionEngine
                     shadowValues = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
                 }
 
+                // Direct lighting
                 float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
                 float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
                 float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf * 1.5f, shadowValues.X * NoL);
-
-                // Add direct lighting contribution
                 finalColor += throughput * directLight;
 
                 // Check if material has reflections enabled - if not, exit after first bounce
@@ -465,22 +540,16 @@ namespace DivisionEngine
                 // Calculate reflection probability
                 float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f), f0);
                 float reflectionChance = Hlsl.Lerp(F.X, 1f, metallic);
-
-                // If very little reflection, exit
-                if (reflectionChance < MIN_REFLECTION_CHANCE) break;
-
+                if (reflectionChance < MIN_REFLECTION_CHANCE) break; // If very little reflection, exit
+                
                 // Update throughput for next bounce
                 throughput *= F * (1f - roughness * 0.5f);
-                
-                // Clamp throughput
-                throughput = Hlsl.Min(throughput, 100f);
-
-                // If throughput is too low, exit early
-                if (throughput.X + throughput.Y + throughput.Z < MIN_THROUGHPUT) break;
+                throughput = Hlsl.Min(throughput, 100f); // Clamp throughput
+                if (throughput.X + throughput.Y + throughput.Z < MIN_THROUGHPUT) break; // If throughput is too low, exit early
 
                 // Generate reflection ray for next bounce
-                int sampleIndex = pixel.X * 73 + pixel.Y * 9277 + bounce * 997;
-                float2 u = Halton2D(sampleIndex);
+                int reflectionSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sampleIndexInPixel * 3271 + bounce * 997;
+                float2 u = Halton2D(reflectionSampleIndex);
 
                 // Importance sample based on roughness
                 float3 halfVector = ImportanceSampleGGX(u, normal, roughness);
@@ -493,6 +562,7 @@ namespace DivisionEngine
                 rayOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                 rayDir = reflectDir;
             }
+
             return finalColor;
         }
 
@@ -505,40 +575,41 @@ namespace DivisionEngine
             texture[pixel] = new float4(0, 0, 0, 0);
             depthNormals[pixel] = new float4(0, 0, 0, 0);
             objectIdBuffer[pixel.X + pixel.Y * (int)width] = -1;
+            bounceCountTexture[pixel] = 0;  // Initialize bounce count
 
             float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
             uv.X *= width / height;
-
             float3 rayOrigin = worldData[0].cameraOrigin;
 
             float3 accumulatedColor = float3.Zero;
             float3 accumulatedNormal = float3.Zero;
             float accumulatedDistance = 0f;
+            int accumulatedBounces = 0;  // NEW: Accumulate bounce counts
 
             for (int sample = 0; sample < SAMPLES_PER_PIXEL; sample++)
             {
-                float3 rayDir;
-
                 // Add slight jitter using Halton for antialiasing
+                float3 rayDir;
                 if (SAMPLES_PER_PIXEL > 1)
                 {
-                    int sampleIndex = pixel.X * 73 + pixel.Y * 9277 + sample;
-                    float2 jitter = (Halton2D(sampleIndex) - 0.5f) / new float2(width, height);
-                    float2 jitteredUV = uv + jitter * 2.0f;
+                    int cameraSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sample;
+                    float2 jitter = (Halton2D(cameraSampleIndex) - 0.5f) / new float2(width, height);
+                    float2 jitteredUV = uv + jitter * 2f;
                     rayDir = GetCameraRayDir(jitteredUV);
                 }
 
                 // Always use reflection-capable tracer
                 // It will automatically skip reflection bounces for non-reflective materials
-                float3 color = TraceRayWithReflections(pixel, rayOrigin, rayDir, out float3 outputNormal, out float dist);
+                float3 color = TraceRayWithReflections(pixel, rayOrigin, rayDir, sample,
+                    out float3 outputNormal, out float dist, out int bounceCount);
 
                 accumulatedColor += color;
                 accumulatedNormal += outputNormal;
                 accumulatedDistance += dist;
+                accumulatedBounces += bounceCount;  // Accumulate bounces
             }
 
             float maxPossibleDistance = worldData[0].farPlane - worldData[0].nearPlane;
-
             float3 finalColor = accumulatedColor / SAMPLES_PER_PIXEL;
             float3 finalNormal = accumulatedNormal / SAMPLES_PER_PIXEL;
             float finalDist = accumulatedDistance / SAMPLES_PER_PIXEL;
@@ -564,6 +635,7 @@ namespace DivisionEngine
             
             texture[pixel] = new float4(finalColor, 1.0f);
             depthNormals[pixel] = new float4(finalDist / maxPossibleDistance, finalNormal);
+            bounceCountTexture[pixel] = accumulatedBounces / SAMPLES_PER_PIXEL; // Write bounces to map
         }
     }
 }

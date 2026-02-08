@@ -6,15 +6,16 @@ namespace DivisionEngine.Rendering
 {
     [GeneratedComputeShaderDescriptor]
     [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
-    public readonly partial struct DenoiseShader(
+    public readonly partial struct DivisionDenoiseShader(
         float width,
         float height,
         float divisionDenoise,
-        ReadOnlyTexture2D<float4> inputTexture,
+        int divisionDomain,
+        ReadWriteTexture2D<float4> inputTexture,
         ReadWriteTexture2D<float4> outputTexture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
-        ReadOnlyBuffer<int> objectIdBuffer) : IComputeShader
+        ReadWriteBuffer<int> objectIdBuffer) : IComputeShader
     {
         // More forgiving thresholds for noisy reflections
         const float DEPTH_THRESHOLD = 0.2f;  // Increased from 0.1f
@@ -22,21 +23,22 @@ namespace DivisionEngine.Rendering
         const float MIN_ROUGHNESS_BLUR = 0.05f; // Start blurring earlier
 
         // Use a parabola that you find using a parabolic regression to change the threshold over time in the future!
-        public float3 DivisionDenoise(float3 center, int2 pixel, int2 domain)
+        public float3 DivisionDenoise(float3 center, int2 pixel, float roughness)
         {
             float3 blurred = float3.Zero;
             int total = 0;
-            for (int x = -domain.X; x <= domain.X; x++)
+            for (int x = -divisionDomain; x <= divisionDomain; x++)
             {
-                for (int y = -domain.Y; y <= domain.Y; y++)
+                for (int y = -divisionDomain; y <= divisionDomain; y++)
                 {
                     if (x == 0 && y == 0) continue;
                     blurred += inputTexture[pixel + new int2(x, y)].RGB;
                     total += 1;
                 }
             }
+
             blurred /= total;
-            if (Hlsl.Distance(blurred, center) > divisionDenoise) return blurred;
+            if (Hlsl.Distance(blurred, center) > Hlsl.Max(1f - roughness - divisionDenoise, 0f)) return blurred;
             return center;
         }
 
@@ -51,11 +53,6 @@ namespace DivisionEngine.Rendering
             float3 centerNormal = centerDepthNormal.YZW;
             int centerObjId = objectIdBuffer[pixel.X + pixel.Y * (int)width];
 
-            // Perform custom Division Denoising
-            int2 domain = new int2(2, 2);
-            if (pixel.X > domain.X - 1 && pixel.Y > domain.Y - 1 && pixel.X < width - domain.X && pixel.Y < height - domain.Y)
-                centerColor.RGB = DivisionDenoise(centerColor.RGB, pixel, domain);
-
             // If no object hit, no blur needed
             if (centerObjId < 0)
             {
@@ -65,6 +62,13 @@ namespace DivisionEngine.Rendering
 
             // Get roughness from material
             float roughness = sdfPrimitives[centerObjId].roughness;
+
+            // Perform custom Division Denoising
+            if (pixel.X > divisionDomain - 1 && pixel.Y > divisionDomain - 1 &&
+                pixel.X < width - divisionDomain && pixel.Y < height - divisionDomain)
+                centerColor.RGB = DivisionDenoise(centerColor.RGB, pixel, roughness);
+            outputTexture[pixel] = centerColor;
+
             bool hasReflection = sdfPrimitives[centerObjId].hasReflection;
 
             // Skip blur if not reflective or very smooth
@@ -75,8 +79,7 @@ namespace DivisionEngine.Rendering
             }
 
             // More aggressive blur radius for rough surfaces
-            // Scale: roughness 0.1 -> 2px, 0.5 -> 5px, 1.0 -> 8px
-            int blurRadius = (int)Hlsl.Lerp(2.0f, 8.0f, roughness);
+            int blurRadius = (int)Hlsl.Lerp(2.0f, 4.0f, roughness);
 
             float3 colorSum = float3.Zero;
             float weightSum = 0f;
@@ -89,44 +92,36 @@ namespace DivisionEngine.Rendering
                 for (int dx = -blurRadius; dx <= blurRadius; dx++)
                 {
                     int2 samplePixel = pixel + new int2(dx, dy);
-
-                    // Bounds check
                     if (samplePixel.X < 0 || samplePixel.X >= (int)width ||
                         samplePixel.Y < 0 || samplePixel.Y >= (int)height)
                         continue;
-
                     float4 sampleDepthNormal = depthNormals[samplePixel];
-                    float sampleDepth = sampleDepthNormal.X;
-                    float3 sampleNormal = sampleDepthNormal.YZW;
 
                     // Depth similarity with adaptive threshold
-                    float depthDiff = Hlsl.Abs(centerDepth - sampleDepth);
+                    float depthDiff = Hlsl.Abs(centerDepth - sampleDepthNormal.X);
                     float depthWeight = Hlsl.Exp(-(depthDiff * depthDiff) / (2f * depthSigma * depthSigma));
 
                     // Skip if depth is too different (but more forgiving than before)
                     if (depthWeight < 0.1f) continue;
 
                     // Normal similarity with softer falloff
-                    float normalSim = Hlsl.Max(0f, Hlsl.Dot(centerNormal, sampleNormal));
-                    float normalWeight = Hlsl.Pow(normalSim, 2.0f); // Softer falloff than hard threshold
+                    float normalSim = Hlsl.Max(0f, Hlsl.Dot(centerNormal, sampleDepthNormal.YZW));
+                    float normalWeight = Hlsl.Pow(normalSim, 3f); // Softer falloff than hard threshold
 
                     // Skip if normals are too different
                     if (normalSim < NORMAL_THRESHOLD) continue;
-
-                    // Spatial weight (Gaussian)
-                    float spatialDist = Hlsl.Sqrt((float)(dx * dx + dy * dy));
+                    float spatialDist = Hlsl.Sqrt(dx * dx + dy * dy); // Spatial weight (Gaussian)
                     float spatialWeight = Hlsl.Exp(-(spatialDist * spatialDist) / (2f * spatialSigma * spatialSigma));
 
-                    // Combine all weights
+                    // Combine weights
                     float weight = spatialWeight * depthWeight * normalWeight;
-
                     colorSum += inputTexture[samplePixel].XYZ * weight;
                     weightSum += weight;
                 }
             }
 
             // Blend between original and blurred based on roughness
-            float3 blurredColor = weightSum > 0.0f ? colorSum / weightSum : centerColor.XYZ;
+            float3 blurredColor = weightSum > 0f ? colorSum / weightSum : centerColor.XYZ;
 
             // Less blending for smoother surfaces, more for rough
             float blendFactor = Hlsl.SmoothStep(MIN_ROUGHNESS_BLUR, 0.7f, roughness);

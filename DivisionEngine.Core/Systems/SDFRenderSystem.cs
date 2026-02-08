@@ -4,6 +4,7 @@ using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
 using DivisionEngine.Rendering;
+using System;
 using Environment = DivisionEngine.Components.Environment;
 
 namespace DivisionEngine.Systems
@@ -59,9 +60,15 @@ namespace DivisionEngine.Systems
                 worldData.maxRaySteps = camera.maxRaySteps;
                 worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
 
-                if (camera.enableDenoise) worldData.enableDenoise = 1;
-                else worldData.enableDenoise = 0;
+                if (camera.enableDivisionDenoise) worldData.enableDivisionDenoise = 1;
+                else worldData.enableDivisionDenoise = 0;
 
+                if (camera.enableATrousDenoise) worldData.enableATrousDenoise = 1;
+                else worldData.enableATrousDenoise = 0;
+
+                worldData.divisionThreshold = camera.divisionDenoiseThreshold;
+                worldData.divisionDomain = camera.divisionDenoiseDomain;
+                worldData.aTrousStepCount = camera.aTrousStepCount;
                 break; // Use first camera
             }
 
@@ -69,7 +76,6 @@ namespace DivisionEngine.Systems
             foreach (var (_, environment) in W.QueryData<Environment>())
             {
                 worldData.backgroundColor = environment.backgroundColor;
-                worldData.divisionThreshold = environment.divisionDenoiseThreshold;
                 break; // Use first environment
             }
 
