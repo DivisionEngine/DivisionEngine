@@ -4,7 +4,7 @@ using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
 using DivisionEngine.Rendering;
-using System;
+using Math = DivisionEngine.MathLib.Math;
 using Environment = DivisionEngine.Components.Environment;
 
 namespace DivisionEngine.Systems
@@ -14,6 +14,8 @@ namespace DivisionEngine.Systems
     /// </summary>
     public class SDFRenderSystem : SystemBase
     {
+        public const float EPSILON = 0.0001f;
+
         /// <summary>
         /// Prepared settings for the world information.
         /// </summary>
@@ -119,7 +121,10 @@ namespace DivisionEngine.Systems
                     type = -1,
                     position = transform.position,
                     rotation = transform.rotation,
-                    scaling = transform.scaling,
+                    scaling = new float3(
+                        Math.Max(1f / transform.scaling.X, EPSILON),
+                        Math.Max(1f / transform.scaling.Y, EPSILON),
+                        Math.Max(1f / transform.scaling.Z, EPSILON)),
                 };
 
                 // Material
@@ -130,7 +135,7 @@ namespace DivisionEngine.Systems
                     curPrimitive.metallic = mat.metallic;
                     curPrimitive.roughness = mat.roughness;
                     curPrimitive.specular = mat.specular;
-                    curPrimitive.ior = mat.indexOfRefraction;
+                    curPrimitive.ior = mat.ior;
                     curPrimitive.ao = mat.ambientOcclusion;
                 }
 
@@ -144,13 +149,16 @@ namespace DivisionEngine.Systems
                 if (W.HasComponent<Reflections>(id))
                 {
                     Reflections reflect = W.GetComponent<Reflections>(id)!;
-                    curPrimitive.hasReflection = reflect.hasReflections;
+                    if (reflect.hasReflections) curPrimitive.hasReflection = 1;
+                    else curPrimitive.hasReflection = 0;
+                    curPrimitive.reflectRayStepFalloff = reflect.rayStepsFalloff;
                     curPrimitive.reflectionMaxBounces = reflect.maxBounces;
                 }
                 if (W.HasComponent<Refractions>(id))
                 {
                     Refractions refract = W.GetComponent<Refractions>(id)!;
-                    curPrimitive.hasRefraction = refract.hasRefractions;
+                    if (refract.hasRefractions) curPrimitive.hasRefraction = 1;
+                    else curPrimitive.hasRefraction = 0;
                     curPrimitive.refractionMaxSteps = refract.maxRaySteps;
                 }
 

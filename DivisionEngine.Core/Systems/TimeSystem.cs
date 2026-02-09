@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿using DivisionEngine.Rendering;
 using static DivisionEngine.Debug;
 
 namespace DivisionEngine.Systems
@@ -10,14 +10,13 @@ namespace DivisionEngine.Systems
     {
         public const int FPSFramesMeasured = 20;
 
-        private Stopwatch? timeTracker;
-        private double lastRecordedTime, timeBetweenFrames; // in seconds
+        private double timeBetweenFrames; // in seconds
         private int fpsFrameCounter;
 
         /// <summary>
         /// Current delta time in the world (time between frames) in seconds.
         /// </summary>
-        public static double DeltaTime { get; private set; }
+        public static double DeltaTime => RenderPipeline.DeltaTime;
 
         /// <summary>
         /// Current delta time in the world (time between frames) in seconds, floating point.
@@ -27,7 +26,7 @@ namespace DivisionEngine.Systems
         /// <summary>
         /// Current time in the world.
         /// </summary>
-        public static double Time { get; private set; }
+        public static double Time => RenderPipeline.Time;
 
         /// <summary>
         /// Current time in the world, floating point.
@@ -47,44 +46,22 @@ namespace DivisionEngine.Systems
         public override void Awake()
         {
             fpsFrameCounter = 0;
-            lastRecordedTime = 0;
             FrameCount = 0;
-            Time = 0;
             timeBetweenFrames = 0;
-            timeTracker = new Stopwatch();
-            timeTracker.Start();
-            Info("Time started in current world");
-        }
-
-        public override void Update()
-        {
-            if (timeTracker == null) return;
-
-            double newTime = timeTracker!.Elapsed.TotalSeconds;
-            DeltaTime = newTime - lastRecordedTime;
-
-            lastRecordedTime = timeTracker!.Elapsed.TotalSeconds;
-            Time = lastRecordedTime;
+            Info("Time measurement began in current world");
         }
 
         public override void Render()
         {
             FrameCount++;
-
             fpsFrameCounter++;
-            timeBetweenFrames += DeltaTimeF;
-            FPS = fpsFrameCounter / (float)timeBetweenFrames;
+            timeBetweenFrames += DeltaTime;
             if (fpsFrameCounter > FPSFramesMeasured)
             {
-                //Info($"Current FPS: {FPS}");
+                FPS = fpsFrameCounter / (float)timeBetweenFrames;
                 timeBetweenFrames = 0;
                 fpsFrameCounter = 0;
             }
-        }
-
-        public override void Unload()
-        {
-            timeTracker?.Stop();
         }
     }
 }

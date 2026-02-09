@@ -55,8 +55,9 @@ namespace DivisionEngine.Rendering
         // Effect Properties
         public float2 shadowDistances; // 8b
         public bool2 shadowEffects; // 8b
-        public Bool hasReflection; // 4b - must use ComputeSharp.Bool type when in DTO
-        public Bool hasRefraction; // 4b
+        public int hasReflection; // 4b - must use int type when in DTO
+        public int hasRefraction; // 4b
+        public float reflectRayStepFalloff; // 4b
         public int reflectionMaxBounces; // 4b
         public int refractionMaxSteps; // 4b
     }

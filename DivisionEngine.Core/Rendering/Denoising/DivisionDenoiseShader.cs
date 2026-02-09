@@ -69,10 +69,8 @@ namespace DivisionEngine.Rendering
                 centerColor.RGB = DivisionDenoise(centerColor.RGB, pixel, roughness);
             outputTexture[pixel] = centerColor;
 
-            bool hasReflection = sdfPrimitives[centerObjId].hasReflection;
-
             // Skip blur if not reflective or very smooth
-            if (!hasReflection || roughness < MIN_ROUGHNESS_BLUR)
+            if (sdfPrimitives[centerObjId].hasReflection == 0 || roughness < MIN_ROUGHNESS_BLUR)
             {
                 outputTexture[pixel] = centerColor;
                 return;

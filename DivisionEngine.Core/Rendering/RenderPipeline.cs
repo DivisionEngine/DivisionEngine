@@ -4,6 +4,7 @@ using DivisionEngine.Systems;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Window = Silk.NET.Windowing.Window;
 
@@ -32,6 +33,7 @@ namespace DivisionEngine.Rendering
         private static bool deviceLost;
 
         // Rendering variables
+        public World? boundWorld;
         public IWindow? RendererWindow;
         public bool InputReady { get; private set; } = false; // Indicates if the renderer is ready to process input
         public event Action? Close; // Event to handle window close actions
@@ -51,15 +53,23 @@ namespace DivisionEngine.Rendering
         private float4[]? depthNormalPixels;
         private int[]? objectIDs;
 
-        // World variables
-        public float Time;
-        public World? boundWorld;
+        // Time measurement
 
-        // NEW: Bounce count tracking
+        /// <summary>
+        /// Time the renderer has elapsed.
+        /// </summary>
+        public static double Time { get; private set; }
+        /// <summary>
+        /// Time between frames.
+        /// </summary>
+        public static double DeltaTime { get; private set; }
+        private Stopwatch? timeTracker;
+
+        // Bounce count tracking
         private ReadWriteTexture2D<int>? bounceCountTexture;
         private ReadWriteTexture2D<float4>? reconstructionTex;
 
-        // NEW: Reconstruction shader fields
+        // Reconstruction shader fields
         private ReadOnlyBuffer<float>? kernelBuffer;
 
         // Denoising
@@ -88,6 +98,8 @@ namespace DivisionEngine.Rendering
         {
             try
             {
+                timeTracker = new Stopwatch();
+
                 WindowOptions options = WindowOptions.Default;
                 if (editorMode)
                 {
@@ -110,6 +122,7 @@ namespace DivisionEngine.Rendering
 
                 Debug.Info("Renderer: Starting window run loop");
                 RendererWindow.Run();
+                timeTracker.Start();
             }
             catch (Exception ex)
             {
@@ -579,6 +592,13 @@ namespace DivisionEngine.Rendering
 
             gl.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             gl.Finish();
+
+            if (timeTracker != null)
+            {
+                DeltaTime = timeTracker.Elapsed.TotalSeconds;
+                Time += DeltaTime;
+                timeTracker.Restart();
+            }
         }
 
         /// <summary>

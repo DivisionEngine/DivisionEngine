@@ -39,10 +39,9 @@ namespace DivisionEngine.Rendering.Denoising
                 return;
             }
 
+            // Check reflections enabled
             float roughness = sdfPrimitives[centerObjId].roughness;
-            bool hasReflection = sdfPrimitives[centerObjId].hasReflection;
-
-            if (!hasReflection || roughness < 0.05f)
+            if (sdfPrimitives[centerObjId].hasReflection == 0 || roughness < 0.05f)
             {
                 outputTexture[pixel] = inputTexture[pixel];
                 return;

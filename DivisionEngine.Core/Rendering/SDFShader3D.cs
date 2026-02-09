@@ -19,19 +19,23 @@ namespace DivisionEngine
         ReadOnlyBuffer<SDFWorldDTO> worldData,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
     {
-        // Main Constants
+        // Main constants
         const float EPSILON = 0.0001f;
         const float PI = 3.141592654f;
         const float RECIPROCAL_PI = 1f / PI;
         const float MIN_TRAVERSE_DIST = 100000000.0f;
 
-        // Reflection Constants
+        // Reflection constants
         const int SAMPLES_PER_PIXEL = 2;
         const float MIN_REFLECTION_CHANCE = 0.01f;
         const float MIN_THROUGHPUT = 0.01f;
         const float REFLECTION_BIAS = 10f; // Multiplier for normal offset
 
-        // Lighting Constants
+        // Refraction constants
+        const float MIN_REFRACTION_CHANCE = 0.01f;
+        const float REFRACTION_BIAS = 5f; // Smaller bias for refraction
+
+        // Lighting constants
         readonly float3 sunDir = new float3(0.5f, 0.8f, 0.3f);
 
         // Obtained via Deepseek: https://chat.deepseek.com/share/avavmqykeivckbnakl
@@ -63,8 +67,8 @@ namespace DivisionEngine
 
         private float SphereSDF(float3 pt, float r)
         {
-            float3 q = pt - 8f * Hlsl.Round(pt / 8f);
-            return Hlsl.Length(q) - r;
+            //float3 q = pt - 8f * Hlsl.Round(pt / 8f);
+            return Hlsl.Length(pt) - r;
         }
 
         private float BoxSDF(float3 pt, float3 size)
@@ -150,7 +154,7 @@ namespace DivisionEngine
                 float3 scaling = curPrimitive.scaling;
                 float3 curPoint = point - curPrimitive.position; // Transform SDF
                 curPoint = RotateVector(curPoint, curPrimitive.rotation); // Rotate SDF
-                curPoint /= Hlsl.Max(scaling, new float3(EPSILON, EPSILON, EPSILON)); // Make sure not dividing by 0.
+                curPoint *= scaling;
 
                 float dist;
                 if (curPrimitive.type == 0) // Adds sphere SDFs
@@ -206,25 +210,25 @@ namespace DivisionEngine
         // New soft-shadow technique:
         // Reference: https://iquilezles.org/articles/rmshadows/
         // New Version: https://www.shadertoy.com/view/tscSRS
-        private float2 SoftShadow2(float3 point, float3 dir, float start, float end)
+        private float SoftShadow2(float3 point, float3 dir, float start, float end, out int closesObj)
         {
             float depth = start, dist;
             float shadow = 1f;
-            float closestObj = -1;
+            float closestObjF = -1;
             for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
             {
                 float2 sdf = WorldSDF(point + depth * dir, true);
                 dist = sdf.X;
-                closestObj = sdf.Y;
-                if (depth > end || shadow < -1.0)
-                    break;
+                closestObjF = sdf.Y;
+                if (depth > end || shadow < -1f) break;
 
                 shadow = Hlsl.Min(shadow, 40f * dist / depth);
                 depth += Hlsl.Clamp(dist, 0.005f, 10f);
             }
 
+            closesObj = (int)closestObjF;
             shadow = Hlsl.Max(shadow, -1f);
-            return new float2(Hlsl.SmoothStep(-1f, 0f, shadow), closestObj);
+            return Hlsl.SmoothStep(-1f, 0f, shadow);
         }
 
         // ------------------------------
@@ -401,29 +405,105 @@ namespace DivisionEngine
             return Hlsl.Normalize(tangent * h.X + bitangent * h.Y + normal * h.Z);
         }
 
-        /// <summary>
-        /// Calculates refracted ray direction using Snell's law
-        /// </summary>
-        /// <param name="incident">Incident ray direction (pointing INTO surface)</param>
-        /// <param name="normal">Surface normal</param>
-        /// <param name="eta">Ratio of IORs (ior_from / ior_to)</param>
-        /// <param name="refracted">Output refracted direction</param>
-        /// <returns>True if refraction occurred, false if total internal reflection</returns>
-        private bool Refract(float3 incident, float3 normal, float eta, out float3 refracted)
+        private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out int closestObj, out float depth)
         {
-            float cosI = Hlsl.Dot(-incident, normal);
-            float sin2T = eta * eta * (1.0f - cosI * cosI);
+            // Raymarch
+            depth = worldData[0].nearPlane;
+            closestObj = -1;
+            float3 hitPoint = rayOrigin;
 
-            // Total internal reflection check
-            if (sin2T > 1.0f)
+            for (int step = 0; step < maxSteps; step++)
             {
-                refracted = float3.Zero;
-                return false;
+                hitPoint = rayOrigin + rayDir * depth;
+                float2 worldSDFData = WorldSDF(hitPoint, false);
+                float worldDist = worldSDFData.X;
+                closestObj = (int)worldSDFData.Y;
+
+                if (worldDist < EPSILON) break;
+                depth += worldDist;
+                if (depth > farClipPlane) break;
             }
 
-            float cosT = Hlsl.Sqrt(1.0f - sin2T);
-            refracted = eta * incident + (eta * cosI - cosT) * normal;
-            return true;
+            return hitPoint;
+        }
+
+        private float3 RefractRaymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out float depth)
+        {
+            // Raymarch
+            depth = worldData[0].nearPlane;
+            float3 hitPoint = rayOrigin;
+
+            for (int step = 0; step < maxSteps; step++)
+            {
+                hitPoint = rayOrigin + rayDir * depth;
+                float2 worldSDFData = WorldSDF(hitPoint, false);
+                float worldDist = worldSDFData.X;
+
+                if (worldDist > EPSILON) break;
+                depth -= worldDist;
+                if (depth > farClipPlane) break;
+            }
+            return hitPoint;
+        }
+
+        /// <summary>
+        /// Performs refraction raymarching through a solid object
+        /// </summary>
+        private float3 TraceRefractionRay(float3 rayDir, float ior, float3 surfaceNormal,
+            float3 hitPoint, out float3 exitPoint, out float3 exitNormal)
+        {
+            // First refraction: from air into material
+            float eta = 1.0f / ior; // air to material
+            float3 refractedDir = Hlsl.Refract(rayDir, surfaceNormal, eta);
+
+            // Check for total internal reflection
+            if (Hlsl.Length(refractedDir) < EPSILON)
+            {
+                // Total internal reflection - just reflect instead
+                exitPoint = hitPoint;
+                exitNormal = surfaceNormal;
+                return Hlsl.Reflect(rayDir, surfaceNormal);
+            }
+
+            // Raymarch through the material to find the back surface
+            float3 currentPos = hitPoint - surfaceNormal * EPSILON * REFRACTION_BIAS; // Move inside material
+            float marchDist = 0.0f;
+            const float maxRefractionDepth = 100.0f;
+
+            for (int step = 0; step < worldData[0].maxRaySteps && marchDist < maxRefractionDepth; step++)
+            {
+                float2 sdf = WorldSDF(currentPos, false);
+                float dist = sdf.X;
+
+                if (dist < EPSILON)
+                {
+                    // Found the back surface
+                    exitPoint = currentPos;
+                    exitNormal = -FastNormal(currentPos); // Normal points outward from material
+
+                    // Second refraction: from material back to air
+                    eta = ior; // material to air
+                    float3 exitDir = Hlsl.Refract(refractedDir, -exitNormal, eta);
+
+                    // Check for total internal reflection at back surface
+                    if (Hlsl.Length(exitDir) < EPSILON)
+                    {
+                        // Total internal reflection at back surface
+                        return Hlsl.Reflect(refractedDir, -exitNormal);
+                    }
+
+                    return exitDir;
+                }
+
+                // Move forward in refraction direction
+                currentPos += refractedDir * Hlsl.Max(dist, EPSILON * 10f);
+                marchDist += Hlsl.Max(dist, EPSILON * 10f);
+            }
+
+            // If we exit the loop without finding a back surface, just continue in same direction
+            exitPoint = currentPos;
+            exitNormal = -refractedDir; // Arbitrary exit normal
+            return refractedDir;
         }
 
         /// <summary>
@@ -434,39 +514,24 @@ namespace DivisionEngine
         /// <param name="outputNormal">Outputs surface normal</param>
         /// <param name="totalDist">Total distance traversed</param> 
         /// <returns>Output raymarch color, with effects</returns>
-        private float3 TraceRayWithReflections(int2 pixel, float3 rayOrigin, float3 rayDir, int sampleIndexInPixel,
+        private float3 TraceRay(int2 pixel, float3 rayOrigin, float3 rayDir, int sampleIndexInPixel,
             out float3 outputNormal, out float totalDist, out int actualBounces)
         {
             float3 finalColor = float3.Zero;
             float3 throughput = float3.One;
+            float3 lightDir = Hlsl.Normalize(sunDir);
             outputNormal = float3.Zero;
             totalDist = 0f;
+            float farClipPlane = worldData[0].farPlane;
             bool firstHit = true;
             actualBounces = 0;  // Track how many bounces actually occurred
 
+            // Adaptive reflection step sizes
+            int maxRaySteps = worldData[0].maxRaySteps;
             for (int bounce = 0; bounce < 32; bounce++) // Cap software enforced bounce limit of 32
             {
                 // Raymarch
-                float depth = worldData[0].nearPlane;
-                float farClipPlane = worldData[0].farPlane;
-                int closestObjIndex = -1;
-                float3 hitPoint = rayOrigin;
-
-                int maxSteps = worldData[0].maxRaySteps;
-                for (int step = 0; step < maxSteps; step++)
-                {
-                    hitPoint = rayOrigin + rayDir * depth;
-                    float2 worldSDFData = WorldSDF(hitPoint, false);
-                    float worldDist = worldSDFData.X;
-
-                    if (worldDist < EPSILON)
-                    {
-                        closestObjIndex = (int)worldSDFData.Y;
-                        break;
-                    }
-                    depth += worldDist;
-                    if (depth > farClipPlane) break;
-                }
+                float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out float depth);
 
                 // Miss - add sky color and exit
                 if (closestObjIndex == -1 || depth > farClipPlane)
@@ -479,7 +544,6 @@ namespace DivisionEngine
                 // Hit surface
                 float3 normal = FastNormal(hitPoint);
                 float3 viewDir = -rayDir;
-                float3 lightDir = Hlsl.Normalize(sunDir);
                 actualBounces = bounce + 1; // Count this bounce
 
                 // Store first hit data for output
@@ -507,47 +571,52 @@ namespace DivisionEngine
                 float3 ambientLightAmt = float3.One * 0.15f * worldData[0].backgroundColor.RGB * ao;
 
                 // Shadows
-                float2 shadowValues = new float2(1f, 0f);
+                float shadowValue = 1f;
+                int closestShadowObj = -1;
                 if (material.shadowEffects.Y)
                 {
                     float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                     float2 shadowDistances = material.shadowDistances;
-                    shadowValues = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
+                    shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out closestShadowObj);
+                }
+
+                // Refractions
+                if (material.hasRefraction == 1 && material.ior > 1.0f)
+                {
+                    float3 refractRayDir = Hlsl.Refract(rayDir, normal, material.ior);
+                    float3 refractRayOrigin = refractRayDir * EPSILON * REFRACTION_BIAS + rayOrigin;
+
+                    // Debug refraction rays
+                    finalColor += (Hlsl.Normalize(refractRayDir - rayDir) + float3.One) / 2f;
+
+                    float3 refractExitPoint = RefractRaymarch(rayOrigin, rayDir, material.refractionMaxSteps, farClipPlane, out float refractDepth);
                 }
 
                 // Direct lighting
                 float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
                 float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
-                float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, shadowValues.X * NoL);
+                float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, shadowValue * NoL);
                 finalColor += throughput * directLight;
 
-                // Check if material has reflections enabled - if not, exit after first bounce
-                if (!material.hasReflection) break;
+                // Reflections
+                if (material.hasReflection == 0) break;
                 if (bounce == material.reflectionMaxBounces - 1) break;
+                maxRaySteps = (int)(maxRaySteps / material.reflectRayStepFalloff);
 
-                // Calculate reflection probability
                 float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f), f0);
-                float reflectionChance = Hlsl.Lerp(F.X, 1f, metallic);
+                float reflectionChance = Hlsl.Lerp(F.X, 1f, metallic); // Calculate reflection probability
                 if (reflectionChance < MIN_REFLECTION_CHANCE) break; // If very little reflection, exit
-                
-                // Update throughput for next bounce
-                throughput *= F * (1f - roughness * 0.5f);
+                throughput *= F * (1f - roughness * 0.5f); // Update throughput for next bounce
                 throughput = Hlsl.Min(throughput, 10f); // Clamp throughput
                 if (throughput.X + throughput.Y + throughput.Z < MIN_THROUGHPUT) break; // If throughput is too low, exit early
 
-                // Generate reflection ray for next bounce
                 int reflectionSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sampleIndexInPixel * 3271 + bounce * 997;
-                float2 u = Halton2D(reflectionSampleIndex);
-
-                // Importance sample based on roughness
-                float3 halfVector = ImportanceSampleGGX(u, normal, roughness);
+                float2 u = Halton2D(reflectionSampleIndex); // Generate reflection ray for next bounce
+                float3 halfVector = ImportanceSampleGGX(u, normal, roughness); // Importance sample based on roughness
                 float3 reflectDir = Hlsl.Reflect(-viewDir, halfVector);
+                if (Hlsl.Dot(reflectDir, normal) < 0.01f) break; // Make sure reflection is above surface
 
-                // Make sure reflection is above surface
-                if (Hlsl.Dot(reflectDir, normal) < 0.01f) break;
-
-                // Prepare for next iteration
-                rayOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
+                rayOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS; // Prepare for next iteration
                 rayDir = reflectDir;
             }
 
@@ -595,7 +664,7 @@ namespace DivisionEngine
                 }
 
                 // Automatically skip reflection bounces for non-reflective materials
-                float3 color = TraceRayWithReflections(pixel, rayOrigin, rayDir, sample,
+                float3 color = TraceRay(pixel, rayOrigin, rayDir, sample,
                     out float3 outputNormal, out float dist, out int bounceCount);
 
                 accumulatedColor += color;
@@ -621,6 +690,8 @@ namespace DivisionEngine
                     break;
                 //case 3:
                 //    finalColor = new float3(objectIdBuffer[])
+                case 4:
+                    break;
                 default:
                     break;
             }
