@@ -185,14 +185,19 @@ namespace DivisionEngine
             return new float2(minDist, closest);
         }
 
+        /// <summary>
+        /// Very fast high quality normal calculation.
+        /// </summary>
+        /// <param name="pos">Hit position</param>
+        /// <returns>World normal vector</returns>
         private float3 FastNormal(float3 pos)
         {
-            float3 n = new float3(0, 0, 0);
+            float3 n = new float3(0f, 0f, 0f);
             for (int i = 0; i < 4; i++)
             {
-                float3 e = 0.5773f * (2.0f * new float3((((i + 3) >> 1) & 1), ((i >> 1) & 1), (i & 1)) - 1.0f);
+                float3 e = 0.5773f * (2f * new float3(((i + 3) >> 1) & 1, (i >> 1) & 1, i & 1) - 1f);
                 n += e * WorldSDF(pos + EPSILON * 50 * e, false).X;
-                //if( n.x+n.y+n.z>100.0 ) break;
+                if (n.X + n.Y + n.Z > 100f) break;
             }
             return Hlsl.Normalize(n);
         }
@@ -297,16 +302,50 @@ namespace DivisionEngine
             float D = D_GGX(NoH, roughness);
             float G = GSmith(NoV, NoL, roughness);
 
-            float3 specular = F * D * G / (4f * Hlsl.Max(NoV, EPSILON) * Hlsl.Max(NoL, EPSILON));
+            // FIX 1: Add epsilon to denominator to prevent division by near-zero
+            float denominator = 4f * Hlsl.Max(NoV * NoL, EPSILON);
+            float3 specular = F * D * G / denominator;
 
-            // Optional Diffuse Factors
+            // FIX 2: Clamp specular to prevent fireflies
+            specular = Hlsl.Min(specular, 20.0f); // Limit max brightness
+
+            // Diffuse
             float3 rhoD = baseCol;
-            //rhoD *= float3.One - F;
             rhoD *= DisneyDiffuseFactor(NoV, NoL, VoH, roughness);
-
             rhoD *= 1f - metallic;
             float3 diff = rhoD * RECIPROCAL_PI;
-            return diff + specular;
+
+            // FIX 3: Clamp final BRDF result
+            return Hlsl.Min(diff + specular, 100.0f); // Hard cap to prevent explosions
+        }
+
+        /// <summary>
+        /// Calculates Fresnel reflectance for dielectrics (glass, water, etc.)
+        /// </summary>
+        private float FresnelDielectric(float cosI, float ior)
+        {
+            // Clamp to valid range
+            cosI = Hlsl.Clamp(cosI, -1.0f, 1.0f);
+
+            bool entering = cosI > 0.0f;
+            float etaI = entering ? 1.0f : ior;
+            float etaT = entering ? ior : 1.0f;
+
+            // Snell's law
+            float sinT = etaI / etaT * Hlsl.Sqrt(Hlsl.Max(0.0f, 1.0f - cosI * cosI));
+
+            // Total internal reflection
+            if (sinT >= 1.0f)
+                return 1.0f;
+
+            float cosT = Hlsl.Sqrt(Hlsl.Max(0.0f, 1.0f - sinT * sinT));
+            cosI = Hlsl.Abs(cosI);
+
+            // Fresnel equations
+            float rParallel = ((etaT * cosI) - (etaI * cosT)) / ((etaT * cosI) + (etaI * cosT));
+            float rPerpendicular = ((etaI * cosI) - (etaT * cosT)) / ((etaI * cosI) + (etaT * cosT));
+
+            return (rParallel * rParallel + rPerpendicular * rPerpendicular) / 2.0f;
         }
 
         // Reflections functions:
@@ -341,6 +380,8 @@ namespace DivisionEngine
         {
             return new float2(HaltonSequence(index, 2), HaltonSequence(index, 3));
         }
+
+        // Add these to SDFShader3D:
 
         /*private float HaltonSequence(int index, int baseNum, uint scramble)
         {
@@ -438,6 +479,109 @@ namespace DivisionEngine
             return Hlsl.Normalize(tangent * h.X + bitangent * h.Y + normal * h.Z);
         }
 
+        /*private float3 RIS_SampleReflection(
+            int2 pixel,
+            float3 hitPoint,
+            float3 normal,
+            float3 viewDir,
+            float roughness,
+            float metallic,
+            float3 f0,
+            int frameCount,
+            int bounce,
+            out float misWeight)
+        {
+            // Reservoir for RIS
+            Reservoir reservoir = new Reservoir
+            {
+                sumWeights = 0f,
+                M = 0,
+                sampleDirection = float3.Zero,
+                sourcePDF = 0f,
+                targetPDF = 0f
+            };
+
+            const int M_CANDIDATES = 32;  // Generate 32 candidates
+            float alpha = roughness * roughness;
+
+            for (int i = 0; i < M_CANDIDATES; i++)
+            {
+                // Get unique seed for this candidate
+                uint seed = GetSeed(pixel, i, bounce, frameCount);
+
+                // Generate candidate using GGX importance sampling
+                float2 u = Halton2DScrambled(i, seed);
+                float3 candidateDir = ImportanceSampleGGX(u, normal, roughness);
+
+                // Ensure candidate is above surface
+                float NdotL = Hlsl.Max(Hlsl.Dot(normal, candidateDir), 0f);
+                if (NdotL < 0.001f) continue;
+
+                // Evaluate source PDF (BRDF PDF)
+                float3 H = Hlsl.Normalize(viewDir + candidateDir);
+                float NoH = Hlsl.Max(Hlsl.Dot(normal, H), 0f);
+                float VoH = Hlsl.Max(Hlsl.Dot(viewDir, H), 0f);
+
+                // GGX PDF
+                float D = D_GGX(NoH, roughness);
+                float sourcePDF = D * NoH / (4.0f * VoH);
+
+                if (sourcePDF < 1e-6f) continue;
+
+                // Estimate incoming radiance for target PDF
+                // Simple approximation: could be improved with radiance cache
+                float estimatedRadiance = 1.0f;  // Placeholder - you'll improve this
+
+                // For now, use BRDF value as target PDF
+                float3 F = FresnelSchlick(VoH, f0);
+                float G = GSmith(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f),
+                                NdotL, roughness);
+
+                float3 brdfValue = F * D * G / (4.0f * NdotL * Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f));
+                float targetPDF = Hlsl.Length(brdfValue) * estimatedRadiance * NdotL;
+
+                // Get random for reservoir update
+                float random = ScrambledHalton(i, 5, seed) % 1.0f;
+
+                // Update reservoir
+                reservoir = UpdateReservoir(reservoir, candidateDir, sourcePDF, targetPDF, random);
+            }
+
+            // Calculate MIS weight
+            float misWeight = 1.0f;
+            if (reservoir.M > 0 && reservoir.sumWeights > 0f && reservoir.sourcePDF > 0f)
+            {
+                misWeight = reservoir.targetPDF / (reservoir.sourcePDF * reservoir.sumWeights / reservoir.M);
+            }
+
+            return (reservoir.sampleDirection, float3.One, misWeight);
+        }*/
+
+        /// <summary>
+        /// Calculates refracted ray direction using Snell's law
+        /// </summary>
+        /// <param name="incident">Incident ray direction (pointing INTO surface)</param>
+        /// <param name="normal">Surface normal</param>
+        /// <param name="eta">Ratio of IORs (ior_from / ior_to)</param>
+        /// <param name="refracted">Output refracted direction</param>
+        /// <returns>True if refraction occurred, false if total internal reflection</returns>
+        private bool Refract(float3 incident, float3 normal, float eta, out float3 refracted)
+        {
+            float cosI = Hlsl.Dot(-incident, normal);
+            float sin2T = eta * eta * (1.0f - cosI * cosI);
+
+            // Total internal reflection check
+            if (sin2T > 1.0f)
+            {
+                refracted = float3.Zero;
+                return false;
+            }
+
+            float cosT = Hlsl.Sqrt(1.0f - sin2T);
+            refracted = eta * incident + (eta * cosI - cosT) * normal;
+            return true;
+        }
+
         /// <summary>
         /// Actually performs the main raymarching calculations.
         /// </summary>
@@ -530,7 +674,7 @@ namespace DivisionEngine
                 // Direct lighting
                 float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
                 float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
-                float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf * 1.5f, shadowValues.X * NoL);
+                float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, shadowValues.X * NoL);
                 finalColor += throughput * directLight;
 
                 // Check if material has reflections enabled - if not, exit after first bounce
@@ -544,7 +688,7 @@ namespace DivisionEngine
                 
                 // Update throughput for next bounce
                 throughput *= F * (1f - roughness * 0.5f);
-                throughput = Hlsl.Min(throughput, 100f); // Clamp throughput
+                throughput = Hlsl.Min(throughput, 10f); // Clamp throughput
                 if (throughput.X + throughput.Y + throughput.Z < MIN_THROUGHPUT) break; // If throughput is too low, exit early
 
                 // Generate reflection ray for next bounce
@@ -631,7 +775,7 @@ namespace DivisionEngine
             }
 
             // Optional ACES:
-            // finalColor = Hlsl.Clamp((finalColor * (2.51f * finalColor + 0.03f)) / (finalColor * (2.43f * finalColor + 0.59f) + 0.14f), 0f, 1f);
+            finalColor = Hlsl.Clamp((finalColor * (2.51f * finalColor + 0.03f)) / (finalColor * (2.43f * finalColor + 0.59f) + 0.14f), 0f, 1f);
             
             texture[pixel] = new float4(finalColor, 1.0f);
             depthNormals[pixel] = new float4(finalDist / maxPossibleDistance, finalNormal);
@@ -799,47 +943,6 @@ private float3 GetRandomHemisphereDirection(int sampleIndex, int sampleCount, fl
     rayDir = Hlsl.Normalize(focalPoint - newRayOrigin);
 }*/
 
-/*// Adapted from: https://github.com/pboechat/cook_torrance/blob/master/application/shaders/cook_torrance_colored.fs.glsl
-private float3 CookTorrance(float3 materialDiffuseColor,
-    float3 materialSpecularColor,
-    float3 normal,
-    float3 lightDir,
-    float3 viewDir,
-    float3 lightColor,
-    float roughness,
-    float f0)
-{
-    float NdotL = Hlsl.Max(0, Hlsl.Dot(normal, lightDir));
-    float Rs = 0.0f;
-    if (NdotL > 0)
-    {
-        float3 H = Hlsl.Normalize(lightDir + viewDir);
-        float NdotH = Hlsl.Max(0, Hlsl.Dot(normal, H));
-        float NdotV = Hlsl.Max(0, Hlsl.Dot(normal, viewDir));
-        float VdotH = Hlsl.Max(0, Hlsl.Dot(lightDir, H));
-
-        // Fresnel reflectance
-        float F = Hlsl.Pow(1.0f - VdotH, 5.0f);
-        F *= 1.0f - f0;
-        F += f0;
-
-        // Microfacet distribution by Beckmann
-        float m_squared = roughness * roughness;
-        float r1 = 1.0f / (4.0f * m_squared * Hlsl.Pow(NdotH, 4.0f));
-        float r2 = (NdotH * NdotH - 1.0f) / (m_squared * NdotH * NdotH);
-        float D = r1 * Hlsl.Exp(r2);
-
-        // Geometric shadowing
-        float two_NdotH = 2.0f * NdotH;
-        float g1 = two_NdotH * NdotV / VdotH;
-        float g2 = two_NdotH * NdotL / VdotH;
-        float G = Hlsl.Min(1.0f, Hlsl.Min(g1, g2));
-
-        Rs = (F * D * G) / (3.1415926f * NdotL * NdotV);
-    }
-    return materialDiffuseColor * lightColor * NdotL + lightColor * materialSpecularColor * Rs;
-}*/
-
 /*private float2 SoftShadowCambridge(float3 lightPos, float3 hitPoint, float renderDepth)
 {
     float3 lightDir = Hlsl.Normalize(lightPos - hitPoint);
@@ -863,62 +966,6 @@ private float3 CookTorrance(float3 materialDiffuseColor,
         step++;
     }
     return new float2(kd, lastObj);
-}*/
-
-// Get material F0 for Fresnel calculations
-//private float3 GetMaterialF0(int objIndex)
-//{
-//    float metallic = sdfPrimitives[objIndex].metallic;
-//    float specular = sdfPrimitives[objIndex].specular;
-//    float3 albedo = sdfPrimitives[objIndex].color.XYZ;
-
-//    float dielectricF0 = 0.04f * specular;
-//    return Hlsl.Lerp(new float3(dielectricF0, dielectricF0, dielectricF0), albedo, metallic);
-//}
-
-// PBR functions: https://chat.deepseek.com/share/bbtq3pqgcx353c6yqw
-// Fresnel reflectance (Schlick's approximation)
-/*private float3 FresnelSchlickRGB(float cosTheta, float3 f0)
-{
-    return f0 + (new float3(1f, 1f, 1f) - f0) * Hlsl.Pow(1.0f - cosTheta, 5.0f);
-}
-
-// Reference: https://chat.deepseek.com/share/qk6oisykt5bop6h9hn
-// GGX/Towbridge-Reitz normal distribution function (D term)
-private float GGX_Distribution(float NdotH, float roughness)
-{
-    float a2 = roughness * roughness;
-    a2 = a2 * a2; // roughness^4 for perceptually linear roughness
-    float denom = NdotH * NdotH * (a2 - 1.0f) + 1.0f;
-    return a2 / (3.14159265f * denom * denom);
-}
-
-// Schlick-GGX geometry function (G term) with Smith's method
-private float GGX_Geometry(float NdotV, float roughness)
-{
-    float r = roughness + 1.0f;
-    float k = r * r / 8.0f; // Direct lighting
-    float denom = NdotV * (1.0f - k) + k;
-    return NdotV / denom;
-}
-
-// Cook-Torrance specular BRDF
-private float3 CookTorranceSpecular(float3 normal, float3 viewDir, float3 lightDir, float3 halfwayDir, float roughness, float3 fresnelRGB)
-{
-    float NdotV = Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f);
-    float NdotL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
-    float NdotH = Hlsl.Max(Hlsl.Dot(normal, halfwayDir), 0f);
-    //float VdotH = Hlsl.Max(Hlsl.Dot(viewDir, halfwayDir), 0f);
-
-    // Early exit if surface is backfacing
-    if (NdotL <= 0.0f || NdotV <= 0.0f)
-        return float3.Zero;
-
-    float D = GGX_Distribution(NdotH, roughness); // Distribution
-    float G = GGX_Geometry(NdotV, roughness) * GGX_Geometry(NdotL, roughness); // Geometry
-
-    // Cook-Torrance specular BRDF
-    return D * G * fresnelRGB / Hlsl.Max(4.0f * NdotV * NdotL, EPSILON);
 }*/
 
 /*public void Execute()

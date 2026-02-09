@@ -63,21 +63,23 @@ namespace DivisionEngine.Systems
             double newTime = timeTracker!.Elapsed.TotalSeconds;
             DeltaTime = newTime - lastRecordedTime;
 
-            fpsFrameCounter++;
+            lastRecordedTime = timeTracker!.Elapsed.TotalSeconds;
+            Time = lastRecordedTime;
+        }
+
+        public override void Render()
+        {
             FrameCount++;
+
+            fpsFrameCounter++;
             timeBetweenFrames += DeltaTimeF;
             FPS = fpsFrameCounter / (float)timeBetweenFrames;
-            //Info($"Current FrameTime: {DeltaTimeF}");
-
             if (fpsFrameCounter > FPSFramesMeasured)
             {
                 //Info($"Current FPS: {FPS}");
                 timeBetweenFrames = 0;
                 fpsFrameCounter = 0;
             }
-
-            lastRecordedTime = timeTracker!.Elapsed.TotalSeconds;
-            Time = lastRecordedTime;
         }
 
         public override void Unload()

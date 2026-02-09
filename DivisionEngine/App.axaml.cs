@@ -142,8 +142,6 @@ namespace DivisionEngine.Editor
         /// </summary>
         private void StartEditorEngineLoop()
         {
-            EngineCore.Start(); // Start engine
-
             // Create Avalonia editor-integrated engine loop
             DispatcherTimer engineTimer = new DispatcherTimer
             {

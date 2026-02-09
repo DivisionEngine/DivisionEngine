@@ -4,6 +4,7 @@ using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
 using DivisionEngine.MathLib;
 using Environment = DivisionEngine.Components.Environment;
+using Random = DivisionEngine.MathLib.Random;
 
 namespace DivisionEngine
 {
@@ -28,10 +29,11 @@ namespace DivisionEngine
             World newDefaultWorld = new World("default");
             newDefaultWorld.RegisterAllSystems();
 
+            // Environment setup
             uint cameraEntity = newDefaultWorld.CreateEntity("Camera");
             newDefaultWorld.AddComponent(cameraEntity, new Transform
             {
-                position = new float3(0, 0, 7),
+                position = new float3(0, 2, 7),
             });
             newDefaultWorld.AddComponent(cameraEntity, new Camera());
             newDefaultWorld.AddComponent(cameraEntity, new Player());
@@ -39,17 +41,31 @@ namespace DivisionEngine
             uint environmentEntity = newDefaultWorld.CreateEntity("Environment");
             newDefaultWorld.AddComponent(environmentEntity, new Environment());
 
-            uint sphereEntity = newDefaultWorld.CreateTransformEntity("Sphere");
-            newDefaultWorld.AddComponent(sphereEntity, new SDFSphere
+            // Spheres
+            int sphereCount = 4;
+            for (int i = 0; i < sphereCount; i++)
             {
-                radius = 3f,
-            });
-            newDefaultWorld.AddComponent(sphereEntity, new SDFMaterial
-            {
-                albedoColor = ColorPalette.Khaki,
-            });
-            newDefaultWorld.AddComponent(sphereEntity, new SoftShadows());
-            newDefaultWorld.AddComponent(sphereEntity, new Reflections());
+                for (int j = 0; j < sphereCount; j++)
+                {
+                    uint sphereEntity = newDefaultWorld.CreateEntity("Sphere");
+                    newDefaultWorld.AddComponent(sphereEntity, new Transform
+                    {
+                        position = new float3((i - sphereCount / 2) * 5, 1, (j - sphereCount / 2) * 5),
+                    });
+                    newDefaultWorld.AddComponent(sphereEntity, new SDFSphere
+                    {
+                        radius = 2f,
+                    });
+                    newDefaultWorld.AddComponent(sphereEntity, new SDFMaterial
+                    {
+                        albedoColor = ColorPalette.Khaki,
+                        roughness = 1f - i / (float)(sphereCount - 1),
+                        metallic = 1f - j / (float)(sphereCount - 1),
+                    });
+                    newDefaultWorld.AddComponent(sphereEntity, new SoftShadows());
+                    newDefaultWorld.AddComponent(sphereEntity, new Reflections());
+                }
+            }
 
             uint roundedBoxEntity = newDefaultWorld.CreateEntity("Rounded Box");
             newDefaultWorld.AddComponent(roundedBoxEntity, new Transform
@@ -58,7 +74,7 @@ namespace DivisionEngine
             });
             newDefaultWorld.AddComponent(roundedBoxEntity, new SDFRoundedBox
             {
-                size = new float3(20f, 2f, 20f),
+                size = new float3(40f, 1f, 40f),
                 bevel = 0.25f,
             });
             newDefaultWorld.AddComponent(roundedBoxEntity, new SDFMaterial
@@ -71,7 +87,8 @@ namespace DivisionEngine
             uint boxEntity = newDefaultWorld.CreateEntity("Box");
             newDefaultWorld.AddComponent(boxEntity, new Transform
             {
-                position = new float3(3, 2, 3),
+                position = new float3(5, 3, -5),
+                rotation = Quaternion.CreateFromYawPitchRoll(Random.NextFloat(), Random.NextFloat(), Random.NextFloat()),
             });
             newDefaultWorld.AddComponent(boxEntity, new SDFBox
             {
@@ -85,7 +102,12 @@ namespace DivisionEngine
             newDefaultWorld.AddComponent(boxEntity, new Reflections());
 
             SetWorld(newDefaultWorld);
-            if (makeCurrent) CurrentWorld = newDefaultWorld;
+            if (makeCurrent)
+            {
+                EngineCore.Stop();
+                CurrentWorld = newDefaultWorld;
+                EngineCore.Start();
+            }
             return newDefaultWorld;
         }
 
@@ -126,7 +148,9 @@ namespace DivisionEngine
         {
             if (worlds.TryGetValue(name, out var world))
             {
+                EngineCore.Stop();
                 CurrentWorld = world;
+                EngineCore.Start();
                 return true;
             }
             return false;

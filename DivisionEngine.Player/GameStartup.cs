@@ -55,7 +55,6 @@ public class GameStartup
     /// <param name="cancellationToken">Engine loop thread cancellation token</param>
     private static void RunEngineLoop(int frameTime, CancellationToken cancellationToken)
     {
-        EngineCore.Start();
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -65,7 +64,6 @@ public class GameStartup
             }
         }
         catch (OperationCanceledException) { }
-        finally { EngineCore.Stop(); }
     }
 
     /// <summary>

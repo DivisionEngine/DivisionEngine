@@ -29,6 +29,7 @@ namespace DivisionEngine.Rendering
         private GL? gl;
         private GraphicsDevice? device; // Graphics device for ComputeSharp operations
         private uint glTexture, glShaderProgram;
+        private static bool deviceLost;
 
         // Rendering variables
         public IWindow? RendererWindow;
@@ -196,9 +197,13 @@ namespace DivisionEngine.Rendering
         /// </summary>
         private void Device_DeviceLost(object? sender, DeviceLostEventArgs e)
         {
+            deviceLost = true;
             Debug.Error($"Renderer: Graphics Device Lost!\nCause: {e.Reason}");
-            try { device = GraphicsDevice.GetDefault(); }
-            catch(Exception ex) { Debug.Error($"Renderer: Could not get default graphics device: {ex.Message}"); }
+            lock (SyncLock)
+            {
+                device = null;
+                CleanupResources();
+            }
         }
 
         /// <summary>
@@ -351,9 +356,16 @@ namespace DivisionEngine.Rendering
 
         private void OnRender(double delta)
         {
+            if (device == null || deviceLost)
+            {
+                Debug.Warning("Renderer: Device lost, skipping frame");
+                return;
+            }
+
             boundWorld?.CallRender();
             int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
             if (texWidth < 1 || texHeight < 1) return;
+            if (RendererWindow!.IsClosing) return;
 
             SDFWorldDTO worldDTO;
             SDFPrimitiveObjectDTO[] sdfPrimitivesDTO;
@@ -366,11 +378,7 @@ namespace DivisionEngine.Rendering
             }
 
             if (sdfPrimitivesDTO.Length < 1) return;
-            if (device == null)
-            {
-                Debug.Warning("Renderer: GraphicsDevice is null or disposed");
-                return;
-            }
+            //Debug.Warning("device name: " + device.Name);
 
             try
             {
@@ -411,12 +419,19 @@ namespace DivisionEngine.Rendering
                     depthNormalPixels = new float4[texWidth * texHeight];
                 }
 
-                // Build objectIdBuffer (ReadWrite for SDF shader)
+                // Build object ID buffer
                 if (objectIdBuffer == null || objectIdBuffer.Length != (texWidth * texHeight) || objectIDs == null)
                 {
                     objectIdBuffer?.Dispose();
                     objectIdBuffer = device!.AllocateReadWriteBuffer<int>(texWidth * texHeight);
                     objectIDs = new int[texWidth * texHeight];
+                }
+
+                // Build kernel buffer
+                if (kernelBuffer == null || objectIDs == null)
+                {
+                    kernelBuffer?.Dispose();
+                    kernelBuffer = device!.AllocateReadOnlyBuffer([1.0f / 16.0f, 1.0f / 4.0f, 3.0f / 8.0f, 1.0f / 4.0f, 1.0f / 16.0f]);
                 }
 
                 // Build and copy buffers
@@ -427,15 +442,15 @@ namespace DivisionEngine.Rendering
                 primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
                 if (primitivesBuffer == null) return;
 
-                // NEW: Build Gaussian kernel buffer for À-Trous
-                kernelBuffer ??= device!.AllocateReadOnlyBuffer([1.0f / 16.0f, 1.0f / 4.0f, 3.0f / 8.0f, 1.0f / 4.0f, 1.0f / 16.0f]);
-
                 // Dispatch SDF compute shader
                 int outputMode = 0;
                 if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
-                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode, TimeSystem.FrameCount,
-                    renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, worldBuffer, primitivesBuffer);
-                device?.For(texWidth, texHeight, shader);
+                lock (SyncLock)
+                {
+                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode, TimeSystem.FrameCount,
+                        renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, worldBuffer, primitivesBuffer);
+                    device?.For(texWidth, texHeight, shader);
+                }
 
                 // Handle debug modes
                 lock (SyncLock)
@@ -452,17 +467,20 @@ namespace DivisionEngine.Rendering
                 ReadWriteTexture2D<float4>? currentTexture = renderTex;
 
                 // STAGE 1: Reflection Reconstruction (fix incomplete rays)
-                if (/*worldDTO.enableReflectionReconstruction == 1*/ true && debugMode == DebugMode.None)
+                if (/*worldDTO.enableReflectionReconstruction == 1*/ false && debugMode == DebugMode.None)
                 {
-                    ReflectionReconstructionShader reconstructionShader = new ReflectionReconstructionShader(
-                        texWidth, texHeight,
-                        2,      // Default: 2.0f
-                        8,    // Default: 8.0f
-                        currentTexture!,                  // Input (noisy with incomplete rays)
-                        reconstructionTex!,               // Output (reconstructed)
-                        bounceCountTexture!,              // Bounce counts per pixel
-                        depthNormalsTex!);
-                    device?.For(texWidth, texHeight, reconstructionShader);
+                    lock (SyncLock)
+                    {
+                        ReflectionReconstructionShader reconstructionShader = new ReflectionReconstructionShader(
+                            texWidth, texHeight,
+                            2,      // Default: 2.0f
+                            8,    // Default: 8.0f
+                            currentTexture!,                  // Input (noisy with incomplete rays)
+                            reconstructionTex!,               // Output (reconstructed)
+                            bounceCountTexture!,              // Bounce counts per pixel
+                            depthNormalsTex!);
+                        device?.For(texWidth, texHeight, reconstructionShader);
+                    }
                     currentTexture = reconstructionTex; // Use reconstructed result
                 }
 
@@ -470,16 +488,19 @@ namespace DivisionEngine.Rendering
                 if (worldDTO.enableDivisionDenoise == 1 && debugMode == DebugMode.None &&
                     currentTexture != null && denoisedTex != null && objectIdBuffer != null)
                 {
-                    DivisionDenoiseShader denoiseShader = new DivisionDenoiseShader(
-                        texWidth, texHeight,
-                        worldDTO.divisionThreshold,
-                        worldDTO.divisionDomain,
-                        currentTexture,        // Input (could be reconstructed or raw)
-                        denoisedTex,           // Output
-                        depthNormalsTex!,
-                        primitivesBuffer,
-                        objectIdBuffer);
-                    device?.For(texWidth, texHeight, denoiseShader);
+                    lock (SyncLock)
+                    {
+                        DivisionDenoiseShader denoiseShader = new DivisionDenoiseShader(
+                            texWidth, texHeight,
+                            worldDTO.divisionThreshold,
+                            worldDTO.divisionDomain,
+                            currentTexture,        // Input (could be reconstructed or raw)
+                            denoisedTex,           // Output
+                            depthNormalsTex!,
+                            primitivesBuffer,
+                            objectIdBuffer);
+                        device?.For(texWidth, texHeight, denoiseShader);
+                    }
                     currentTexture = denoisedTex;
                 }
 
@@ -493,11 +514,14 @@ namespace DivisionEngine.Rendering
 
                     for (int i = 0; i < worldDTO.aTrousStepCount; i++)
                     {
-                        ATrousDenoiseShader aTrousShader = new ATrousDenoiseShader(
-                            texWidth, texHeight, stepSize,
-                            ping, pong, depthNormalsTex!,
-                            primitivesBuffer, objectIdBuffer, kernelBuffer);
-                        device?.For(texWidth, texHeight, aTrousShader);
+                        lock (SyncLock)
+                        {
+                            ATrousDenoiseShader aTrousShader = new ATrousDenoiseShader(
+                                texWidth, texHeight, stepSize,
+                                ping, pong, depthNormalsTex!,
+                                primitivesBuffer, objectIdBuffer, kernelBuffer);
+                            device?.For(texWidth, texHeight, aTrousShader);
+                        }
 
                         // Swap buffers for next pass
                         (ping, pong) = (pong, ping);
@@ -520,6 +544,7 @@ namespace DivisionEngine.Rendering
             catch (InvalidOperationException ex)
             {
                 Debug.Error($"Renderer: Invalid operation during ComputeSharp execution: {ex.Message}");
+                device = GraphicsDevice.GetDefault();
                 return;
             }
 
@@ -667,7 +692,6 @@ namespace DivisionEngine.Rendering
             lightsBuffer?.Dispose();
             kernelBuffer?.Dispose();
 
-            device = null;
             renderTex = null;
             denoisedTex = null;
             reconstructionTex = null;

@@ -4,6 +4,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using DivisionEngine.Editor.Systems;
 using DivisionEngine.Rendering;
+using DivisionEngine.Systems;
 using System.Collections.Generic;
 
 namespace DivisionEngine.Editor;
@@ -70,7 +71,7 @@ public partial class EnvironmentWindow : EditorWindow
         }
         widthHeightText = new TextBlock
         {
-            Text = $"(Width {width}px,  Height {height}px)",
+            Text = $"(Width {width}px,  Height {height}px,  FPS {TimeSystem.FPS})",
             FontSize = 12,
             FontWeight = FontWeight.Regular,
             Foreground = EditorColor.FromRGB(128, 128, 128),

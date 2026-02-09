@@ -29,8 +29,8 @@ namespace DivisionEngine.Components
             maxRaySteps = 256;
             maxShadowRaySteps = 128;
 
-            enableDivisionDenoise = false;
-            enableATrousDenoise = false;
+            enableDivisionDenoise = true;
+            enableATrousDenoise = true;
             divisionDenoiseThreshold = 0.24f;
             divisionDenoiseDomain = 2;
             aTrousStepCount = 2;

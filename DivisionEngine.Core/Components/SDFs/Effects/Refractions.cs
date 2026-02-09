@@ -7,17 +7,17 @@
     {
         public Refractions()
         {
-            maxRaySteps = 64;
-            indexOfRefraction = 1.333f;
+            hasRefractions = true;
+            maxRaySteps = 3;
         }
 
+        public bool hasRefractions;
         public int maxRaySteps;
-        public float indexOfRefraction;
 
         public IComponent Clone() => new Refractions
         {
             maxRaySteps = maxRaySteps,
-            indexOfRefraction = indexOfRefraction,
+            hasRefractions = hasRefractions,
         };
     }
 }
