@@ -63,7 +63,8 @@ namespace DivisionEngine
 
         private float SphereSDF(float3 pt, float r)
         {
-            return Hlsl.Length(pt) - r;
+            float3 q = pt - 8f * Hlsl.Round(pt / 8f);
+            return Hlsl.Length(q) - r;
         }
 
         private float BoxSDF(float3 pt, float3 size)
@@ -226,6 +227,10 @@ namespace DivisionEngine
             return new float2(Hlsl.SmoothStep(-1f, 0f, shadow), closestObj);
         }
 
+        // ------------------------------
+        // New Correct PBR BRDF Functions
+        // ------------------------------
+
         private float3 DebugBRDF(float3 N, float3 V, float3 L, float roughness, float reflectance)
         {
             float3 H = Hlsl.Normalize(V + L);
@@ -243,9 +248,6 @@ namespace DivisionEngine
             return new float3(D, G, (F.X + F.Y + F.Z) / 3.0f);
         }
 
-        // ------------------------------
-        // New Correct PBR BRDF Functions
-        // ------------------------------
         private float3 FresnelSchlick(float cosTheta, float3 f0)
         {
             return f0 + (float3.One - f0) * Hlsl.Pow(1f - cosTheta, 5f);
@@ -381,86 +383,6 @@ namespace DivisionEngine
             return new float2(HaltonSequence(index, 2), HaltonSequence(index, 3));
         }
 
-        // Add these to SDFShader3D:
-
-        /*private float HaltonSequence(int index, int baseNum, uint scramble)
-        {
-            float result = 0.0f;
-            float f = 1.0f;
-            int i = index;
-            while (i > 0)
-            {
-                f /= baseNum;
-                int digit = i % baseNum;
-                // Use the scramble to permute the digit
-                uint hashed = HaltonHash(scramble + (uint)digit + (uint)baseNum * 123456u);
-                digit = (int)(hashed % (uint)baseNum);
-                result += f * digit;
-                i /= baseNum;
-            }
-            return result;
-        }
-
-        // Generate 2D Halton sample
-        private float2 Halton2D(int index)
-        {
-            uint scramble0 = (uint)(index * 1973);
-            uint scramble1 = (uint)(index * 9277);
-            return new float2(HaltonSequence(index, 2, scramble0), HaltonSequence(index, 3, scramble1));
-        }*/
-
-        // Improved halton:
-        /*private float ScrambledHalton(int index, int baseNum, int seed)
-        {
-            float result = 0f;
-            float f = 1f;
-            int i = index;
-            while (i > 0)
-            {
-                f /= baseNum;
-                int digit = i % baseNum;
-                // XOR scrambling with seed
-                int scrambled_digit = (digit + seed) % baseNum;
-                result += f * scrambled_digit;
-                i = (int)Hlsl.Floor(i / baseNum);
-            }
-            return result;
-        }
-
-        // For temporal accumulation across frames
-        private float4 GetHaltonSample2D(int pixelX, int pixelY, int sampleIndex, int frameCount)
-        {
-            // Key insight: You need DIFFERENT sequences for different purposes
-            // Use primes to avoid correlation
-
-            // Sequence 1: For camera jitter (antialiasing)
-            float sequence1 = ScrambledHalton(sampleIndex + frameCount * 97, 2, pixelX ^ pixelY);
-            float sequence2 = ScrambledHalton(sampleIndex + frameCount * 97, 3, pixelX ^ pixelY ^ 12345);
-
-            // Sequence 2: For BRDF sampling (reflections) - MUST be different!
-            float sequence3 = ScrambledHalton(sampleIndex + frameCount * 113, 5, pixelX ^ pixelY ^ 54321);
-            float sequence4 = ScrambledHalton(sampleIndex + frameCount * 113, 7, pixelX ^ pixelY ^ 98765);
-
-            return new float4(sequence1, sequence2, sequence3, sequence4);
-        }*/
-
-        // Sample hemisphere with cosine-weighted distribution (for diffuse)
-        private float3 CosineSampleHemisphere(float2 u, float3 normal)
-        {
-            float r = Hlsl.Sqrt(u.X);
-            float theta = 2.0f * PI * u.Y;
-
-            float x = r * Hlsl.Cos(theta);
-            float y = r * Hlsl.Sin(theta);
-            float z = Hlsl.Sqrt(Hlsl.Max(0.0f, 1.0f - u.X));
-
-            // Build tangent space
-            float3 up = Hlsl.Abs(normal.Z) < 0.999f ? new float3(0, 0, 1) : new float3(1, 0, 0);
-            float3 tangent = Hlsl.Normalize(Hlsl.Cross(up, normal));
-            float3 bitangent = Hlsl.Cross(normal, tangent);
-            return tangent * x + bitangent * y + normal * z;
-        }
-
         // Importance sample GGX distribution for specular reflections
         private float3 ImportanceSampleGGX(float2 u, float3 normal, float roughness)
         {
@@ -478,84 +400,6 @@ namespace DivisionEngine
             float3 bitangent = Hlsl.Cross(normal, tangent);
             return Hlsl.Normalize(tangent * h.X + bitangent * h.Y + normal * h.Z);
         }
-
-        /*private float3 RIS_SampleReflection(
-            int2 pixel,
-            float3 hitPoint,
-            float3 normal,
-            float3 viewDir,
-            float roughness,
-            float metallic,
-            float3 f0,
-            int frameCount,
-            int bounce,
-            out float misWeight)
-        {
-            // Reservoir for RIS
-            Reservoir reservoir = new Reservoir
-            {
-                sumWeights = 0f,
-                M = 0,
-                sampleDirection = float3.Zero,
-                sourcePDF = 0f,
-                targetPDF = 0f
-            };
-
-            const int M_CANDIDATES = 32;  // Generate 32 candidates
-            float alpha = roughness * roughness;
-
-            for (int i = 0; i < M_CANDIDATES; i++)
-            {
-                // Get unique seed for this candidate
-                uint seed = GetSeed(pixel, i, bounce, frameCount);
-
-                // Generate candidate using GGX importance sampling
-                float2 u = Halton2DScrambled(i, seed);
-                float3 candidateDir = ImportanceSampleGGX(u, normal, roughness);
-
-                // Ensure candidate is above surface
-                float NdotL = Hlsl.Max(Hlsl.Dot(normal, candidateDir), 0f);
-                if (NdotL < 0.001f) continue;
-
-                // Evaluate source PDF (BRDF PDF)
-                float3 H = Hlsl.Normalize(viewDir + candidateDir);
-                float NoH = Hlsl.Max(Hlsl.Dot(normal, H), 0f);
-                float VoH = Hlsl.Max(Hlsl.Dot(viewDir, H), 0f);
-
-                // GGX PDF
-                float D = D_GGX(NoH, roughness);
-                float sourcePDF = D * NoH / (4.0f * VoH);
-
-                if (sourcePDF < 1e-6f) continue;
-
-                // Estimate incoming radiance for target PDF
-                // Simple approximation: could be improved with radiance cache
-                float estimatedRadiance = 1.0f;  // Placeholder - you'll improve this
-
-                // For now, use BRDF value as target PDF
-                float3 F = FresnelSchlick(VoH, f0);
-                float G = GSmith(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f),
-                                NdotL, roughness);
-
-                float3 brdfValue = F * D * G / (4.0f * NdotL * Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f));
-                float targetPDF = Hlsl.Length(brdfValue) * estimatedRadiance * NdotL;
-
-                // Get random for reservoir update
-                float random = ScrambledHalton(i, 5, seed) % 1.0f;
-
-                // Update reservoir
-                reservoir = UpdateReservoir(reservoir, candidateDir, sourcePDF, targetPDF, random);
-            }
-
-            // Calculate MIS weight
-            float misWeight = 1.0f;
-            if (reservoir.M > 0 && reservoir.sumWeights > 0f && reservoir.sourcePDF > 0f)
-            {
-                misWeight = reservoir.targetPDF / (reservoir.sourcePDF * reservoir.sumWeights / reservoir.M);
-            }
-
-            return (reservoir.sampleDirection, float3.One, misWeight);
-        }*/
 
         /// <summary>
         /// Calculates refracted ray direction using Snell's law
@@ -710,6 +554,14 @@ namespace DivisionEngine
             return finalColor;
         }
 
+        private float2 RandomInUnitCircle(uint rngState)
+        {
+            uint rngHash = HaltonHash(rngState);
+            float angle = rngHash * 2 * PI;
+            float2 pointOnCircle = new float2(Hlsl.Cos(angle), Hlsl.Sin(angle));
+            return pointOnCircle * Hlsl.Sqrt(rngHash);
+        }
+
         /// <summary>
         /// Executes the raymarching sequence.
         /// </summary>
@@ -742,8 +594,7 @@ namespace DivisionEngine
                     rayDir = GetCameraRayDir(jitteredUV);
                 }
 
-                // Always use reflection-capable tracer
-                // It will automatically skip reflection bounces for non-reflective materials
+                // Automatically skip reflection bounces for non-reflective materials
                 float3 color = TraceRayWithReflections(pixel, rayOrigin, rayDir, sample,
                     out float3 outputNormal, out float dist, out int bounceCount);
 
@@ -1110,6 +961,147 @@ private float3 GetRandomHemisphereDirection(int sampleIndex, int sampleCount, fl
 
     if (outputMode == 1) outputColor = new float3(stepCost, stepCost, stepCost); // Debug ray steps
     return outputColor;
+}*/
+
+/*private float3 RIS_SampleReflection(
+            int2 pixel,
+            float3 hitPoint,
+            float3 normal,
+            float3 viewDir,
+            float roughness,
+            float metallic,
+            float3 f0,
+            int frameCount,
+            int bounce,
+            out float misWeight)
+        {
+            // Reservoir for RIS
+            Reservoir reservoir = new Reservoir
+            {
+                sumWeights = 0f,
+                M = 0,
+                sampleDirection = float3.Zero,
+                sourcePDF = 0f,
+                targetPDF = 0f
+            };
+
+            const int M_CANDIDATES = 32;  // Generate 32 candidates
+            float alpha = roughness * roughness;
+
+            for (int i = 0; i < M_CANDIDATES; i++)
+            {
+                // Get unique seed for this candidate
+                uint seed = GetSeed(pixel, i, bounce, frameCount);
+
+                // Generate candidate using GGX importance sampling
+                float2 u = Halton2DScrambled(i, seed);
+                float3 candidateDir = ImportanceSampleGGX(u, normal, roughness);
+
+                // Ensure candidate is above surface
+                float NdotL = Hlsl.Max(Hlsl.Dot(normal, candidateDir), 0f);
+                if (NdotL < 0.001f) continue;
+
+                // Evaluate source PDF (BRDF PDF)
+                float3 H = Hlsl.Normalize(viewDir + candidateDir);
+                float NoH = Hlsl.Max(Hlsl.Dot(normal, H), 0f);
+                float VoH = Hlsl.Max(Hlsl.Dot(viewDir, H), 0f);
+
+                // GGX PDF
+                float D = D_GGX(NoH, roughness);
+                float sourcePDF = D * NoH / (4.0f * VoH);
+
+                if (sourcePDF < 1e-6f) continue;
+
+                // Estimate incoming radiance for target PDF
+                // Simple approximation: could be improved with radiance cache
+                float estimatedRadiance = 1.0f;  // Placeholder - you'll improve this
+
+                // For now, use BRDF value as target PDF
+                float3 F = FresnelSchlick(VoH, f0);
+                float G = GSmith(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f),
+                                NdotL, roughness);
+
+                float3 brdfValue = F * D * G / (4.0f * NdotL * Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f));
+                float targetPDF = Hlsl.Length(brdfValue) * estimatedRadiance * NdotL;
+
+                // Get random for reservoir update
+                float random = ScrambledHalton(i, 5, seed) % 1.0f;
+
+                // Update reservoir
+                reservoir = UpdateReservoir(reservoir, candidateDir, sourcePDF, targetPDF, random);
+            }
+
+            // Calculate MIS weight
+            float misWeight = 1.0f;
+            if (reservoir.M > 0 && reservoir.sumWeights > 0f && reservoir.sourcePDF > 0f)
+            {
+                misWeight = reservoir.targetPDF / (reservoir.sourcePDF * reservoir.sumWeights / reservoir.M);
+            }
+
+            return (reservoir.sampleDirection, float3.One, misWeight);
+        }*/
+
+// Add these to SDFShader3D:
+
+/*private float HaltonSequence(int index, int baseNum, uint scramble)
+{
+    float result = 0.0f;
+    float f = 1.0f;
+    int i = index;
+    while (i > 0)
+    {
+        f /= baseNum;
+        int digit = i % baseNum;
+        // Use the scramble to permute the digit
+        uint hashed = HaltonHash(scramble + (uint)digit + (uint)baseNum * 123456u);
+        digit = (int)(hashed % (uint)baseNum);
+        result += f * digit;
+        i /= baseNum;
+    }
+    return result;
+}
+
+// Generate 2D Halton sample
+private float2 Halton2D(int index)
+{
+    uint scramble0 = (uint)(index * 1973);
+    uint scramble1 = (uint)(index * 9277);
+    return new float2(HaltonSequence(index, 2, scramble0), HaltonSequence(index, 3, scramble1));
+}*/
+
+// Improved halton:
+/*private float ScrambledHalton(int index, int baseNum, int seed)
+{
+    float result = 0f;
+    float f = 1f;
+    int i = index;
+    while (i > 0)
+    {
+        f /= baseNum;
+        int digit = i % baseNum;
+        // XOR scrambling with seed
+        int scrambled_digit = (digit + seed) % baseNum;
+        result += f * scrambled_digit;
+        i = (int)Hlsl.Floor(i / baseNum);
+    }
+    return result;
+}
+
+// For temporal accumulation across frames
+private float4 GetHaltonSample2D(int pixelX, int pixelY, int sampleIndex, int frameCount)
+{
+    // Key insight: You need DIFFERENT sequences for different purposes
+    // Use primes to avoid correlation
+
+    // Sequence 1: For camera jitter (antialiasing)
+    float sequence1 = ScrambledHalton(sampleIndex + frameCount * 97, 2, pixelX ^ pixelY);
+    float sequence2 = ScrambledHalton(sampleIndex + frameCount * 97, 3, pixelX ^ pixelY ^ 12345);
+
+    // Sequence 2: For BRDF sampling (reflections) - MUST be different!
+    float sequence3 = ScrambledHalton(sampleIndex + frameCount * 113, 5, pixelX ^ pixelY ^ 54321);
+    float sequence4 = ScrambledHalton(sampleIndex + frameCount * 113, 7, pixelX ^ pixelY ^ 98765);
+
+    return new float4(sequence1, sequence2, sequence3, sequence4);
 }*/
 
 #pragma warning restore CA1416 // Validate platform compatibility
