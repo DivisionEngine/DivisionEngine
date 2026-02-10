@@ -770,12 +770,11 @@ namespace DivisionEngine
 
                 // Shadows
                 float shadowValue = 1f;
-                int closestShadowObj = -1;
                 if (material.shadowEffects.Y)
                 {
                     float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                     float2 shadowDistances = material.shadowDistances;
-                    shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out closestShadowObj);
+                    shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out _);
                 }
 
                 // Direct lighting

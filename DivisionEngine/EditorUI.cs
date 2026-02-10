@@ -68,7 +68,7 @@ namespace DivisionEngine.Editor
             }
             catch (Exception ex)
             {
-                Debug.Warning($"Could not open file: {ex.Message}");
+                Debug.Warning($"Could not open file", ex);
             }
         }
 

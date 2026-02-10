@@ -56,6 +56,7 @@ namespace DivisionEngine.Rendering
         // Effect Properties
         public float2 shadowDistances; // 8b
         public bool2 shadowEffects; // 8b
+        public float4 absorptionColor; // 16b
         public int hasReflection; // 4b - must use int type when in DTO
         public int hasRefraction; // 4b
         public float reflectRayStepFalloff; // 4b

@@ -398,7 +398,7 @@ namespace DivisionEngine
             }
             catch (Exception ex)
             {
-                Debug.Error($"Failed to load component {componentData.TypeName}: {ex.Message}");
+                Debug.Error($"Failed to load component {componentData.TypeName}", ex);
             }
         }
 

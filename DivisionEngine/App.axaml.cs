@@ -35,6 +35,11 @@ namespace DivisionEngine.Editor
         public static bool RendererVisible { get; private set; }
 
         /// <summary>
+        /// Whether the application is focused or not.
+        /// </summary>
+        public static event Action<bool>? AppFocused;
+
+        /// <summary>
         /// Constant FPS ms Division maintains in the editor.
         /// </summary>
         public const long EngineCoreFrameTime = 16; // Around 60 fps
@@ -68,11 +73,11 @@ namespace DivisionEngine.Editor
                 Renderer.BindCurrentWorld();
 
                 // Subscribe to input context creation BEFORE starting the renderer
-                Renderer.InputContextCreated += SetupInputHandlers;
+                RenderPipeline.InputContextCreated += SetupInputHandlers;
 
                 _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
 
-                Renderer.Close += () =>
+                RenderPipeline.Close += () =>
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
@@ -111,27 +116,21 @@ namespace DivisionEngine.Editor
                 MainWindowViewModel vm = new MainWindowViewModel(desktop.MainWindow);
                 desktop.MainWindow.DataContext = vm;
 
-                // Create default world for editor
+                // Startup editor
                 WorldManager.CreateDefaultWorld(true);
-
-                // Start the editor engine loop
                 StartEditorEngineLoop();
-
-                // Initialize the input system
                 UserInput = new InputSystem();
-
-                // Start the SDFRenderer in a separate thread
-                _ = SetEditorRenderingAsync(true);
+                _ = SetEditorRenderingAsync(true); // Start the SDFRenderer in a separate thread
                 //SetupAvaloniaInput(desktop); //re-enable this later potentially
 
-                // Close the renderer window when the application exits
+                // Bind editor callbacks
                 desktop.Exit += (_, _) =>
                 {
                     Renderer?.RendererWindow?.Close();
                 };
-
-                // Close when menu item exit clicked
-                vm.RequestClose += () => desktop.Shutdown();
+                desktop.MainWindow.Activated += (_, _) => AppFocused!(true);
+                desktop.MainWindow.Deactivated += (_, _) => AppFocused!(false);
+                vm.RequestClose += () => desktop.Shutdown(); // Bind close request
             }
 
             base.OnFrameworkInitializationCompleted();

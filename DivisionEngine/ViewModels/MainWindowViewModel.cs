@@ -135,7 +135,7 @@ namespace DivisionEngine.Editor.ViewModels
             }
             catch (Exception ex)
             {
-                Debug.Error($"Error opening project: {ex.Message}");
+                Debug.Error($"Error opening project", ex);
             }
         }
 
@@ -149,7 +149,7 @@ namespace DivisionEngine.Editor.ViewModels
             }
             catch (Exception ex)
             {
-                Debug.Error($"Error saving project: {ex.Message}");
+                Debug.Error($"Error saving project", ex);
             }
             ProjectManager.SaveCurrentProject();
         }
@@ -225,7 +225,7 @@ namespace DivisionEngine.Editor.ViewModels
             }
             catch (Exception ex)
             {
-                Debug.Error($"Error saving project: {ex.Message}");
+                Debug.Error($"Error saving project", ex);
                 EditorTaskManager.Complete(t.Id);
             }
         }
@@ -289,9 +289,9 @@ namespace DivisionEngine.Editor.ViewModels
                 };
                 Debug.Info($"Created {entityType} entity with ID: {entityId}");
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Debug.Error($"Failed to create entity: {e.Message}");
+                Debug.Error($"Failed to create entity", ex);
             }
         }
 

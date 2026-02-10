@@ -599,7 +599,7 @@ public partial class PropertiesWindow : EditorWindow
             {
                 onValueChanged((float)(double)numericBox.Value);
             }
-            catch (Exception ex) { Debug.Error(ex.Message); }
+            catch (Exception ex) { Debug.Error("Numeric Box Error", ex); }
         };
         return numericBox;
     }
@@ -626,7 +626,7 @@ public partial class PropertiesWindow : EditorWindow
             {
                 onValueChanged((int)numericBox.Value);
             }
-            catch (Exception ex) { Debug.Error(ex.Message); }
+            catch (Exception ex) { Debug.Error("Numeric Box Error", ex); }
         };
         return numericBox;
     }

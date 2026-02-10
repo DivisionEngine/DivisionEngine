@@ -36,8 +36,9 @@ namespace DivisionEngine.Rendering
         public World? boundWorld;
         public IWindow? RendererWindow;
         public bool InputReady { get; private set; } = false; // Indicates if the renderer is ready to process input
-        public event Action? Close; // Event to handle window close actions
-        public event Action<IInputContext>? InputContextCreated; // Event called when input context is created, for handler setup on other threads (Avalonia)
+        public static event Action? Close; // Event to handle window close actions
+        public static event Action<IInputContext>? InputContextCreated; // Event called when input context is created, for handler setup on other threads (Avalonia)
+        public static event Action<bool>? RenderWindowFocusd; // Called when renderer window focus is changed
         public DebugMode debugMode = DebugMode.None; // Current debug mode, if any
 
         // Render texture storage
@@ -63,7 +64,6 @@ namespace DivisionEngine.Rendering
         /// Time between frames.
         /// </summary>
         public static double DeltaTime { get; private set; }
-        private Stopwatch? timeTracker;
 
         // Bounce count tracking
         private ReadWriteTexture2D<int>? bounceCountTexture;
@@ -98,8 +98,6 @@ namespace DivisionEngine.Rendering
         {
             try
             {
-                timeTracker = new Stopwatch();
-
                 WindowOptions options = WindowOptions.Default;
                 if (editorMode)
                 {
@@ -119,17 +117,19 @@ namespace DivisionEngine.Rendering
                 RendererWindow.Load += OnLoad;
                 RendererWindow.Render += OnRender;
                 RendererWindow.Closing += OnClosing;
+                RendererWindow.FocusChanged += RendererWindow_FocusChanged;
 
                 Debug.Info("Renderer: Starting window run loop");
                 RendererWindow.Run();
-                timeTracker.Start();
             }
             catch (Exception ex)
             {
-                Debug.Error($"Renderer: Failed to run window - {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                Debug.Error($"Renderer: Failed to run window", ex);
                 throw;
             }
         }
+
+        private void RendererWindow_FocusChanged(bool obj) => RenderWindowFocusd!(obj);
 
         /// <summary>
         /// Called when the renderer window is closing.
@@ -200,7 +200,7 @@ namespace DivisionEngine.Rendering
             }
             catch (Exception ex)
             {
-                Debug.Error($"Renderer: Exception creating input context: {ex.Message}");
+                Debug.Error($"Renderer: Exception creating input context", ex);
             }
             InputReady = true;
         }
@@ -220,163 +220,32 @@ namespace DivisionEngine.Rendering
         }
 
         /// <summary>
-        /// Called when the frame must be rendered.
+        /// Executes the render pipeline frame.
         /// </summary>
-        /// <param name="delta">Window delta</param>
-        /*private void OnRender(double delta)
-        {
-            boundWorld?.CallRender(); // Calls the render loop on the bound world
-
-            // Variable setup (variables modified outside of renderer must be locked)
-            int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
-            if (texWidth < 1 || texHeight < 1) return; // Ensure valid texture dimensions
-
-            // Gather SDF world information
-            SDFWorldDTO worldDTO;
-            SDFPrimitiveObjectDTO[] sdfPrimitivesDTO;
-            SDFLightDTO[] sdfLightsDTO;
-            lock (SyncLock)
-            {
-                worldDTO = SDFRenderSystem.PreparedWorldDTO;
-                sdfPrimitivesDTO = SDFRenderSystem.PreparedPrimitivesDTO;
-                sdfLightsDTO = SDFRenderSystem.PreparedLightsDTO;
-            }
-
-            // Check if buffers will be null
-            if (sdfPrimitivesDTO.Length < 1) return;
-            //if (sdfLightsDTO.Length < 1) return;
-
-            // Check if device is disposed
-            if (device == null)
-            {
-                Debug.Warning("Renderer: GraphicsDevice is null or disposed");
-                return;
-            }
-
-            try
-            {
-                // Build render texture
-                if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight || pixels == null)
-                {
-                    renderTex?.Dispose();
-                    renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                    pixels = new float4[texWidth * texHeight];
-                }
-
-                // Build depth and normal texture
-                if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || depthNormalPixels == null)
-                {
-                    depthNormalsTex?.Dispose();
-                    depthNormalsTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                    depthNormalPixels = new float4[texWidth * texHeight];
-                }
-
-                // Build objectIdBuffer
-                if (objectIdBuffer == null || objectIdBuffer.Length != (texWidth * texHeight) || objectIDs == null)
-                {
-                    objectIdBuffer?.Dispose();
-                    objectIdBuffer = device!.AllocateReadWriteBuffer<int>(texWidth * texHeight);
-                    objectIDs = new int[texWidth * texHeight];
-                }
-
-                // Build and copy buffers
-                worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
-                worldBuffer.CopyFrom([worldDTO]);
-
-                primitivesBuffer?.Dispose();
-                primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
-                if (primitivesBuffer == null) return;
-                //lightsBuffer?.Dispose();
-                //lightsBuffer = device?.AllocateReadOnlyBuffer(sdfLightsDTO);
-                //if (lightsBuffer == null) return;
-
-                // Dispatch SDF compute shader
-                int outputMode = 0;
-                if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
-                SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode,
-                    renderTex, depthNormalsTex, objectIdBuffer, worldBuffer, primitivesBuffer);
-                device?.For(texWidth, texHeight, shader);
-
-                depthNormalsTex?.CopyTo(depthNormalPixels!); // In the future only activate when debugging or in use for effects
-                objectIdBuffer?.CopyTo(objectIDs!); // In the future only activate when debugging or in use for effects
-                lock (SyncLock)
-                {
-                    if ((int)debugMode > 0 && (int)debugMode < 4 && renderTex != null && depthNormalsTex != null && objectIdBuffer != null)
-                    {
-                        SDFDebug3D debugShader = new SDFDebug3D(renderTex, depthNormalsTex, objectIdBuffer,
-                            (int)debugMode, texWidth);
-                        device?.For(texWidth, texHeight, debugShader); // Call debug visulization shader
-                    }
-                }
-                renderTex?.CopyTo(pixels!); // Copy rendered result to CPU
-            }
-            catch (ObjectDisposedException ex)
-            {
-                Debug.Warning($"Renderer: Object disposed during rendering: {ex.Message}");
-                renderTex?.Dispose(); // Reinitialize buffers on next frame
-                depthNormalsTex?.Dispose();
-                objectIdBuffer?.Dispose();
-                worldBuffer?.Dispose();
-                primitivesBuffer?.Dispose();
-                lightsBuffer?.Dispose();
-                device = null;
-                renderTex = null;
-                depthNormalsTex = null;
-                objectIdBuffer = null;
-                worldBuffer = null;
-                primitivesBuffer = null;
-                lightsBuffer = null;
-                return;
-            }
-            catch (InvalidOperationException ex)
-            {
-                Debug.Error($"Renderer: Invalid operation during ComputeSharp execution: {ex.Message}");
-                return;
-            }
-
-            // Push compute texture to openGL rendered quad (via Silk.Net)
-            unsafe
-            {
-                fixed (float4* dataPtr = pixels) // This should be set to whatever debug mode is currently active
-                {
-                    gl!.BindTexture(TextureTarget.Texture2D, glTexture);
-                    gl.TexImage2D(
-                        TextureTarget.Texture2D,
-                        0,
-                        (int)InternalFormat.Rgba32f,
-                        (uint)texWidth,
-                        (uint)texHeight,
-                        0,
-                        PixelFormat.Rgba,
-                        PixelType.Float,
-                        dataPtr);
-                }
-            }
-
-            gl.Viewport(0, 0, (uint)texWidth, (uint)texHeight);
-            gl.ClearColor(0f, 0f, 0f, 1f);
-            gl.Clear((uint)ClearBufferMask.ColorBufferBit);
-            gl.UseProgram(glShaderProgram);
-
-            gl.ActiveTexture(TextureUnit.Texture0);
-            gl.BindTexture(TextureTarget.Texture2D, glTexture);
-            int loc = gl.GetUniformLocation(glShaderProgram, "tex");
-            gl.Uniform1(loc, 0);
-
-            gl.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
-            gl.Finish();
-        }*/
-
+        /// <param name="delta">Travel delta between frames in seconds</param>
         private void OnRender(double delta)
         {
+            DeltaTime = delta; // Track frame time
+            Time += delta;
+
             if (device == null || deviceLost)
             {
-                Debug.Warning("Renderer: Device lost, skipping frame");
+                Debug.Warning("Renderer: Device lost, skipping rendering");
                 return;
             }
 
             boundWorld?.CallRender();
-            int texWidth = RendererWindow!.Size.X, texHeight = RendererWindow.Size.Y;
+            int texWidth = 0, texHeight = 0;
+            try
+            {
+                texWidth = RendererWindow!.Size.X;
+                texHeight = RendererWindow.Size.Y;
+            }
+            catch (NullReferenceException ex)
+            {
+                Debug.Warning($"Renderer: Render window lost, skipping rendering", ex);
+                return;
+            }
             if (texWidth < 1 || texHeight < 1) return;
             if (RendererWindow!.IsClosing) return;
 
@@ -395,79 +264,77 @@ namespace DivisionEngine.Rendering
 
             try
             {
-                // Build render texture
-                if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight || pixels == null)
-                {
-                    renderTex?.Dispose();
-                    renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                    pixels = new float4[texWidth * texHeight];
-                }
-
-                // Build denoised texture (for post-process)
-                if (denoisedTex == null || denoisedTex.Width != texWidth || denoisedTex.Height != texHeight)
-                {
-                    denoisedTex?.Dispose();
-                    denoisedTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                }
-
-                // NEW: Build bounce count texture
-                if (bounceCountTexture == null || bounceCountTexture.Width != texWidth || bounceCountTexture.Height != texHeight)
-                {
-                    bounceCountTexture?.Dispose();
-                    bounceCountTexture = device!.AllocateReadWriteTexture2D<int>(texWidth, texHeight);
-                }
-
-                // NEW: Build reconstruction texture
-                if (reconstructionTex == null || reconstructionTex.Width != texWidth || reconstructionTex.Height != texHeight)
-                {
-                    reconstructionTex?.Dispose();
-                    reconstructionTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                }
-
-                // Build depth and normal texture
-                if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || depthNormalPixels == null)
-                {
-                    depthNormalsTex?.Dispose();
-                    depthNormalsTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                    depthNormalPixels = new float4[texWidth * texHeight];
-                }
-
-                // Build object ID buffer
-                if (objectIdBuffer == null || objectIdBuffer.Length != (texWidth * texHeight) || objectIDs == null)
-                {
-                    objectIdBuffer?.Dispose();
-                    objectIdBuffer = device!.AllocateReadWriteBuffer<int>(texWidth * texHeight);
-                    objectIDs = new int[texWidth * texHeight];
-                }
-
-                // Build kernel buffer
-                if (kernelBuffer == null || objectIDs == null)
-                {
-                    kernelBuffer?.Dispose();
-                    kernelBuffer = device!.AllocateReadOnlyBuffer([1.0f / 16.0f, 1.0f / 4.0f, 3.0f / 8.0f, 1.0f / 4.0f, 1.0f / 16.0f]);
-                }
-
-                // Build and copy buffers
-                worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
-                worldBuffer.CopyFrom([worldDTO]);
-
-                primitivesBuffer?.Dispose();
-                primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
-                if (primitivesBuffer == null) return;
-
-                // Dispatch SDF compute shader
-                int outputMode = 0;
-                if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
                 lock (SyncLock)
                 {
+                    // Build render texture
+                    if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight || pixels == null)
+                    {
+                        renderTex?.Dispose();
+                        renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        pixels = new float4[texWidth * texHeight];
+                    }
+
+                    // Build denoised texture (for post-process)
+                    if (denoisedTex == null || denoisedTex.Width != texWidth || denoisedTex.Height != texHeight)
+                    {
+                        denoisedTex?.Dispose();
+                        denoisedTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                    }
+
+                    // NEW: Build bounce count texture
+                    if (bounceCountTexture == null || bounceCountTexture.Width != texWidth || bounceCountTexture.Height != texHeight)
+                    {
+                        bounceCountTexture?.Dispose();
+                        bounceCountTexture = device!.AllocateReadWriteTexture2D<int>(texWidth, texHeight);
+                    }
+
+                    // NEW: Build reconstruction texture
+                    if (reconstructionTex == null || reconstructionTex.Width != texWidth || reconstructionTex.Height != texHeight)
+                    {
+                        reconstructionTex?.Dispose();
+                        reconstructionTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                    }
+
+                    // Build depth and normal texture
+                    if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || depthNormalPixels == null)
+                    {
+                        depthNormalsTex?.Dispose();
+                        depthNormalsTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        depthNormalPixels = new float4[texWidth * texHeight];
+                    }
+
+                    // Build object ID buffer
+                    if (objectIdBuffer == null || objectIdBuffer.Length != (texWidth * texHeight) || objectIDs == null)
+                    {
+                        objectIdBuffer?.Dispose();
+                        objectIdBuffer = device!.AllocateReadWriteBuffer<int>(texWidth * texHeight);
+                        objectIDs = new int[texWidth * texHeight];
+                    }
+
+                    // Build kernel buffer
+                    if (kernelBuffer == null || objectIDs == null)
+                    {
+                        kernelBuffer?.Dispose();
+                        kernelBuffer = device!.AllocateReadOnlyBuffer([1.0f / 16.0f, 1.0f / 4.0f, 3.0f / 8.0f, 1.0f / 4.0f, 1.0f / 16.0f]);
+                    }
+
+                    // Build and copy buffers
+                    worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
+                    worldBuffer.CopyFrom([worldDTO]);
+
+                    primitivesBuffer?.Dispose();
+                    primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
+                    if (primitivesBuffer == null) return;
+
+                    // Dispatch SDF compute shader
+                    int outputMode = 0;
+                    if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
+                
                     SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode, TimeSystem.FrameCount,
                         renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, worldBuffer, primitivesBuffer);
                     device?.For(texWidth, texHeight, shader);
-                }
 
-                // Handle debug modes
-                lock (SyncLock)
-                {
+                    // Handle debug modes
                     if ((int)debugMode > 0 && (int)debugMode < 4 && renderTex != null && depthNormalsTex != null && objectIdBuffer != null)
                     {
                         SDFDebug3D debugShader = new SDFDebug3D(renderTex, depthNormalsTex, objectIdBuffer,
@@ -550,13 +417,13 @@ namespace DivisionEngine.Rendering
             }
             catch (ObjectDisposedException ex)
             {
-                Debug.Warning($"Renderer: Object disposed during rendering: {ex.Message}");
+                Debug.Warning($"Renderer: Object disposed during rendering", ex);
                 CleanupResources();
                 return;
             }
             catch (InvalidOperationException ex)
             {
-                Debug.Error($"Renderer: Invalid operation during ComputeSharp execution: {ex.Message}");
+                Debug.Error($"Renderer: Invalid operation during ComputeSharp execution", ex);
                 device = GraphicsDevice.GetDefault();
                 return;
             }
@@ -592,13 +459,6 @@ namespace DivisionEngine.Rendering
 
             gl.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             gl.Finish();
-
-            if (timeTracker != null)
-            {
-                DeltaTime = timeTracker.Elapsed.TotalSeconds;
-                Time += DeltaTime;
-                timeTracker.Restart();
-            }
         }
 
         /// <summary>

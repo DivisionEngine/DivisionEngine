@@ -49,7 +49,7 @@ namespace DivisionEngine.Serialization
                 }
                 catch (Exception ex)
                 {
-                    Debug.Error($"Failed to set field {kvp.Key}: {ex.Message}");
+                    Debug.Error($"Failed to set field {kvp.Key}", ex);
                 }
             }
         }

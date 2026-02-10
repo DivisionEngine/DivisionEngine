@@ -37,7 +37,7 @@ public class GameStartup
 
         // Run render pipeline
         Renderer = new RenderPipeline();
-        Renderer.InputContextCreated += SetupInputHandlers; // Subscribe input handling at correct time!
+        RenderPipeline.InputContextCreated += SetupInputHandlers; // Subscribe input handling at correct time!
 
         Renderer.BindCurrentWorld(); // Bind loaded project
         Renderer.Run(RequestedFPS, false);

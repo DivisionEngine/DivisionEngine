@@ -360,7 +360,7 @@ public partial class AssetsWindow : EditorWindow
         }
         catch (Exception ex)
         {
-            Debug.Error($"Failed to load assets: {ex.Message}");
+            Debug.Error($"Failed to load assets", ex);
             ShowEmptyState($"Error: {ex.Message}");
             itemCountText.Text = "Error";
         }

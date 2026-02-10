@@ -1,18 +1,32 @@
 ﻿using Avalonia;
 using Avalonia.Threading;
+using DivisionEngine.Rendering;
 using DivisionEngine.Systems;
-using static System.Net.Mime.MediaTypeNames;
+using System;
+using System.Threading.Tasks;
 
 namespace DivisionEngine.Editor.Systems
 {
     /// <summary>
-    /// Manages render window state (visible, invisible, position, etc).
+    /// Manages render window state (visible, focus, position, etc).
     /// </summary>
     public class RenderWindowManagementSystem : SystemBase
     {
         private double prevWidth, prevHeight; 
         private int prevX, prevY;
         private int forceGrabWindowTimer;
+        private int initializeTimer;
+        private bool updatingFocus;
+
+        /// <summary>
+        /// Editor window is in focus.
+        /// </summary>
+        public static bool EditorFocused { get; set; }
+
+        /// <summary>
+        /// Renderer window is in focus.
+        /// </summary>
+        public static bool RendererFocused { get; set; }
 
         public override void Awake()
         {
@@ -21,6 +35,36 @@ namespace DivisionEngine.Editor.Systems
             prevX = 0;
             prevY = 0;
             forceGrabWindowTimer = 0;
+            initializeTimer = 60;
+
+            EditorFocused = false;
+            RendererFocused = true;
+            RenderPipeline.RenderWindowFocusd += (f) => RendererFocused = f;
+            RenderPipeline.RenderWindowFocusd += async (_) => await FocusUpdate();
+            App.AppFocused += (f) => EditorFocused = f;
+            App.AppFocused += async (_) => await FocusUpdate();
+        }
+
+        public override void FixedUpdate()
+        {
+            if (initializeTimer > 0) initializeTimer--;
+        }
+
+        public async Task FocusUpdate()
+        {
+            if (updatingFocus) return;
+            updatingFocus = true;
+            await Task.Delay(300); // Wait to see if other window is immediately focused
+            Dispatcher.UIThread.Post(() => {
+                if (initializeTimer == 0 && EditorFocused == false && RendererFocused == false && App.RendererVisible)
+                    SetVisible(false);
+                else if (!App.RendererVisible)
+                {
+                    initializeTimer = 60;
+                    SetVisible(true);
+                }
+            });
+            updatingFocus = false;
         }
 
         public override void Render()
@@ -46,6 +90,7 @@ namespace DivisionEngine.Editor.Systems
         /// </summary>
         private void UpdateRenderer(bool forceGrab)
         {
+            Debug.Info($"Editor focused: {EditorFocused}, Renderer focused: {RendererFocused}");
             try
             {
                 EnvironmentWindow? win = EnvironmentWindow.GetFirstActiveWindow();
@@ -55,6 +100,8 @@ namespace DivisionEngine.Editor.Systems
                     if (win.renderVisualizerFrame == null || App.Renderer?.RendererWindow == null ||
                         win.renderVisualizerFrame.Bounds.Width <= 0 || win.renderVisualizerFrame.Bounds.Height <= 0)
                         return;
+
+                    if (App.Renderer == null || App.Renderer.RendererWindow == null) return;
 
                     PixelPoint screenPoint = win.renderVisualizerFrame.PointToScreen(new Point(0, 0));
                     Size size = win.renderVisualizerFrame.Bounds.Size;
@@ -69,7 +116,7 @@ namespace DivisionEngine.Editor.Systems
                     prevX = screenPoint.X;
                     prevY = screenPoint.Y;
 
-                    App.Renderer.RendererWindow!.Position = new Silk.NET.Maths.Vector2D<int>(screenPoint.X, screenPoint.Y);
+                    App.Renderer.RendererWindow.Position = new Silk.NET.Maths.Vector2D<int>(screenPoint.X, screenPoint.Y);
                     App.Renderer.RendererWindow.Size = new Silk.NET.Maths.Vector2D<int>((int)size.Width, (int)size.Height);
 
                     // Update window text
@@ -77,9 +124,9 @@ namespace DivisionEngine.Editor.Systems
                 }
                 else if (App.RendererVisible) SetVisible(false);
             }
-            catch
+            catch (Exception ex)
             {
-                Debug.Error("Failed to update renderer window");
+                Debug.Error("Failed to update renderer window", ex);
             }
         }
     }

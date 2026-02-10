@@ -88,10 +88,24 @@
         public static void Error(string message) => Log(message, LogLevel.Error);
 
         /// <summary>
+        /// Creates an error log entry.
+        /// </summary>
+        /// <param name="message">Message of the error log</param>
+        /// <param name="ex">Exception of the error log</param>
+        public static void Error(string message, Exception ex) => Log(message + $" | {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", LogLevel.Error);
+
+        /// <summary>
         /// Creates a warning log entry.
         /// </summary>
         /// <param name="message">Message of the warning log</param>
         public static void Warning(string message) => Log(message, LogLevel.Warning);
+
+        /// <summary>
+        /// Creates a warning log entry.
+        /// </summary>
+        /// <param name="message">Message of the warning log</param>
+        /// /// <param name="ex">Exception of the warning log</param>
+        public static void Warning(string message, Exception ex) => Log(message + $" | {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}", LogLevel.Warning);
 
         /// <summary>
         /// Creates a debug log entry.
