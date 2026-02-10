@@ -41,9 +41,8 @@ Tutorials by Inigo Quilez (Not sponsored, just useful for learning constructive 
 - Paint a 3D character with math: https://youtu.be/8--5LwHRhjk?si=fH9QwvCz6dLptHE1
 
 ## Editor Preview Screenshots:
-<img width="1919" height="1030" alt="Screenshot 2026-02-09 004158" src="https://github.com/user-attachments/assets/5aa8d96f-6325-4762-9c1a-b76f06ff435a" />
+<img width="1919" height="1032" alt="Screenshot 2026-02-10 015046" src="https://github.com/user-attachments/assets/ab1cb97b-5bc4-4c10-818f-a26bff5469d8" />
 
 <img width="1919" height="1033" alt="Screenshot 2026-01-25 170407" src="https://github.com/user-attachments/assets/1221d415-1abd-4541-9be0-7228564daae9" />
 
-<img width="1919" height="1032" alt="Screenshot 2026-02-09 004331" src="https://github.com/user-attachments/assets/8057d26f-279f-4faa-83dd-c72c80f930f8" />
-
+<img width="1919" height="1030" alt="Screenshot 2026-02-09 004158" src="https://github.com/user-attachments/assets/5aa8d96f-6325-4762-9c1a-b76f06ff435a" />
