@@ -8,7 +8,7 @@
         public Refractions()
         {
             hasRefractions = true;
-            maxRaySteps = 3;
+            maxRaySteps = 196;
         }
 
         public bool hasRefractions;

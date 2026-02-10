@@ -258,7 +258,8 @@ public partial class PropertiesWindow : EditorWindow
             }
             else
             {
-                editorControl = CreateFloatNumericBox(value, (f) => {
+                editorControl = CreateFloatNumericBox(value, (f) =>
+                {
                     field.SetValue(component, f);
                 }, true);
             }
@@ -285,7 +286,8 @@ public partial class PropertiesWindow : EditorWindow
             }
             else
             {
-                editorControl = CreateIntegerNumericBox(value, (f) => {
+                editorControl = CreateIntegerNumericBox(value, (f) =>
+                {
                     field.SetValue(component, f);
                 }, true);
             }

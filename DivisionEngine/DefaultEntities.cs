@@ -52,6 +52,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
             W.AddComponent(sdf, new Reflections());
+            W.AddComponent(sdf, new Refractions());
             return sdf;
         }
 
@@ -64,6 +65,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
             W.AddComponent(sdf, new Reflections());
+            W.AddComponent(sdf, new Refractions());
             return sdf;
         }
 
@@ -76,6 +78,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
             W.AddComponent(sdf, new Reflections());
+            W.AddComponent(sdf, new Refractions());
             return sdf;
         }
 
@@ -88,6 +91,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
             W.AddComponent(sdf, new Reflections());
+            W.AddComponent(sdf, new Refractions());
             return sdf;
         }
 
@@ -100,6 +104,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
             W.AddComponent(sdf, new Reflections());
+            W.AddComponent(sdf, new Refractions());
             return sdf;
         }
 
@@ -112,6 +117,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
             W.AddComponent(sdf, new Reflections());
+            W.AddComponent(sdf, new Refractions());
             return sdf;
         }
 
@@ -124,6 +130,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
             W.AddComponent(sdf, new Reflections());
+            W.AddComponent(sdf, new Refractions());
             return sdf;
         }
 
@@ -136,6 +143,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
             W.AddComponent(sdf, new Reflections());
+            W.AddComponent(sdf, new Refractions());
             return sdf;
         }
 
@@ -148,6 +156,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
             W.AddComponent(sdf, new Reflections());
+            W.AddComponent(sdf, new Refractions());
             return sdf;
         }
     }

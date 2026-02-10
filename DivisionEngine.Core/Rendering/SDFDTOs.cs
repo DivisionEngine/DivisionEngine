@@ -51,6 +51,7 @@ namespace DivisionEngine.Rendering
         public float specular; // 4b
         public float ior; // 4b
         public float ao; // 4b
+        public float reflectance; // 4b
 
         // Effect Properties
         public float2 shadowDistances; // 8b

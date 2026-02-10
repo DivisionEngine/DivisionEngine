@@ -42,7 +42,7 @@ namespace DivisionEngine
             newDefaultWorld.AddComponent(environmentEntity, new Environment());
 
             // Spheres
-            int sphereCount = 3;
+            int sphereCount = 1;
             for (int i = 0; i < sphereCount; i++)
             {
                 for (int j = 0; j < sphereCount; j++)
@@ -59,8 +59,8 @@ namespace DivisionEngine
                     newDefaultWorld.AddComponent(sphereEntity, new SDFMaterial
                     {
                         albedoColor = ColorPalette.Khaki,
-                        roughness = 1f - i / (float)(sphereCount - 1),
-                        metallic = 1f - j / (float)(sphereCount - 1),
+                        roughness = 0.1f, //1f - i / (float)(sphereCount - 1),
+                        metallic = 1f, //1f - j / (float)(sphereCount - 1),
                         ior = 1.5f,
                     });
                     newDefaultWorld.AddComponent(sphereEntity, new SoftShadows());

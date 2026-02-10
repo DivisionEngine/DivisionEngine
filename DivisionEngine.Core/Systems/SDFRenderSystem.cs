@@ -137,6 +137,7 @@ namespace DivisionEngine.Systems
                     curPrimitive.specular = mat.specular;
                     curPrimitive.ior = mat.ior;
                     curPrimitive.ao = mat.ambientOcclusion;
+                    curPrimitive.reflectance = mat.reflectance;
                 }
 
                 // Effects

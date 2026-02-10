@@ -42,6 +42,7 @@ namespace DivisionEngine.Components.SDFs
             specular = 1f;
             ior = 1.0f;
             ambientOcclusion = 0.3f;
+            reflectance = 2f;
         }
 
         [Color(false)] public float4 albedoColor;
@@ -50,6 +51,7 @@ namespace DivisionEngine.Components.SDFs
         public float specular;
         [Range(1f, 3f)] public float ior;
         [Range(0f, 1f)] public float ambientOcclusion;
+        [Range(0f, 10f)] public float reflectance;
 
         public IComponent Clone() => new SDFMaterial
         {
@@ -59,6 +61,7 @@ namespace DivisionEngine.Components.SDFs
             specular = specular,
             ior = ior,
             ambientOcclusion = ambientOcclusion,
+            reflectance = reflectance,
         };
     }
 }
