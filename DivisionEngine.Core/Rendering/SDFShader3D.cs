@@ -784,10 +784,8 @@ namespace DivisionEngine
                 float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, shadowValue * NoL);
 
                 // Accumulate surface color (first bounce only - what's ON the glass)
-                if (bounce == 0)
-                    surfaceColor = directLight;
-                else
-                    finalColor += contribution * directLight;
+                if (bounce == 0) surfaceColor = directLight;
+                finalColor += contribution * directLight;
 
                 // Reflections
                 if (material.hasReflection == 0) break;
@@ -826,7 +824,6 @@ namespace DivisionEngine
                 outputColor = reflectiveCol * fresnel + refractedLight * (1f - fresnel);
             }
             else outputColor = finalColor + surfaceColor;
-
             return outputColor;
         }
 
