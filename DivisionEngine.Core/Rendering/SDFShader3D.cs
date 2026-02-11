@@ -478,7 +478,7 @@ namespace DivisionEngine
             return true;
         }
 
-        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 normal, SDFPrimitiveObjectDTO startMat)
+        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 normal, SDFPrimitiveObjectDTO startMat, int initialObjIndex)
         {
             float3 totalTransmittance = float3.One;  // Start with full transmittance
             float3 accumulatedColor = float3.Zero;
@@ -488,6 +488,7 @@ namespace DivisionEngine
             float3 currentDir = startDir;
             float3 currentNormal = normal;
             SDFPrimitiveObjectDTO currentMat = startMat;
+            int curObjIndex = initialObjIndex;
             bool currentlyInsideObject = true;  // We start inside the first object
 
             for (int transmit = 0; transmit < startMat.refractMaxRecursion; transmit++) // Cap software enforced transmit limit to 3
@@ -723,7 +724,7 @@ namespace DivisionEngine
                     {
                         isRefractive = true;
                         fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.ior);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, material);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, material, closestObjIndex);
                     }
                     firstHit = false;
                 }
