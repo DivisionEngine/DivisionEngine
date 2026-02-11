@@ -36,8 +36,8 @@ namespace DivisionEngine.Rendering
         public World? boundWorld;
         public IWindow? RendererWindow;
         public bool InputReady { get; private set; } = false; // Indicates if the renderer is ready to process input
-        public static event Action? Close; // Event to handle window close actions
-        public static event Action<IInputContext>? InputContextCreated; // Event called when input context is created, for handler setup on other threads (Avalonia)
+        public event Action? Close; // Event to handle window close actions
+        public event Action<IInputContext>? InputContextCreated; // Event called when input context is created, for handler setup on other threads (Avalonia)
         public static event Action<bool>? RenderWindowFocusd; // Called when renderer window focus is changed
         public DebugMode debugMode = DebugMode.None; // Current debug mode, if any
 
@@ -117,7 +117,7 @@ namespace DivisionEngine.Rendering
                 RendererWindow.Load += OnLoad;
                 RendererWindow.Render += OnRender;
                 RendererWindow.Closing += OnClosing;
-                RendererWindow.FocusChanged += RendererWindow_FocusChanged;
+                RendererWindow.FocusChanged += (f) => RenderWindowFocusd!(f);
 
                 Debug.Info("Renderer: Starting window run loop");
                 RendererWindow.Run();
@@ -128,8 +128,6 @@ namespace DivisionEngine.Rendering
                 throw;
             }
         }
-
-        private void RendererWindow_FocusChanged(bool obj) => RenderWindowFocusd!(obj);
 
         /// <summary>
         /// Called when the renderer window is closing.

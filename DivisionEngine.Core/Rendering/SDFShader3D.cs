@@ -2,7 +2,6 @@
 
 using ComputeSharp;
 using DivisionEngine.Rendering;
-using Silk.NET.Vulkan;
 
 namespace DivisionEngine
 {
@@ -204,7 +203,7 @@ namespace DivisionEngine
             for (int i = 0; i < 4; i++)
             {
                 float3 e = 0.5773f * (2f * new float3(((i + 3) >> 1) & 1, (i >> 1) & 1, i & 1) - 1f);
-                n += e * WorldSDF(pos + EPSILON * 50 * e, false, out int closestObj);
+                n += e * WorldSDF(pos + EPSILON * 50 * e, false, out _);
                 if (n.X + n.Y + n.Z > 100f) break;
             }
             return Hlsl.Normalize(n);
@@ -341,7 +340,7 @@ namespace DivisionEngine
             // Diffuse
             float3 rhoD = baseCol;
             rhoD *= DisneyDiffuseFactor(NoV, NoL, VoH, roughness);
-            rhoD *= 1f - metallic;
+            //rhoD *= 1f - metallic;
             float3 diff = rhoD * RECIPROCAL_PI;
 
             // FIX 3: Clamp final BRDF result
@@ -351,43 +350,6 @@ namespace DivisionEngine
         /// <summary>
         /// Calculates Fresnel reflectance for dielectrics(glass, water, etc.)
         /// </summary>
-        //private float FresnelDielectric(float cosI, float ior)
-        //{
-        //    // cosI = cosine of viewing angle (1.0 = straight on, 0.0 = grazing)
-        //    // ior = index of refraction (1.5 for glass, 1.33 for water)
-
-        //    // Are we entering or exiting?
-        //    bool entering = cosI > 0.0f;  // Normal points outward
-
-        //    // Which material are we coming from/going to?
-        //    float etaI = entering ? 1.0f : ior;   // From air or glass?
-        //    float etaT = entering ? ior : 1.0f;   // To glass or air?
-
-        //    // Snell's Law: sin(θ₂) = (η₁/η₂) * sin(θ₁)
-        //    float sinT = etaI / etaT * Hlsl.Sqrt(1.0f - cosI * cosI);
-
-        //    // Total Internal Reflection (like underwater looking up)
-        //    if (sinT >= 1.0f)
-        //        return 1.0f;  // 100% reflection!
-
-        //    float cosT = Hlsl.Sqrt(1.0f - sinT * sinT);
-        //    cosI = Hlsl.Abs(cosI);  // We care about magnitude
-
-        //    // The MAGIC FORMULAS:
-        //    // Light has 2 polarizations (like shaking up/down vs side-to-side)
-
-        //    // Parallel polarization (electric field parallel to surface)
-        //    float rParallel = ((etaT * cosI) - (etaI * cosT)) /
-        //                      ((etaT * cosI) + (etaI * cosT));
-
-        //    // Perpendicular polarization
-        //    float rPerpendicular = ((etaI * cosI) - (etaT * cosT)) /
-        //                           ((etaI * cosI) + (etaT * cosT));
-
-        //    // Average both polarizations (unpolarized light)
-        //    return (rParallel * rParallel + rPerpendicular * rPerpendicular) / 2.0f;
-        //}
-
         private float SimpleFresnelDielectric(float cosθ, float ior)
         {
             // Base reflection at perpendicular
@@ -461,7 +423,6 @@ namespace DivisionEngine
 
                 if (worldDist < EPSILON) break;
                 depth += worldDist;
-                if (depth > farClipPlane) break;
             }
             return hitPoint;
         }
@@ -500,67 +461,6 @@ namespace DivisionEngine
         //    return false; // Didn't find exit
         //}
 
-        ///// <summary>
-        ///// Performs refraction raymarching through a solid object
-        ///// </summary>
-        //private float3 TraceRefractionRay(float3 rayOrigin, float3 rayDir, float3 normal, float3 lightDir, float ior, int refractionMaxSteps, float farClipPlane)
-        //{
-        //    float3 finalColor = float3.Zero;
-        //    float3 throughput = float3.One;
-
-        //    float3 refractRayDir = Hlsl.Normalize(Hlsl.Refract(rayDir, normal, 1f / ior));
-        //    float3 refractRayOrigin = rayOrigin + (refractRayDir * 0.1f);
-
-        //    // Debug refraction rays
-        //    //finalColor += (Hlsl.Normalize(refractRayDir) + float3.One) / 2f;
-
-        //    if (TraceThroughObject(refractRayOrigin, refractRayDir, farClipPlane, refractionMaxSteps, out float3 exitPoint, out float3 exitNormal, out float exitDist))
-        //    {
-        //        //finalColor += (Hlsl.Normalize(exitNormal) * float3.One) / 2f;
-
-        //        float3 exitRayDir = Hlsl.Normalize(Hlsl.Refract(refractRayDir, -exitNormal, ior));
-        //        exitPoint += exitRayDir * EPSILON * 5f;
-        //        float3 exitHit = Raymarch(exitPoint, exitRayDir, refractionMaxSteps, farClipPlane, out int closestRefracted, out float exitDepth);
-        //        if (closestRefracted == -1 || exitDepth > farClipPlane)
-        //        {
-        //            finalColor += throughput * worldData[0].backgroundColor.XYZ;
-        //            return finalColor;
-        //        }
-
-        //        // Hit surface
-        //        float3 viewDir = -exitRayDir;
-
-        //        //finalColor += (Hlsl.Normalize(viewDir) + float3.One) / 2f;
-
-        //        // Get material
-        //        SDFPrimitiveObjectDTO material = sdfPrimitives[closestRefracted];
-        //        float3 albedoColor = material.color.RGB;
-        //        float metallic = material.metallic;
-        //        float roughness = Hlsl.Max(material.roughness, 0.1f);
-        //        float specular = material.specular;
-        //        float ao = material.ao;
-
-        //        // Ambient lighting
-        //        float3 ambientLightAmt = float3.One * 0.15f * worldData[0].backgroundColor.RGB * ao;
-
-        //        //// Shadows
-        //        float shadowValue = 1f;
-        //        if (material.shadowEffects.Y)
-        //        {
-        //            float3 shadowOrigin = exitHit + exitNormal * EPSILON * REFLECTION_BIAS;
-        //            float2 shadowDistances = material.shadowDistances;
-        //            shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out int closestShadow);
-        //        }
-
-        //        // Direct Lighting
-        //        float NoL = Hlsl.Max(Hlsl.Dot(exitNormal, lightDir), 0f);
-        //        float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, exitNormal, metallic, roughness, albedoColor, specular);
-        //        float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, shadowValue * NoL);
-        //        finalColor += throughput * directLight;
-        //    }
-        //    return finalColor;
-        //}
-
         private bool Refract(float3 incident, float3 normal, float eta, out float3 refracted)
         {
             float3 I = Hlsl.Normalize(incident);
@@ -578,7 +478,7 @@ namespace DivisionEngine
             return true;
         }
 
-        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 normal, SDFPrimitiveObjectDTO startMat)
+        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 normal, SDFPrimitiveObjectDTO startMat, int objectIdInside)
         {
             float3 incident = startDir;
             float eta = 1f / startMat.ior;
@@ -586,54 +486,61 @@ namespace DivisionEngine
             // Refract ray
             if (Refract(incident, normal, eta, out float3 refractDir))
             {
-                //return Hlsl.Normalize(refractDir);
-
-                // Through tracing (problem area)
+                // Through tracing with absorption
                 float3 exitPt = float3.Zero, exitNorm = float3.Zero;
                 float3 entryPt = startOrigin - normal * EPSILON;
                 float3 p = entryPt;
+                float totalTravelDistance = 0f;
+
+                bool foundExit = false;
                 for (int i = 0; i < startMat.refractionMaxSteps; i++)
                 {
                     float d = WorldSDF(p, false, out _);
-                    if (d > 0f)
+                    if (d > 0f) // We've exited the object
                     {
-                        exitPt = p - refractDir * EPSILON;
-                        exitNorm = FastNormal(p);
-                        if (Hlsl.Dot(exitNorm, refractDir) > 0)
-                            exitNorm = -exitNorm;
+                        exitPt = p + refractDir * 0.1f;
+                        exitNorm = FastNormal(exitPt);
+                        if (Hlsl.Dot(exitNorm, refractDir) > 0) exitNorm = -exitNorm;
+                        foundExit = true;
                         break;
                     }
-                    p += refractDir * Hlsl.Max(Hlsl.Abs(d), EPSILON);
-                    //depth += Hlsl.Max(Hlsl.Abs(d), EPSILON);
+            
+                    // Still inside - move forward and accumulate distance
+                    float stepSize = Hlsl.Max(Hlsl.Abs(d), EPSILON);
+                    p += refractDir * stepSize;
+                    totalTravelDistance += stepSize;
                 }
+
+                if (!foundExit)
+                {
+                    // If we never exit, apply full absorption
+                    return float3.Zero;
+                }
+
+                // Calculate absorption with alpha channel used for strength
+                float3 absorptionCoefficient = -Hlsl.Log(Hlsl.Max(startMat.absorptionColor.RGB, 0.001f));
+                float3 transmittance = Hlsl.Exp(-absorptionCoefficient * totalTravelDistance * startMat.absorptionColor.A * 5f); // add 5 multiplier for scaling
 
                 incident = refractDir;
                 normal = exitNorm;
                 eta = startMat.ior / 1.0f;         // glass → air
-
                 if (!Refract(incident, normal, eta, out float3 exitDir))
                     exitDir = Hlsl.Reflect(incident, normal);
 
                 float3 newOrigin = exitPt + exitDir * EPSILON;
-                float3 color = TraceRayForRefraction(newOrigin, exitDir, out float3 outputNorm, out float totalDist);
+                float3 color = TraceRayForRefraction(newOrigin, exitDir, out _, out _);
+                return color * transmittance;
+            }
 
-                return color;
-            }
-            else
-            {
-                return float3.Zero;
-            }
+            return float3.Zero;
         }
 
         private float3 TraceRayForRefraction(float3 rayOrigin, float3 rayDir,
             out float3 normal, out float totalDist)
         {
             float3 finalColor = float3.Zero;
-            float3 throughput = float3.One;
             float3 lightDir = Hlsl.Normalize(sunDir);
-            float3 refractedLight = float3.Zero;
             normal = float3.Zero;
-            totalDist = 0f;
             float farClipPlane = worldData[0].farPlane;
 
             // Adaptive reflection step sizes
@@ -644,7 +551,7 @@ namespace DivisionEngine
             // Miss - add sky color and exit
             if (closestObjIndex == -1 || totalDist > farClipPlane)
             {
-                finalColor += throughput * worldData[0].backgroundColor.XYZ;
+                finalColor += worldData[0].backgroundColor.XYZ;
                 return finalColor;
             }
 
@@ -677,7 +584,7 @@ namespace DivisionEngine
             float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
             float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
             float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, /*shadowValue * */NoL);
-            finalColor += throughput * directLight;
+            finalColor += directLight;
 
             return finalColor;
         }
@@ -697,6 +604,7 @@ namespace DivisionEngine
             float3 contribution = float3.One;
             float cosTheta = 0f;
 
+            float3 ambientBase = float3.One * 0.15f * worldData[0].backgroundColor.RGB;
             float3 lightDir = Hlsl.Normalize(sunDir);
             float3 refractedLight = float3.Zero;
             SDFPrimitiveObjectDTO mainMat = default;
@@ -753,10 +661,7 @@ namespace DivisionEngine
                     {
                         isRefractive = true;
                         fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.ior);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, material);
-
-                        // Apply glass color tint
-                        refractedLight *= albedoColor;
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, material, closestObjIndex);
                     }
                     firstHit = false;
                 }
@@ -765,22 +670,19 @@ namespace DivisionEngine
                 float3 f0 = float3.One * 0.16f * specular * specular;
                 f0 = Hlsl.Lerp(f0, albedoColor, new float3(metallic, metallic, metallic));
 
-                // Ambient lighting
-                float3 ambientLightAmt = float3.One * 0.15f * worldData[0].backgroundColor.RGB * ao;
-
                 // Shadows
-                float shadowValue = 1f;
+                /*float shadowValue = 1f;
                 if (material.shadowEffects.Y)
                 {
                     float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                     float2 shadowDistances = material.shadowDistances;
                     shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out _);
-                }
+                }*/
 
                 // Direct lighting
                 float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
                 float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
-                float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, shadowValue * NoL);
+                float3 directLight = Hlsl.Lerp(ambientBase * ao, brdf, /*shadowValue */ NoL);
 
                 // Accumulate surface color (first bounce only - what's ON the glass)
                 if (bounce == 0) surfaceColor = directLight;
@@ -917,11 +819,11 @@ namespace DivisionEngine
 {
     return Hlsl.Normalize(Hlsl.Mul(worldData[0].cameraToWorld, 
         new float4(Hlsl.Mul(worldData[0].cameraInverseProj, new float4(coord, 0.0f, 1.0f)).XYZ, 0.0f)).XYZ);
-}*/
+}
 
 // Calculates shadows
 // Adapted: https://www.shadertoy.com/view/lsKcDD
-/*private float SoftShadow(float3 rayOrigin, float3 rayDir, float minDist, float maxDist)
+private float SoftShadow(float3 rayOrigin, float3 rayDir, float minDist, float maxDist)
 {
     float res = 1.0f;
     float rayDist = minDist;
@@ -952,43 +854,6 @@ namespace DivisionEngine
     // Blend with material's AO strength
     aoAmt = Hlsl.Lerp(1f, aoAmt, ao);
     //aoAmt = Hlsl.Lerp(0f, aoAmt, 1f - Hlsl.Clamp(shadowValues.X, 0, 1));
-}*/
-
-// Depth of Field section:
-/*private float2 RandomPointOnDisk(uint seed, float2 pixel)
-{
-    // Hash-based random (replace with your preferred method)
-    float r1 = Hlsl.Frac(Hlsl.Sin(seed * 12.9898f + pixel.X * 78.233f + pixel.Y * 37.719f) * 43758.5453f);
-    float r2 = Hlsl.Frac(Hlsl.Sin(seed * 4.2719f + pixel.X * 63.726f + pixel.Y * 19.357f) * 13758.5453f);
-
-    // Map to disk (uniform distribution)
-    float theta = r1 * 2.0f * 3.14159265f;
-    float radius = Hlsl.Sqrt(r2);
-
-    return new float2(Hlsl.Cos(theta), Hlsl.Sin(theta)) * radius;
-}
-
-private float3 GetCameraRayDirWithDOF(float2 uv, float3 cameraOrigin, float3 cameraForward,
-                                     float3 cameraRight, float3 cameraUp, float focusDistance,
-                                     float apertureSize, uint seed)
-{
-    // Original ray direction (your existing method)
-    float3 rayDir = GetCameraRayDir(uv);
-
-    // If no DoF, return original
-    if (apertureSize < 0.001f)
-        return rayDir;
-
-    // Calculate focal point
-    float3 focalPoint = cameraOrigin + rayDir * focusDistance;
-
-    // Jitter ray origin on aperture disk
-    float2 diskUV = RandomPointOnDisk(seed, uv * 1000.0f);
-    float3 apertureOffset = (cameraRight * diskUV.X + cameraUp * diskUV.Y) * apertureSize;
-    float3 newRayOrigin = cameraOrigin + apertureOffset;
-
-    // New ray direction toward focal point
-    return Hlsl.Normalize(focalPoint - newRayOrigin);
 }
 
 private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
@@ -1028,45 +893,6 @@ private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
     occlusion = weightSum > 0f ? occlusion / weightSum : 0f;
     return Hlsl.Pow(Hlsl.Saturate(1f - occlusion * AO_POWER), 1f);
 }
-
-private float3 GetRandomHemisphereDirection(int sampleIndex, int sampleCount, float randomSeed, float3 normal)
-{
-    // Create a random angle and height using pseudo-random sequences
-    float goldenRatio = 1.61803398875f;
-    float phi = 2.0f * 3.14159265f * (sampleIndex * goldenRatio + randomSeed) / sampleCount;
-    float cosTheta = Hlsl.Sqrt((float)(sampleIndex + 0.5f) / sampleCount); // Cosine-weighted distribution
-    float sinTheta = Hlsl.Sqrt(1.0f - cosTheta * cosTheta);
-
-    // Create a direction in a local tangent space (Z-up)
-    float3 localDir = new float3(Hlsl.Cos(phi) * sinTheta, Hlsl.Sin(phi) * sinTheta, cosTheta);
-
-    // Align local Z-axis with the surface normal
-    float3 tangent = Hlsl.Normalize(Hlsl.Cross(new float3(0.0f, 1.0f, 0.0f), normal));
-    if (Hlsl.Abs(Hlsl.Dot(tangent, tangent)) < 0.001f) // Handle near-vertical normals
-        tangent = Hlsl.Normalize(Hlsl.Cross(new float3(1.0f, 0.0f, 0.0f), normal));
-    float3 bitangent = Hlsl.Cross(normal, tangent);
-
-    // Transform local direction to world space
-    float3 worldDir = tangent * localDir.X + bitangent * localDir.Y + normal * localDir.Z;
-    return Hlsl.Normalize(worldDir);
-}*/
-
-// Apply Depth of Field if enabled
-/*if (apertureSize > 0.001f)
-{
-    // Calculate focal point on focus plane
-    float3 focalPoint = rayOrigin + rayDir * focusDistance;
-
-    // Jitter on aperture disk (scaled by focus distance)
-    float2 diskUV = RandomPointOnDisk(seed, pixelCoord);
-    float effectiveAperture = apertureSize * focusDistance * 0.1f; // Matches Shadertoy 0.02 scale
-
-    float3 apertureOffset = (cameraRight * diskUV.X + cameraUp * diskUV.Y) * effectiveAperture;
-    float3 newRayOrigin = rayOrigin + apertureOffset;
-
-    // New direction toward focal point
-    rayDir = Hlsl.Normalize(focalPoint - newRayOrigin);
-}*/
 
 /*private float2 SoftShadowCambridge(float3 lightPos, float3 hitPoint, float renderDepth)
 {

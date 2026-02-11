@@ -160,6 +160,7 @@ namespace DivisionEngine.Systems
                     Refractions refract = W.GetComponent<Refractions>(id)!;
                     if (refract.hasRefractions) curPrimitive.hasRefraction = 1;
                     else curPrimitive.hasRefraction = 0;
+                    curPrimitive.absorptionColor = refract.absorptionColor;
                     curPrimitive.refractionMaxSteps = refract.maxRaySteps;
                 }
 

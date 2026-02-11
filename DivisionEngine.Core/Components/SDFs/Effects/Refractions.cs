@@ -11,12 +11,12 @@ namespace DivisionEngine.Components.SDFs.Effects
         public Refractions()
         {
             hasRefractions = true;
-            absorptionColor = ColorPalette.White;
+            absorptionColor = new float4(1f, 1f, 1f, 0.1f);
             maxRaySteps = 196;
         }
 
         public bool hasRefractions;
-        [Color(ShowAlpha = false)] public float4 absorptionColor;
+        [Color(ShowAlpha = true)] public float4 absorptionColor;
         public int maxRaySteps;
 
         public IComponent Clone() => new Refractions

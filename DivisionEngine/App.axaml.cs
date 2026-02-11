@@ -66,18 +66,15 @@ namespace DivisionEngine.Editor
             if (rendering && !RendererVisible)
             {
                 RendererVisible = true;
-
                 if (Renderer != null && Renderer.RendererWindow != null) Renderer.Stop();
-
                 Renderer = new RenderPipeline();
                 Renderer.BindCurrentWorld();
 
                 // Subscribe to input context creation BEFORE starting the renderer
-                RenderPipeline.InputContextCreated += SetupInputHandlers;
+                Renderer.InputContextCreated += SetupInputHandlers;
 
                 _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
-
-                RenderPipeline.Close += () =>
+                Renderer.Close += () =>
                 {
                     Dispatcher.UIThread.Post(() =>
                     {

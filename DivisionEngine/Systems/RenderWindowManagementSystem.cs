@@ -17,6 +17,7 @@ namespace DivisionEngine.Editor.Systems
         private int forceGrabWindowTimer;
         private int initializeTimer;
         private bool updatingFocus;
+        private static bool hardDisableFocus;
 
         /// <summary>
         /// Editor window is in focus.
@@ -52,16 +53,16 @@ namespace DivisionEngine.Editor.Systems
 
         public async Task FocusUpdate()
         {
-            if (updatingFocus) return;
+            if (updatingFocus || hardDisableFocus) return;
             updatingFocus = true;
             await Task.Delay(300); // Wait to see if other window is immediately focused
             Dispatcher.UIThread.Post(() => {
-                if (initializeTimer == 0 && EditorFocused == false && RendererFocused == false && App.RendererVisible)
-                    SetVisible(false);
-                else if (!App.RendererVisible)
+                if (initializeTimer == 0 && !EditorFocused && !RendererFocused && App.RendererVisible)
+                    _ = App.SetEditorRenderingAsync(false);
+                else if ((EditorFocused || RendererFocused) && !App.RendererVisible)
                 {
                     initializeTimer = 60;
-                    SetVisible(true);
+                    _ = App.SetEditorRenderingAsync(true);
                 }
             });
             updatingFocus = false;
@@ -83,7 +84,13 @@ namespace DivisionEngine.Editor.Systems
         /// Sets whether the Silk.NET physical render window is enabled.
         /// </summary>
         /// <param name="visible">Whether the OpenGL renderer is visible</param>
-        public static void SetVisible(bool visible) => _ = App.SetEditorRenderingAsync(visible);
+        public static void SetVisible(bool visible)
+        {
+            if (visible != App.RendererVisible)
+            {
+                _ = App.SetEditorRenderingAsync(visible);
+            }
+        }
 
         /// <summary>
         /// Updates the render position, size, and visibility.
@@ -93,6 +100,8 @@ namespace DivisionEngine.Editor.Systems
             Debug.Info($"Editor focused: {EditorFocused}, Renderer focused: {RendererFocused}");
             try
             {
+                if (App.Renderer == null || App.Renderer.RendererWindow == null) return;
+
                 EnvironmentWindow? win = EnvironmentWindow.GetFirstActiveWindow();
                 if (win != null && win.IsLoaded && App.RendererVisible)
                 {
@@ -100,8 +109,6 @@ namespace DivisionEngine.Editor.Systems
                     if (win.renderVisualizerFrame == null || App.Renderer?.RendererWindow == null ||
                         win.renderVisualizerFrame.Bounds.Width <= 0 || win.renderVisualizerFrame.Bounds.Height <= 0)
                         return;
-
-                    if (App.Renderer == null || App.Renderer.RendererWindow == null) return;
 
                     PixelPoint screenPoint = win.renderVisualizerFrame.PointToScreen(new Point(0, 0));
                     Size size = win.renderVisualizerFrame.Bounds.Size;
