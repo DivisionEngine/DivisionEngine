@@ -1,8 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Layout;
-using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components.FieldAttributes;
@@ -12,9 +12,12 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
+using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Math = DivisionEngine.MathLib.Math;
+using Matrix = DivisionEngine.MathLib.Matrix;
+using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Editor;
 
@@ -513,9 +516,210 @@ public partial class PropertiesWindow : EditorWindow
             };
             editorControl = dateTimePicker;
         }
+        else if (fieldValue != null && fieldType == typeof(float4x4))
+        {
+            float4x4 value = (float4x4)fieldValue;
+            editorControl = CreateMatrixEditor(value, field, component);
+        }
 
         fieldPanel.Children.Add(editorControl!);
         return fieldPanel;
+    }
+
+    private static Button CreateMatrixEditor(float4x4 initialValue, FieldInfo field, object component)
+    {
+        Button matrixButton = new Button
+        {
+            Content = CreateMatrixButtonContent(),
+            Padding = new Thickness(8, 4),
+            BorderBrush = EditorColor.FromRGB(45, 45, 45),
+            BorderThickness = new Thickness(1),
+            Background = EditorColor.FromRGB(28, 28, 28),
+            Foreground = Brushes.White,
+            CornerRadius = new CornerRadius(4),
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+        };
+        StackPanel mainPanel = new StackPanel
+        {
+            Spacing = 8,
+        };
+        Flyout flyout = new Flyout
+        {
+            Placement = PlacementMode.BottomEdgeAlignedLeft,
+            ShowMode = FlyoutShowMode.Standard,
+            Content = mainPanel,
+        };
+
+        // Header
+        DockPanel headerPanel = new DockPanel();
+        TextBlock headerText = new TextBlock
+        {
+            Text = "Edit Matrix",
+            FontSize = 14,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = Brushes.White,
+            Margin = new Thickness(0, 0, 0, 4),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        DockPanel.SetDock(headerText, Dock.Left);
+        headerPanel.Children.Add(headerText);
+        Button closeButton = new Button
+        {
+            Content = new MaterialIcon
+            {
+                Kind = MaterialIconKind.Close,
+            },
+            Padding = new Thickness(2, 1),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            BorderThickness = new Thickness(0),
+            Background = EditorColor.FromRGB(17, 17, 17),
+            Foreground = EditorColor.FromRGB(200, 200, 200),
+            FontSize = 11,
+            CornerRadius = new CornerRadius(3),
+        };
+        closeButton.Click += (s, e) => flyout.Hide();
+        DockPanel.SetDock(closeButton, Dock.Right);
+        headerPanel.Children.Add(closeButton);
+        mainPanel.Children.Add(headerPanel);
+
+        // Create 4x4 grid of float box controls
+        Border gridBorder = new Border
+        {
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(3),
+            Background = EditorColor.FromRGB(52, 52, 52),
+            Padding = new Thickness(2),
+        };
+        StackPanel gridContainer = new StackPanel
+        {
+            Spacing = 1,
+        };
+        StackPanel columnHeaders = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(20, 0, 0, 2),
+        };
+        for (int col = 0; col < 4; col++)
+        {
+            columnHeaders.Children.Add(new Border
+            {
+                Child = new TextBlock
+                {
+                    Text = $"C{col + 1}",
+                    Foreground = EditorColor.FromRGB(200, 200, 200),
+                    FontSize = 10,
+                    FontWeight = FontWeight.Medium,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+                Width = 32,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(2, 0, 2, 0),
+            });
+        }
+
+        gridContainer.Children.Add(columnHeaders);
+        NumericUpDown[,] matrixBoxes = new NumericUpDown[4, 4];
+
+        // Create rows and fields
+        for (int row = 0; row < 4; row++)
+        {
+            DockPanel rowPanel = new DockPanel();
+            Border rowHeader = new Border
+            {
+                Child = new TextBlock
+                {
+                    Text = $"R{row + 1}",
+                    Foreground = EditorColor.FromRGB(200, 200, 200),
+                    FontSize = 10,
+                    FontWeight = FontWeight.Medium,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                },
+                Width = 20,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            DockPanel.SetDock(rowHeader, Dock.Left);
+            rowPanel.Children.Add(rowHeader);
+            StackPanel rowCells = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+            };
+
+            for (int col = 0; col < 4; col++)
+            {
+                int r = row, c = col;
+                float initialCellValue = initialValue.GetVal(r, c);
+
+                NumericUpDown numBox = CreateFloatNumericBox(initialCellValue, (val) =>
+                {
+                    float4x4 currentMatrix = (float4x4)field.GetValue(component)!;
+                    currentMatrix.SetVal(r, c, val);
+                    field.SetValue(component, currentMatrix);
+                });
+                numBox.Width = 24;
+                numBox.Height = 20;
+                numBox.Margin = new Thickness(2);
+
+                matrixBoxes[row, col] = numBox;
+                rowCells.Children.Add(numBox);
+            }
+
+            rowPanel.Children.Add(rowCells);
+            gridContainer.Children.Add(rowPanel);
+        }
+
+        gridBorder.Child = gridContainer;
+        mainPanel.Children.Add(gridBorder);
+
+        // Attach flyout to button
+        matrixButton.Click += (_, _) => flyout.ShowAt(matrixButton);
+        return matrixButton;
+    }
+
+    private static StackPanel CreateMatrixButtonContent()
+    {
+        StackPanel previewPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 2,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        previewPanel.Children.Add(new MaterialIcon
+        {
+            Kind = MaterialIconKind.Matrix,
+            Width = 16,
+            Height = 16,
+            Foreground = EditorColor.FromRGB(100, 200, 255),
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        // Matrix preview text
+        StackPanel textPanel = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            Spacing = 2
+        };
+        textPanel.Children.Add(new TextBlock
+        {
+            Text = "4x4 Matrix",
+            FontSize = 11,
+            FontWeight = FontWeight.Medium,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = EditorColor.FromRGB(220, 220, 220),
+        });
+
+        previewPanel.Children.Add(textPanel);
+        previewPanel.Children.Add(new MaterialIcon
+        {
+            Kind = MaterialIconKind.ChevronRight,
+            Width = 12,
+            Height = 12,
+            Foreground = Brushes.Gray,
+            Margin = new Thickness(2, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        return previewPanel;
     }
 
     private static StackPanel CreateFloatSlider(float initialVal, float min, float max, Action<float> onValueChanged)
@@ -539,23 +743,13 @@ public partial class PropertiesWindow : EditorWindow
             Background = EditorColor.FromRGB(28, 28, 28),
             Foreground = EditorColor.FromRGB(100, 100, 100),
         };
-        //TextBlock valueText = new TextBlock
-        //{
-        //    Text = initialVal.ToString("F2"),
-        //    FontSize = 11,
-        //    Foreground = Brushes.White,
-        //    VerticalAlignment = VerticalAlignment.Center,
-        //    MinWidth = 40
-        //};
 
         slider.ValueChanged += (s, e) =>
         {
             float newValue = (float)slider.Value;
-            //valueText.Text = newValue.ToString("F2");
             onValueChanged(newValue);
         };
         sliderPanel.Children.Add(slider);
-        //sliderPanel.Children.Add(valueText);
         return sliderPanel;
     }
 
@@ -582,23 +776,13 @@ public partial class PropertiesWindow : EditorWindow
             TickFrequency = 1,
             IsSnapToTickEnabled = true,
         };
-        //TextBlock valueText = new TextBlock
-        //{
-        //    Text = initialVal.ToString(),
-        //    FontSize = 11,
-        //    Foreground = Brushes.White,
-        //    VerticalAlignment = VerticalAlignment.Center,
-        //    MinWidth = 40
-        //};
 
         slider.ValueChanged += (s, e) =>
         {
             int newValue = (int)slider.Value;
-            //valueText.Text = newValue.ToString();
             onValueChanged(newValue);
         };
         sliderPanel.Children.Add(slider);
-        //sliderPanel.Children.Add(valueText);
         return sliderPanel;
     }
 
@@ -616,7 +800,9 @@ public partial class PropertiesWindow : EditorWindow
             BorderThickness = new Thickness(0),
             Padding = new Thickness(4),
             VerticalAlignment = VerticalAlignment.Center,
-            FormatString = "F2",
+            VerticalContentAlignment = VerticalAlignment.Center,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            //FormatString = "F2",
             ShowButtonSpinner = hasSpinner,
         };
         numericBox.ValueChanged += (s, e) =>
@@ -644,6 +830,8 @@ public partial class PropertiesWindow : EditorWindow
             BorderThickness = new Thickness(0),
             Padding = new Thickness(4),
             VerticalAlignment = VerticalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
             ShowButtonSpinner = hasSpinner,
         };
         numericBox.ValueChanged += (s, e) =>
@@ -683,6 +871,7 @@ public partial class PropertiesWindow : EditorWindow
             IsComponentSliderVisible = true,
             IsAlphaEnabled = colorAttr.ShowAlpha,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Stretch,
             IsHexInputVisible = true,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,

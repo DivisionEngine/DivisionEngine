@@ -202,6 +202,179 @@ namespace DivisionEngine.MathLib
         public static float4 Column3(this float4x4 m) => new float4(m.M14, m.M24, m.M34, m.M44);
 
         /// <summary>
+        /// Gets the value of this matrix at r, c (correctly on the CPU).
+        /// </summary>
+        /// <param name="m">Matrix to search</param>
+        /// <param name="r">Row value (0 - 3)</param>
+        /// <param name="c">Column value (0 - 3)</param>
+        /// <returns>0.0 of 0 < r < 4 or 0 < c < 4, or value of matrix</returns>
+        /// <remarks>This is made to work on the CPU, doing float4x4[r][c] will NOT work unless in compute shader</remarks>
+        public static float GetVal(this float4x4 m, int r, int c)
+        {
+            if (r < 0 || r > 4 || c < 0 || c > 4) return 0f;
+            else return (r, c) switch
+            {
+                (0, 0) => m.M11,
+                (0, 1) => m.M12,
+                (0, 2) => m.M13,
+                (0, 3) => m.M14,
+
+                (1, 0) => m.M21,
+                (1, 1) => m.M22,
+                (1, 2) => m.M23,
+                (1, 3) => m.M24,
+
+                (2, 0) => m.M31,
+                (2, 1) => m.M32,
+                (2, 2) => m.M33,
+                (2, 3) => m.M34,
+
+                (3, 0) => m.M41,
+                (3, 1) => m.M42,
+                (3, 2) => m.M43,
+                (3, 3) => m.M44,
+                _ => 0f,
+            };
+        }
+
+        /// <summary>
+        /// Sets the value of this matrix at r, c (correctly on the CPU).
+        /// </summary>
+        /// <param name="m">Matrix to insert into</param>
+        /// <param name="r">Row value (0 - 3)</param>
+        /// <param name="c">Column value (0 - 3)</param>
+        /// <returns>Successful or not</returns>
+        /// <remarks>This is made to work on the CPU, doing float4x4[r][c] will NOT work unless in compute shader</remarks>
+        public static bool SetVal(this float4x4 m, int r, int c, float val)
+        {
+            if (r < 0 || r > 4 || c < 0 || c > 4) return false;
+            else switch (r, c)
+            {
+                case (0, 0): m.M11 = val; break;
+                case (0, 1): m.M12 = val; break;
+                case (0, 2): m.M13 = val; break;
+                case (0, 3): m.M14 = val; break;
+
+                case (1, 0): m.M21 = val; break;
+                case (1, 1): m.M22 = val; break;
+                case (1, 2): m.M23 = val; break;
+                case (1, 3): m.M24 = val; break;
+
+                case (2, 0): m.M31 = val; break;
+                case (2, 1): m.M32 = val; break;
+                case (2, 2): m.M33 = val; break;
+                case (2, 3): m.M34 = val; break;
+
+                case (3, 0): m.M41 = val; break;
+                case (3, 1): m.M42 = val; break;
+                case (3, 2): m.M43 = val; break;
+                case (3, 3): m.M44 = val; break;
+                default: break;
+            };
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the value of this matrix at r, c (correctly on the CPU).
+        /// </summary>
+        /// <param name="m">Matrix to search</param>
+        /// <param name="r">Row value (0 - 2)</param>
+        /// <param name="c">Column value (0 - 2)</param>
+        /// <returns>0.0 of 0 < r < 3 or 0 < c < 3, or value of matrix</returns>
+        /// <remarks>This is made to work on the CPU, doing float3x3[r][c] will NOT work unless in compute shader</remarks>
+        public static float GetVal(this float3x3 m, int r, int c)
+        {
+            if (r < 0 || r > 3 || c < 0 || c > 3) return 0f;
+            else return (r, c) switch
+            {
+                (0, 0) => m.M11,
+                (0, 1) => m.M12,
+                (0, 2) => m.M13,
+
+                (1, 0) => m.M21,
+                (1, 1) => m.M22,
+                (1, 2) => m.M23,
+
+                (2, 0) => m.M31,
+                (2, 1) => m.M32,
+                (2, 2) => m.M33,
+                _ => 0f,
+            };
+        }
+
+        /// <summary>
+        /// Sets the value of this matrix at r, c (correctly on the CPU).
+        /// </summary>
+        /// <param name="m">Matrix to insert into</param>
+        /// <param name="r">Row value (0 - 2)</param>
+        /// <param name="c">Column value (0 - 2)</param>
+        /// <returns>Successful or not</returns>
+        /// <remarks>This is made to work on the CPU, doing float3x3[r][c] will NOT work unless in compute shader</remarks>
+        public static bool SetVal(this float3x3 m, int r, int c, float val)
+        {
+            if (r < 0 || r > 3 || c < 0 || c > 3) return false;
+            else switch (r, c)
+            {
+                case (0, 0): m.M11 = val; break;
+                case (0, 1): m.M12 = val; break;
+                case (0, 2): m.M13 = val; break;
+
+                case (1, 0): m.M21 = val; break;
+                case (1, 1): m.M22 = val; break;
+                case (1, 2): m.M23 = val; break;
+
+                case (2, 0): m.M31 = val; break;
+                case (2, 1): m.M32 = val; break;
+                case (2, 2): m.M33 = val; break;
+                default: break;
+            };
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the value of this matrix at r, c (correctly on the CPU).
+        /// </summary>
+        /// <param name="m">Matrix to search</param>
+        /// <param name="r">Row value (0 - 1)</param>
+        /// <param name="c">Column value (0 - 1)</param>
+        /// <returns>0.0 of 0 < r < 2 or 0 < c < 2, or value of matrix</returns>
+        /// <remarks>This is made to work on the CPU, doing float2x2[r][c] will NOT work unless in compute shader</remarks>
+        public static float GetVal(this float2x2 m, int r, int c)
+        {
+            if (r < 0 || r > 2 || c < 0 || c > 2) return 0f;
+            else return (r, c) switch
+            {
+                (0, 0) => m.M11,
+                (0, 1) => m.M12,
+                (1, 0) => m.M21,
+                (1, 1) => m.M22,
+                _ => 0f,
+            };
+        }
+
+        /// <summary>
+        /// Sets the value of this matrix at r, c (correctly on the CPU).
+        /// </summary>
+        /// <param name="m">Matrix to insert into</param>
+        /// <param name="r">Row value (0 - 2)</param>
+        /// <param name="c">Column value (0 - 2)</param>
+        /// <returns>Successful or not</returns>
+        /// <remarks>This is made to work on the CPU, doing float2x2[r][c] will NOT work unless in compute shader</remarks>
+        public static bool SetVal(this float2x2 m, int r, int c, float val)
+        {
+            if (r < 0 || r > 2 || c < 0 || c > 2) return false;
+            else switch (r, c)
+            {
+                case (0, 0): m.M11 = val; break;
+                case (0, 1): m.M12 = val; break;
+                case (1, 0): m.M21 = val; break;
+                case (1, 1): m.M22 = val; break;
+                default: break;
+            };
+            return true;
+        }
+
+        /// <summary>
         /// Multiplies two 4x4 matrices.
         /// </summary>
         /// <param name="left">Left matrix to multiply</param>
