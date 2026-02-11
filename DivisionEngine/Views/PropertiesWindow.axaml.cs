@@ -40,25 +40,25 @@ public partial class PropertiesWindow : EditorWindow
         {
             Orientation = Orientation.Vertical,
             Spacing = 5,
-            Margin = new Thickness(5)
+            Margin = new Thickness(5),
         };
         scrollViewer = new ScrollViewer
         {
             Content = propertiesPanel,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalAlignment = VerticalAlignment.Stretch,
-            VerticalContentAlignment = VerticalAlignment.Top
+            VerticalContentAlignment = VerticalAlignment.Top,
         };
         Border separator = new Border
         {
             Background = EditorColor.FromRGB(68, 68, 68),
-            Height = 1
+            Height = 1,
         };
         header = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Background = EditorColor.FromRGB(28, 28, 28),
-            VerticalAlignment = VerticalAlignment.Top
+            VerticalAlignment = VerticalAlignment.Top,
         };
         headerText = new TextBlock
         {
@@ -67,7 +67,7 @@ public partial class PropertiesWindow : EditorWindow
             FontWeight = FontWeight.Bold,
             Foreground = Brushes.White,
             Margin = new Thickness(5),
-            HorizontalAlignment = HorizontalAlignment.Left
+            HorizontalAlignment = HorizontalAlignment.Left,
         };
         header.Children.Add(headerText);
 
@@ -147,11 +147,12 @@ public partial class PropertiesWindow : EditorWindow
     {
         Border headerBorder = new Border
         {
-            BorderThickness = new Thickness(2),
-            BorderBrush = EditorColor.FromRGB(68, 68, 68),
-            CornerRadius = new CornerRadius(4),
-            Margin = new Thickness(0, 8, 0, 0),
-            Padding = new Thickness(4, 4)
+            BorderThickness = new Thickness(0, 0, 1, 1),
+            BorderBrush = EditorColor.FromRGB(17, 17, 17),
+            Background = EditorColor.FromRGB(48, 48, 48),
+            CornerRadius = new CornerRadius(4, 4, 0, 0),
+            Margin = new Thickness(4, 8, 12, 0),
+            Padding = new Thickness(4, 4),
         };
         StackPanel headerPanel = new StackPanel
         {
@@ -162,9 +163,21 @@ public partial class PropertiesWindow : EditorWindow
         {
             Text = compType.Name,
             FontSize = 14,
-            Foreground = Brushes.White,
-            VerticalAlignment = VerticalAlignment.Center
+            Foreground = EditorColor.FromRGB(200, 200, 200),
+            VerticalAlignment = VerticalAlignment.Center,
         };
+        //headerBorder.PointerEntered += (_, _) =>
+        //{
+        //    headerBorder.BorderThickness = new Thickness(0, 0, 0, 0);
+        //    headerBorder.BorderBrush = EditorColor.FromRGB(16, 16, 16);
+        //    headerBorder.Background = Background = EditorColor.FromRGB(40, 40, 40);
+        //};
+        //headerBorder.PointerExited += (_, _) =>
+        //{
+        //    headerBorder.BorderThickness = new Thickness(0, 0, 1, 1);
+        //    headerBorder.BorderBrush = EditorColor.FromRGB(17, 17, 17);
+        //    headerBorder.Background = Background = EditorColor.FromRGB(48, 48, 48);
+        //};
 
         headerPanel.Children.Add(componentName);
         headerBorder.Child = headerPanel;
@@ -179,10 +192,23 @@ public partial class PropertiesWindow : EditorWindow
         };
         Border fieldsBorder = new Border
         {
-            BorderThickness = new Thickness(2),
+            BorderThickness = new Thickness(0, 0, 1, 1),
             BorderBrush = EditorColor.FromRGB(17, 17, 17),
-            CornerRadius = new CornerRadius(4),
-            Margin = new Thickness(0, 0, 0, 2),
+            Background = EditorColor.FromRGB(48, 48, 48),
+            CornerRadius = new CornerRadius(0, 0, 4, 4),
+            Margin = new Thickness(4, 0, 12, 0),
+        };
+        fieldsBorder.PointerEntered += (_, _) =>
+        {
+            fieldsBorder.BorderThickness = new Thickness(0, 0, 2, 2);
+            fieldsBorder.BorderBrush = EditorColor.FromRGB(18, 18, 18);
+            fieldsBorder.Background = Background = EditorColor.FromRGB(56, 56, 56);
+        };
+        fieldsBorder.PointerExited += (_, _) =>
+        {
+            fieldsBorder.BorderThickness = new Thickness(0, 0, 1, 1);
+            fieldsBorder.BorderBrush = EditorColor.FromRGB(17, 17, 17);
+            fieldsBorder.Background = Background = EditorColor.FromRGB(48, 48, 48);
         };
 
         FieldInfo[] fields = compType.GetFields(BindingFlags.Public | BindingFlags.Instance);
@@ -207,14 +233,14 @@ public partial class PropertiesWindow : EditorWindow
     private static StackPanel? CreateFieldEditor(FieldInfo field, IComponent component, uint entityId)
     {
         Type fieldType = field.FieldType;
-        var fieldValue = field.GetValue(component);
+        object? fieldValue = field.GetValue(component);
 
         // Setup field panel
         StackPanel fieldPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             MinHeight = 20,
-            Margin = new Thickness(0, 0)
+            Margin = new Thickness(0, 0),
         };
 
         CultureInfo cultureInfo = Thread.CurrentThread.CurrentCulture;
@@ -227,7 +253,7 @@ public partial class PropertiesWindow : EditorWindow
             FontSize = 12,
             Foreground = Brushes.LightGray,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 4, 0)
+            Margin = new Thickness(0, 0, 4, 0),
         };
 
         fieldPanel.Children.Add(nameLabel);
@@ -303,7 +329,7 @@ public partial class PropertiesWindow : EditorWindow
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(4, 2),
                 VerticalAlignment = VerticalAlignment.Center,
-                VerticalContentAlignment = VerticalAlignment.Center
+                VerticalContentAlignment = VerticalAlignment.Center,
             };
 
             textBox.PropertyChanged += (s, e) =>
@@ -322,7 +348,7 @@ public partial class PropertiesWindow : EditorWindow
                 //Background = new SolidColorBrush(Color.FromRgb(17, 17, 17)),
                 BorderThickness = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Center,
-                VerticalContentAlignment = VerticalAlignment.Center
+                VerticalContentAlignment = VerticalAlignment.Center,
             };
 
             checkBox.IsCheckedChanged += (s, e) =>
@@ -337,7 +363,7 @@ public partial class PropertiesWindow : EditorWindow
             StackPanel vectorPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
             };
 
             NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) => { value.X = val; field.SetValue(component, value); });
@@ -349,7 +375,7 @@ public partial class PropertiesWindow : EditorWindow
                 Foreground = Brushes.LightGray,
                 FontSize = 9,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
+                Margin = new Thickness(2, 0, 2, 0),
             });
             vectorPanel.Children.Add(xBox);
             vectorPanel.Children.Add(new TextBlock
@@ -358,7 +384,7 @@ public partial class PropertiesWindow : EditorWindow
                 Foreground = Brushes.LightGray,
                 FontSize = 9,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
+                Margin = new Thickness(2, 0, 2, 0),
             });
             vectorPanel.Children.Add(yBox);
 
@@ -370,7 +396,7 @@ public partial class PropertiesWindow : EditorWindow
             StackPanel vectorPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
             };
 
             NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) => { value.X = val; field.SetValue(component, value); });
@@ -382,7 +408,7 @@ public partial class PropertiesWindow : EditorWindow
                 Foreground = Brushes.LightGray,
                 FontSize = 9,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
+                Margin = new Thickness(2, 0, 2, 0),
             });
             vectorPanel.Children.Add(xBox);
             vectorPanel.Children.Add(new TextBlock {
@@ -390,7 +416,7 @@ public partial class PropertiesWindow : EditorWindow
                 Foreground = Brushes.LightGray,
                 FontSize = 9,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
+                Margin = new Thickness(2, 0, 2, 0),
             });
             vectorPanel.Children.Add(yBox);
             vectorPanel.Children.Add(new TextBlock {
@@ -398,7 +424,7 @@ public partial class PropertiesWindow : EditorWindow
                 Foreground = Brushes.LightGray,
                 FontSize = 9,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
+                Margin = new Thickness(2, 0, 2, 0),
             });
             vectorPanel.Children.Add(zBox);
 
@@ -418,7 +444,7 @@ public partial class PropertiesWindow : EditorWindow
                 StackPanel vectorPanel = new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
                 };
 
                 NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) => { value.X = val; field.SetValue(component, value); });
@@ -432,7 +458,7 @@ public partial class PropertiesWindow : EditorWindow
                     Foreground = Brushes.LightGray,
                     FontSize = 9,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(2, 0, 2, 0)
+                    Margin = new Thickness(2, 0, 2, 0),
                 });
                 vectorPanel.Children.Add(xBox);
                 vectorPanel.Children.Add(new TextBlock
@@ -441,7 +467,7 @@ public partial class PropertiesWindow : EditorWindow
                     Foreground = Brushes.LightGray,
                     FontSize = 9,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(2, 0, 2, 0)
+                    Margin = new Thickness(2, 0, 2, 0),
                 });
                 vectorPanel.Children.Add(yBox);
                 vectorPanel.Children.Add(new TextBlock
@@ -450,7 +476,7 @@ public partial class PropertiesWindow : EditorWindow
                     Foreground = Brushes.LightGray,
                     FontSize = 9,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(2, 0, 2, 0)
+                    Margin = new Thickness(2, 0, 2, 0),
                 });
                 vectorPanel.Children.Add(zBox);
                 vectorPanel.Children.Add(new TextBlock
@@ -459,7 +485,7 @@ public partial class PropertiesWindow : EditorWindow
                     Foreground = Brushes.LightGray,
                     FontSize = 9,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(2, 0, 2, 0)
+                    Margin = new Thickness(2, 0, 2, 0),
                 });
                 vectorPanel.Children.Add(wBox);
 
@@ -499,7 +525,7 @@ public partial class PropertiesWindow : EditorWindow
             Orientation = Orientation.Horizontal,
             Spacing = 8,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 4, 0)
+            Margin = new Thickness(0, 0, 4, 0),
         };
         Slider slider = new Slider
         {
@@ -511,7 +537,7 @@ public partial class PropertiesWindow : EditorWindow
             Height = 20,
             VerticalAlignment = VerticalAlignment.Center,
             Background = EditorColor.FromRGB(28, 28, 28),
-            Foreground = EditorColor.FromRGB(100, 100, 100)
+            Foreground = EditorColor.FromRGB(100, 100, 100),
         };
         //TextBlock valueText = new TextBlock
         //{
@@ -540,7 +566,7 @@ public partial class PropertiesWindow : EditorWindow
             Orientation = Orientation.Horizontal,
             Spacing = 8,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 4, 0)
+            Margin = new Thickness(0, 0, 4, 0),
         };
         Slider slider = new Slider
         {
@@ -554,7 +580,7 @@ public partial class PropertiesWindow : EditorWindow
             Background = EditorColor.FromRGB(28, 28, 28),
             Foreground = EditorColor.FromRGB(100, 100, 100),
             TickFrequency = 1,
-            IsSnapToTickEnabled = true
+            IsSnapToTickEnabled = true,
         };
         //TextBlock valueText = new TextBlock
         //{
@@ -591,7 +617,7 @@ public partial class PropertiesWindow : EditorWindow
             Padding = new Thickness(4),
             VerticalAlignment = VerticalAlignment.Center,
             FormatString = "F2",
-            ShowButtonSpinner = hasSpinner
+            ShowButtonSpinner = hasSpinner,
         };
         numericBox.ValueChanged += (s, e) =>
         {
@@ -618,7 +644,7 @@ public partial class PropertiesWindow : EditorWindow
             BorderThickness = new Thickness(0),
             Padding = new Thickness(4),
             VerticalAlignment = VerticalAlignment.Center,
-            ShowButtonSpinner = hasSpinner
+            ShowButtonSpinner = hasSpinner,
         };
         numericBox.ValueChanged += (s, e) =>
         {
@@ -641,14 +667,14 @@ public partial class PropertiesWindow : EditorWindow
         {
             Orientation = Orientation.Horizontal,
             MinHeight = 10,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
         };
-
         ColorPicker colorPicker = new ColorPicker
         {
             Width = 150,
             Height = 20,
             Color = EditorColor.FromColor(colorValue).Color,
+            Background = EditorColor.FromRGB(28, 28, 28),
             IsAlphaVisible = colorAttr.ShowAlpha,
             IsColorSpectrumVisible = true, // Shows as a simple color button
             IsColorPreviewVisible = true,
@@ -696,7 +722,7 @@ public partial class PropertiesWindow : EditorWindow
         StackPanel eulerRotationPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
         };
         NumericUpDown xBox = CreateFloatNumericBox(eulerValue.X, (val) =>
         {
@@ -722,7 +748,7 @@ public partial class PropertiesWindow : EditorWindow
             Foreground = Brushes.LightGray,
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0)
+            Margin = new Thickness(2, 0, 2, 0),
         };
 
         if (rotAttr.Degrees)
@@ -739,7 +765,7 @@ public partial class PropertiesWindow : EditorWindow
             Foreground = Brushes.LightGray,
             FontSize = 9,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0)
+            Margin = new Thickness(2, 0, 2, 0),
         });
         eulerRotationPanel.Children.Add(xBox);
         eulerRotationPanel.Children.Add(new TextBlock
@@ -748,7 +774,7 @@ public partial class PropertiesWindow : EditorWindow
             Foreground = Brushes.LightGray,
             FontSize = 9,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0)
+            Margin = new Thickness(2, 0, 2, 0),
         });
         eulerRotationPanel.Children.Add(yBox);
         eulerRotationPanel.Children.Add(new TextBlock
@@ -757,7 +783,7 @@ public partial class PropertiesWindow : EditorWindow
             Foreground = Brushes.LightGray,
             FontSize = 9,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0)
+            Margin = new Thickness(2, 0, 2, 0),
         });
         eulerRotationPanel.Children.Add(zBox);
         eulerRotationPanel.Children.Add(rotateTypeIcon);

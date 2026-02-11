@@ -478,64 +478,125 @@ namespace DivisionEngine
             return true;
         }
 
-        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 normal, SDFPrimitiveObjectDTO startMat, int objectIdInside)
+        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 normal, SDFPrimitiveObjectDTO startMat)
         {
-            float3 incident = startDir;
-            float eta = 1f / startMat.ior;
+            float3 totalTransmittance = float3.One;  // Start with full transmittance
+            float3 accumulatedColor = float3.Zero;
 
-            // Refract ray
-            if (Refract(incident, normal, eta, out float3 refractDir))
+            // Current state
+            float3 currentOrigin = startOrigin;
+            float3 currentDir = startDir;
+            float3 currentNormal = normal;
+            SDFPrimitiveObjectDTO currentMat = startMat;
+            bool currentlyInsideObject = true;  // We start inside the first object
+
+            for (int transmit = 0; transmit < startMat.refractMaxRecursion; transmit++) // Cap software enforced transmit limit to 3
             {
-                // Through tracing with absorption
-                float3 exitPt = float3.Zero, exitNorm = float3.Zero;
-                float3 entryPt = startOrigin - normal * EPSILON;
-                float3 p = entryPt;
-                float totalTravelDistance = 0f;
+                // Determine which way we're going (into or out of material)
+                float currentEta = currentlyInsideObject ? 1.0f / currentMat.ior : currentMat.ior;
 
-                bool foundExit = false;
-                for (int i = 0; i < startMat.refractionMaxSteps; i++)
+                // Refract at current interface
+                if (Refract(currentDir, currentNormal, currentEta, out float3 refractDir))
                 {
-                    float d = WorldSDF(p, false, out _);
-                    if (d > 0f) // We've exited the object
+                    // Trace through the current medium
+                    float3 entryPt = currentOrigin - currentNormal * EPSILON * (currentlyInsideObject ? 1f : -1f);
+                    float3 p = entryPt;
+                    float travelDistance = 0f;
+                    bool foundExit = false;
+                    float3 exitPt = float3.Zero;
+                    float3 exitNorm = float3.Zero;
+                    int exitClosestObj;
+
+                    for (int i = 0; i < currentMat.refractionMaxSteps; i++)
                     {
-                        exitPt = p + refractDir * 0.1f;
-                        exitNorm = FastNormal(exitPt);
-                        if (Hlsl.Dot(exitNorm, refractDir) > 0) exitNorm = -exitNorm;
-                        foundExit = true;
+                        float d = WorldSDF(p, false, out int closestObj);
+
+                        // Check if we've crossed a boundary
+                        bool nowInside = d < 0f;
+                        if (currentlyInsideObject != nowInside)
+                        {
+                            // We've crossed a boundary!
+                            exitPt = p;
+                            exitNorm = FastNormal(p);
+                            exitClosestObj = closestObj;
+
+                            // Normal should point in direction of travel
+                            if (Hlsl.Dot(exitNorm, refractDir) > 0) exitNorm = -exitNorm;
+                            foundExit = true;
+
+                            // Calculate transmittance for the distance traveled in THIS material
+                            float3 absorptionCoefficient = -Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
+                            float3 segmentTransmittance = Hlsl.Exp(-absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
+                            totalTransmittance *= segmentTransmittance;
+
+                            // Update state for next iteration
+                            currentlyInsideObject = nowInside;
+
+                            // If we're now inside a new object, get its material
+                            if (currentlyInsideObject && exitClosestObj >= 0 && exitClosestObj < sdfPrimitives.Length)
+                                currentMat = sdfPrimitives[exitClosestObj];
+
+                            // If we're now in air, we need to find the next object
+                            break;
+                        }
+
+                        // Still in same medium - march forward
+                        float stepSize = Hlsl.Max(Hlsl.Abs(d), EPSILON);
+                        p += refractDir * stepSize;
+                        travelDistance += stepSize;
+                    }
+
+                    if (!foundExit)
+                    {
+                        // Never found an exit - apply final absorption
+                        float3 absorptionCoefficient = -Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
+                        float3 segmentTransmittance = Hlsl.Exp(-absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
+                        totalTransmittance *= segmentTransmittance;
+
+                        // Trace to background
+                        float3 bgColor = TraceRefractionExitRay(p, refractDir, out _, out _);
+                        accumulatedColor = bgColor;
                         break;
                     }
-            
-                    // Still inside - move forward and accumulate distance
-                    float stepSize = Hlsl.Max(Hlsl.Abs(d), EPSILON);
-                    p += refractDir * stepSize;
-                    totalTravelDistance += stepSize;
+
+                    // We found an exit - prepare for next refraction
+                    currentOrigin = exitPt;
+                    currentDir = refractDir;
+                    currentNormal = exitNorm;
+
+                    // If we just exited to air, we need to trace to find the next object
+                    if (!currentlyInsideObject)
+                    {
+                        // Raymarch from exit point to find next surface
+                        float3 rayStart = exitPt + currentNormal * EPSILON;
+                        float3 hitPoint = Raymarch(rayStart, currentDir, worldData[0].maxRaySteps,
+                                                  worldData[0].farPlane, out int nextObjIndex, out _);
+
+                        if (nextObjIndex >= 0 && nextObjIndex < sdfPrimitives.Length)
+                        {
+                            // Found another object
+                            currentOrigin = hitPoint;
+                            currentNormal = FastNormal(hitPoint);
+                            if (Hlsl.Dot(currentNormal, currentDir) > 0) currentNormal = -currentNormal;
+                            currentMat = sdfPrimitives[nextObjIndex];
+                            currentlyInsideObject = true;
+                        }
+                        else
+                        {
+                            // No more objects - trace background
+                            float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, out _, out _);
+                            accumulatedColor = bgColor;
+                            break;
+                        }
+                    }
                 }
-
-                if (!foundExit)
-                {
-                    // If we never exit, apply full absorption
-                    return float3.Zero;
-                }
-
-                // Calculate absorption with alpha channel used for strength
-                float3 absorptionCoefficient = -Hlsl.Log(Hlsl.Max(startMat.absorptionColor.RGB, 0.001f));
-                float3 transmittance = Hlsl.Exp(-absorptionCoefficient * totalTravelDistance * startMat.absorptionColor.A * 5f); // add 5 multiplier for scaling
-
-                incident = refractDir;
-                normal = exitNorm;
-                eta = startMat.ior / 1.0f;         // glass → air
-                if (!Refract(incident, normal, eta, out float3 exitDir))
-                    exitDir = Hlsl.Reflect(incident, normal);
-
-                float3 newOrigin = exitPt + exitDir * EPSILON;
-                float3 color = TraceRayForRefraction(newOrigin, exitDir, out _, out _);
-                return color * transmittance;
+                else break; // Total internal reflection - stop tracing
             }
 
-            return float3.Zero;
+            return accumulatedColor * totalTransmittance;
         }
 
-        private float3 TraceRayForRefraction(float3 rayOrigin, float3 rayDir,
+        private float3 TraceRefractionExitRay(float3 rayOrigin, float3 rayDir,
             out float3 normal, out float totalDist)
         {
             float3 finalColor = float3.Zero;
@@ -545,6 +606,7 @@ namespace DivisionEngine
 
             // Adaptive reflection step sizes
             int maxRaySteps = worldData[0].maxRaySteps;
+
             // Raymarch
             float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out totalDist);
 
@@ -661,7 +723,7 @@ namespace DivisionEngine
                     {
                         isRefractive = true;
                         fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.ior);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, material, closestObjIndex);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, material);
                     }
                     firstHit = false;
                 }

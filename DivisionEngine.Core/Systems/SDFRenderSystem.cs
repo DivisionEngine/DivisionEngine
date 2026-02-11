@@ -162,6 +162,7 @@ namespace DivisionEngine.Systems
                     else curPrimitive.hasRefraction = 0;
                     curPrimitive.absorptionColor = refract.absorptionColor;
                     curPrimitive.refractionMaxSteps = refract.maxRaySteps;
+                    curPrimitive.refractMaxRecursion = refract.maxRecursionTraces;
                 }
 
                 // Primitives

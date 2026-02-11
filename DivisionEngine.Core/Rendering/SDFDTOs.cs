@@ -62,6 +62,7 @@ namespace DivisionEngine.Rendering
         public float reflectRayStepFalloff; // 4b
         public int reflectionMaxBounces; // 4b
         public int refractionMaxSteps; // 4b
+        public int refractMaxRecursion; // 4b
     }
 
     /// <summary>
