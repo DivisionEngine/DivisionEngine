@@ -152,6 +152,8 @@ namespace DivisionEngine.Systems
                     Reflections reflect = W.GetComponent<Reflections>(id)!;
                     if (reflect.hasReflections) curPrimitive.hasReflection = 1;
                     else curPrimitive.hasReflection = 0;
+                    if (reflect.reflectionShadows) curPrimitive.reflectionShadows = 1;
+                    else curPrimitive.reflectionShadows = 0;
                     curPrimitive.reflectRayStepFalloff = reflect.rayStepsFalloff;
                     curPrimitive.reflectionMaxBounces = reflect.maxBounces;
                 }

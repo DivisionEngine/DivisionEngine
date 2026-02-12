@@ -489,14 +489,12 @@ namespace DivisionEngine
             float3 currentNormal = normal;
             SDFPrimitiveObjectDTO currentMat = startMat;
             int curObjIndex = initialObjIndex;
-            bool currentlyInsideObject = true;  // We start inside the first object
+            bool currentlyInsideObject = true;
 
-            for (int transmit = 0; transmit < startMat.refractMaxRecursion; transmit++) // Cap software enforced transmit limit to 3
+            for (int transmit = 0; transmit < startMat.refractMaxRecursion; transmit++)
             {
-                // Determine which way we're going (into or out of material)
+                // Determine direction (into or out of material)
                 float currentEta = currentlyInsideObject ? 1.0f / currentMat.ior : currentMat.ior;
-
-                // Refract at current interface
                 if (Refract(currentDir, currentNormal, currentEta, out float3 refractDir))
                 {
                     // Trace through the current medium
@@ -512,36 +510,30 @@ namespace DivisionEngine
                     {
                         float d = WorldSDF(p, false, out int closestObj);
 
-                        // Check if we've crossed a boundary
+                        // Check crossed boundary
                         bool nowInside = d < 0f;
                         if (currentlyInsideObject != nowInside)
                         {
-                            // We've crossed a boundary!
                             exitPt = p;
                             exitNorm = FastNormal(p);
                             exitClosestObj = closestObj;
 
-                            // Normal should point in direction of travel
                             if (Hlsl.Dot(exitNorm, refractDir) > 0) exitNorm = -exitNorm;
                             foundExit = true;
 
-                            // Calculate transmittance for the distance traveled in THIS material
+                            // Calculate transmittance
                             float3 absorptionCoefficient = -Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
                             float3 segmentTransmittance = Hlsl.Exp(-absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
                             totalTransmittance *= segmentTransmittance;
 
-                            // Update state for next iteration
+                            // Update state
                             currentlyInsideObject = nowInside;
-
-                            // If we're now inside a new object, get its material
                             if (currentlyInsideObject && exitClosestObj >= 0 && exitClosestObj < sdfPrimitives.Length)
                                 currentMat = sdfPrimitives[exitClosestObj];
-
-                            // If we're now in air, we need to find the next object
                             break;
                         }
 
-                        // Still in same medium - march forward
+                        // Still in same medium
                         float stepSize = Hlsl.Max(Hlsl.Abs(d), EPSILON);
                         p += refractDir * stepSize;
                         travelDistance += stepSize;
@@ -549,33 +541,30 @@ namespace DivisionEngine
 
                     if (!foundExit)
                     {
-                        // Never found an exit - apply final absorption
+                        // Apply final absorption
                         float3 absorptionCoefficient = -Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
                         float3 segmentTransmittance = Hlsl.Exp(-absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
                         totalTransmittance *= segmentTransmittance;
 
-                        // Trace to background
                         float3 bgColor = TraceRefractionExitRay(p, refractDir, out _, out _);
                         accumulatedColor = bgColor;
                         break;
                     }
 
-                    // We found an exit - prepare for next refraction
+                    // Found exit
                     currentOrigin = exitPt;
                     currentDir = refractDir;
                     currentNormal = exitNorm;
 
-                    // If we just exited to air, we need to trace to find the next object
+                    // If just exited to air
                     if (!currentlyInsideObject)
                     {
-                        // Raymarch from exit point to find next surface
+                        // Raymarch from exit point
                         float3 rayStart = exitPt + currentNormal * EPSILON;
                         float3 hitPoint = Raymarch(rayStart, currentDir, worldData[0].maxRaySteps,
                                                   worldData[0].farPlane, out int nextObjIndex, out _);
-
                         if (nextObjIndex >= 0 && nextObjIndex < sdfPrimitives.Length)
                         {
-                            // Found another object
                             currentOrigin = hitPoint;
                             currentNormal = FastNormal(hitPoint);
                             if (Hlsl.Dot(currentNormal, currentDir) > 0) currentNormal = -currentNormal;
@@ -584,14 +573,13 @@ namespace DivisionEngine
                         }
                         else
                         {
-                            // No more objects - trace background
                             float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, out _, out _);
                             accumulatedColor = bgColor;
                             break;
                         }
                     }
                 }
-                else break; // Total internal reflection - stop tracing
+                else break; // Total internal reflection
             }
 
             return accumulatedColor * totalTransmittance;
@@ -605,13 +593,9 @@ namespace DivisionEngine
             normal = float3.Zero;
             float farClipPlane = worldData[0].farPlane;
 
-            // Adaptive reflection step sizes
+            // Trace
             int maxRaySteps = worldData[0].maxRaySteps;
-
-            // Raymarch
             float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out totalDist);
-
-            // Miss - add sky color and exit
             if (closestObjIndex == -1 || totalDist > farClipPlane)
             {
                 finalColor += worldData[0].backgroundColor.XYZ;
@@ -630,25 +614,12 @@ namespace DivisionEngine
             float specular = material.specular;
             float ao = material.ao;
 
-            // Ambient lighting
+            // Lighting
             float3 ambientLightAmt = float3.One * 0.15f * worldData[0].backgroundColor.RGB * ao;
-
-            // Shadows
-            /*float shadowValue = 1f;
-            int closestShadowObj = -1;
-            if (material.shadowEffects.Y)
-            {
-                float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                float2 shadowDistances = material.shadowDistances;
-                shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out closestShadowObj);
-            }*/
-
-            // Direct lighting
             float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
             float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
             float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, /*shadowValue * */NoL);
             finalColor += directLight;
-
             return finalColor;
         }
 
@@ -675,7 +646,7 @@ namespace DivisionEngine
             totalDist = 0f;
             float farClipPlane = worldData[0].farPlane;
             bool firstHit = true;
-            actualBounces = 0;  // Track how many bounces actually occurred
+            actualBounces = 0;
 
             // Refraction coloring
             float3 surfaceColor = float3.Zero;
@@ -684,12 +655,10 @@ namespace DivisionEngine
 
             // Adaptive reflection step sizes
             int maxRaySteps = worldData[0].maxRaySteps;
-            for (int bounce = 0; bounce < 32; bounce++) // Cap software enforced bounce limit of 32
+            for (int bounce = 0; bounce < 32; bounce++)
             {
                 // Raymarch
                 float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out float depth);
-
-                // Miss - add sky color and exit
                 if (closestObjIndex == -1 || depth > farClipPlane)
                 {
                     finalColor += contribution * worldData[0].backgroundColor.XYZ;
@@ -734,20 +703,18 @@ namespace DivisionEngine
                 f0 = Hlsl.Lerp(f0, albedoColor, new float3(metallic, metallic, metallic));
 
                 // Shadows
-                /*float shadowValue = 1f;
-                if (material.shadowEffects.Y)
+                float shadowValue = 1f;
+                if (material.shadowEffects.Y && material.reflectionShadows == 1)
                 {
                     float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                     float2 shadowDistances = material.shadowDistances;
                     shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out _);
-                }*/
+                }
 
                 // Direct lighting
                 float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
                 float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
-                float3 directLight = Hlsl.Lerp(ambientBase * ao, brdf, /*shadowValue */ NoL);
-
-                // Accumulate surface color (first bounce only - what's ON the glass)
+                float3 directLight = Hlsl.Lerp(ambientBase * ao, brdf, shadowValue * NoL);
                 if (bounce == 0) surfaceColor = directLight;
                 finalColor += contribution * directLight;
 
@@ -755,14 +722,12 @@ namespace DivisionEngine
                 if (material.hasReflection == 0) break;
                 if (bounce == material.reflectionMaxBounces - 1) break;
                 maxRaySteps = (int)(maxRaySteps / material.reflectRayStepFalloff);
-
-                // Fresnel Schlick probability
                 float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f), f0);
                 float reflectionChance = Hlsl.Lerp(F.X, 1f, metallic);
 
                 // Adjust reflection chance for refractive objects
                 if (bounce == 0 && isRefractive) reflectionChance = fresnelFactor;
-                if (reflectionChance < MIN_REFLECTION_CHANCE) break; // If very little reflection, exit
+                if (reflectionChance < MIN_REFLECTION_CHANCE) break; // If little reflection exit
 
                 // Clamp throughput
                 contribution *= F * (1f - roughness * 0.5f);
@@ -772,7 +737,7 @@ namespace DivisionEngine
                 // Actual reflection sampling
                 int reflectionSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sampleIndexInPixel * 3271 + bounce * 997;
                 float2 u = Halton2D(reflectionSampleIndex);
-                float3 halfVector = ImportanceSampleGGX(u, normal, roughness); // Importance sample based on roughness
+                float3 halfVector = ImportanceSampleGGX(u, normal, roughness); // Importance sample
                 float3 reflectDir = Hlsl.Reflect(-viewDir, halfVector);
                 if (Hlsl.Dot(reflectDir, normal) < 0.01f) break; // Make sure reflection is above surface
 

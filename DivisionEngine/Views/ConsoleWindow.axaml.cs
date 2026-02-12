@@ -295,12 +295,12 @@ public partial class ConsoleWindow : EditorWindow
         bool isMultiLine = log.Message.Contains('\n') || log.Message.Length > 100;
         Border logBorder = new Border()
         {
-            BorderBrush = new SolidColorBrush(Color.FromRgb(68, 68, 68)),
-            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(10, 10, 10)),
+            BorderThickness = new Thickness(0, 0, 2, 2),
             Padding = new Thickness(4),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(6, 2, 6, 2),
-            Background = EditorColor.FromRGB(40, 40, 40),
+            Background = EditorColor.FromRGB(17, 17, 17),
         };
         StackPanel mainPanel = new StackPanel
         {
@@ -420,9 +420,9 @@ public partial class ConsoleWindow : EditorWindow
         {
             expandedContent = new Border
             {
-                Background = EditorColor.FromRGB(35, 35, 35),
-                BorderBrush = EditorColor.FromRGB(68, 68, 68),
-                BorderThickness = new Thickness(1),
+                Background = EditorColor.FromRGB(6, 6, 6),
+                BorderBrush = EditorColor.FromRGB(28, 28, 28),
+                BorderThickness = new Thickness(1, 1, 0, 0),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(8, 6),
                 Margin = new Thickness(isMultiLine ? 24 : 0, 4, 0, 0),

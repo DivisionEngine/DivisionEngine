@@ -52,9 +52,9 @@ public partial class WorldWindow : EditorWindow
             this.entityId = entityId;
 
             // Set up visual appearance
-            Background = EditorColor.FromRGB(30, 30, 30);
-            BorderBrush = EditorColor.FromRGB(30, 30, 30);
-            BorderThickness = new Thickness(0);
+            Background = EditorColor.FromRGB(17, 17, 17);
+            BorderBrush = EditorColor.FromRGB(10, 10, 10);
+            BorderThickness = new Thickness(0, 0, 1, 1);
             Margin = new Thickness(0, 0);
             Padding = new Thickness(10, 2);
             CornerRadius = new CornerRadius(0);
@@ -121,8 +121,8 @@ public partial class WorldWindow : EditorWindow
                     e.Handled = true;
                 }
             };
-            PointerEntered += (s, e) => { if (!isRenaming) Background = EditorColor.FromRGB(17, 17, 17); };
-            PointerExited += (s, e) => { if (!isRenaming) Background = EditorColor.FromRGB(30, 30, 30); };
+            PointerEntered += (s, e) => { if (!isRenaming) Background = EditorColor.FromRGB(32, 32, 32); };
+            PointerExited += (s, e) => { if (!isRenaming) Background = EditorColor.FromRGB(17, 17, 17); };
         }
 
         /// <summary>
@@ -177,7 +177,6 @@ public partial class WorldWindow : EditorWindow
             };
             deleteItem.Click += (s, e) => W.DestroyEntity(entityId);
             menuItems.Add(deleteItem);
-
             menu.ItemsSource = menuItems;
             return menu;
         }
@@ -326,7 +325,7 @@ public partial class WorldWindow : EditorWindow
         // Now using StackPanel
         entitiesPanel = new StackPanel
         {
-            Margin = new Thickness(0),
+            Margin = new Thickness(8, 8, 8, 8),
         };
         Border separator = new Border
         {

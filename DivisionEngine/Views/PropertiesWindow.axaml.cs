@@ -4,20 +4,16 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using DivisionEngine.Components.FieldAttributes;
 using DivisionEngine.MathLib;
 using Material.Icons;
 using Material.Icons.Avalonia;
-using Silk.NET.Input;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -37,8 +33,6 @@ public partial class PropertiesWindow : EditorWindow
     private readonly ScrollViewer scrollViewer;
     private readonly StackPanel header;
     private readonly TextBlock headerText;
-
-    private readonly StackPanel footer;
     private readonly Button addComponentButton;
 
     private uint curEntityId;
@@ -91,7 +85,7 @@ public partial class PropertiesWindow : EditorWindow
             Background = EditorColor.FromRGB(68, 68, 68),
             Height = 1,
         };
-        footer = new StackPanel
+        StackPanel footer = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Background = EditorColor.FromRGB(28, 28, 28),
@@ -434,18 +428,6 @@ public partial class PropertiesWindow : EditorWindow
             W.RemoveComponent(entityId, compType);
             LoadEntityComponents(entityId);
         };
-        //headerBorder.PointerEntered += (_, _) =>
-        //{
-        //    headerBorder.BorderThickness = new Thickness(0, 0, 0, 0);
-        //    headerBorder.BorderBrush = EditorColor.FromRGB(16, 16, 16);
-        //    headerBorder.Background = Background = EditorColor.FromRGB(40, 40, 40);
-        //};
-        //headerBorder.PointerExited += (_, _) =>
-        //{
-        //    headerBorder.BorderThickness = new Thickness(0, 0, 1, 1);
-        //    headerBorder.BorderBrush = EditorColor.FromRGB(17, 17, 17);
-        //    headerBorder.Background = Background = EditorColor.FromRGB(48, 48, 48);
-        //};
 
         DockPanel.SetDock(headerCompIcon, Dock.Left);
         DockPanel.SetDock(componentName, Dock.Left);
@@ -901,7 +883,6 @@ public partial class PropertiesWindow : EditorWindow
     {
         public object Value { get; set; } = null!;
         public string DisplayName { get; set; } = string.Empty;
-
         public override string ToString() => DisplayName;
     }
 
@@ -930,7 +911,7 @@ public partial class PropertiesWindow : EditorWindow
             Content = CreateMatrixButtonContent(),
             Padding = new Thickness(8, 4),
             BorderBrush = EditorColor.FromRGB(45, 45, 45),
-            BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(0),
             Background = EditorColor.FromRGB(32, 32, 32),
             Foreground = Brushes.White,
             CornerRadius = new CornerRadius(4),

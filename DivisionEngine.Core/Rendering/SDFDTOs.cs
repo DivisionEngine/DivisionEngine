@@ -59,6 +59,7 @@ namespace DivisionEngine.Rendering
         public float4 absorptionColor; // 16b
         public int hasReflection; // 4b - must use int type when in DTO
         public int hasRefraction; // 4b
+        public int reflectionShadows; // 4b
         public float reflectRayStepFalloff; // 4b
         public int reflectionMaxBounces; // 4b
         public int refractionMaxSteps; // 4b

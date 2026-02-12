@@ -10,11 +10,13 @@ namespace DivisionEngine.Components.SDFs.Effects
         public Reflections()
         {
             hasReflections = true;
+            reflectionShadows = true;
             rayStepsFalloff = 3f;
             maxBounces = 2;
         }
 
         public bool hasReflections;
+        public bool reflectionShadows;
         [Range(1f, 10f)] public float rayStepsFalloff;
         [Range(1, 16)] public int maxBounces;
 
