@@ -1,23 +1,21 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components.FieldAttributes;
+using DivisionEngine.MathLib;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
-using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Math = DivisionEngine.MathLib.Math;
-using Matrix = DivisionEngine.MathLib.Matrix;
-using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Editor;
 
@@ -33,16 +31,20 @@ public partial class PropertiesWindow : EditorWindow
     private readonly StackPanel header;
     private readonly TextBlock headerText;
 
+    private readonly StackPanel footer;
+    private readonly Button addComponentButton;
+
     private uint curEntityId;
 
     public PropertiesWindow()
     {
         InitializeComponent();
+        curEntityId = uint.MaxValue;
 
+        // Panel
         propertiesPanel = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Spacing = 5,
             Margin = new Thickness(5),
         };
         scrollViewer = new ScrollViewer
@@ -52,6 +54,8 @@ public partial class PropertiesWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Top,
         };
+
+        // Header
         Border separator = new Border
         {
             Background = EditorColor.FromRGB(68, 68, 68),
@@ -74,6 +78,63 @@ public partial class PropertiesWindow : EditorWindow
         };
         header.Children.Add(headerText);
 
+        // Footer (add component button)
+        Border separator2 = new Border
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            Height = 1,
+        };
+        footer = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Background = EditorColor.FromRGB(28, 28, 28),
+            VerticalAlignment = VerticalAlignment.Bottom,
+        };
+        DockPanel buttonContent = new DockPanel
+        {
+            VerticalAlignment = VerticalAlignment.Stretch,
+        };
+        MaterialIcon buttonIcon = new MaterialIcon
+        {
+            Kind = MaterialIconKind.BoxAdd,
+            Margin = new Thickness(4),
+            Foreground = EditorColor.FromRGB(200, 255, 200),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        TextBlock buttonText = new TextBlock
+        {
+            Text = "Add Component",
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        DockPanel.SetDock(buttonIcon, Dock.Left);
+        DockPanel.SetDock(buttonText, Dock.Top);
+        buttonContent.Children.Add(buttonIcon);
+        buttonContent.Children.Add(buttonText);
+        addComponentButton = new Button
+        {
+            Content = buttonContent,
+            FontSize = 14,
+            FontWeight = FontWeight.Medium,
+            Foreground = EditorColor.FromRGB(200, 200, 200),
+            Background = EditorColor.FromRGB(20, 20, 20),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(3),
+
+            Height = 26,
+            Margin = new Thickness(12, 5),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        Flyout addComponentFlyout = new Flyout
+        {
+            Placement = PlacementMode.Top,
+            ShowMode = FlyoutShowMode.Standard,
+            // Add padding adjustment
+            Content = CreateAddComponentMenu(),
+        };
+        addComponentButton.Click += (_, _) => addComponentFlyout.ShowAt(addComponentButton);
+
+        // Assemble panel
         Grid mainGrid = new Grid
         {
             RowDefinitions =
@@ -81,17 +142,190 @@ public partial class PropertiesWindow : EditorWindow
                 new RowDefinition(GridLength.Auto),
                 new RowDefinition(GridLength.Auto),
                 new RowDefinition(GridLength.Star),
+                new RowDefinition(GridLength.Auto),
+                new RowDefinition(GridLength.Auto),
             }
         };
         header.SetValue(Grid.RowProperty, 0);
         separator.SetValue(Grid.RowProperty, 1);
         scrollViewer.SetValue(Grid.RowProperty, 2);
+        separator2.SetValue(Grid.RowProperty, 3);
+        addComponentButton.SetValue(Grid.RowProperty, 4);
         mainGrid.Children.Add(header);
         mainGrid.Children.Add(separator);
         mainGrid.Children.Add(scrollViewer);
+        mainGrid.Children.Add(separator2);
+        mainGrid.Children.Add(addComponentButton);
         this.FindControl<Border>("MainBorder")!.Child = mainGrid;
-
         currentWindows.Add(this);
+    }
+
+    /// <summary>
+    /// Creates the add component flyout menu.
+    /// </summary>
+    /// <returns>Stack panel add component flyout menu</returns>
+    private StackPanel CreateAddComponentMenu()
+    {
+        StackPanel addComponentMenu = new StackPanel
+        {
+            Spacing = 1,
+        };
+        TextBox searchBox = new TextBox
+        {
+            InnerLeftContent = new MaterialIcon
+            {
+                Kind = MaterialIconKind.Search,
+                Foreground = EditorColor.FromRGB(128, 128, 128),
+                Margin = new Thickness(6, 0, 0, 0),
+                Width = 12,
+                Height = 12,
+            },
+            Text = "",
+            Watermark = "Search Components...",
+            FontSize = 12,
+            Foreground = EditorColor.FromRGB(220, 220, 220),
+            Background = EditorColor.FromRGB(17, 17, 17),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(0),
+            VerticalAlignment = VerticalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            MinWidth = 240,
+            Margin = new Thickness(0),
+        };
+        addComponentMenu.Children.Add(searchBox);
+
+        StackPanel compListPanel = new StackPanel();
+        ScrollViewer addComponentScrollView = new ScrollViewer
+        {
+            Content = compListPanel,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Top,
+            MaxHeight = 200,
+        };
+        addComponentMenu.Children.Add(addComponentScrollView);
+
+        List<Type> componentTypes = GetComponentTypes();
+        PopulateComponentList(compListPanel, componentTypes, "");
+
+        searchBox.TextChanged += (s, e) => PopulateComponentList(compListPanel, componentTypes, searchBox.Text ?? "");
+        return addComponentMenu;
+    }
+
+    /// <summary>
+    /// Populates the component list with filtered types.
+    /// </summary>
+    private void PopulateComponentList(StackPanel compListPanel, List<Type> componentTypes, string searchText)
+    {
+        compListPanel.Children.Clear();
+        string searchLower = searchText.ToLowerInvariant().Replace(" ", "");
+        bool hasFilter = !string.IsNullOrWhiteSpace(searchText);
+
+        foreach (Type compType in componentTypes)
+        {
+            string displayName = FormatComponentName(compType.Name);
+            string searchableText = (compType.Name + " " + displayName).ToLowerInvariant();
+
+            // Filter by search text
+            if (hasFilter && !searchableText.Contains(searchLower))
+                continue;
+
+            Button compTypeButton = new Button
+            {
+                Content = displayName,
+                FontSize = 11,
+                Background = EditorColor.FromRGB(20, 20, 20),
+                Foreground = EditorColor.FromRGB(200, 200, 200),
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(0),
+                MinWidth = 240,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(8, 2),
+                Tag = compType, // Component type stored in tag
+            };
+
+            compTypeButton.Click += (sender, _) =>
+            {
+                if (sender is Button btn && btn.Tag is Type type)
+                {
+                    if (curEntityId != uint.MaxValue && !W.HasComponent(curEntityId, type))
+                    {
+                        IComponent? compInstance = (IComponent?)Activator.CreateInstance(type);
+                        if (compInstance != null && W.AddComponent(curEntityId, compInstance))
+                            LoadEntityComponents(curEntityId);
+                        else Debug.Warning($"Failed to add component | Null: {compInstance != null}");
+                    }
+                }
+            };
+
+            compListPanel.Children.Add(compTypeButton);
+        }
+
+        // No results if no matches
+        if (compListPanel.Children.Count == 0)
+        {
+            TextBlock noResultsText = new TextBlock
+            {
+                Text = "No components found",
+                FontSize = 11,
+                Foreground = EditorColor.FromRGB(148, 148, 148),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 20, 0, 20),
+            };
+            compListPanel.Children.Add(noResultsText);
+        }
+    }
+
+    /// <summary>
+    /// Formats a component type name.
+    /// </summary>
+    /// <param name="name">Name of component type to format</param>
+    /// <returns>Formatted component type name</returns>
+    private static string FormatComponentName(string name)
+    {
+        string formatted = "";
+        for (int i = 0; i < name.Length - 1; i++)
+        {
+            formatted += name[i];
+            if (char.IsLower(name[i]) && char.IsUpper(name[i + 1]))
+                formatted += ' ';
+        }
+        formatted += name[^1];
+        return formatted.Replace("SDF", "SDF ");
+    }
+
+    private static List<Type> GetComponentTypes()
+    {
+        List<Type> componentTypes = [];
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            try
+            {
+                IEnumerable<Type> types = assembly.GetTypes()
+                    .Where(t => typeof(IComponent).IsAssignableFrom(t) &&
+                               !t.IsAbstract &&
+                               !t.IsInterface &&
+                               t != typeof(IComponent));
+                componentTypes.AddRange(types);
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                IEnumerable<Type> types = ex.Types // Get the types that were successfully loaded
+                    .Where(t => t != null &&
+                               typeof(IComponent).IsAssignableFrom(t) &&
+                               !t.IsAbstract &&
+                               !t.IsInterface &&
+                               t != typeof(IComponent))
+                    .Cast<Type>();
+                componentTypes.AddRange(types);
+                Debug.Warning($"Could not load some component types from {assembly.FullName}");
+            }
+            catch (Exception ex)
+            {
+                Debug.Warning($"Error loading component types from {assembly.FullName}", ex);
+            }
+        }
+        return componentTypes;
     }
 
     /// <summary>
@@ -248,7 +482,7 @@ public partial class PropertiesWindow : EditorWindow
 
         CultureInfo cultureInfo = Thread.CurrentThread.CurrentCulture;
         TextInfo textInfo = cultureInfo.TextInfo;
-        string formattedFieldName = textInfo.ToTitleCase(Regex.Replace(field.Name, @"(\p{Ll})(\p{Lu})", "$1 $2"));
+        string formattedFieldName = textInfo.ToTitleCase(FormattedFieldRegex().Replace(field.Name, "$1 $2"));
 
         TextBlock nameLabel = new TextBlock
         {
@@ -978,4 +1212,7 @@ public partial class PropertiesWindow : EditorWindow
         eulerRotationPanel.Children.Add(rotateTypeIcon);
         return eulerRotationPanel;
     }
+
+    [GeneratedRegex(@"(\p{Ll})(\p{Lu})")]
+    private static partial Regex FormattedFieldRegex();
 }

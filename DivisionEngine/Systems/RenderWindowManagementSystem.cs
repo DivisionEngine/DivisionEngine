@@ -17,7 +17,6 @@ namespace DivisionEngine.Editor.Systems
         private int forceGrabWindowTimer;
         private int initializeTimer;
         private bool updatingFocus;
-        private static bool hardDisableFocus;
 
         /// <summary>
         /// Editor window is in focus.
@@ -53,7 +52,7 @@ namespace DivisionEngine.Editor.Systems
 
         public async Task FocusUpdate()
         {
-            if (updatingFocus || hardDisableFocus) return;
+            if (updatingFocus) return;
             updatingFocus = true;
             await Task.Delay(300); // Wait to see if other window is immediately focused
             Dispatcher.UIThread.Post(() => {
@@ -87,9 +86,7 @@ namespace DivisionEngine.Editor.Systems
         public static void SetVisible(bool visible)
         {
             if (visible != App.RendererVisible)
-            {
                 _ = App.SetEditorRenderingAsync(visible);
-            }
         }
 
         /// <summary>

@@ -122,6 +122,15 @@ namespace DivisionEngine
             WorldManager.CurrentWorld!.HasComponent<T>(entityId);
 
         /// <summary>
+        /// Checks if an entity has a component of a certain type.
+        /// </summary>
+        /// <param name="entityId">Entity ID to check on</param>
+        /// <param name="type">Component type to check for</param>
+        /// <returns>Whether the entity of <paramref name="entityId"/> has a certain component type</returns>
+        public static bool HasComponent(uint entityId, Type type) =>
+            WorldManager.CurrentWorld!.HasComponent(entityId, type);
+
+        /// <summary>
         /// Adds a component to the world from ComponentData serialized data.
         /// </summary>
         /// <param name="entityId">Entity to add component to</param>

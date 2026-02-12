@@ -362,6 +362,14 @@ namespace DivisionEngine
         }
 
         /// <summary>
+        /// Checks if an entity has a component of a certain type.
+        /// </summary>
+        /// <param name="entityId">Entity ID to check on</param>
+        /// <param name="type">Component type to check for</param>
+        /// <returns>Whether the entity of <paramref name="entityId"/> has a certain component type</returns>
+        public bool HasComponent(uint entityId, Type type) => components.ContainsKey(type) && components[type].ContainsKey(entityId);
+
+        /// <summary>
         /// Adds a component to the world from ComponentData serialized data.
         /// </summary>
         /// <param name="entityId">Entity to add component to</param>
