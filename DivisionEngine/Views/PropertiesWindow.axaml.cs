@@ -1,21 +1,27 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using DivisionEngine.Components.FieldAttributes;
 using DivisionEngine.MathLib;
 using Material.Icons;
 using Material.Icons.Avalonia;
+using Silk.NET.Input;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Button = Avalonia.Controls.Button;
 using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Editor;
@@ -785,9 +791,141 @@ public partial class PropertiesWindow : EditorWindow
             float4x4 value = (float4x4)fieldValue;
             editorControl = CreateMatrixEditor(value, field, component);
         }
+        else if (fieldType.IsEnum)
+            editorControl = CreateEnumEditor(field, component, fieldType, fieldValue);
 
         fieldPanel.Children.Add(editorControl!);
         return fieldPanel;
+    }
+
+    /// <summary>
+    /// Creates a ComboBox editor for enum types.
+    /// </summary>
+    private static StackPanel CreateEnumEditor(FieldInfo field, IComponent component, Type enumType, object? currentValue)
+    {
+        StackPanel enumPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Spacing = 4
+        };
+        Array enumValues = Enum.GetValues(enumType);
+        ComboBox enumComboBox = new ComboBox
+        {
+            MinWidth = 100,
+            MaxWidth = 200,
+            Height = 20,
+            FontSize = 11,
+            Background = EditorColor.FromRGB(32, 32, 32),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(2),
+            Padding = new Thickness(4, 0, 4, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            PlaceholderText = "Select value...",
+        };
+
+        // Create items with formatted names and optional attributes
+        List<EnumItem> items = [];
+        int selectedIndex = 0;
+        int index = 0;
+        foreach (var enumValue in enumValues)
+        {
+            string displayName = FormatEnumName(enumValue.ToString()!);
+            items.Add(new EnumItem
+            {
+                Value = enumValue,
+                DisplayName = displayName,
+                OriginalName = enumValue.ToString()!,
+            });
+            if (currentValue != null && enumValue.Equals(currentValue))
+                selectedIndex = index;
+            index++;
+        }
+
+        enumComboBox.ItemsSource = items;
+        enumComboBox.SelectedIndex = selectedIndex;
+
+        // Custom item template
+        enumComboBox.ItemTemplate = new FuncDataTemplate<EnumItem>((item, _) =>
+        {
+            DockPanel itemPanel = new DockPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(2, 0, 2, 0)
+            };
+
+            // Optional: Add colored square for special enums (like flags)
+            /*if (IsFlagsEnum(enumType))
+            {
+                Border flagIndicator = new Border
+                {
+                    Width = 12,
+                    Height = 12,
+                    CornerRadius = new CornerRadius(2),
+                    Background = GetEnumColor(item.Value),
+                    Margin = new Thickness(0, 0, 6, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                DockPanel.SetDock(flagIndicator, Dock.Left);
+                itemPanel.Children.Add(flagIndicator);
+            }*/
+
+            // Main text
+            TextBlock nameText = new TextBlock
+            {
+                Text = item.DisplayName,
+                FontSize = 11,
+                FontWeight = FontWeight.Medium,
+                Foreground = Brushes.White
+            };
+            itemPanel.Children.Add(nameText);
+            return itemPanel;
+        });
+
+        // Handle selection changed
+        enumComboBox.SelectionChanged += (s, e) =>
+        {
+            if (enumComboBox.SelectedItem is EnumItem selectedItem)
+            {
+                try { field.SetValue(component, selectedItem.Value); }
+                catch (Exception ex) { Debug.Error($"Failed to set enum value for {field.Name}", ex); }
+            }
+        };
+
+        enumPanel.Children.Add(enumComboBox);
+        return enumPanel;
+    }
+
+    /// <summary>
+    /// Helper class for enum items in ComboBox
+    /// </summary>
+    private class EnumItem
+    {
+        public object Value { get; set; } = null!;
+        public string DisplayName { get; set; } = string.Empty;
+        public string OriginalName { get; set; } = string.Empty;
+
+        public override string ToString() => DisplayName;
+    }
+
+    /// <summary>
+    /// Formats enum name with spaces between words.
+    /// </summary>
+    private static string FormatEnumName(string enumName)
+    {
+        if (string.IsNullOrEmpty(enumName)) return enumName;
+        StringBuilder? result = new StringBuilder();
+        result.Append(char.ToUpperInvariant(enumName[0]));
+
+        for (int i = 1; i < enumName.Length; i++)
+        {
+            if ((char.IsUpper(enumName[i]) || char.IsDigit(enumName[i])) && !char.IsUpper(enumName[i - 1]))
+                result.Append(' ');
+            result.Append(enumName[i]);
+        }
+        return result.ToString();
     }
 
     private static Button CreateMatrixEditor(float4x4 initialValue, FieldInfo field, object component)
