@@ -94,7 +94,6 @@ namespace DivisionEngine.Editor.Systems
         /// </summary>
         private void UpdateRenderer(bool forceGrab)
         {
-            Debug.Info($"Editor focused: {EditorFocused}, Renderer focused: {RendererFocused}");
             try
             {
                 if (App.Renderer == null || App.Renderer.RendererWindow == null) return;

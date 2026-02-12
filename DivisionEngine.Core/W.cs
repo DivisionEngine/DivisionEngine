@@ -95,6 +95,15 @@ namespace DivisionEngine
             WorldManager.CurrentWorld!.RemoveComponent<T>(entityId);
 
         /// <summary>
+        /// Removes a component from an entity in the world.
+        /// </summary>
+        /// <param name="entityId">Entity to remove component from</param>
+        /// <param name="type">Type of component to remove</param>
+        /// <returns>True if the component was removed</returns>
+        public static bool RemoveComponent(uint entityId, Type type) =>
+            WorldManager.CurrentWorld!.RemoveComponent(entityId, type);
+
+        /// <summary>
         /// Gets a component on an entity.
         /// </summary>
         /// <typeparam name="T">Type of component to get</typeparam>

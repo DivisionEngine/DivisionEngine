@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Math = DivisionEngine.MathLib.Math;
@@ -386,15 +387,20 @@ public partial class PropertiesWindow : EditorWindow
         {
             BorderThickness = new Thickness(0, 0, 1, 1),
             BorderBrush = EditorColor.FromRGB(17, 17, 17),
-            Background = EditorColor.FromRGB(48, 48, 48),
+            Background = EditorColor.FromRGB(44, 44, 44),
             CornerRadius = new CornerRadius(4, 4, 0, 0),
             Margin = new Thickness(4, 8, 12, 0),
             Padding = new Thickness(4, 4),
         };
-        StackPanel headerPanel = new StackPanel
+        DockPanel headerPanel = new DockPanel();
+        MaterialIcon headerCompIcon = new MaterialIcon
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 5
+            Kind = MaterialIconKind.DataMatrixScan,
+            Width = 16,
+            Height = 16,
+            Margin = new Thickness(6, 2, 6, 2),
+            Foreground = EditorColor.FromRGB(148, 148, 148),
+            VerticalAlignment = VerticalAlignment.Center,
         };
         TextBlock componentName = new TextBlock
         {
@@ -402,6 +408,25 @@ public partial class PropertiesWindow : EditorWindow
             FontSize = 14,
             Foreground = EditorColor.FromRGB(200, 200, 200),
             VerticalAlignment = VerticalAlignment.Center,
+        };
+        Button removeButton = new Button
+        {
+            Content = new MaterialIcon
+            {
+                Kind = MaterialIconKind.Remove,
+            },
+            Padding = new Thickness(2, 1),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            BorderThickness = new Thickness(0),
+            Background = EditorColor.FromRGB(17, 17, 17),
+            Foreground = EditorColor.FromRGB(200, 200, 200),
+            FontSize = 11,
+            CornerRadius = new CornerRadius(3),
+        };
+        removeButton.Click += (_, _) =>
+        {
+            W.RemoveComponent(entityId, compType);
+            LoadEntityComponents(entityId);
         };
         //headerBorder.PointerEntered += (_, _) =>
         //{
@@ -416,36 +441,41 @@ public partial class PropertiesWindow : EditorWindow
         //    headerBorder.Background = Background = EditorColor.FromRGB(48, 48, 48);
         //};
 
+        DockPanel.SetDock(headerCompIcon, Dock.Left);
+        DockPanel.SetDock(componentName, Dock.Left);
+        DockPanel.SetDock(removeButton, Dock.Right);
+        headerPanel.Children.Add(headerCompIcon);
         headerPanel.Children.Add(componentName);
+        headerPanel.Children.Add(removeButton);
         headerBorder.Child = headerPanel;
         propertiesPanel.Children.Add(headerBorder);
 
         // Create fields editor
-
         StackPanel fieldsPanel = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Margin = new Thickness(4, 0, 4, 0)
+            Margin = new Thickness(4, 0, 4, 0),
         };
         Border fieldsBorder = new Border
         {
             BorderThickness = new Thickness(0, 0, 1, 1),
-            BorderBrush = EditorColor.FromRGB(17, 17, 17),
-            Background = EditorColor.FromRGB(48, 48, 48),
+            BorderBrush = EditorColor.FromRGB(10, 10, 10),
+            Background = EditorColor.FromRGB(20, 20, 20),
             CornerRadius = new CornerRadius(0, 0, 4, 4),
             Margin = new Thickness(4, 0, 12, 0),
+            Padding = new Thickness(8, 4, 4, 4),
         };
         fieldsBorder.PointerEntered += (_, _) =>
         {
             fieldsBorder.BorderThickness = new Thickness(0, 0, 2, 2);
-            fieldsBorder.BorderBrush = EditorColor.FromRGB(18, 18, 18);
-            fieldsBorder.Background = Background = EditorColor.FromRGB(56, 56, 56);
+            fieldsBorder.BorderBrush = EditorColor.FromRGB(12, 12, 12);
+            fieldsBorder.Background = Background = EditorColor.FromRGB(24, 24, 24);
         };
         fieldsBorder.PointerExited += (_, _) =>
         {
             fieldsBorder.BorderThickness = new Thickness(0, 0, 1, 1);
-            fieldsBorder.BorderBrush = EditorColor.FromRGB(17, 17, 17);
-            fieldsBorder.Background = Background = EditorColor.FromRGB(48, 48, 48);
+            fieldsBorder.BorderBrush = EditorColor.FromRGB(10, 10, 10);
+            fieldsBorder.Background = Background = EditorColor.FromRGB(20, 20, 20);
         };
 
         FieldInfo[] fields = compType.GetFields(BindingFlags.Public | BindingFlags.Instance);
@@ -562,7 +592,7 @@ public partial class PropertiesWindow : EditorWindow
             {
                 Text = value,
                 FontSize = 12,
-                Background = EditorColor.FromRGB(28, 28, 28),
+                Background = EditorColor.FromRGB(32, 32, 32),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(4, 2),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -739,7 +769,7 @@ public partial class PropertiesWindow : EditorWindow
                 VerticalAlignment = VerticalAlignment.Center,
                 CornerRadius = new CornerRadius(4),
                 FontSize = 11,
-                Background = EditorColor.FromRGB(28, 28, 28),
+                Background = EditorColor.FromRGB(32, 32, 32),
                 Foreground = Brushes.White,
                 VerticalContentAlignment = VerticalAlignment.Center,
             };
@@ -768,7 +798,7 @@ public partial class PropertiesWindow : EditorWindow
             Padding = new Thickness(8, 4),
             BorderBrush = EditorColor.FromRGB(45, 45, 45),
             BorderThickness = new Thickness(1),
-            Background = EditorColor.FromRGB(28, 28, 28),
+            Background = EditorColor.FromRGB(32, 32, 32),
             Foreground = Brushes.White,
             CornerRadius = new CornerRadius(4),
             HorizontalContentAlignment = HorizontalAlignment.Left,
@@ -974,7 +1004,7 @@ public partial class PropertiesWindow : EditorWindow
             BackgroundSizing = BackgroundSizing.OuterBorderEdge,
             Height = 20,
             VerticalAlignment = VerticalAlignment.Center,
-            Background = EditorColor.FromRGB(28, 28, 28),
+            Background = EditorColor.FromRGB(32, 32, 32),
             Foreground = EditorColor.FromRGB(100, 100, 100),
         };
 
@@ -1005,7 +1035,7 @@ public partial class PropertiesWindow : EditorWindow
             BackgroundSizing = BackgroundSizing.OuterBorderEdge,
             Height = 20,
             VerticalAlignment = VerticalAlignment.Center,
-            Background = EditorColor.FromRGB(28, 28, 28),
+            Background = EditorColor.FromRGB(32, 32, 32),
             Foreground = EditorColor.FromRGB(100, 100, 100),
             TickFrequency = 1,
             IsSnapToTickEnabled = true,
@@ -1029,7 +1059,7 @@ public partial class PropertiesWindow : EditorWindow
             FontSize = 11,
             AllowSpin = true,
             ParsingNumberStyle = NumberStyles.Float,
-            Background = EditorColor.FromRGB(28, 28, 28),
+            Background = EditorColor.FromRGB(32, 32, 32),
             Foreground = Brushes.White,
             BorderThickness = new Thickness(0),
             Padding = new Thickness(4),
@@ -1059,7 +1089,7 @@ public partial class PropertiesWindow : EditorWindow
             FontSize = 11,
             AllowSpin = true,
             ParsingNumberStyle = NumberStyles.Integer,
-            Background = EditorColor.FromRGB(28, 28, 28),
+            Background = EditorColor.FromRGB(32, 32, 32),
             Foreground = Brushes.White,
             BorderThickness = new Thickness(0),
             Padding = new Thickness(4),
@@ -1096,7 +1126,7 @@ public partial class PropertiesWindow : EditorWindow
             Width = 150,
             Height = 20,
             Color = EditorColor.FromColor(colorValue).Color,
-            Background = EditorColor.FromRGB(28, 28, 28),
+            Background = EditorColor.FromRGB(32, 32, 32),
             IsAlphaVisible = colorAttr.ShowAlpha,
             IsColorSpectrumVisible = true, // Shows as a simple color button
             IsColorPreviewVisible = true,

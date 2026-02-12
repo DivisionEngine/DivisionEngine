@@ -320,6 +320,24 @@ namespace DivisionEngine
         }
 
         /// <summary>
+        /// Removes a component from an entity in the world.
+        /// </summary>
+        /// <param name="entityId">Entity to remove component from</param>
+        /// <param name="type">Type of component to remove</param>
+        /// <returns>True if the component was removed</returns>
+        public bool RemoveComponent(uint entityId, Type type)
+        {
+            if (EntityExists(entityId) && components.TryGetValue(type, out var value))
+            {
+                bool removed = value.Remove(entityId);
+                if (value.Count < 1)
+                    components.Remove(type);
+                return removed;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Gets a component on an entity.
         /// </summary>
         /// <typeparam name="T">Type of component to get</typeparam>
