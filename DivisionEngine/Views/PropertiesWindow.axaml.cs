@@ -807,7 +807,7 @@ public partial class PropertiesWindow : EditorWindow
         {
             Orientation = Orientation.Horizontal,
             VerticalAlignment = VerticalAlignment.Center,
-            Spacing = 4
+            Spacing = 4,
         };
         Array enumValues = Enum.GetValues(enumType);
         ComboBox enumComboBox = new ComboBox
@@ -826,7 +826,7 @@ public partial class PropertiesWindow : EditorWindow
             PlaceholderText = "Select value...",
         };
 
-        // Create items with formatted names and optional attributes
+        // Create enum items
         List<EnumItem> items = [];
         int selectedIndex = 0;
         int index = 0;
@@ -837,23 +837,21 @@ public partial class PropertiesWindow : EditorWindow
             {
                 Value = enumValue,
                 DisplayName = displayName,
-                OriginalName = enumValue.ToString()!,
             });
             if (currentValue != null && enumValue.Equals(currentValue))
                 selectedIndex = index;
             index++;
         }
-
         enumComboBox.ItemsSource = items;
         enumComboBox.SelectedIndex = selectedIndex;
 
-        // Custom item template
+        // Build item template
         enumComboBox.ItemTemplate = new FuncDataTemplate<EnumItem>((item, _) =>
         {
             DockPanel itemPanel = new DockPanel
             {
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0)
+                Margin = new Thickness(2, 0, 2, 0),
             };
 
             // Optional: Add colored square for special enums (like flags)
@@ -878,13 +876,12 @@ public partial class PropertiesWindow : EditorWindow
                 Text = item.DisplayName,
                 FontSize = 11,
                 FontWeight = FontWeight.Medium,
-                Foreground = Brushes.White
+                Foreground = Brushes.White,
             };
             itemPanel.Children.Add(nameText);
             return itemPanel;
         });
 
-        // Handle selection changed
         enumComboBox.SelectionChanged += (s, e) =>
         {
             if (enumComboBox.SelectedItem is EnumItem selectedItem)
@@ -893,19 +890,17 @@ public partial class PropertiesWindow : EditorWindow
                 catch (Exception ex) { Debug.Error($"Failed to set enum value for {field.Name}", ex); }
             }
         };
-
         enumPanel.Children.Add(enumComboBox);
         return enumPanel;
     }
 
     /// <summary>
-    /// Helper class for enum items in ComboBox
+    /// Scaffolding class for enum editor.
     /// </summary>
     private class EnumItem
     {
         public object Value { get; set; } = null!;
         public string DisplayName { get; set; } = string.Empty;
-        public string OriginalName { get; set; } = string.Empty;
 
         public override string ToString() => DisplayName;
     }
