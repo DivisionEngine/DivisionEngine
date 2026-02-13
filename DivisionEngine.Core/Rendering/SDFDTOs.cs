@@ -21,8 +21,7 @@ namespace DivisionEngine.Rendering
 
         // DoF Properties
         public float focusDistance; // 4b
-        public float apertureSize; // 4b
-        public int dofSamples; // 4b
+        public float focalLength; // 4b
 
         // Denoise Properties
         public int enableDivisionDenoise; // 4b

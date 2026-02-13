@@ -22,9 +22,8 @@ namespace DivisionEngine.Components
             cameraToWorld = Matrix.Identity4x4;
             inverseProjectionMatrix = Matrix.Identity4x4;
 
-            focusDistance = 10f;
-            apertureSize = 0.01f;
-            depthOfFieldSamples = 1;
+            focusDistance = 24f;
+            focalLength = 26f;
 
             maxRaySteps = 256;
             maxShadowRaySteps = 128;
@@ -49,8 +48,7 @@ namespace DivisionEngine.Components
 
         // Depth of field vars
         public float focusDistance;
-        public float apertureSize;
-        [Range(0, 10)] public int depthOfFieldSamples;
+        public float focalLength;
 
         // SDF rendering vars
         public int maxRaySteps;
@@ -75,8 +73,7 @@ namespace DivisionEngine.Components
             inverseProjectionMatrix = inverseProjectionMatrix,
 
             focusDistance = focusDistance,
-            apertureSize = apertureSize,
-            depthOfFieldSamples = depthOfFieldSamples,
+            focalLength = focalLength,
 
             maxRaySteps = maxRaySteps,
             maxShadowRaySteps = maxShadowRaySteps,

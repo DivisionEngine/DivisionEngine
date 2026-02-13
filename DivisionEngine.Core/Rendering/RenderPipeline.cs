@@ -1,5 +1,6 @@
 ﻿using ComputeSharp;
 using DivisionEngine.Rendering.Denoising;
+using DivisionEngine.Rendering.Effects;
 using DivisionEngine.Systems;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
@@ -350,39 +351,28 @@ namespace DivisionEngine.Rendering
                     lock (SyncLock)
                     {
                         ReflectionReconstructionShader reconstructionShader = new ReflectionReconstructionShader(
-                            texWidth, texHeight,
-                            2,      // Default: 2.0f
-                            8,    // Default: 8.0f
-                            currentTexture!,                  // Input (noisy with incomplete rays)
-                            reconstructionTex!,               // Output (reconstructed)
-                            bounceCountTexture!,              // Bounce counts per pixel
-                            depthNormalsTex!);
+                            texWidth, texHeight, 2, 8,
+                            currentTexture!, reconstructionTex!,  bounceCountTexture!, depthNormalsTex!);
                         device?.For(texWidth, texHeight, reconstructionShader);
                     }
                     currentTexture = reconstructionTex; // Use reconstructed result
                 }
 
-                // STAGE 2: Division Denoising (optional)
+                // Division Denoising
                 if (worldDTO.enableDivisionDenoise == 1 && debugMode == DebugMode.None &&
                     currentTexture != null && denoisedTex != null && objectIdBuffer != null)
                 {
                     lock (SyncLock)
                     {
                         DivisionDenoiseShader denoiseShader = new DivisionDenoiseShader(
-                            texWidth, texHeight,
-                            worldDTO.divisionThreshold,
-                            worldDTO.divisionDomain,
-                            currentTexture,        // Input (could be reconstructed or raw)
-                            denoisedTex,           // Output
-                            depthNormalsTex!,
-                            primitivesBuffer,
-                            objectIdBuffer);
+                            texWidth, texHeight, worldDTO.divisionThreshold, worldDTO.divisionDomain,
+                            currentTexture, denoisedTex, depthNormalsTex!,  primitivesBuffer, objectIdBuffer);
                         device?.For(texWidth, texHeight, denoiseShader);
                     }
                     currentTexture = denoisedTex;
                 }
 
-                // STAGE 3: À-Trous Denoising (multi-pass wavelet)
+                // A-Trous denoising wavelet
                 if (worldDTO.enableATrousDenoise == 1 && debugMode == DebugMode.None &&
                     currentTexture != null && denoisedTex != null && kernelBuffer != null && objectIdBuffer != null)
                 {
@@ -395,8 +385,7 @@ namespace DivisionEngine.Rendering
                         lock (SyncLock)
                         {
                             ATrousDenoiseShader aTrousShader = new ATrousDenoiseShader(
-                                texWidth, texHeight, stepSize,
-                                ping, pong, depthNormalsTex!,
+                                texWidth, texHeight, stepSize, ping, pong, depthNormalsTex!,
                                 primitivesBuffer, objectIdBuffer, kernelBuffer);
                             device?.For(texWidth, texHeight, aTrousShader);
                         }
@@ -406,6 +395,36 @@ namespace DivisionEngine.Rendering
                         stepSize *= 2;
                     }
                     currentTexture = ping; // Final result
+                }
+
+                // Depth of field
+                if (debugMode == DebugMode.None &&
+                   // worldDTO.enableDepthOfField == 1 &&
+                    currentTexture != null &&
+                    denoisedTex != null &&
+                    kernelBuffer != null)
+                {
+                    ReadWriteTexture2D<float4> source = currentTexture;
+                    ReadWriteTexture2D<float4> target = denoisedTex;
+
+                    lock (SyncLock)
+                    {
+                        FastDepthOfFieldShader dofShader = new FastDepthOfFieldShader(
+                            texWidth,
+                            texHeight,
+                            worldDTO.focusDistance,
+                            worldDTO.focalLength,
+                            worldDTO.farPlane,
+                            worldDTO.nearPlane,
+                            16, // max blur radius
+                            source,
+                            target,
+                            depthNormalsTex!);
+
+                        device?.For(texWidth, texHeight, dofShader);
+                    }
+
+                    currentTexture = target;
                 }
 
                 // Copy final result for OpenGL display

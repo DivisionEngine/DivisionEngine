@@ -56,8 +56,7 @@ namespace DivisionEngine.Systems
                 worldData.farPlane = camera.farClip;
 
                 worldData.focusDistance = camera.focusDistance;
-                worldData.apertureSize = camera.apertureSize;
-                worldData.dofSamples = camera.depthOfFieldSamples;
+                worldData.focalLength = camera.focalLength;
 
                 worldData.maxRaySteps = camera.maxRaySteps;
                 worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
