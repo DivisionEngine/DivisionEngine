@@ -64,6 +64,7 @@ public partial class WorldWindow : EditorWindow
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 2,
+                IsHitTestVisible = true,
             };
             idText = new TextBlock
             {
@@ -193,8 +194,6 @@ public partial class WorldWindow : EditorWindow
             renameTextBox.Text = nameText.Text?.Replace($"Entity_{entityId}", "");
             renameTextBox.Focus();
             renameTextBox.SelectAll();
-
-            // Change background to indicate renaming state
             Background = EditorColor.FromRGB(68, 68, 68);
         }
 
@@ -232,8 +231,6 @@ public partial class WorldWindow : EditorWindow
             isRenaming = false;
             nameText.IsVisible = true;
             renameTextBox.IsVisible = false;
-
-            // Restore normal appearance
             Background = EditorColor.FromRGB(30, 30, 30);
             BorderBrush = EditorColor.FromRGB(30, 30, 30);
             BorderThickness = new Thickness(0);
@@ -351,7 +348,24 @@ public partial class WorldWindow : EditorWindow
                 new RowDefinition(GridLength.Auto),
                 new RowDefinition(GridLength.Star),
             },
+            IsHitTestVisible = true,
         };
+        mainGrid.PointerPressed += (s, e) =>
+        {
+            AvaloniaObject? source = e.Source as AvaloniaObject;
+            while (source != null)
+            {
+                if (source is EntityItemControl)
+                {
+                    // Click was on an entity or its child elements - don't trigger background click
+                    return;
+                }
+                source = (source as StyledElement)?.Parent;
+            }
+
+            PropertiesWindow.LoadWorldData(WorldManager.CurrentWorld);
+        };
+
         Grid.SetRow(header, 0);
         Grid.SetRow(separator, 1);
         Grid.SetRow(scrollViewer, 2);
@@ -362,7 +376,7 @@ public partial class WorldWindow : EditorWindow
 
         worldWinUpdater = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(250),
+            Interval = TimeSpan.FromMilliseconds(20),
         };
         worldWinUpdater.Tick += WorldWinUpdater_Tick;
         worldWinUpdater.Start();

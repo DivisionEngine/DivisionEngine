@@ -159,6 +159,8 @@ public partial class PropertiesWindow : EditorWindow
         mainGrid.Children.Add(addComponentButton);
         this.FindControl<Border>("MainBorder")!.Child = mainGrid;
         currentWindows.Add(this);
+
+        CreateWorldEditor(WorldManager.CurrentWorld);
     }
 
     /// <summary>
@@ -337,7 +339,18 @@ public partial class PropertiesWindow : EditorWindow
     {
         ValidatePropertiesWindows();
         foreach (PropertiesWindow? window in currentWindows)
-            window!.SetupPropertiesForEntity(entityId);
+            Dispatcher.UIThread.Post(() => window!.DisplayEntityComponents(entityId));
+    }
+
+    /// <summary>
+    /// Displays data for a world into the properties editor.
+    /// </summary>
+    /// <param name="world">World data to pull from</param>
+    public static void LoadWorldData(World? world)
+    {
+        ValidatePropertiesWindows();
+        foreach (PropertiesWindow? window in currentWindows)
+            Dispatcher.UIThread.Post(() => window!.CreateWorldEditor(world));
     }
 
     /// <summary>
@@ -352,7 +365,11 @@ public partial class PropertiesWindow : EditorWindow
         }
     }
 
-    private bool SetupPropertiesForEntity(uint entityId)
+    /// <summary>
+    /// Displays all components for an entity.
+    /// </summary>
+    /// <param name="entityId">Entity to display values for</param>
+    private bool DisplayEntityComponents(uint entityId)
     {
         if (WorldManager.CurrentWorld == null || !W.EntityExists(entityId))
         {
@@ -364,21 +381,103 @@ public partial class PropertiesWindow : EditorWindow
         string entityName = W.TryGetEntityName(entityId);
         if (string.IsNullOrEmpty(entityName)) headerText.Text = $"Entity_{entityId}";
         else headerText.Text = entityName;
-
         curEntityId = entityId;
-        Dispatcher.UIThread.Post(() => DisplayEntityComponents(entityId));
-        return true;
-    }
 
-    /// <summary>
-    /// Displays all components for an entity.
-    /// </summary>
-    /// <param name="entityId">Entity to display values for</param>
-    private void DisplayEntityComponents(uint entityId)
-    {
         List<IComponent> entityComps = W.GetAllComponents(entityId);
         foreach (IComponent component in entityComps)
             CreateComponentEditor(component.GetType(), component, entityId);
+        return true;
+    }
+
+    public void CreateWorldEditor(World? curWorld)
+    {
+        if (curWorld != null)
+        {
+            headerText.Text = curWorld.Name;
+            propertiesPanel.Children.Clear();
+
+            Border headerBorder = new Border
+            {
+                BorderThickness = new Thickness(0, 0, 1, 1),
+                BorderBrush = EditorColor.FromRGB(17, 17, 17),
+                Background = EditorColor.FromRGB(44, 44, 44),
+                CornerRadius = new CornerRadius(4, 4, 0, 0),
+                Margin = new Thickness(4, 8, 12, 0),
+                Padding = new Thickness(4, 4),
+            };
+            DockPanel headerPanel = new DockPanel();
+            MaterialIcon headerCompIcon = new MaterialIcon
+            {
+                Kind = MaterialIconKind.World,
+                Width = 16,
+                Height = 16,
+                Margin = new Thickness(6, 2, 6, 2),
+                Foreground = EditorColor.FromRGB(148, 148, 148),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            TextBlock componentName = new TextBlock
+            {
+                Text = curWorld.Name,
+                FontSize = 14,
+                Foreground = EditorColor.FromRGB(200, 200, 200),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            DockPanel.SetDock(headerCompIcon, Dock.Left);
+            DockPanel.SetDock(componentName, Dock.Left);
+            headerPanel.Children.Add(headerCompIcon);
+            headerPanel.Children.Add(componentName);
+            headerBorder.Child = headerPanel;
+            propertiesPanel.Children.Add(headerBorder);
+
+            // Create fields editor
+            StackPanel fieldsPanel = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                Margin = new Thickness(4, 0, 4, 0),
+            };
+            Border fieldsBorder = new Border
+            {
+                BorderThickness = new Thickness(0, 0, 1, 1),
+                BorderBrush = EditorColor.FromRGB(10, 10, 10),
+                Background = EditorColor.FromRGB(20, 20, 20),
+                CornerRadius = new CornerRadius(0, 0, 4, 4),
+                Margin = new Thickness(4, 0, 12, 0),
+                Padding = new Thickness(8, 4, 4, 4),
+            };
+            fieldsBorder.PointerEntered += (_, _) =>
+            {
+                fieldsBorder.BorderThickness = new Thickness(0, 0, 2, 2);
+                fieldsBorder.BorderBrush = EditorColor.FromRGB(12, 12, 12);
+                fieldsBorder.Background = Background = EditorColor.FromRGB(24, 24, 24);
+            };
+            fieldsBorder.PointerExited += (_, _) =>
+            {
+                fieldsBorder.BorderThickness = new Thickness(0, 0, 1, 1);
+                fieldsBorder.BorderBrush = EditorColor.FromRGB(10, 10, 10);
+                fieldsBorder.Background = Background = EditorColor.FromRGB(20, 20, 20);
+            };
+
+            TextBlock entitiesText = new TextBlock
+            {
+                Text = $"Entities: {curWorld.entities.Count}",
+                FontSize = 12,
+                Foreground = EditorColor.FromRGB(200, 200, 200),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            TextBlock nextEntityText = new TextBlock
+            {
+                Text = $"Next Entity ID: {curWorld.NextEntityId}",
+                FontSize = 12,
+                Foreground = EditorColor.FromRGB(200, 200, 200),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            fieldsPanel.Children.Add(entitiesText);
+            fieldsPanel.Children.Add(nextEntityText);
+
+            fieldsBorder.Child = fieldsPanel;
+            if (fieldsPanel.Children.Count > 0) propertiesPanel.Children.Add(fieldsBorder);
+        }
     }
 
     private void CreateComponentEditor(Type compType, IComponent instance, uint entityId)
