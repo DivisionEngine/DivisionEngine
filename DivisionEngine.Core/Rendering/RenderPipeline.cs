@@ -1,6 +1,8 @@
 ﻿using ComputeSharp;
+using DivisionEngine.Components;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
+using DivisionEngine.Serialization;
 using DivisionEngine.Systems;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
@@ -112,7 +114,7 @@ namespace DivisionEngine.Rendering
                 options.UpdatesPerSecond = requestedFPS;
 
                 RendererWindow = Window.Create(options);
-                Debug.Info($"Renderer: Created Render Window on thread {Environment.CurrentManagedThreadId}");
+                Debug.Info($"Renderer: Created Render Window on thread {System.Environment.CurrentManagedThreadId}");
 
                 closeWindowWithCloseEvent = true;
                 RendererWindow.Load += OnLoad;
@@ -397,34 +399,25 @@ namespace DivisionEngine.Rendering
                     currentTexture = ping; // Final result
                 }
 
-                // Depth of field
-                if (debugMode == DebugMode.None &&
-                   // worldDTO.enableDepthOfField == 1 &&
-                    currentTexture != null &&
-                    denoisedTex != null &&
-                    kernelBuffer != null)
+                foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
                 {
-                    ReadWriteTexture2D<float4> source = currentTexture;
-                    ReadWriteTexture2D<float4> target = denoisedTex;
-
-                    lock (SyncLock)
+                    // Depth of field
+                    if (debugMode == DebugMode.None && camera.enableDepthOfField &&
+                        currentTexture != null && denoisedTex != null)
                     {
-                        FastDepthOfFieldShader dofShader = new FastDepthOfFieldShader(
-                            texWidth,
-                            texHeight,
-                            worldDTO.focusDistance,
-                            worldDTO.focalLength,
-                            worldDTO.farPlane,
-                            worldDTO.nearPlane,
-                            16, // max blur radius
-                            source,
-                            target,
-                            depthNormalsTex!);
-
-                        device?.For(texWidth, texHeight, dofShader);
+                        ReadWriteTexture2D<float4> source = currentTexture;
+                        ReadWriteTexture2D<float4> target = denoisedTex;
+                        lock (SyncLock)
+                        {
+                            FastDepthOfFieldShader dofShader = new FastDepthOfFieldShader(
+                                texWidth, texHeight, worldDTO.focusDistance, worldDTO.focalLength,
+                                worldDTO.farPlane, worldDTO.nearPlane, 16, // max blur radius
+                                source, target, depthNormalsTex!);
+                            device?.For(texWidth, texHeight, dofShader);
+                        }
+                        currentTexture = target;
                     }
-
-                    currentTexture = target;
+                    break; // Use first camera
                 }
 
                 // Copy final result for OpenGL display

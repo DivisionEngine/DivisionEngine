@@ -22,6 +22,7 @@ namespace DivisionEngine.Components
             cameraToWorld = Matrix.Identity4x4;
             inverseProjectionMatrix = Matrix.Identity4x4;
 
+            enableDepthOfField = true;
             focusDistance = 24f;
             focalLength = 26f;
 
@@ -47,16 +48,17 @@ namespace DivisionEngine.Components
         public float4x4 inverseProjectionMatrix;
 
         // Depth of field vars
-        public float focusDistance;
-        public float focalLength;
+        public bool enableDepthOfField;
+        [Tooltip("Distance at which DOF = 0")] public float focusDistance;
+        [Tooltip("Falloff distance for DOF")] public float focalLength;
 
         // SDF rendering vars
-        public int maxRaySteps;
-        public int maxShadowRaySteps;
+        [Tooltip("Max number of trace steps")] public int maxRaySteps;
+        [Tooltip("Max trace steps for shadows")] public int maxShadowRaySteps;
 
         // Denoise vars
         public bool enableDivisionDenoise;
-        public bool enableATrousDenoise;
+        [Tooltip("Enable A-Trous wavelet denoising")] public bool enableATrousDenoise;
         [Range(0f, 1f)] public float divisionDenoiseThreshold;
         [Tooltip("Size of radius in render image to take blur samples from")][Range(1, 4)] public int divisionDenoiseDomain;
         [Range(1, 5)] public int aTrousStepCount;
@@ -72,6 +74,7 @@ namespace DivisionEngine.Components
             cameraToWorld = cameraToWorld,
             inverseProjectionMatrix = inverseProjectionMatrix,
 
+            enableDepthOfField = enableDepthOfField,
             focusDistance = focusDistance,
             focalLength = focalLength,
 
