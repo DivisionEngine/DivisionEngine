@@ -545,10 +545,6 @@ public partial class PropertiesWindow : EditorWindow
         fieldPanel.Children.Add(nameContainer);
         Control? editorControl = new Control();
 
-        string tooltip = string.Empty;
-        TooltipAttribute? tooltipAttribute = field.GetCustomAttribute<TooltipAttribute>();
-        if (tooltipAttribute != null) tooltip = tooltipAttribute.Tooltip;
-
         RangeAttribute? rangeAttr = field.GetCustomAttribute<RangeAttribute>();
         if (fieldValue != null && fieldType == typeof(float))
         {
@@ -1398,17 +1394,15 @@ public partial class PropertiesWindow : EditorWindow
     /// </summary>
     private static void ApplyTooltip(Control control, FieldInfo field)
     {
-        var tooltipAttr = field.GetCustomAttribute<TooltipAttribute>();
+        TooltipAttribute? tooltipAttr = field.GetCustomAttribute<TooltipAttribute>();
         if (tooltipAttr != null)
         {
-            // Create a container with icon and tooltip text
-            var tooltipContent = new StackPanel
+            StackPanel tooltipContent = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 4,
-                Margin = new Thickness(4),
+                Margin = new Thickness(2),
             };
-
             tooltipContent.Children.Add(new MaterialIcon
             {
                 Kind = MaterialIconKind.InformationOutline,
@@ -1417,7 +1411,6 @@ public partial class PropertiesWindow : EditorWindow
                 Foreground = EditorColor.FromRGB(148, 148, 148),
                 VerticalAlignment = VerticalAlignment.Center,
             });
-
             tooltipContent.Children.Add(new TextBlock
             {
                 Text = tooltipAttr.Tooltip,
