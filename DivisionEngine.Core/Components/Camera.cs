@@ -36,14 +36,14 @@ namespace DivisionEngine.Components
         }
 
         // Camera vars
-        public float fieldOfView;
-        public float nearClip;
-        public float farClip;
+        [Tooltip("The viewing angle of the camera")] public float fieldOfView;
+        [Tooltip("Near clip plane that the camera starts rendering at")] public float nearClip;
+        [Tooltip("Far clip plane that the camera stops rendering at")] public float farClip;
 
         // Matrices
-        public float4x4 viewMatrix;
+        [Tooltip("View matrix of the camera")] public float4x4 viewMatrix;
         public float4x4 projectionMatrix;
-        public float4x4 cameraToWorld; // Inverse view matrix
+        [Tooltip("Inverse of the view matrix")] public float4x4 cameraToWorld;
         public float4x4 inverseProjectionMatrix;
 
         // Depth of field vars
@@ -58,7 +58,7 @@ namespace DivisionEngine.Components
         public bool enableDivisionDenoise;
         public bool enableATrousDenoise;
         [Range(0f, 1f)] public float divisionDenoiseThreshold;
-        [Range(1, 4)] public int divisionDenoiseDomain;
+        [Tooltip("Size of radius in render image to take blur samples from")][Range(1, 4)] public int divisionDenoiseDomain;
         [Range(1, 5)] public int aTrousStepCount;
 
         public IComponent Clone() => new Camera

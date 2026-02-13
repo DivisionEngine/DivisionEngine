@@ -502,17 +502,52 @@ public partial class PropertiesWindow : EditorWindow
         TextInfo textInfo = cultureInfo.TextInfo;
         string formattedFieldName = textInfo.ToTitleCase(FormattedFieldRegex().Replace(field.Name, "$1 $2"));
 
+        // Create name label container
+        StackPanel nameContainer = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 4, 0),
+        };
+
         TextBlock nameLabel = new TextBlock
         {
             Text = formattedFieldName,
             FontSize = 12,
             Foreground = Brushes.LightGray,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 4, 0),
         };
+        nameContainer.Children.Add(nameLabel);
 
-        fieldPanel.Children.Add(nameLabel);
+        // Add tooltip indicator if field has tooltip attribute
+        var tooltipAttr = field.GetCustomAttribute<TooltipAttribute>();
+        if (tooltipAttr != null)
+        {
+            var tooltipIcon = new MaterialIcon
+            {
+                Kind = MaterialIconKind.InformationOutline,
+                Width = 12,
+                Height = 12,
+                Margin = new Thickness(4, 0, 0, 0),
+                Foreground = EditorColor.FromRGB(148, 148, 148),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            // Apply tooltip to the icon
+            ApplyTooltip(tooltipIcon, field);
+
+            // Also apply to the label for easier access
+            ApplyTooltip(nameLabel, field);
+
+            nameContainer.Children.Add(tooltipIcon);
+        }
+
+        fieldPanel.Children.Add(nameContainer);
         Control? editorControl = new Control();
+
+        string tooltip = string.Empty;
+        TooltipAttribute? tooltipAttribute = field.GetCustomAttribute<TooltipAttribute>();
+        if (tooltipAttribute != null) tooltip = tooltipAttribute.Tooltip;
 
         RangeAttribute? rangeAttr = field.GetCustomAttribute<RangeAttribute>();
         if (fieldValue != null && fieldType == typeof(float))
@@ -776,6 +811,7 @@ public partial class PropertiesWindow : EditorWindow
         else if (fieldType.IsEnum)
             editorControl = CreateEnumEditor(field, component, fieldType, fieldValue);
 
+        ApplyTooltip(editorControl!, field);
         fieldPanel.Children.Add(editorControl!);
         return fieldPanel;
     }
@@ -1355,6 +1391,46 @@ public partial class PropertiesWindow : EditorWindow
         eulerRotationPanel.Children.Add(zBox);
         eulerRotationPanel.Children.Add(rotateTypeIcon);
         return eulerRotationPanel;
+    }
+
+    /// <summary>
+    /// Applies a tooltip to a control if the field has a TooltipAttribute.
+    /// </summary>
+    private static void ApplyTooltip(Control control, FieldInfo field)
+    {
+        var tooltipAttr = field.GetCustomAttribute<TooltipAttribute>();
+        if (tooltipAttr != null)
+        {
+            // Create a container with icon and tooltip text
+            var tooltipContent = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 4,
+                Margin = new Thickness(4),
+            };
+
+            tooltipContent.Children.Add(new MaterialIcon
+            {
+                Kind = MaterialIconKind.InformationOutline,
+                Width = 14,
+                Height = 14,
+                Foreground = EditorColor.FromRGB(148, 148, 148),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+
+            tooltipContent.Children.Add(new TextBlock
+            {
+                Text = tooltipAttr.Tooltip,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+
+            ToolTip.SetTip(control, tooltipContent);
+            ToolTip.SetPlacement(control, PlacementMode.Top);
+            ToolTip.SetShowDelay(control, 400);
+            ToolTip.SetVerticalOffset(control, 4);
+        }
     }
 
     [GeneratedRegex(@"(\p{Ll})(\p{Lu})")]
