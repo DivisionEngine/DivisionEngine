@@ -519,29 +519,6 @@ public partial class PropertiesWindow : EditorWindow
         };
         nameContainer.Children.Add(nameLabel);
 
-        // Add tooltip indicator if field has tooltip attribute
-        var tooltipAttr = field.GetCustomAttribute<TooltipAttribute>();
-        if (tooltipAttr != null)
-        {
-            var tooltipIcon = new MaterialIcon
-            {
-                Kind = MaterialIconKind.InformationOutline,
-                Width = 12,
-                Height = 12,
-                Margin = new Thickness(4, 0, 0, 0),
-                Foreground = EditorColor.FromRGB(148, 148, 148),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-
-            // Apply tooltip to the icon
-            ApplyTooltip(tooltipIcon, field);
-
-            // Also apply to the label for easier access
-            ApplyTooltip(nameLabel, field);
-
-            nameContainer.Children.Add(tooltipIcon);
-        }
-
         fieldPanel.Children.Add(nameContainer);
         Control? editorControl = new Control();
 
@@ -809,6 +786,25 @@ public partial class PropertiesWindow : EditorWindow
 
         ApplyTooltip(editorControl!, field);
         fieldPanel.Children.Add(editorControl!);
+
+        // Add tooltip indicator if field has tooltip attribute
+        TooltipAttribute? tooltipAttr = field.GetCustomAttribute<TooltipAttribute>();
+        if (tooltipAttr != null)
+        {
+            MaterialIcon tooltipIcon = new MaterialIcon
+            {
+                Kind = MaterialIconKind.InformationOutline,
+                Width = 12,
+                Height = 12,
+                Margin = new Thickness(4, 0, 0, 0),
+                Foreground = EditorColor.FromRGB(148, 148, 148),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            ApplyTooltip(tooltipIcon, field);
+            ApplyTooltip(nameLabel, field);
+            fieldPanel.Children.Add(tooltipIcon);
+        }
         return fieldPanel;
     }
 
