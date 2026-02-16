@@ -117,6 +117,7 @@ namespace DivisionEngine.Systems
                 // Setup
                 SDFPrimitiveObjectDTO curPrimitive = new SDFPrimitiveObjectDTO
                 {
+                    entityId = id,
                     type = -1,
                     position = transform.position,
                     rotation = transform.rotation,

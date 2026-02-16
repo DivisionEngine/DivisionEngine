@@ -25,14 +25,14 @@ namespace DivisionEngine.Rendering.Denoising
         ReadWriteTexture2D<float4> outputTexture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
-        ReadWriteBuffer<int> objectIdBuffer,
+        ReadWriteBuffer<uint2> objectIdBuffer,
         ReadOnlyBuffer<float> kernelBuffer) : IComputeShader
     {
 
         public void Execute()
         {
             int2 pixel = ThreadIds.XY;
-            int centerObjId = objectIdBuffer[pixel.X + pixel.Y * (int)width];
+            int centerObjId = (int)objectIdBuffer[pixel.X + pixel.Y * (int)width].X;
             if (centerObjId < 0)
             {
                 outputTexture[pixel] = inputTexture[pixel];

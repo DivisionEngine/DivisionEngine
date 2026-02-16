@@ -15,7 +15,7 @@ namespace DivisionEngine.Rendering
         ReadWriteTexture2D<float4> outputTexture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
-        ReadWriteBuffer<int> objectIdBuffer) : IComputeShader
+        ReadWriteBuffer<uint2> objectIdBuffer) : IComputeShader
     {
         // More forgiving thresholds for noisy reflections
         const float DEPTH_THRESHOLD = 0.2f;  // Increased from 0.1f
@@ -51,7 +51,7 @@ namespace DivisionEngine.Rendering
             float4 centerDepthNormal = depthNormals[pixel];
             float centerDepth = centerDepthNormal.X;
             float3 centerNormal = centerDepthNormal.YZW;
-            int centerObjId = objectIdBuffer[pixel.X + pixel.Y * (int)width];
+            int centerObjId = (int)objectIdBuffer[pixel.X + pixel.Y * (int)width].X;
 
             // If no object hit, no blur needed
             if (centerObjId < 0)

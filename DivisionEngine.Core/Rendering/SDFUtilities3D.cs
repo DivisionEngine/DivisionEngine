@@ -16,7 +16,7 @@ namespace DivisionEngine
     public readonly partial struct SDFDebug3D(
         ReadWriteTexture2D<float4> renderTex,
         ReadWriteTexture2D<float4> depthNormals,
-        ReadWriteBuffer<int> objectIdBuffer,
+        ReadWriteBuffer<uint2> objectIdBuffer,
         int debugMode,
         int width) : IComputeShader
     {
@@ -52,7 +52,7 @@ namespace DivisionEngine
                 renderTex[pixel] = new float4(depthNormals[pixel].GBA, 1); // Output visual world normal buffer
             else if (debugMode == 3)
             {
-                float3 objColor = IntToColor((uint)objectIdBuffer[pixel.X + pixel.Y * width]);
+                float3 objColor = IntToColor(objectIdBuffer[pixel.X + pixel.Y * width].X);
                 renderTex[pixel] = new float4(objColor, 1); // Output visual world normal buffer
             }
             else renderTex[pixel] = new float4(0, 0, 0, 1); // Default path --> clear output

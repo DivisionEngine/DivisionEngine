@@ -37,6 +37,7 @@ namespace DivisionEngine.Rendering
     public struct SDFPrimitiveObjectDTO
     {
         // Base Properties
+        public uint entityId; // 4b
         public int type; // 4b
         public float3 position; // 12b
         public float4 rotation; // 16b

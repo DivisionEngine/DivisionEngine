@@ -2,12 +2,10 @@
 using DivisionEngine.Components;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
-using DivisionEngine.Serialization;
 using DivisionEngine.Systems;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Window = Silk.NET.Windowing.Window;
 
@@ -20,13 +18,25 @@ namespace DivisionEngine.Rendering
     /// </summary>
     public class RenderPipeline
     {
+        /// <summary>
+        /// Represents the debug mode of the render pipeline, if any.
+        /// </summary>
         public enum DebugMode
         {
             None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3, RaySteps = 4, Shadows = 5, BRDF = 6
         }
 
         // Special variables
-        public readonly Lock SyncLock = new Lock(); // Synchronization lock for thread safety
+
+        /// <summary>
+        /// The current render pipeline instance running.
+        /// </summary>
+        public static RenderPipeline? Instance { get; private set; }
+
+        /// <summary>
+        /// Synchronization lock for thread safety
+        /// </summary>
+        public readonly Lock SyncLock = new Lock(); // 
         private bool closeWindowWithCloseEvent = true;
 
         // OpenGL variables
@@ -36,18 +46,51 @@ namespace DivisionEngine.Rendering
         private static bool deviceLost;
 
         // Rendering variables
+
+        /// <summary>
+        /// Reference to the bound world that the renderer is using.
+        /// </summary>
         public World? boundWorld;
-        public IWindow? RendererWindow;
-        public bool InputReady { get; private set; } = false; // Indicates if the renderer is ready to process input
-        public event Action? Close; // Event to handle window close actions
-        public event Action<IInputContext>? InputContextCreated; // Event called when input context is created, for handler setup on other threads (Avalonia)
-        public static event Action<bool>? RenderWindowFocusd; // Called when renderer window focus is changed
-        public DebugMode debugMode = DebugMode.None; // Current debug mode, if any
+
+        /// <summary>
+        /// Reference to the renderer window handle.
+        /// </summary>
+        public IWindow? RendererWindow { get; private set; }
+
+        /// <summary>
+        /// Whether the renderer is ready to process input or not.
+        /// </summary>
+        public bool InputReady { get; private set; } = false;
+
+        /// <summary>
+        /// Event to handle window close actions.
+        /// </summary>
+        public event Action? Close;
+
+        /// <summary>
+        /// Event called when input context is created, for handler setup on other threads, ex. Avalonia UI Thread.
+        /// </summary>
+        public event Action<IInputContext>? InputContextCreated;
+
+        /// <summary>
+        /// Called when the renderer window focus has changed.
+        /// </summary>
+        public static event Action<bool>? RenderWindowFocusd;
+
+        /// <summary>
+        /// The current debug mode of the render pipeline.
+        /// </summary>
+        public DebugMode debugMode = DebugMode.None;
+
+        /// <summary>
+        /// Buffer of all of the object IDs per pixel on screen.
+        /// </summary>
+        public uint2[]? ObjectIDs { get; private set; }
 
         // Render texture storage
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadWriteTexture2D<float4>? depthNormalsTex;
-        private ReadWriteBuffer<int>? objectIdBuffer;
+        private ReadWriteBuffer<uint2>? objectIdBuffer;
 
         // Buffer storage
         private ReadOnlyBuffer<SDFWorldDTO>? worldBuffer;
@@ -55,7 +98,6 @@ namespace DivisionEngine.Rendering
         private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
         private float4[]? pixels;
         private float4[]? depthNormalPixels;
-        private int[]? objectIDs;
 
         // Time measurement
 
@@ -77,6 +119,14 @@ namespace DivisionEngine.Rendering
 
         // Denoising
         private ReadWriteTexture2D<float4>? denoisedTex;
+
+        /// <summary>
+        /// Create a new render pipeline.
+        /// </summary>
+        public RenderPipeline()
+        {
+            Instance = this;
+        }
 
         /// <summary>
         /// Binds the WorldManager.CurrentWorld to this render pipeline.
@@ -305,15 +355,15 @@ namespace DivisionEngine.Rendering
                     }
 
                     // Build object ID buffer
-                    if (objectIdBuffer == null || objectIdBuffer.Length != (texWidth * texHeight) || objectIDs == null)
+                    if (objectIdBuffer == null || objectIdBuffer.Length != (texWidth * texHeight) || ObjectIDs == null)
                     {
                         objectIdBuffer?.Dispose();
-                        objectIdBuffer = device!.AllocateReadWriteBuffer<int>(texWidth * texHeight);
-                        objectIDs = new int[texWidth * texHeight];
+                        objectIdBuffer = device!.AllocateReadWriteBuffer<uint2>(texWidth * texHeight);
+                        ObjectIDs = new uint2[texWidth * texHeight];
                     }
 
                     // Build kernel buffer
-                    if (kernelBuffer == null || objectIDs == null)
+                    if (kernelBuffer == null || ObjectIDs == null)
                     {
                         kernelBuffer?.Dispose();
                         kernelBuffer = device!.AllocateReadOnlyBuffer([1.0f / 16.0f, 1.0f / 4.0f, 3.0f / 8.0f, 1.0f / 4.0f, 1.0f / 16.0f]);
@@ -422,7 +472,7 @@ namespace DivisionEngine.Rendering
 
                 // Copy final result for OpenGL display
                 depthNormalsTex?.CopyTo(depthNormalPixels!);
-                objectIdBuffer?.CopyTo(objectIDs!);
+                objectIdBuffer?.CopyTo(ObjectIDs!);
                 currentTexture?.CopyTo(pixels!);
             }
             catch (ObjectDisposedException ex)

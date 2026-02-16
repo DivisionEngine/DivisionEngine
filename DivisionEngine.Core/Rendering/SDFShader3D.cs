@@ -15,7 +15,7 @@ namespace DivisionEngine
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadWriteTexture2D<int> bounceCountTexture,  // NEW: Output bounce counts
-        ReadWriteBuffer<int> objectIdBuffer,
+        ReadWriteBuffer<uint2> entityIdBuffer,
         ReadOnlyBuffer<SDFWorldDTO> worldData,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
     {
@@ -68,7 +68,7 @@ namespace DivisionEngine
         private float SphereSDF(float3 pt, float r)
         {
             float3 s = new float3(8, 8, 8);
-            float3 l = new float3(1, 1, 1);
+            float3 l = new float3(100, 1, 100);
             float3 q = pt - s * Hlsl.Clamp(Hlsl.Round(pt / s), -l, l);
             return Hlsl.Length(q) - r;
         }
@@ -606,13 +606,13 @@ namespace DivisionEngine
             normal = StableNormal(hitPoint);
             float3 viewDir = -rayDir;
 
-            // Get material
-            SDFPrimitiveObjectDTO material = sdfPrimitives[closestObjIndex];
-            float3 albedoColor = material.color.RGB;
-            float metallic = material.metallic;
-            float roughness = Hlsl.Max(material.roughness, 0.1f);
-            float specular = material.specular;
-            float ao = material.ao;
+            // Get material properties
+            SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
+            float3 albedoColor = entity.color.RGB;
+            float metallic = entity.metallic;
+            float roughness = Hlsl.Max(entity.roughness, 0.1f);
+            float specular = entity.specular;
+            float ao = entity.ao;
 
             // Lighting
             float3 ambientLightAmt = float3.One * 0.15f * worldData[0].backgroundColor.RGB * ao;
@@ -673,13 +673,13 @@ namespace DivisionEngine
                 float3 viewDir = -rayDir;
                 actualBounces = bounce + 1; // Count this bounce
 
-                // Get material
-                SDFPrimitiveObjectDTO material = sdfPrimitives[closestObjIndex];
-                float3 albedoColor = material.color.RGB;
-                float metallic = material.metallic;
-                float roughness = Hlsl.Max(material.roughness, 0.1f);
-                float specular = material.specular;
-                float ao = material.ao;
+                // Get material properties
+                SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
+                float3 albedoColor = entity.color.RGB;
+                float metallic = entity.metallic;
+                float roughness = Hlsl.Max(entity.roughness, 0.1f);
+                float specular = entity.specular;
+                float ao = entity.ao;
 
                 // Calculate fresnel term
                 cosTheta = Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f);
@@ -687,13 +687,13 @@ namespace DivisionEngine
                 {
                     outputNormal = normal;
                     totalDist = depth;
-                    objectIdBuffer[pixel.X + pixel.Y * (int)width] = closestObjIndex;
-                    mainMat = material;
-                    if (material.hasRefraction == 1)
+                    entityIdBuffer[pixel.X + pixel.Y * (int)width] = entity.entityId;
+                    mainMat = entity;
+                    if (entity.hasRefraction == 1)
                     {
                         isRefractive = true;
                         fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.ior);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, material, closestObjIndex);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, entity, closestObjIndex);
                     }
                     firstHit = false;
                 }
@@ -704,10 +704,10 @@ namespace DivisionEngine
 
                 // Shadows
                 float shadowValue = 1f;
-                if (material.shadowEffects.Y && material.reflectionShadows == 1)
+                if (entity.shadowEffects.Y && entity.reflectionShadows == 1)
                 {
                     float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                    float2 shadowDistances = material.shadowDistances;
+                    float2 shadowDistances = entity.shadowDistances;
                     shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out _);
                 }
 
@@ -719,9 +719,9 @@ namespace DivisionEngine
                 finalColor += contribution * directLight;
 
                 // Reflections
-                if (material.hasReflection == 0) break;
-                if (bounce == material.reflectionMaxBounces - 1) break;
-                maxRaySteps = (int)(maxRaySteps / material.reflectRayStepFalloff);
+                if (entity.hasReflection == 0) break;
+                if (bounce == entity.reflectionMaxBounces - 1) break;
+                maxRaySteps = (int)(maxRaySteps / entity.reflectRayStepFalloff);
                 float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f), f0);
                 float reflectionChance = Hlsl.Lerp(F.X, 1f, metallic);
 
@@ -772,7 +772,7 @@ namespace DivisionEngine
             int2 pixel = ThreadIds.XY;
             texture[pixel] = new float4(0, 0, 0, 0);
             depthNormals[pixel] = new float4(0, 0, 0, 0);
-            objectIdBuffer[pixel.X + pixel.Y * (int)width] = -1;
+            entityIdBuffer[pixel.X + pixel.Y * (int)width] = uint.MaxValue;
             bounceCountTexture[pixel] = 0;  // Initialize bounce count
 
             float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;

@@ -43,11 +43,17 @@ namespace DivisionEngine.Editor.Systems
             RenderPipeline.RenderWindowFocusd += async (_) => await FocusUpdate();
             App.AppFocused += (f) => EditorFocused = f;
             App.AppFocused += async (_) => await FocusUpdate();
+
+            // Make sure object selection is enabled and getting called
+            EntitySelectionSystem.CanSelect = true;
+            EntitySelectionSystem.OnEntitySelected += PropertiesWindow.LoadEntityComponents;
+            EntitySelectionSystem.OnNoEntityFound += () => PropertiesWindow.LoadWorldData(WorldManager.CurrentWorld);
         }
 
         public override void FixedUpdate()
         {
             if (initializeTimer > 0) initializeTimer--;
+            
         }
 
         public async Task FocusUpdate()
