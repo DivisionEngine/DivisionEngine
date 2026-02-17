@@ -144,14 +144,14 @@ namespace DivisionEngine
         /// <param name="point">World position to evaluate</param>
         /// <param name="shadowCastCheck">Should the tracer verify shadow casters</param>
         /// <returns>Float2 representing the min distance, and closest object</returns>
-        private float WorldSDF(float3 point, bool shadowCastCheck, out int closest)
+        private float WorldSDF(float3 point, bool shadowCastCheck, out uint closest)
         {
             float minDist = MIN_TRAVERSE_DIST;
 
-            closest = -1;
-            for (int i = 0; i < sdfPrimitives.Length; i++)
+            closest = uint.MaxValue;
+            for (uint i = 0; i < sdfPrimitives.Length; i++)
             {
-                SDFPrimitiveObjectDTO curPrimitive = sdfPrimitives[i];
+                SDFPrimitiveObjectDTO curPrimitive = sdfPrimitives[(int)i];
                 if (shadowCastCheck && !curPrimitive.shadowEffects.X) continue;
                 float3 scaling = curPrimitive.scaling;
                 float3 curPoint = point - curPrimitive.position; // Transform SDF
@@ -229,11 +229,11 @@ namespace DivisionEngine
         // New soft-shadow technique:
         // Reference: https://iquilezles.org/articles/rmshadows/
         // New Version: https://www.shadertoy.com/view/tscSRS
-        private float SoftShadow2(float3 point, float3 dir, float start, float end, out int closestObj)
+        private float SoftShadow2(float3 point, float3 dir, float start, float end, out uint closestObj)
         {
             float depth = start, dist;
             float shadow = 1f;
-            closestObj = -1;
+            closestObj = uint.MaxValue;
             for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
             {
                 float sdf = WorldSDF(point + depth * dir, true, out closestObj);
@@ -410,10 +410,10 @@ namespace DivisionEngine
             return Hlsl.Normalize(tangent * h.X + bitangent * h.Y + normal * h.Z);
         }
 
-        private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out int closestObj, out float depth)
+        private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out uint closestObj, out float depth)
         {
             depth = worldData[0].nearPlane;
-            closestObj = -1;
+            closestObj = uint.MaxValue;
             float3 hitPoint = rayOrigin;
 
             for (int step = 0; step < maxSteps && depth < farClipPlane; step++)
@@ -478,7 +478,7 @@ namespace DivisionEngine
             return true;
         }
 
-        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 normal, SDFPrimitiveObjectDTO startMat, int initialObjIndex)
+        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 normal, SDFPrimitiveObjectDTO startMat, uint initialObjIndex)
         {
             float3 totalTransmittance = float3.One;  // Start with full transmittance
             float3 accumulatedColor = float3.Zero;
@@ -488,7 +488,7 @@ namespace DivisionEngine
             float3 currentDir = startDir;
             float3 currentNormal = normal;
             SDFPrimitiveObjectDTO currentMat = startMat;
-            int curObjIndex = initialObjIndex;
+            uint curObjIndex = initialObjIndex;
             bool currentlyInsideObject = true;
 
             for (int transmit = 0; transmit < startMat.refractMaxRecursion; transmit++)
@@ -504,11 +504,11 @@ namespace DivisionEngine
                     bool foundExit = false;
                     float3 exitPt = float3.Zero;
                     float3 exitNorm = float3.Zero;
-                    int exitClosestObj;
+                    uint exitClosestObj;
 
                     for (int i = 0; i < currentMat.refractionMaxSteps; i++)
                     {
-                        float d = WorldSDF(p, false, out int closestObj);
+                        float d = WorldSDF(p, false, out uint closestObj);
 
                         // Check crossed boundary
                         bool nowInside = d < 0f;
@@ -528,8 +528,8 @@ namespace DivisionEngine
 
                             // Update state
                             currentlyInsideObject = nowInside;
-                            if (currentlyInsideObject && exitClosestObj >= 0 && exitClosestObj < sdfPrimitives.Length)
-                                currentMat = sdfPrimitives[exitClosestObj];
+                            if (currentlyInsideObject && exitClosestObj != uint.MaxValue && exitClosestObj < sdfPrimitives.Length)
+                                currentMat = sdfPrimitives[(int)exitClosestObj];
                             break;
                         }
 
@@ -562,13 +562,13 @@ namespace DivisionEngine
                         // Raymarch from exit point
                         float3 rayStart = exitPt + currentNormal * EPSILON;
                         float3 hitPoint = Raymarch(rayStart, currentDir, worldData[0].maxRaySteps,
-                                                  worldData[0].farPlane, out int nextObjIndex, out _);
+                                                  worldData[0].farPlane, out uint nextObjIndex, out _);
                         if (nextObjIndex >= 0 && nextObjIndex < sdfPrimitives.Length)
                         {
                             currentOrigin = hitPoint;
                             currentNormal = FastNormal(hitPoint);
                             if (Hlsl.Dot(currentNormal, currentDir) > 0) currentNormal = -currentNormal;
-                            currentMat = sdfPrimitives[nextObjIndex];
+                            currentMat = sdfPrimitives[(int)nextObjIndex];
                             currentlyInsideObject = true;
                         }
                         else
@@ -595,8 +595,8 @@ namespace DivisionEngine
 
             // Trace
             int maxRaySteps = worldData[0].maxRaySteps;
-            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out totalDist);
-            if (closestObjIndex == -1 || totalDist > farClipPlane)
+            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out uint closestObjIndex, out totalDist);
+            if (closestObjIndex == uint.MaxValue || totalDist > farClipPlane)
             {
                 finalColor += worldData[0].backgroundColor.XYZ;
                 return finalColor;
@@ -607,7 +607,7 @@ namespace DivisionEngine
             float3 viewDir = -rayDir;
 
             // Get material properties
-            SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
+            SDFPrimitiveObjectDTO entity = sdfPrimitives[(int)closestObjIndex];
             float3 albedoColor = entity.color.RGB;
             float metallic = entity.metallic;
             float roughness = Hlsl.Max(entity.roughness, 0.1f);
@@ -658,8 +658,8 @@ namespace DivisionEngine
             for (int bounce = 0; bounce < 32; bounce++)
             {
                 // Raymarch
-                float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out float depth);
-                if (closestObjIndex == -1 || depth > farClipPlane)
+                float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out uint closestObjIndex, out float depth);
+                if (closestObjIndex == uint.MaxValue || depth > farClipPlane)
                 {
                     finalColor += contribution * worldData[0].backgroundColor.XYZ;
                     if (firstHit) totalDist = depth;
@@ -674,7 +674,7 @@ namespace DivisionEngine
                 actualBounces = bounce + 1; // Count this bounce
 
                 // Get material properties
-                SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
+                SDFPrimitiveObjectDTO entity = sdfPrimitives[(int)closestObjIndex];
                 float3 albedoColor = entity.color.RGB;
                 float metallic = entity.metallic;
                 float roughness = Hlsl.Max(entity.roughness, 0.1f);
@@ -687,7 +687,7 @@ namespace DivisionEngine
                 {
                     outputNormal = normal;
                     totalDist = depth;
-                    entityIdBuffer[pixel.X + pixel.Y * (int)width] = entity.entityId;
+                    entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2(closestObjIndex, entity.entityId);
                     mainMat = entity;
                     if (entity.hasRefraction == 1)
                     {
