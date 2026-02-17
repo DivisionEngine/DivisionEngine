@@ -1,5 +1,6 @@
 ﻿using Avalonia.Media;
 using System;
+using Color = Avalonia.Media.Color;
 
 namespace DivisionEngine.Editor
 {
@@ -63,5 +64,40 @@ namespace DivisionEngine.Editor
             Convert.ToByte(color.X * 255f),
             Convert.ToByte(color.Y * 255f),
             Convert.ToByte(color.Z * 255f)));
+
+        /// <summary>
+        /// Converts a hex string starting with '#' to a color.
+        /// </summary>
+        /// <param name="hex">Input hex string</param>
+        /// <returns>Solid color output</returns>
+        public static SolidColorBrush FromHex(string hex)
+        {
+            hex = hex.TrimStart('#');
+            if (hex.Length == 6)
+            {
+                int rgb = Convert.ToInt32(hex, 16);
+                int r = (rgb >> 16) & 0xFF;
+                int g = (rgb >> 8) & 0xFF;
+                int b = rgb & 0xFF;
+                return new SolidColorBrush(Color.FromRgb(
+                    Convert.ToByte(r),
+                    Convert.ToByte(g),
+                    Convert.ToByte(b)));
+            }
+            else if (hex.Length == 8)
+            {
+                int argb = Convert.ToInt32(hex, 16);
+                int a = (argb >> 24) & 0xFF;
+                int r = (argb >> 16) & 0xFF;
+                int g = (argb >> 8) & 0xFF;
+                int b = argb & 0xFF;
+                return new SolidColorBrush(Color.FromArgb(
+                    Convert.ToByte(a),
+                    Convert.ToByte(r),
+                    Convert.ToByte(g),
+                    Convert.ToByte(b)));
+            }
+            return new SolidColorBrush(new Color(0, 0, 0, 0));
+        }
     }
 }

@@ -144,43 +144,43 @@ namespace DivisionEngine
         /// <param name="point">World position to evaluate</param>
         /// <param name="shadowCastCheck">Should the tracer verify shadow casters</param>
         /// <returns>Float2 representing the min distance, and closest object</returns>
-        private float WorldSDF(float3 point, bool shadowCastCheck, out uint closest)
+        private float WorldSDF(float3 point, bool shadowCastCheck, out int closest)
         {
             float minDist = MIN_TRAVERSE_DIST;
 
-            closest = uint.MaxValue;
-            for (uint i = 0; i < sdfPrimitives.Length; i++)
+            closest = -1;
+            for (int i = 0; i < sdfPrimitives.Length; i++)
             {
-                SDFPrimitiveObjectDTO curPrimitive = sdfPrimitives[(int)i];
+                SDFPrimitiveObjectDTO curPrimitive = sdfPrimitives[i];
                 if (shadowCastCheck && !curPrimitive.shadowEffects.X) continue;
                 float3 scaling = curPrimitive.scaling;
                 float3 curPoint = point - curPrimitive.position; // Transform SDF
                 curPoint = RotateVector(curPoint, curPrimitive.rotation); // Rotate SDF
                 curPoint *= scaling;
 
-                float dist;
+                // Scale distance function
+                float dist = Hlsl.Min(scaling.X, Hlsl.Min(scaling.Y, scaling.Z));
                 if (curPrimitive.type == 0) // Adds sphere SDFs
-                    dist = SphereSDF(curPoint, curPrimitive.parameters.X);
+                    dist *= SphereSDF(curPoint, curPrimitive.parameters.X);
                 else if (curPrimitive.type == 1) // Adds box SDFs
-                    dist = BoxSDF(curPoint, curPrimitive.parameters.XYZ);
+                    dist *= BoxSDF(curPoint, curPrimitive.parameters.XYZ);
                 else if (curPrimitive.type == 2) // Adds rounded box SDFs
-                    dist = RoundedBoxSDF(curPoint, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
+                    dist *= RoundedBoxSDF(curPoint, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
                 else if (curPrimitive.type == 3) // Adds torus SDFs
-                    dist = TorusSDF(curPoint, curPrimitive.parameters.XY);
+                    dist *= TorusSDF(curPoint, curPrimitive.parameters.XY);
                 else if (curPrimitive.type == 4) // Adds pyramid SDFs
-                    dist = PyramidSDF(curPoint, curPrimitive.parameters.X);
+                    dist *= PyramidSDF(curPoint, curPrimitive.parameters.X);
                 else if (curPrimitive.type == 5) // Adds plane SDFs
-                    dist = PlaneSDF(curPoint, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
+                    dist *= PlaneSDF(curPoint, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
                 else if (curPrimitive.type == 6) // Adds cylinder SDFs
-                    dist = CylinderSDF(curPoint, curPrimitive.parameters.X, curPrimitive.parameters.Y);
+                    dist *= CylinderSDF(curPoint, curPrimitive.parameters.X, curPrimitive.parameters.Y);
                 else if (curPrimitive.type == 7) // Adds capsule SDFs
-                    dist = CapsuleSDF(curPoint, curPrimitive.parameters.X, curPrimitive.parameters.Y);
+                    dist *= CapsuleSDF(curPoint, curPrimitive.parameters.X, curPrimitive.parameters.Y);
                 else if (curPrimitive.type == 8) // Adds cone SDFs
-                    dist = ConeSDF(curPoint, curPrimitive.parameters.XY, curPrimitive.parameters.Z);
+                    dist *= ConeSDF(curPoint, curPrimitive.parameters.XY, curPrimitive.parameters.Z);
                 else // Default to sphere SDF
-                    dist = SphereSDF(curPoint, curPrimitive.parameters.X);
+                    dist *= SphereSDF(curPoint, curPrimitive.parameters.X);
 
-                dist *= Hlsl.Min(scaling.X, Hlsl.Min(scaling.Y, scaling.Z));
                 if (Hlsl.Abs(dist) < minDist)
                 {
                     closest = i;
@@ -229,11 +229,12 @@ namespace DivisionEngine
         // New soft-shadow technique:
         // Reference: https://iquilezles.org/articles/rmshadows/
         // New Version: https://www.shadertoy.com/view/tscSRS
-        private float SoftShadow2(float3 point, float3 dir, float start, float end, out uint closestObj)
+        private float SoftShadow2(float3 point, float3 dir, float start, float end, out int closestObj)
         {
             float depth = start, dist;
             float shadow = 1f;
-            closestObj = uint.MaxValue;
+            closestObj = -1;
+
             for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
             {
                 float sdf = WorldSDF(point + depth * dir, true, out closestObj);
@@ -410,10 +411,10 @@ namespace DivisionEngine
             return Hlsl.Normalize(tangent * h.X + bitangent * h.Y + normal * h.Z);
         }
 
-        private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out uint closestObj, out float depth)
+        private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out int closestObj, out float depth)
         {
             depth = worldData[0].nearPlane;
-            closestObj = uint.MaxValue;
+            closestObj = -1;
             float3 hitPoint = rayOrigin;
 
             for (int step = 0; step < maxSteps && depth < farClipPlane; step++)
@@ -426,40 +427,6 @@ namespace DivisionEngine
             }
             return hitPoint;
         }
-
-        //private bool TraceThroughObject(float3 entryPoint, float3 refractDir, float maxDepth, int maxSteps,
-        //    out float3 exitPoint, out float3 exitNormal, out float travelDistance)
-        //{
-        //    exitPoint = entryPoint;
-        //    exitNormal = float3.Zero;
-        //    travelDistance = 0f;
-
-        //    float depth = 0f;
-        //    const float stepScale = 1f; // Can be adjusted
-
-        //    for (int step = 0; step < maxSteps && depth < maxDepth; step++)
-        //    {
-        //        float3 currentPos = entryPoint + refractDir * depth;
-        //        float2 sdfData = WorldSDF(currentPos, false);
-        //        float dist = sdfData.X;
-
-        //        // Positive distance means we're outside the object
-        //        if (dist > EPSILON)
-        //        {
-        //            // Found exit point
-        //            exitPoint = currentPos;
-        //            exitNormal = -FastNormal(currentPos); // Normal points outward
-        //            travelDistance = depth;
-        //            return true;
-        //        }
-
-        //        // We're still inside - move forward
-        //        // Use positive step based on distance magnitude
-        //        depth += Hlsl.Max(Hlsl.Abs(dist) * stepScale, EPSILON * 10f);
-        //    }
-
-        //    return false; // Didn't find exit
-        //}
 
         private bool Refract(float3 incident, float3 normal, float eta, out float3 refracted)
         {
@@ -488,7 +455,6 @@ namespace DivisionEngine
             float3 currentDir = startDir;
             float3 currentNormal = normal;
             SDFPrimitiveObjectDTO currentMat = startMat;
-            uint curObjIndex = initialObjIndex;
             bool currentlyInsideObject = true;
 
             for (int transmit = 0; transmit < startMat.refractMaxRecursion; transmit++)
@@ -504,11 +470,9 @@ namespace DivisionEngine
                     bool foundExit = false;
                     float3 exitPt = float3.Zero;
                     float3 exitNorm = float3.Zero;
-                    uint exitClosestObj;
-
                     for (int i = 0; i < currentMat.refractionMaxSteps; i++)
                     {
-                        float d = WorldSDF(p, false, out uint closestObj);
+                        float d = WorldSDF(p, false, out int closestObj);
 
                         // Check crossed boundary
                         bool nowInside = d < 0f;
@@ -516,8 +480,7 @@ namespace DivisionEngine
                         {
                             exitPt = p;
                             exitNorm = FastNormal(p);
-                            exitClosestObj = closestObj;
-
+                            int exitClosestObj = closestObj;
                             if (Hlsl.Dot(exitNorm, refractDir) > 0) exitNorm = -exitNorm;
                             foundExit = true;
 
@@ -528,8 +491,8 @@ namespace DivisionEngine
 
                             // Update state
                             currentlyInsideObject = nowInside;
-                            if (currentlyInsideObject && exitClosestObj != uint.MaxValue && exitClosestObj < sdfPrimitives.Length)
-                                currentMat = sdfPrimitives[(int)exitClosestObj];
+                            if (currentlyInsideObject && exitClosestObj != -1 && exitClosestObj < sdfPrimitives.Length)
+                                currentMat = sdfPrimitives[exitClosestObj];
                             break;
                         }
 
@@ -562,13 +525,13 @@ namespace DivisionEngine
                         // Raymarch from exit point
                         float3 rayStart = exitPt + currentNormal * EPSILON;
                         float3 hitPoint = Raymarch(rayStart, currentDir, worldData[0].maxRaySteps,
-                                                  worldData[0].farPlane, out uint nextObjIndex, out _);
+                                                  worldData[0].farPlane, out int nextObjIndex, out _);
                         if (nextObjIndex >= 0 && nextObjIndex < sdfPrimitives.Length)
                         {
                             currentOrigin = hitPoint;
                             currentNormal = FastNormal(hitPoint);
                             if (Hlsl.Dot(currentNormal, currentDir) > 0) currentNormal = -currentNormal;
-                            currentMat = sdfPrimitives[(int)nextObjIndex];
+                            currentMat = sdfPrimitives[nextObjIndex];
                             currentlyInsideObject = true;
                         }
                         else
@@ -595,8 +558,8 @@ namespace DivisionEngine
 
             // Trace
             int maxRaySteps = worldData[0].maxRaySteps;
-            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out uint closestObjIndex, out totalDist);
-            if (closestObjIndex == uint.MaxValue || totalDist > farClipPlane)
+            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out totalDist);
+            if (closestObjIndex == -1 || totalDist > farClipPlane)
             {
                 finalColor += worldData[0].backgroundColor.XYZ;
                 return finalColor;
@@ -607,7 +570,7 @@ namespace DivisionEngine
             float3 viewDir = -rayDir;
 
             // Get material properties
-            SDFPrimitiveObjectDTO entity = sdfPrimitives[(int)closestObjIndex];
+            SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
             float3 albedoColor = entity.color.RGB;
             float metallic = entity.metallic;
             float roughness = Hlsl.Max(entity.roughness, 0.1f);
@@ -658,8 +621,8 @@ namespace DivisionEngine
             for (int bounce = 0; bounce < 32; bounce++)
             {
                 // Raymarch
-                float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out uint closestObjIndex, out float depth);
-                if (closestObjIndex == uint.MaxValue || depth > farClipPlane)
+                float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out float depth);
+                if (closestObjIndex == -1 || depth > farClipPlane)
                 {
                     finalColor += contribution * worldData[0].backgroundColor.XYZ;
                     if (firstHit) totalDist = depth;
@@ -674,7 +637,7 @@ namespace DivisionEngine
                 actualBounces = bounce + 1; // Count this bounce
 
                 // Get material properties
-                SDFPrimitiveObjectDTO entity = sdfPrimitives[(int)closestObjIndex];
+                SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
                 float3 albedoColor = entity.color.RGB;
                 float metallic = entity.metallic;
                 float roughness = Hlsl.Max(entity.roughness, 0.1f);
@@ -687,13 +650,13 @@ namespace DivisionEngine
                 {
                     outputNormal = normal;
                     totalDist = depth;
-                    entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2(closestObjIndex, entity.entityId);
+                    entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2((uint)closestObjIndex, entity.entityId);
                     mainMat = entity;
                     if (entity.hasRefraction == 1)
                     {
                         isRefractive = true;
                         fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.ior);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, entity, closestObjIndex);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, entity, (uint)closestObjIndex);
                     }
                     firstHit = false;
                 }
@@ -704,7 +667,7 @@ namespace DivisionEngine
 
                 // Shadows
                 float shadowValue = 1f;
-                if (entity.shadowEffects.Y && entity.reflectionShadows == 1)
+                if (entity.shadowEffects.Y && (bounce == 0 || entity.reflectionShadows == 1))
                 {
                     float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                     float2 shadowDistances = entity.shadowDistances;
@@ -721,6 +684,7 @@ namespace DivisionEngine
                 // Reflections
                 if (entity.hasReflection == 0) break;
                 if (bounce == entity.reflectionMaxBounces - 1) break;
+
                 maxRaySteps = (int)(maxRaySteps / entity.reflectRayStepFalloff);
                 float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f), f0);
                 float reflectionChance = Hlsl.Lerp(F.X, 1f, metallic);
@@ -756,14 +720,6 @@ namespace DivisionEngine
             return outputColor;
         }
 
-        private float2 RandomInUnitCircle(uint rngState)
-        {
-            uint rngHash = HaltonHash(rngState);
-            float angle = rngHash * 2 * PI;
-            float2 pointOnCircle = new float2(Hlsl.Cos(angle), Hlsl.Sin(angle));
-            return pointOnCircle * Hlsl.Sqrt(rngHash);
-        }
-
         /// <summary>
         /// Executes the raymarching sequence.
         /// </summary>
@@ -772,7 +728,7 @@ namespace DivisionEngine
             int2 pixel = ThreadIds.XY;
             texture[pixel] = new float4(0, 0, 0, 0);
             depthNormals[pixel] = new float4(0, 0, 0, 0);
-            entityIdBuffer[pixel.X + pixel.Y * (int)width] = uint.MaxValue;
+            entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2(uint.MaxValue, uint.MaxValue);
             bounceCountTexture[pixel] = 0;  // Initialize bounce count
 
             float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
@@ -811,24 +767,6 @@ namespace DivisionEngine
             float3 finalNormal = accumulatedNormal / SAMPLES_PER_PIXEL;
             float finalDist = accumulatedDistance / SAMPLES_PER_PIXEL;
 
-            switch (outputMode)
-            {
-                case 0:
-                    break;
-                case 1:
-                    finalColor = float3.One * (finalDist / maxPossibleDistance);
-                    break;
-                case 2:
-                    finalColor = Hlsl.Normalize((finalNormal + 1f) / 2f);
-                    break;
-                //case 3:
-                //    finalColor = new float3(objectIdBuffer[])
-                case 4:
-                    break;
-                default:
-                    break;
-            }
-
             // Optional ACES:
             finalColor = Hlsl.Clamp(finalColor * (2.51f * finalColor + 0.03f) / (finalColor * (2.43f * finalColor + 0.59f) + 0.14f), 0f, 1f);
             
@@ -842,6 +780,14 @@ namespace DivisionEngine
 // ----------------------------
 // Functions and code obseleted
 // ----------------------------
+
+//private float2 RandomInUnitCircle(uint rngState)
+//{
+//    uint rngHash = HaltonHash(rngState);
+//    float angle = rngHash * 2 * PI;
+//    float2 pointOnCircle = new float2(Hlsl.Cos(angle), Hlsl.Sin(angle));
+//    return pointOnCircle * Hlsl.Sqrt(rngHash);
+//}
 
 /*private float3 GetCamRayDir(float2 coord)
 {
