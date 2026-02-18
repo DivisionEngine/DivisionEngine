@@ -287,18 +287,24 @@ namespace DivisionEngine.Rendering
 
             boundWorld?.CallRender();
             int texWidth = 0, texHeight = 0;
+            IWindow? window;
+            lock (SyncLock)
+            {
+                window = RendererWindow;
+                if (window == null || window.IsClosing) return;
+            }
+
             try
             {
-                texWidth = RendererWindow!.Size.X;
-                texHeight = RendererWindow.Size.Y;
+                texWidth = window.Size.X;
+                texHeight = window.Size.Y;
+                if (texWidth < 1 || texHeight < 1) return;
             }
             catch (NullReferenceException ex)
             {
                 Debug.Warning($"Renderer: Render window lost, skipping rendering", ex);
                 return;
             }
-            if (texWidth < 1 || texHeight < 1) return;
-            if (RendererWindow!.IsClosing) return;
 
             SDFWorldDTO worldDTO;
             SDFPrimitiveObjectDTO[] sdfPrimitivesDTO;
