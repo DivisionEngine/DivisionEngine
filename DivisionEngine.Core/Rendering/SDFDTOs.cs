@@ -9,10 +9,12 @@ namespace DivisionEngine.Rendering
     {
         // Camera Properties
         public float3 cameraOrigin; // 12b
-        public float4x4 cameraToWorld; // 64b
-        public float4x4 cameraInverseProj; // 64b
+        public float4 invCamRot; // 16b
+        //public float4x4 cameraToWorld; // 64b
+        //public float4x4 cameraInverseProj; // 64b
         public float nearPlane; // 4b
         public float farPlane; // 4b
+        public float camScreenDist; // 4b
 
         // Environment Properties
         public float4 backgroundColor; // 16b

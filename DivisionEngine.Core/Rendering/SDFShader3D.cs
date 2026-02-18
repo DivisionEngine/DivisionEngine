@@ -10,7 +10,7 @@ namespace DivisionEngine
     public readonly partial struct SDFShader3D(
         float width,
         float height,
-        int outputMode,
+        float aspect,
         int frameCount,
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
@@ -31,38 +31,37 @@ namespace DivisionEngine
         const float MIN_THROUGHPUT = 0.01f;
         const float REFLECTION_BIAS = 2f; // Multiplier for normal offset
 
-        // Refraction constants
-        const float MIN_REFRACTION_CHANCE = 0.01f;
-        const float REFRACTION_BIAS = 5f; // Smaller bias for refraction
-
         // Lighting constants
         readonly float3 sunDir = new float3(0.5f, 0.8f, 0.3f);
 
-        // Obtained via Deepseek: https://chat.deepseek.com/share/avavmqykeivckbnakl
-        private float3 GetCameraRayDir(float2 uv)
+        private float AdaptiveEpsilon(float td) // Finish this
         {
-            float4 rayClip = new float4(uv, 0.0f, 1.0f);
-            float4 rayView = Hlsl.Mul(worldData[0].cameraInverseProj, rayClip);
-            rayView = new float4(rayView.XY, -1.0f, 0.0f);
-            float3 rayWorld = Hlsl.Mul(worldData[0].cameraToWorld, rayView).XYZ;
-            return Hlsl.Normalize(rayWorld);
-        }
-        
-        // Quaternion ref: https://gist.github.com/mattatz/40a91588d5fb38240403f198a938a593
-        // Quaternion multiplication
-        private float4 Qmul(float4 q1, float4 q2)
-        {
-            return new float4(
-                q2.XYZ * q1.W + q1.XYZ * q2.W + Hlsl.Cross(q1.XYZ, q2.XYZ),
-                q1.W * q2.W - Hlsl.Dot(q1.XYZ, q2.XYZ)
-            );
+            //float pixelSize = td * worldData[0].camScreenDist / height;
+            //return Hlsl.Max(EPSILON, pixelSize * 0.5f); // Half pixel size
+            return EPSILON;
         }
 
         // Quaternion rotation
         private float3 RotateVector(float3 v, float4 r)
         {
-            float4 r_c = r * new float4(-1, -1, -1, 1);
-            return Qmul(r, Qmul(new float4(v, 0), r_c)).XYZ;
+            float3 qv = r.XYZ;
+            float3 t = 2.0f * Hlsl.Cross(qv, v);
+            return v + r.W * t + Hlsl.Cross(qv, t);
+        }
+
+        private float3 GetCameraRayDirNew(float2 uv)
+        {
+            float4 q = worldData[0].invCamRot;
+
+            float3 forward = RotateVector(-float3.UnitZ, q);
+            float3 right = RotateVector(float3.UnitX, q);
+            float3 up = RotateVector(float3.UnitY, q);
+
+            float px = uv.X * aspect * worldData[0].camScreenDist;
+            float py = uv.Y * worldData[0].camScreenDist;
+
+            float3 rayDir = forward + right * px + up * py;
+            return Hlsl.Normalize(rayDir);
         }
 
         private float SphereSDF(float3 pt, float r)
@@ -422,7 +421,7 @@ namespace DivisionEngine
                 hitPoint = rayOrigin + rayDir * depth;
                 float worldDist = WorldSDF(hitPoint, false, out closestObj);
 
-                if (worldDist < EPSILON) break;
+                if (worldDist < AdaptiveEpsilon(depth)) break;
                 depth += worldDist;
             }
             return hitPoint;
@@ -497,7 +496,7 @@ namespace DivisionEngine
                         }
 
                         // Still in same medium
-                        float stepSize = Hlsl.Max(Hlsl.Abs(d), EPSILON);
+                        float stepSize = Hlsl.Max(Hlsl.Abs(d), AdaptiveEpsilon(travelDistance));
                         p += refractDir * stepSize;
                         travelDistance += stepSize;
                     }
@@ -601,7 +600,7 @@ namespace DivisionEngine
             float3 contribution = float3.One;
             float cosTheta = 0f;
 
-            float3 ambientBase = float3.One * 0.15f * worldData[0].backgroundColor.RGB;
+            float3 ambientBase = 0.15f * worldData[0].backgroundColor.RGB;
             float3 lightDir = Hlsl.Normalize(sunDir);
             float3 refractedLight = float3.Zero;
             SDFPrimitiveObjectDTO mainMat = default;
@@ -731,8 +730,9 @@ namespace DivisionEngine
             entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2(uint.MaxValue, uint.MaxValue);
             bounceCountTexture[pixel] = 0;  // Initialize bounce count
 
-            float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
-            uv.X *= width / height;
+            //float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
+            //uv.X *= width / height;
+            float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f; // New UV math
             float3 rayOrigin = worldData[0].cameraOrigin;
 
             float3 accumulatedColor = float3.Zero;
@@ -749,7 +749,11 @@ namespace DivisionEngine
                     int cameraSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sample;
                     float2 jitter = (Halton2D(cameraSampleIndex) - 0.5f) / new float2(width, height);
                     float2 jitteredUV = uv + jitter * 2f;
-                    rayDir = GetCameraRayDir(jitteredUV);
+                    rayDir = GetCameraRayDirNew(jitteredUV);
+                }
+                else
+                {
+                    rayDir = GetCameraRayDirNew(uv);
                 }
 
                 // Automatically skip reflection bounces for non-reflective materials
@@ -780,6 +784,16 @@ namespace DivisionEngine
 // ----------------------------
 // Functions and code obseleted
 // ----------------------------
+
+/*// Obtained via Deepseek: https://chat.deepseek.com/share/avavmqykeivckbnakl
+private float3 GetCameraRayDir(float2 uv)
+{
+    float4 rayClip = new float4(uv, 0.0f, 1.0f);
+    float4 rayView = Hlsl.Mul(worldData[0].cameraInverseProj, rayClip);
+    rayView = new float4(rayView.XY, -1.0f, 0.0f);
+    float3 rayWorld = Hlsl.Mul(worldData[0].cameraToWorld, rayView).XYZ;
+    return Hlsl.Normalize(rayWorld);
+}*/
 
 //private float2 RandomInUnitCircle(uint rngState)
 //{

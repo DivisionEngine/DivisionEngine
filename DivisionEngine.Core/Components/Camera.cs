@@ -22,7 +22,7 @@ namespace DivisionEngine.Components
             cameraToWorld = Matrix.Identity4x4;
             inverseProjectionMatrix = Matrix.Identity4x4;
 
-            enableDepthOfField = true;
+            enableDepthOfField = false;
             focusDistance = 24f;
             focalLength = 26f;
 

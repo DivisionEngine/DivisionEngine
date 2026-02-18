@@ -65,7 +65,11 @@ namespace DivisionEngine.Systems
                 float4 yawRot = Quaternion.CreateFromAxisAngle(new float3(0, 1, 0), yaw);
                 float4 pitchRot = Quaternion.CreateFromAxisAngle(new float3(1, 0, 0), pitch);
 
-                float4 newRot = Quaternion.Multiply(pitchRot, Quaternion.Multiply(currentRot, yawRot));
+                // Apply yaw first, then pitch
+                // Order matters: first rotate around world Y (yaw), then around local X (pitch)
+                float4 newRot = Quaternion.Multiply(currentRot, yawRot);
+                newRot = Quaternion.Multiply(pitchRot, newRot);
+
                 transform.rotation = newRot.Normalize();
             }
         }

@@ -1,11 +1,14 @@
-﻿using DivisionEngine.Components;
+﻿using ComputeSharp;
+using DivisionEngine.Components;
 using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
+using DivisionEngine.MathLib;
 using DivisionEngine.Rendering;
-using Math = DivisionEngine.MathLib.Math;
+using System.Net;
 using Environment = DivisionEngine.Components.Environment;
+using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {
@@ -50,10 +53,12 @@ namespace DivisionEngine.Systems
             foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
             {
                 worldData.cameraOrigin = transform.position;
-                worldData.cameraToWorld = camera.cameraToWorld;
-                worldData.cameraInverseProj = camera.inverseProjectionMatrix;
+                worldData.invCamRot = transform.rotation.InvertQuaternion();
+                //worldData.cameraToWorld = camera.cameraToWorld;
+                //worldData.cameraInverseProj = camera.inverseProjectionMatrix;
                 worldData.nearPlane = camera.nearClip;
                 worldData.farPlane = camera.farClip;
+                worldData.camScreenDist = CameraSystem.FovToScreenDistance(camera); // Calc camera screen distance
 
                 worldData.focusDistance = camera.focusDistance;
                 worldData.focalLength = camera.focalLength;
@@ -63,7 +68,6 @@ namespace DivisionEngine.Systems
 
                 if (camera.enableDivisionDenoise) worldData.enableDivisionDenoise = 1;
                 else worldData.enableDivisionDenoise = 0;
-
                 if (camera.enableATrousDenoise) worldData.enableATrousDenoise = 1;
                 else worldData.enableATrousDenoise = 0;
 

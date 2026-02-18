@@ -55,7 +55,7 @@
         /// <param name="quaternion">Quaternion to invert</param>
         /// <returns>Inverted quaternion</returns>
         public static float4 InvertQuaternion(this float4 quaternion) =>
-            System.Numerics.Quaternion.Inverse(quaternion.ToQuaternion()).ToFloat4();
+            new float4(-quaternion.X, -quaternion.Y, -quaternion.Z, quaternion.W);
 
         /// <summary>
         /// Linear interpolation between two quaternions by amount t.
@@ -140,7 +140,7 @@
         /// <returns>Float3 rotated vector</returns>
         public static float3 RotateVector(this float4 quaternion, float3 vector)
         {
-            float3 qVec = new float3(quaternion.X, quaternion.Y, quaternion.Z);
+            float3 qVec = new float3(-quaternion.X, -quaternion.Y, -quaternion.Z);
             float3 t = qVec.Cross(vector).Multiply(2.0f);
             return vector.Add(t.Multiply(quaternion.W)).Add(qVec.Cross(t));
         }

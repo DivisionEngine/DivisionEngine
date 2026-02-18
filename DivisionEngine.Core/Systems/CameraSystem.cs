@@ -1,4 +1,5 @@
-﻿using DivisionEngine.Components;
+﻿using ComputeSharp;
+using DivisionEngine.Components;
 using DivisionEngine.MathLib;
 using Math = DivisionEngine.MathLib.Math;
 
@@ -14,8 +15,8 @@ namespace DivisionEngine.Systems
         /// </summary>
         public override void Render()
         {
-            foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
-                UpdateCameraMatrices(transform, camera);
+            //foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
+            //    UpdateCameraMatrices(transform, camera);
         }
 
         private static void UpdateCameraMatrices(Transform transform, Camera camera)
@@ -27,11 +28,22 @@ namespace DivisionEngine.Systems
             camera.inverseProjectionMatrix = Matrix.Inverse(camera.projectionMatrix);
         }
 
-        private static float4x4 CalcCameraToWorldMatrix(Transform transform)
+        private static float4x4 CalcCameraToWorldMatrix(Transform t)
         {
-            return Matrix.Multiply(
-                Matrix.CreateMatrix4x4FromQuaternion(transform.rotation),
-                Matrix.CreateMatrix4x4FromTranslation(transform.position));
+            float3 forward = t.Forward;
+            float3 right = t.Right;
+            float3 up = t.Up;
+
+            //Debug.Info($"F {forward}");
+            //Debug.Info($"R {right}");
+            Debug.Info($"U {up}");
+
+            return new float4x4(
+                right.X, right.Y, right.Z, 0,
+                up.X, up.Y, up.Z, 0,
+                -forward.X, -forward.Y, -forward.Z, 0,
+                t.position.X, t.position.Y, t.position.Z, 1
+            );
         }
 
         private static float4x4 CalcCameraProjectionMatrix(Camera cam)
@@ -51,9 +63,10 @@ namespace DivisionEngine.Systems
                 0, 0, m43, 0);
         }
 
-        public static float FovToScreenDistance(float fov, float height)
+        public static float FovToScreenDistance(Camera cam)
         {
-            return height / 2 / MathF.Tan(fov * MathF.PI / 360);
+            float fovRadians = cam.fieldOfView * Math.PI / 180f;
+            return Math.Tan(fovRadians * 0.5f);
         }
     }
 }

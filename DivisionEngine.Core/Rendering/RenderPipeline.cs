@@ -387,7 +387,7 @@ namespace DivisionEngine.Rendering
                     int outputMode = 0;
                     if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
                 
-                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, outputMode, TimeSystem.FrameCount,
+                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, texWidth / (float)texHeight, outputMode, TimeSystem.FrameCount,
                         renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, worldBuffer, primitivesBuffer);
                     device?.For(texWidth, texHeight, shader);
 
