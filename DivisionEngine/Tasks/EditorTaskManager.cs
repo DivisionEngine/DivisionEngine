@@ -17,6 +17,14 @@ namespace DivisionEngine.Editor.Tasks
         /// </summary>
         public static event Action? TasksChanged;
 
+        /// <summary>
+        /// Creates a task in the task manager.
+        /// </summary>
+        /// <param name="name">Task display name</param>
+        /// <param name="description">Description of task to display</param>
+        /// <param name="initProgress">Initial progress value (0.0 - 1.0)</param>
+        /// <param name="icon">Task icon to display</param>
+        /// <returns>New editor task instance data</returns>
         public static EditorTask Create(string name, string description, float initProgress = 0f, MaterialIconKind icon = MaterialIconKind.TaskAuto)
         {
             EditorTask task = new EditorTask(name, description, initProgress, icon);
@@ -25,17 +33,40 @@ namespace DivisionEngine.Editor.Tasks
             return task;
         }
 
+        /// <summary>
+        /// Updates a task in the task manager.
+        /// </summary>
+        /// <param name="id">Task GUID to update</param>
+        /// <param name="progress">Progress value to set (0.0 - 1.0)</param>
         public static void Update(Guid id, float progress)
         {
             if (tasks.TryGetValue(id, out EditorTask? task))
             {
                 task.Progress = progress;
+                if (task.IsComplete) task.OnComplete?.Invoke(); // make sure this isnt called multiple times in the future
                 TasksChanged?.Invoke();
             }
         }
 
-        public static void Complete(Guid id) => Update(id, 1);
+        /// <summary>
+        /// Complete a task in the task manager.
+        /// </summary>
+        /// <param name="id">GUID of task to mark complete</param>
+        public static void Complete(Guid id)
+        {
+            Update(id, 1);
+        }
+
+        /// <summary>
+        /// Gets an enumerable of all the editor tasks.
+        /// </summary>
+        /// <returns>Enumerable of all editor tasks</returns>
         public static IEnumerable<EditorTask> GetAll() => tasks.Values;
+
+        /// <summary>
+        /// Removes a task from the editor task manager.
+        /// </summary>
+        /// <param name="id">GUID of task to remove</param>
         public static void Remove(Guid id)
         {
             if (tasks.TryRemove(id, out _))

@@ -1,7 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
-using DivisionEngine.Components;
 using DivisionEngine.Editor.Systems;
 using DivisionEngine.Editor.Tasks;
 using DivisionEngine.Projects;
@@ -119,13 +118,12 @@ namespace DivisionEngine.Editor.ViewModels
                 if (result.Count > 0 && !string.IsNullOrEmpty(result[0].Path.LocalPath))
                 {
                     string projectPath = result[0].Path.LocalPath;
+                    projectPath = Path.TrimEndingDirectorySeparator(projectPath); // Trim '\' at end of open project directory
                     if (ProjectManager.IsDivisionProject(projectPath)) // Check if this is a valid project directory
                     {
                         bool success = ProjectManager.LoadProject(projectPath);
                         if (success) // Check if loaded project
-                        {
                             AssetsWindow.LoadAssetsForCurrentProject();
-                        }
                         else Debug.Error($"Failed to load project: {projectPath}");
                     }
                     else Debug.Info("Selected folder is not a valid Division Engine project");
@@ -213,7 +211,7 @@ namespace DivisionEngine.Editor.ViewModels
                         return;
                     }
                 }
-                
+
                 // Save project
                 bool success = ProjectManager.SaveNewProject(projectName, projectPath);
                 if (success) // Check if successfully saved project
@@ -352,32 +350,24 @@ namespace DivisionEngine.Editor.ViewModels
         private void CloseTab(EditorWindowViewModel? vm)
         {
             if (vm is null) return;
-            else if (LeftTabs.Contains(vm))
+            else if (LeftTabs.Remove(vm))
             {
-                LeftTabs.Remove(vm);
-                if (LeftTabs.Count > 0)
-                    SelectedLeftTab = LeftTabs[LeftTabs.Count - 1];
+                if (LeftTabs.Count > 0) SelectedLeftTab = LeftTabs[^1];
                 else SelectedLeftTab = null;
             }
-            else if (RightTabs.Contains(vm))
+            else if (RightTabs.Remove(vm))
             {
-                RightTabs.Remove(vm);
-                if (RightTabs.Count > 0)
-                    SelectedRightTab = RightTabs[RightTabs.Count - 1];
+                if (RightTabs.Count > 0) SelectedRightTab = RightTabs[^1];
                 else SelectedRightTab = null;
             }
-            else if (BottomTabs.Contains(vm))
+            else if (BottomTabs.Remove(vm))
             {
-                BottomTabs.Remove(vm);
-                if (BottomTabs.Count > 0)
-                    SelectedBottomTab = BottomTabs[BottomTabs.Count - 1];
+                if (BottomTabs.Count > 0) SelectedBottomTab = BottomTabs[^1];
                 else SelectedBottomTab = null;
             }
-            else if (CenterTabs.Contains(vm))
+            else if (CenterTabs.Remove(vm))
             {
-                CenterTabs.Remove(vm);
-                if (CenterTabs.Count > 0)
-                    SelectedCenterTab = CenterTabs[CenterTabs.Count - 1];
+                if (CenterTabs.Count > 0) SelectedCenterTab = CenterTabs[^1];
                 else SelectedCenterTab = null;
             }
         }

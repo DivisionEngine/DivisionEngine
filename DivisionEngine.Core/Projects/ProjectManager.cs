@@ -24,11 +24,11 @@ namespace DivisionEngine.Projects
             !string.IsNullOrWhiteSpace(CurrentProjectPath) && !string.IsNullOrWhiteSpace(CurrentProjectName);
 
         /// <summary>
-        /// Searches project directory to find the project name.
+        /// Searches project directory to find the project file (ex. NewProject.divproj).
         /// </summary>
         /// <param name="projDir">Project directory to search</param>
         /// <returns>Project file name (includes .divproj extension)</returns>
-        public static string? GetProjectName(string projDir)
+        public static string? GetProjectFile(string projDir)
         {
             DirectoryInfo projDirInfo = new DirectoryInfo(projDir);
             if (projDirInfo.Exists)
@@ -44,7 +44,7 @@ namespace DivisionEngine.Projects
         /// </summary>
         /// <param name="projDir">Project top level directory</param>
         /// <returns>The path of the project file</returns>
-        public static string GetProjectPath(string projDir) => $"{projDir}\\{GetProjectName(projDir)!}";
+        public static string GetProjectPath(string projDir) => $"{projDir}\\{GetProjectFile(projDir)!}";
 
         /// <summary>
         /// Gets the project file path from the project directory and project name.
@@ -77,7 +77,7 @@ namespace DivisionEngine.Projects
         public static bool LoadProject(string projDir)
         {
             CurrentProjectPath = projDir;
-            CurrentProjectName = GetProjectName(projDir);
+            CurrentProjectName = GetProjectFile(projDir)?.Replace(".divproj", "");
 
             if (IsCurrentLoaded)
             {
@@ -196,20 +196,14 @@ namespace DivisionEngine.Projects
                     Debug.Error($"Project Failed Validation! | Path: {projDir}");
                     return false;
                 }
-
-                // Serialize world
-                WorldData worldData = WorldData.Current;
+                 
+                WorldData worldData = WorldData.Current; // Serialize world
                 string serializedWorld = Serialize.Default(worldData);
-
-                // Create project data
-                DivisionProject projectData = new DivisionProject(projName);
+                DivisionProject projectData = new DivisionProject(projName); // Create project data
                 string serializedProjectData = Serialize.Default(projectData);
 
-                // Write project file
-                File.WriteAllText(GetProjectPath(projDir, projName), serializedProjectData);
-
-                // Write single world file
-                File.WriteAllText(GetWorldPath(projDir, worldData), serializedWorld);
+                File.WriteAllText(GetProjectPath(projDir, projName), serializedProjectData); // Write project file
+                File.WriteAllText(GetWorldPath(projDir, worldData), serializedWorld); // Write single world file
                 return true;
             }
             return false;
@@ -241,7 +235,6 @@ namespace DivisionEngine.Projects
                 // Validate assets directory
                 DirectoryInfo assetsDir = new DirectoryInfo($"{projectDir}\\Assets\\");
                 if (!assetsDir.Exists) assetsDir.Create();
-
                 return true;
             }
             return false;

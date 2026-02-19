@@ -266,11 +266,6 @@ namespace DivisionEngine
             return f0 + (float3.One - f0) * Hlsl.Pow(1f - cosTheta, 5f);
         }
 
-        private float FresnelSchlick(float cosTheta, float f0)
-        {
-            return f0 + (1f - f0) * Hlsl.Pow(1f - cosTheta, 5f);
-        }
-
         /// <summary>
         /// Calculates the diffuse factor for GGX.
         /// </summary>
@@ -1076,81 +1071,81 @@ private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
 }*/
 
 /*private float3 RIS_SampleReflection(
-            int2 pixel,
-            float3 hitPoint,
-            float3 normal,
-            float3 viewDir,
-            float roughness,
-            float metallic,
-            float3 f0,
-            int frameCount,
-            int bounce,
-            out float misWeight)
-        {
-            // Reservoir for RIS
-            Reservoir reservoir = new Reservoir
-            {
-                sumWeights = 0f,
-                M = 0,
-                sampleDirection = float3.Zero,
-                sourcePDF = 0f,
-                targetPDF = 0f
-            };
+    int2 pixel,
+    float3 hitPoint,
+    float3 normal,
+    float3 viewDir,
+    float roughness,
+    float metallic,
+    float3 f0,
+    int frameCount,
+    int bounce,
+    out float misWeight)
+{
+    // Reservoir for RIS
+    Reservoir reservoir = new Reservoir
+    {
+        sumWeights = 0f,
+        M = 0,
+        sampleDirection = float3.Zero,
+        sourcePDF = 0f,
+        targetPDF = 0f
+    };
 
-            const int M_CANDIDATES = 32;  // Generate 32 candidates
-            float alpha = roughness * roughness;
+    const int M_CANDIDATES = 32;  // Generate 32 candidates
+    float alpha = roughness * roughness;
 
-            for (int i = 0; i < M_CANDIDATES; i++)
-            {
-                // Get unique seed for this candidate
-                uint seed = GetSeed(pixel, i, bounce, frameCount);
+    for (int i = 0; i < M_CANDIDATES; i++)
+    {
+        // Get unique seed for this candidate
+        uint seed = GetSeed(pixel, i, bounce, frameCount);
 
-                // Generate candidate using GGX importance sampling
-                float2 u = Halton2DScrambled(i, seed);
-                float3 candidateDir = ImportanceSampleGGX(u, normal, roughness);
+        // Generate candidate using GGX importance sampling
+        float2 u = Halton2DScrambled(i, seed);
+        float3 candidateDir = ImportanceSampleGGX(u, normal, roughness);
 
-                // Ensure candidate is above surface
-                float NdotL = Hlsl.Max(Hlsl.Dot(normal, candidateDir), 0f);
-                if (NdotL < 0.001f) continue;
+        // Ensure candidate is above surface
+        float NdotL = Hlsl.Max(Hlsl.Dot(normal, candidateDir), 0f);
+        if (NdotL < 0.001f) continue;
 
-                // Evaluate source PDF (BRDF PDF)
-                float3 H = Hlsl.Normalize(viewDir + candidateDir);
-                float NoH = Hlsl.Max(Hlsl.Dot(normal, H), 0f);
-                float VoH = Hlsl.Max(Hlsl.Dot(viewDir, H), 0f);
+        // Evaluate source PDF (BRDF PDF)
+        float3 H = Hlsl.Normalize(viewDir + candidateDir);
+        float NoH = Hlsl.Max(Hlsl.Dot(normal, H), 0f);
+        float VoH = Hlsl.Max(Hlsl.Dot(viewDir, H), 0f);
 
-                // GGX PDF
-                float D = D_GGX(NoH, roughness);
-                float sourcePDF = D * NoH / (4.0f * VoH);
+        // GGX PDF
+        float D = D_GGX(NoH, roughness);
+        float sourcePDF = D * NoH / (4.0f * VoH);
 
-                if (sourcePDF < 1e-6f) continue;
+        if (sourcePDF < 1e-6f) continue;
 
-                // Estimate incoming radiance for target PDF
-                // Simple approximation: could be improved with radiance cache
-                float estimatedRadiance = 1.0f;  // Placeholder - you'll improve this
+        // Estimate incoming radiance for target PDF
+        // Simple approximation: could be improved with radiance cache
+        float estimatedRadiance = 1.0f;  // Placeholder - you'll improve this
 
-                // For now, use BRDF value as target PDF
-                float3 F = FresnelSchlick(VoH, f0);
-                float G = GSmith(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f),
-                                NdotL, roughness);
+        // For now, use BRDF value as target PDF
+        float3 F = FresnelSchlick(VoH, f0);
+        float G = GSmith(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f),
+                        NdotL, roughness);
 
-                float3 brdfValue = F * D * G / (4.0f * NdotL * Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f));
-                float targetPDF = Hlsl.Length(brdfValue) * estimatedRadiance * NdotL;
+        float3 brdfValue = F * D * G / (4.0f * NdotL * Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f));
+        float targetPDF = Hlsl.Length(brdfValue) * estimatedRadiance * NdotL;
 
-                // Get random for reservoir update
-                float random = ScrambledHalton(i, 5, seed) % 1.0f;
+        // Get random for reservoir update
+        float random = ScrambledHalton(i, 5, seed) % 1.0f;
 
-                // Update reservoir
-                reservoir = UpdateReservoir(reservoir, candidateDir, sourcePDF, targetPDF, random);
-            }
+        // Update reservoir
+        reservoir = UpdateReservoir(reservoir, candidateDir, sourcePDF, targetPDF, random);
+    }
 
-            // Calculate MIS weight
-            float misWeight = 1.0f;
-            if (reservoir.M > 0 && reservoir.sumWeights > 0f && reservoir.sourcePDF > 0f)
-            {
-                misWeight = reservoir.targetPDF / (reservoir.sourcePDF * reservoir.sumWeights / reservoir.M);
-            }
+    // Calculate MIS weight
+    float misWeight = 1.0f;
+    if (reservoir.M > 0 && reservoir.sumWeights > 0f && reservoir.sourcePDF > 0f)
+    {
+        misWeight = reservoir.targetPDF / (reservoir.sourcePDF * reservoir.sumWeights / reservoir.M);
+    }
 
-            return (reservoir.sampleDirection, float3.One, misWeight);
-        }*/
+    return (reservoir.sampleDirection, float3.One, misWeight);
+}*/
 
 #pragma warning restore CA1416 // Validate platform compatibility

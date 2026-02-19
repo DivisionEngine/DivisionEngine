@@ -112,7 +112,7 @@
         /// </summary>
         /// <param name="message">Message of the log entry</param>
         /// <param name="level">Level of the log entry</param>
-        public static void Log(string message, LogLevel level)
+        public static void Log(string message, LogLevel level = LogLevel.Debug)
         {
             string prefix = level switch
             {
