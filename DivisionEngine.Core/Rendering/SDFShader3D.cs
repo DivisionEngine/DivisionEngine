@@ -14,7 +14,7 @@ namespace DivisionEngine
         int frameCount,
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
-        ReadWriteTexture2D<int> bounceCountTexture,  // NEW: Output bounce counts
+        ReadWriteTexture2D<int> bounceCountTexture,
         ReadWriteBuffer<uint2> entityIdBuffer,
         ReadOnlyBuffer<SDFWorldDTO> worldData,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
@@ -51,25 +51,18 @@ namespace DivisionEngine
 
         private float3 GetCameraRayDirNew(float2 uv)
         {
-            float4 q = worldData[0].invCamRot;
-
-            float3 forward = RotateVector(-float3.UnitZ, q);
-            float3 right = RotateVector(float3.UnitX, q);
-            float3 up = RotateVector(float3.UnitY, q);
-
             float px = uv.X * aspect * worldData[0].camScreenDist;
             float py = uv.Y * worldData[0].camScreenDist;
-
-            float3 rayDir = forward + right * px + up * py;
+            float3 rayDir = worldData[0].camForward + worldData[0].camRight * px + worldData[0].camUp * py;
             return Hlsl.Normalize(rayDir);
         }
 
         private float SphereSDF(float3 pt, float r)
         {
-            float3 s = new float3(8, 8, 8);
-            float3 l = new float3(100, 1, 100);
-            float3 q = pt - s * Hlsl.Clamp(Hlsl.Round(pt / s), -l, l);
-            return Hlsl.Length(q) - r;
+            //float3 s = new float3(8, 8, 8);
+            //float3 l = new float3(100, 1, 100);
+            //float3 q = pt - s * Hlsl.Clamp(Hlsl.Round(pt / s), -l, l);
+            return Hlsl.Length(pt) - r;
         }
 
         private float BoxSDF(float3 pt, float3 size)
@@ -236,8 +229,7 @@ namespace DivisionEngine
 
             for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
             {
-                float sdf = WorldSDF(point + depth * dir, true, out closestObj);
-                dist = sdf;
+                dist = WorldSDF(point + depth * dir, true, out closestObj);
                 if (depth > end || shadow < -1f) break;
 
                 shadow = Hlsl.Min(shadow, 40f * dist / depth);
@@ -279,23 +271,40 @@ namespace DivisionEngine
             return f0 + (1f - f0) * Hlsl.Pow(1f - cosTheta, 5f);
         }
 
-        private float D_GGX(float NoH, float roughness)
+        /// <summary>
+        /// Calculates the diffuse factor for GGX.
+        /// </summary>
+        /// <param name="NoH">Normal dot Halfway</param>
+        /// <param name="alpha">Roughness squared</param>
+        /// <returns>Diffuse GGX factor</returns>
+        private float D_GGX(float NoH, float alpha)
         {
-            float alpha = roughness * roughness;
             float alpha2 = alpha * alpha;
             float NoH2 = NoH * NoH;
             float b = NoH2 * (alpha2 - 1f) + 1f;
             return alpha2 * RECIPROCAL_PI / (b * b);
         }
 
-        private float GSmith(float NoV, float NoL, float roughness)
+        /// <summary>
+        /// Combines GGX Schlick functions for difference vectors.
+        /// </summary>
+        /// <param name="NoV">Normal dot View</param>
+        /// <param name="NoL">Normal dot Light</param>
+        /// <param name="alpha">Roughness squared</param>
+        /// <returns>G Smith value</returns>
+        private float GSmith(float NoV, float NoL, float alpha)
         {
-            return G1_GGX_Schlick(NoL, roughness) * G1_GGX_Schlick(NoV, roughness);
+            return G1_GGX_Schlick(NoL, alpha) * G1_GGX_Schlick(NoV, alpha);
         }
 
-        private float G1_GGX_Schlick(float NoV, float roughness)
+        /// <summary>
+        /// Calculates the GGX Schlick function.
+        /// </summary>
+        /// <param name="NoV">Normal dot View</param>
+        /// <param name="alpha">Roughness squared</param>
+        /// <returns>G1 factor for GGX Schlick</returns>
+        private float G1_GGX_Schlick(float NoV, float alpha)
         {
-            float alpha = roughness * roughness;
             float k = alpha / 2f;
             return Hlsl.Max(NoV, EPSILON) / (NoV * (1f - k) + k);
         }
@@ -306,16 +315,36 @@ namespace DivisionEngine
             return f0 + (f90 - f0) * Hlsl.Pow(1f - cosTheta, 5f);
         }
 
-        private float DisneyDiffuseFactor(float NoV, float NoL, float VoH, float roughness)
+        /// <summary>
+        /// Calculates the diffuse factor for the BRDF using Disney's method.
+        /// </summary>
+        /// <param name="NoV">Normal dot View</param>
+        /// <param name="NoL">Normal dot Light</param>
+        /// <param name="VoH">View dot Halfway</param>
+        /// <param name="alpha">Roughness value squared</param>
+        /// <returns>Disney diffuse factor for BRDF</returns>
+        private float DisneyDiffuseFactor(float NoV, float NoL, float VoH, float alpha)
         {
-            float alpha = roughness * roughness;
             float f90 = 0.5f + 2f * alpha * VoH * VoH;
             float F_In = FresnelSchlick90(NoL, 1f, f90);
             float F_Out = FresnelSchlick90(NoV, 1f, f90);
             return F_In * F_Out;
         }
 
-        private float3 BRDFMicrofacetFunction(float3 lightDir, float3 viewDir, float3 normal, float metallic, float roughness, float3 baseCol, float reflectance)
+        /// <summary>
+        /// The bi-directional reflectance distributionfunction using Cook-Torrance.
+        /// </summary>
+        /// <param name="lightDir">Light direction</param>
+        /// <param name="viewDir">View direction</param>
+        /// <param name="normal">Normal vector</param>
+        /// <param name="metallic">Metallic amount 0 or 1</param>
+        /// <param name="roughness">Roughness amount 0 - 1</param>
+        /// <param name="roughAlpha">Roughness * Roughness</param>
+        /// <param name="baseCol">Base color of material</param>
+        /// <param name="reflectance">Reflectance level of material</param>
+        /// <returns>BRDF output value</returns>
+        private float3 BRDFMicrofacetFunction(float3 lightDir, float3 viewDir, float3 normal,
+            float metallic, float roughness, float roughAlpha, float3 baseCol, float reflectance)
         {
             float3 halfwayDir = Hlsl.Normalize(viewDir + lightDir);
             float NoV = Hlsl.Clamp(Hlsl.Dot(normal, viewDir), 0f, 1f);
@@ -348,13 +377,10 @@ namespace DivisionEngine
         }
 
         /// <summary>
-        /// Calculates Fresnel reflectance for dielectrics(glass, water, etc.)
+        /// Calculates fresnel reflectance for dielectrics (glass, water, etc.)
         /// </summary>
-        private float SimpleFresnelDielectric(float cosθ, float ior)
+        private float SimpleFresnelDielectric(float cosθ, float f0)
         {
-            // Base reflection at perpendicular
-            float f0 = Hlsl.Pow((ior - 1.0f) / (ior + 1.0f), 2.0f);
-
             // Schlick approximation (close enough for most cases)
             return f0 + (1.0f - f0) * Hlsl.Pow(1.0f - cosθ, 5.0f);
         }
@@ -429,22 +455,21 @@ namespace DivisionEngine
 
         private bool Refract(float3 incident, float3 normal, float eta, out float3 refracted)
         {
-            float3 I = Hlsl.Normalize(incident);
-            float3 N = Hlsl.Normalize(normal);
-            float NdotI = Hlsl.Dot(N, I);
-
+            //float3 I = Hlsl.Normalize(incident);
+            //float3 N = Hlsl.Normalize(normal);
+            float NdotI = Hlsl.Dot(normal, incident);
             float k = 1.0f - eta * eta * (1.0f - NdotI * NdotI);
             if (k < 0f)
             {
                 refracted = float3.Zero;
                 return false; // Total internal reflection
             }
-            refracted = eta * I - (eta * NdotI + Hlsl.Sqrt(k)) * N;
+            refracted = eta * incident - (eta * NdotI + Hlsl.Sqrt(k)) * normal;
             refracted = Hlsl.Normalize(refracted);
             return true;
         }
 
-        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 normal, SDFPrimitiveObjectDTO startMat, uint initialObjIndex)
+        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 normal, SDFPrimitiveObjectDTO startMat, uint initialObjIndex)
         {
             float3 totalTransmittance = float3.One;  // Start with full transmittance
             float3 accumulatedColor = float3.Zero;
@@ -469,6 +494,8 @@ namespace DivisionEngine
                     bool foundExit = false;
                     float3 exitPt = float3.Zero;
                     float3 exitNorm = float3.Zero;
+                    float3 absorptionCoefficient = Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
+
                     for (int i = 0; i < currentMat.refractionMaxSteps; i++)
                     {
                         float d = WorldSDF(p, false, out int closestObj);
@@ -484,14 +511,16 @@ namespace DivisionEngine
                             foundExit = true;
 
                             // Calculate transmittance
-                            float3 absorptionCoefficient = -Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
-                            float3 segmentTransmittance = Hlsl.Exp(-absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
+                            float3 segmentTransmittance = Hlsl.Exp(absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
                             totalTransmittance *= segmentTransmittance;
 
                             // Update state
                             currentlyInsideObject = nowInside;
-                            if (currentlyInsideObject && exitClosestObj != -1 && exitClosestObj < sdfPrimitives.Length)
+                            if (currentlyInsideObject && exitClosestObj != -1)
+                            {
                                 currentMat = sdfPrimitives[exitClosestObj];
+                                absorptionCoefficient = Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
+                            }
                             break;
                         }
 
@@ -504,11 +533,10 @@ namespace DivisionEngine
                     if (!foundExit)
                     {
                         // Apply final absorption
-                        float3 absorptionCoefficient = -Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
-                        float3 segmentTransmittance = Hlsl.Exp(-absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
+                        float3 segmentTransmittance = Hlsl.Exp(absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
                         totalTransmittance *= segmentTransmittance;
 
-                        float3 bgColor = TraceRefractionExitRay(p, refractDir, out _, out _);
+                        float3 bgColor = TraceRefractionExitRay(p, refractDir, ambientBase, out _, out _);
                         accumulatedColor = bgColor;
                         break;
                     }
@@ -535,7 +563,7 @@ namespace DivisionEngine
                         }
                         else
                         {
-                            float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, out _, out _);
+                            float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, ambientBase, out _, out _);
                             accumulatedColor = bgColor;
                             break;
                         }
@@ -547,7 +575,7 @@ namespace DivisionEngine
             return accumulatedColor * totalTransmittance;
         }
 
-        private float3 TraceRefractionExitRay(float3 rayOrigin, float3 rayDir,
+        private float3 TraceRefractionExitRay(float3 rayOrigin, float3 rayDir, float3 ambientBase,
             out float3 normal, out float totalDist)
         {
             float3 finalColor = float3.Zero;
@@ -565,7 +593,7 @@ namespace DivisionEngine
             }
 
             // Hit surface
-            normal = StableNormal(hitPoint);
+            normal = FastNormal(hitPoint);
             float3 viewDir = -rayDir;
 
             // Get material properties
@@ -577,9 +605,9 @@ namespace DivisionEngine
             float ao = entity.ao;
 
             // Lighting
-            float3 ambientLightAmt = float3.One * 0.15f * worldData[0].backgroundColor.RGB * ao;
+            float3 ambientLightAmt = ambientBase * ao;
             float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
-            float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
+            float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, roughness * roughness, albedoColor, specular);
             float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, /*shadowValue * */NoL);
             finalColor += directLight;
             return finalColor;
@@ -654,15 +682,11 @@ namespace DivisionEngine
                     if (entity.hasRefraction == 1)
                     {
                         isRefractive = true;
-                        fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.ior);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, normal, entity, (uint)closestObjIndex);
+                        fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, normal, entity, (uint)closestObjIndex);
                     }
                     firstHit = false;
                 }
-
-                // Calculate f0 for reflections
-                float3 f0 = float3.One * 0.16f * specular * specular;
-                f0 = Hlsl.Lerp(f0, albedoColor, new float3(metallic, metallic, metallic));
 
                 // Shadows
                 float shadowValue = 1f;
@@ -675,7 +699,7 @@ namespace DivisionEngine
 
                 // Direct lighting
                 float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
-                float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
+                float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, roughness * roughness, albedoColor, specular);
                 float3 directLight = Hlsl.Lerp(ambientBase * ao, brdf, shadowValue * NoL);
                 if (bounce == 0) surfaceColor = directLight;
                 finalColor += contribution * directLight;
@@ -685,7 +709,7 @@ namespace DivisionEngine
                 if (bounce == entity.reflectionMaxBounces - 1) break;
 
                 maxRaySteps = (int)(maxRaySteps / entity.reflectRayStepFalloff);
-                float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f), f0);
+                float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f), entity.f0_reflectance);
                 float reflectionChance = Hlsl.Lerp(F.X, 1f, metallic);
 
                 // Adjust reflection chance for refractive objects
@@ -701,7 +725,7 @@ namespace DivisionEngine
                 int reflectionSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sampleIndexInPixel * 3271 + bounce * 997;
                 float2 u = Halton2D(reflectionSampleIndex);
                 float3 halfVector = ImportanceSampleGGX(u, normal, roughness); // Importance sample
-                float3 reflectDir = Hlsl.Reflect(-viewDir, halfVector);
+                float3 reflectDir = Hlsl.Normalize(Hlsl.Reflect(rayDir, halfVector));
                 if (Hlsl.Dot(reflectDir, normal) < 0.01f) break; // Make sure reflection is above surface
 
                 rayOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS; // Prepare for next iteration

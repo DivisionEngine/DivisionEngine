@@ -52,25 +52,30 @@ namespace DivisionEngine.Systems
             // Gather camera data
             foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
             {
+                // Camera transform
                 worldData.cameraOrigin = transform.position;
-                worldData.invCamRot = transform.rotation.InvertQuaternion();
-                //worldData.cameraToWorld = camera.cameraToWorld;
-                //worldData.cameraInverseProj = camera.inverseProjectionMatrix;
+                worldData.camForward = transform.Forward;
+                worldData.camRight = transform.Right;
+                worldData.camUp = transform.Up;
+
+                // Camera distances
                 worldData.nearPlane = camera.nearClip;
                 worldData.farPlane = camera.farClip;
                 worldData.camScreenDist = CameraSystem.FovToScreenDistance(camera); // Calc camera screen distance
-
+                
+                // Depth of field
                 worldData.focusDistance = camera.focusDistance;
                 worldData.focalLength = camera.focalLength;
 
+                // Ray step counts
                 worldData.maxRaySteps = camera.maxRaySteps;
                 worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
 
+                // Denoising
                 if (camera.enableDivisionDenoise) worldData.enableDivisionDenoise = 1;
                 else worldData.enableDivisionDenoise = 0;
                 if (camera.enableATrousDenoise) worldData.enableATrousDenoise = 1;
                 else worldData.enableATrousDenoise = 0;
-
                 worldData.divisionThreshold = camera.divisionDenoiseThreshold;
                 worldData.divisionDomain = camera.divisionDenoiseDomain;
                 worldData.aTrousStepCount = camera.aTrousStepCount;
@@ -131,19 +136,6 @@ namespace DivisionEngine.Systems
                         Math.Max(1f / transform.scaling.Z, EPSILON)),
                 };
 
-                // Material
-                if (W.HasComponent<SDFMaterial>(id))
-                {
-                    SDFMaterial mat = W.GetComponent<SDFMaterial>(id)!;
-                    curPrimitive.color = mat.albedoColor;
-                    curPrimitive.metallic = mat.metallic;
-                    curPrimitive.roughness = mat.roughness;
-                    curPrimitive.specular = mat.specular;
-                    curPrimitive.ior = mat.ior;
-                    curPrimitive.ao = mat.ambientOcclusion;
-                    curPrimitive.reflectance = mat.reflectance;
-                }
-
                 // Effects
                 if (W.HasComponent<SoftShadows>(id))
                 {
@@ -169,6 +161,29 @@ namespace DivisionEngine.Systems
                     curPrimitive.absorptionColor = refract.absorptionColor;
                     curPrimitive.refractionMaxSteps = refract.maxRaySteps;
                     curPrimitive.refractMaxRecursion = refract.maxRecursionTraces;
+                }
+
+                // Material
+                if (W.HasComponent<SDFMaterial>(id))
+                {
+                    SDFMaterial mat = W.GetComponent<SDFMaterial>(id)!;
+                    curPrimitive.color = mat.albedoColor;
+                    curPrimitive.metallic = mat.metallic;
+                    curPrimitive.roughness = mat.roughness;
+                    curPrimitive.specular = mat.specular;
+                    curPrimitive.ior = mat.ior;
+                    curPrimitive.ao = mat.ambientOcclusion;
+                    curPrimitive.reflectance = mat.reflectance;
+
+                    // Precalculate material values
+                    float s2016 = 0.16f * mat.specular * mat.specular;
+                    float3 f0 = new float3(s2016, s2016, s2016);
+                    curPrimitive.f0_reflectance = new float3(
+                        Math.Lerp(f0.X, mat.albedoColor.X, mat.metallic),
+                        Math.Lerp(f0.Y, mat.albedoColor.Y, mat.metallic),
+                        Math.Lerp(f0.Z, mat.albedoColor.Z, mat.metallic));
+                    if (curPrimitive.hasRefraction == 1)
+                        curPrimitive.f0_dielectric = Math.Pow((mat.ior - 1.0f) / (mat.ior + 1.0f), 2.0f);
                 }
 
                 // Primitives

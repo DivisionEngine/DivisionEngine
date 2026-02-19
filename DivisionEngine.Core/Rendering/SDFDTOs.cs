@@ -9,9 +9,9 @@ namespace DivisionEngine.Rendering
     {
         // Camera Properties
         public float3 cameraOrigin; // 12b
-        public float4 invCamRot; // 16b
-        //public float4x4 cameraToWorld; // 64b
-        //public float4x4 cameraInverseProj; // 64b
+        public float3 camForward; // 12b
+        public float3 camRight; // 12b
+        public float3 camUp; // 12b
         public float nearPlane; // 4b
         public float farPlane; // 4b
         public float camScreenDist; // 4b
@@ -54,6 +54,10 @@ namespace DivisionEngine.Rendering
         public float ior; // 4b
         public float ao; // 4b
         public float reflectance; // 4b
+
+        // Precalculated Material Properties
+        public float3 f0_reflectance; // 12b
+        public float f0_dielectric; // 4b
 
         // Effect Properties
         public float2 shadowDistances; // 8b
