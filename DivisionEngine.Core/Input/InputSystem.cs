@@ -129,7 +129,7 @@ namespace DivisionEngine.Input
         private readonly HashSet<MouseCode> pressedMouseKeys;
         private readonly Lock syncLock;
 
-        private float2 mousePos, mouseUV, mouseDelta, mouseUVDelta;
+        private float2 mousePos, mouseUV, mouseDelta, mouseUVDelta, wheelDelta;
 
         /// <summary>
         /// Retrieve the mouse position on screen.
@@ -150,6 +150,11 @@ namespace DivisionEngine.Input
         /// Retrieve the mouse delta between last mouse position record.
         /// </summary>
         public static float2 MouseUVDelta { get { lock (Instance!.syncLock) return Instance.mouseUVDelta; } }
+
+        /// <summary>
+        /// Retrieve the mouse scroll wheel delta.
+        /// </summary>
+        public static float2 WheelDelta { get { lock (Instance!.syncLock) return Instance.wheelDelta; } }
 
         /// <summary>
         /// Initializes a new input system singleton.
@@ -176,6 +181,7 @@ namespace DivisionEngine.Input
             //Debug.Info($"Update from input system instance (V pressed): {IsPressed(KeyCode.V)}");
             if (mouseDelta.X != 0 || mouseDelta.Y != 0) mouseDelta = float2.Zero;
             if (mouseUVDelta.X != 0 || mouseUVDelta.Y != 0) mouseUVDelta = float2.Zero;
+            if (wheelDelta.X != 0 || wheelDelta.Y != 0) wheelDelta = float2.Zero;
         }
 
         public void SetKeyDown(KeyCode key)
@@ -204,6 +210,14 @@ namespace DivisionEngine.Input
             {
                 mouseDelta = newMousePos - mousePos;
                 mousePos = newMousePos;
+            }
+        }
+
+        public void SetMouseWheel(float2 newWheelDelta)
+        {
+            lock (syncLock)
+            {
+                wheelDelta = newWheelDelta;
             }
         }
 

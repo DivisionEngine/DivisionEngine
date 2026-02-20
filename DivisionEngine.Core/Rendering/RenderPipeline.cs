@@ -170,7 +170,7 @@ namespace DivisionEngine.Rendering
                 RendererWindow.Load += OnLoad;
                 RendererWindow.Render += OnRender;
                 RendererWindow.Closing += OnClosing;
-                RendererWindow.FocusChanged += (f) => RenderWindowFocusd!(f);
+                RendererWindow.FocusChanged += (f) => { if (RenderWindowFocusd != null) RenderWindowFocusd!(f); };
 
                 Debug.Info("Renderer: Starting window run loop");
                 RendererWindow.Run();

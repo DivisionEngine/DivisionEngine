@@ -192,6 +192,12 @@ namespace DivisionEngine.Editor
                     float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
                     UserInput?.SetRelativeMousePosition(posConverted, screenSize);
                 };
+
+                mouse.Scroll += (m, wheel) =>
+                {
+                    float2 posConverted = new float2(wheel.X, wheel.Y);
+                    UserInput?.SetMouseWheel(posConverted);
+                };
             }
             Debug.Info("Setup Input Handlers: Input configured successfully");
         }
