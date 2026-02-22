@@ -70,10 +70,7 @@ namespace DivisionEngine.Editor.Tasks
         /// Complete a task in the task manager.
         /// </summary>
         /// <param name="id">GUID of task to mark complete</param>
-        public static void Complete(Guid id)
-        {
-            Update(id, 1);
-        }
+        public static void Complete(Guid id) => Update(id, 1);
 
         /// <summary>
         /// Gets an enumerable of all the editor tasks.
@@ -87,10 +84,7 @@ namespace DivisionEngine.Editor.Tasks
         /// <param name="id">GUID of task to remove</param>
         public static void Remove(Guid id)
         {
-            if (tasks.TryRemove(id, out _))
-            {
-                TasksChanged?.Invoke(); // Make sure this line exists!
-            }
+            if (tasks.TryRemove(id, out _)) TasksChanged?.Invoke(); // Make sure this line exists!
         }
     }
 }

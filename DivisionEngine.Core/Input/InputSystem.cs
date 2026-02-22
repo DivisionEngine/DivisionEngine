@@ -195,7 +195,6 @@ namespace DivisionEngine.Input
         /// </summary>
         public void OnFixedUpdate()
         {
-            //Debug.Info($"Update from input system instance (V pressed): {IsPressed(KeyCode.V)}");
             if (mouseDelta.X != 0 || mouseDelta.Y != 0) mouseDelta = float2.Zero;
             if (mouseUVDelta.X != 0 || mouseUVDelta.Y != 0) mouseUVDelta = float2.Zero;
             if (wheelDelta.X != 0 || wheelDelta.Y != 0) wheelDelta = float2.Zero;
@@ -232,10 +231,7 @@ namespace DivisionEngine.Input
 
         public void SetMouseWheel(float2 newWheelDelta)
         {
-            lock (syncLock)
-            {
-                wheelDelta = newWheelDelta;
-            }
+            lock (syncLock) wheelDelta = newWheelDelta;
         }
 
         public void SetRelativeMousePosition(float2 newMousePos, float2 screenSize)

@@ -36,6 +36,8 @@ namespace DivisionEngine.Editor
     /// </summary>
     public partial class MainWindow : Window
     {
+        private static Flyout tasksFlyout;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="MainWindow"/> class.
         /// </summary>
@@ -136,12 +138,29 @@ namespace DivisionEngine.Editor
         {
             EditorTaskManager.TasksChanged += UpdateUniversalProgressBar;
 
-            // Make progress bar clickable
-            UniversalProgressBar.PointerPressed += (s, e) =>
+            // Find the progress bar container
+            Border? progressBarContainer = this.FindControl<Border>("ProgressBarContainer");
+            if (progressBarContainer != null)
             {
-                if (e.GetCurrentPoint(UniversalProgressBar).Properties.IsLeftButtonPressed)
-                    TaskContextMenu.Open(UniversalProgressBar);
-            };
+                // Create editor tasks flyout
+                tasksFlyout = new Flyout
+                {
+                    Placement = PlacementMode.Top, // Shows above progress bar
+                    ShowMode = FlyoutShowMode.TransientWithDismissOnPointerMoveAway,
+                    FlyoutPresenterClasses = { "tasks-foldout" }
+                };
+                UpdateTaskFoldoutContent(tasksFlyout); // Set flyout content
+
+                // Attach click handler to show the flyout
+                progressBarContainer.PointerPressed += (s, e) =>
+                {
+                    if (e.GetCurrentPoint(progressBarContainer).Properties.IsLeftButtonPressed)
+                    {
+                        UpdateTaskFoldoutContent(tasksFlyout); // Refresh before showing
+                        tasksFlyout.ShowAt(progressBarContainer);
+                    }
+                };
+            }
             UpdateUniversalProgressBar();
         }
 
@@ -161,17 +180,14 @@ namespace DivisionEngine.Editor
                 if (progressText != null)
                 {
                     progressText.Text = $"{avgProgress:P0}";
-                    progressText.Foreground = avgProgress >= 1 ? Brushes.LightGreen : Brushes.White;
+                    progressText.Foreground = avgProgress >= 1 ? Brushes.White : Brushes.Aquamarine;
                 }
                 if (taskCountText != null)
                 {
                     taskCountText.Text = $"{tasks.Count} task{(tasks.Count != 1 ? "s" : "")}";
-                    taskCountText.Foreground = avgProgress >= 1 ? Brushes.LightGreen : Brushes.Orange;
+                    taskCountText.Foreground = avgProgress >= 1 ? Brushes.White : Brushes.Aquamarine;
                 }
-
-                UniversalProgressBar.Foreground = avgProgress >= 1 // Update progress bar color
-                    ? EditorColor.FromRGB(76, 175, 80)  // Green
-                    : EditorColor.FromRGB(255, 106, 0); // Orange
+                UniversalProgressBar.Foreground = avgProgress >= 1 ? Brushes.SeaGreen : Brushes.Teal;
                 UniversalProgressBar.IsVisible = true;
             }
             else
@@ -181,62 +197,215 @@ namespace DivisionEngine.Editor
                 if (progressText != null) progressText.Text = "0%";
                 if (taskCountText != null) taskCountText.Text = "";
             }
-            UpdateTaskContextMenu(tasks);
+            UpdateTaskFoldoutContent(tasksFlyout);
         }
-        
+
         /// <summary>
         /// Updates the editor task manager context menu.
         /// </summary>
-        /// <param name="tasks">List of tasks in the context menu</param>
-        private void UpdateTaskContextMenu(List<EditorTask> tasks)
+        /// <param name="flyout">List of tasks in the context menu</param>
+        private void UpdateTaskFoldoutContent(Flyout flyout)
         {
-            TaskContextMenu.Items.Clear();
+            List<EditorTask> tasks = [.. EditorTaskManager.GetAll()];
             if (tasks.Count == 0)
             {
-                TaskContextMenu.Items.Add(new MenuItem
+                flyout.Content = new TextBlock
                 {
-                    Header = "No background tasks",
-                    IsEnabled = false,
+                    Text = "No background tasks",
                     Foreground = Brushes.Gray,
-                });
+                    Padding = new Thickness(20, 10),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                };
                 return;
             }
 
-            foreach (EditorTask task in tasks) // Add each task to the menu
+            // Create main container that stretches full width
+            StackPanel container = new StackPanel
             {
-                MenuItem menuItem = new MenuItem
+                MinWidth = 300,
+                MaxWidth = 500,
+                Spacing = 4,
+            };
+
+            // Add each task as a full-width item
+            foreach (EditorTask task in tasks)
+            {
+                Border taskBorder = new Border
                 {
-                    Header = CreateTaskMenuItem(task),
-                    Foreground = Brushes.White,
-                    MinWidth = 280,
-                    Padding = new Thickness(20, 0, 0, 0),
+                    Child = CreateTaskFoldoutItem(task), // Reuse your existing CreateTaskMenuItem but modify for full width
+                    BorderBrush = EditorColor.FromRGB(10, 10, 10),
+                    BorderThickness = new Thickness(0, 0, 1, 1),
+                    CornerRadius = new CornerRadius(4),
+                    Background = EditorColor.FromRGB(24, 24, 24),
+                    Padding = new Thickness(8, 6),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
                 };
-                TaskContextMenu.Items.Add(menuItem);
+                container.Children.Add(taskBorder);
             }
 
-            // Add clear completed option
-            // ALWAYS GET FRESH DATA
+            // Add clear completed section
             List<EditorTask> completedTasks = [.. tasks.Where(t => t.Progress >= 1)];
             if (completedTasks.Count > 0)
             {
-                TaskContextMenu.Items.Add(new Separator());
-                MenuItem clearItem = new MenuItem
+                Button clearButton = new Button
                 {
-                    Header = $"Clear completed ({completedTasks.Count})",
+                    Content = $"Clear completed ({completedTasks.Count})",
+                    Background = EditorColor.FromRGB(51, 51, 51),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Padding = new Thickness(10, 8),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    Cursor = new Cursor(StandardCursorType.Hand),
                 };
-
-                clearItem.Click += (s, e) =>
+                clearButton.Click += (s, e) =>
                 {
-                    // Re-fetch tasks to ensure we have current state
                     List<EditorTask> currentTasks = [.. EditorTaskManager.GetAll()];
                     IEnumerable<EditorTask> toRemove = [.. currentTasks.Where(t => t.Progress >= 1)];
-
-                    foreach (EditorTask task in toRemove)
-                        EditorTaskManager.Remove(task.Id);
-                    TaskContextMenu.Close(); // Close context menu after clearing
+                    foreach (EditorTask task in toRemove) EditorTaskManager.Remove(task.Id);
+                    flyout.Hide();
                 };
-                TaskContextMenu.Items.Add(clearItem);
+                container.Children.Add(clearButton);
             }
+            flyout.Content = container;
+        }
+
+        /// <summary>
+        /// Creates a full-width task item for the foldout.
+        /// </summary>
+        private static Control CreateTaskFoldoutItem(EditorTask task)
+        {
+            Grid grid = new Grid
+            {
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition(GridLength.Auto),
+                    new ColumnDefinition(new GridLength(1, GridUnitType.Star)),
+                    new ColumnDefinition(GridLength.Auto),
+                },
+                RowDefinitions =
+                {
+                    new RowDefinition(GridLength.Auto),
+                    new RowDefinition(GridLength.Auto),
+                    new RowDefinition(GridLength.Auto),
+                },
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
+
+            // Icon
+            MaterialIcon icon = new MaterialIcon
+            {
+                Kind = task.Icon,
+                Width = 16,
+                Height = 16,
+                Foreground = task.Progress >= 1 ? Brushes.SeaGreen : Brushes.Teal,
+                Margin = new Thickness(0, 2, 8, 0),
+                VerticalAlignment = VerticalAlignment.Top,
+            };
+            Grid.SetColumn(icon, 0);
+            Grid.SetRow(icon, 0);
+            Grid.SetRowSpan(icon, 2);
+
+            // Name and close button container
+            Grid nameContainer = new Grid
+            {
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Name
+                    new ColumnDefinition(GridLength.Auto), // Close button
+                },
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
+            TextBlock nameText = new TextBlock
+            {
+                Text = task.Name,
+                FontSize = 12,
+                FontWeight = FontWeight.SemiBold,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            Grid.SetColumn(nameText, 0);
+            Button closeButton = new Button
+            {
+                Content = "×",
+                FontSize = 16,
+                FontWeight = FontWeight.Bold,
+                Width = 20,
+                Height = 20,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Foreground = Brushes.Gray,
+                Padding = new Thickness(0),
+                Cursor = new Cursor(StandardCursorType.Hand),
+                Tag = task.Id,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(4, 0, 0, 0),
+            };
+            closeButton.PointerEntered += (s, e) => closeButton.Foreground = Brushes.White;
+            closeButton.PointerExited += (s, e) => closeButton.Foreground = Brushes.Gray;
+            closeButton.Click += (s, e) =>
+            {
+                if (closeButton.Tag is Guid taskId)
+                    EditorTaskManager.Remove(taskId);
+                e.Handled = true;
+            };
+            Grid.SetColumn(closeButton, 1);
+
+            nameContainer.Children.Add(nameText);
+            nameContainer.Children.Add(closeButton);
+            Grid.SetColumn(nameContainer, 1);
+            Grid.SetRow(nameContainer, 0);
+
+            // Description
+            TextBlock descText = new TextBlock
+            {
+                Text = task.Description,
+                FontSize = 10,
+                Foreground = EditorColor.FromRGB(180, 180, 180),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 2, 0, 4),
+            };
+            Grid.SetColumn(descText, 1);
+            Grid.SetColumnSpan(descText, 2);
+            Grid.SetRow(descText, 1);
+
+            // Progress text
+            TextBlock progressText = new TextBlock
+            {
+                Text = $"{task.Progress:P0}",
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 4, 0),
+            };
+            Grid.SetColumn(progressText, 2);
+            Grid.SetRow(progressText, 0);
+
+            // Progress bar
+            ProgressBar progressBar = new ProgressBar
+            {
+                Value = task.Progress * 100,
+                Maximum = 100,
+                Height = 4,
+                Background = EditorColor.FromRGB(40, 40, 40),
+                Foreground = task.Progress >= 1 ? Brushes.SeaGreen : Brushes.Teal,
+                Margin = new Thickness(0, 4, 0, 0),
+            };
+            Grid.SetColumn(progressBar, 0);
+            Grid.SetColumnSpan(progressBar, 3);
+            Grid.SetRow(progressBar, 2);
+
+            grid.Children.Add(icon);
+            grid.Children.Add(nameContainer);
+            grid.Children.Add(descText);
+            grid.Children.Add(progressText);
+            grid.Children.Add(progressBar);
+            return grid;
         }
 
         /// <summary>
