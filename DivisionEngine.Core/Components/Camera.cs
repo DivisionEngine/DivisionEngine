@@ -1,5 +1,4 @@
 ﻿using DivisionEngine.Components.FieldAttributes;
-using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Components
 {
@@ -16,11 +15,6 @@ namespace DivisionEngine.Components
             fieldOfView = 75f;
             nearClip = 0.01f;
             farClip = 10000f;
-
-            viewMatrix = Matrix.Identity4x4;
-            projectionMatrix = Matrix.Identity4x4;
-            cameraToWorld = Matrix.Identity4x4;
-            inverseProjectionMatrix = Matrix.Identity4x4;
 
             enableDepthOfField = false;
             focusDistance = 24f;
@@ -40,12 +34,6 @@ namespace DivisionEngine.Components
         [Tooltip("The viewing angle of the camera")] public float fieldOfView;
         [Tooltip("Near clip plane that the camera starts rendering at")] public float nearClip;
         [Tooltip("Far clip plane that the camera stops rendering at")] public float farClip;
-
-        // Matrices
-        [Tooltip("View matrix of the camera")] public float4x4 viewMatrix;
-        public float4x4 projectionMatrix;
-        [Tooltip("Inverse of the view matrix")] public float4x4 cameraToWorld;
-        public float4x4 inverseProjectionMatrix;
 
         // Depth of field vars
         public bool enableDepthOfField;
@@ -68,11 +56,6 @@ namespace DivisionEngine.Components
             fieldOfView = fieldOfView,
             nearClip = nearClip,
             farClip = farClip,
-
-            viewMatrix = viewMatrix,
-            projectionMatrix = projectionMatrix,
-            cameraToWorld = cameraToWorld,
-            inverseProjectionMatrix = inverseProjectionMatrix,
 
             enableDepthOfField = enableDepthOfField,
             focusDistance = focusDistance,

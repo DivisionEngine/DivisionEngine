@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 
 namespace DivisionEngine.Projects.Assets
 {
-    internal class ProjectAssetDatabase
+    public class ProjectAssetDatabase
     {
+        public string ProjectPath { get; set; } = string.Empty;
+        public Dictionary<string, FolderMetadata> Folders { get; set; } = []; // Key = relative folder path
+        public Dictionary<string, AssetMetadata> AllAssetsByGuid { get; set; } = []; // Master GUID l
     }
 }

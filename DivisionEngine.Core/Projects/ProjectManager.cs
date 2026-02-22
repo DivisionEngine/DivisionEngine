@@ -1,4 +1,5 @@
-﻿using DivisionEngine.Serialization;
+﻿using DivisionEngine.Projects.Assets;
+using DivisionEngine.Serialization;
 
 namespace DivisionEngine.Projects
 {
@@ -22,6 +23,10 @@ namespace DivisionEngine.Projects
         /// </summary>
         public static bool IsCurrentLoaded =>
             !string.IsNullOrWhiteSpace(CurrentProjectPath) && !string.IsNullOrWhiteSpace(CurrentProjectName);
+
+        public static AssetDatabase? AssetDatabase { get; private set; }
+
+        public static AssetManager? AssetManager { get; private set; }
 
         /// <summary>
         /// Searches project directory to find the project file (ex. NewProject.divproj).
@@ -88,7 +93,10 @@ namespace DivisionEngine.Projects
                     Debug.Error($"Project Failed Validation! | Path: {projDir}");
                     return false;
                 }
-                
+
+                // Initialize Asset System
+                InitializeAssetSystem(projDir);
+
                 // Load project file
                 DivisionProject? tempProjectData = null;
                 foreach (string projPath in Directory.EnumerateFiles(projDir, "*.divproj", SearchOption.TopDirectoryOnly))
@@ -178,6 +186,10 @@ namespace DivisionEngine.Projects
             return false;
         }
 
+        /// <summary>
+        /// Saves the current project.
+        /// </summary>
+        /// <returns>If a project is loaded</returns>
         public static bool SaveCurrentProject()
         {
             if (IsCurrentLoaded)
@@ -238,6 +250,34 @@ namespace DivisionEngine.Projects
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Sets up the asset database and asset manager.
+        /// </summary>
+        /// <param name="projDir">Project directory</param>
+        private static void InitializeAssetSystem(string projDir)
+        {
+            string assetsPath = Path.Combine(projDir, "Assets");
+            AssetDatabase = new AssetDatabase(assetsPath);
+            AssetManager = new AssetManager(AssetDatabase);
+
+            // Initial scan of assets
+            AssetDatabase.ScanAllFolders();
+
+            Debug.Info($"Asset System initialized. Found {AssetDatabase.GetAllAssets().Count()} assets.");
+        }
+
+        /// <summary>
+        /// Called when projects are closed.
+        /// </summary>
+        public static void CloseProject()
+        {
+            AssetManager?.UnloadAll();
+            AssetDatabase = null;
+            AssetManager = null;
+            CurrentProjectName = null;
+            CurrentProjectPath = null;
         }
     }
 }

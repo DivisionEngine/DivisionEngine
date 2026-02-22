@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 
 namespace DivisionEngine.Projects.Assets
 {
-    internal class FolderMetadata
+    public class FolderMetadata
     {
+        public string FolderPath { get; set; } = string.Empty;
+        public Dictionary<string, AssetMetadata> Assets { get; set; } = [];
+        public DateTime LastScanTime { get; set; }
     }
 }

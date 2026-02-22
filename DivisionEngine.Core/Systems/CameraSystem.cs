@@ -10,16 +10,7 @@ namespace DivisionEngine.Systems
     /// </summary>
     public class CameraSystem : SystemBase
     {
-        /// <summary>
-        /// Called before the world is rendered.
-        /// </summary>
-        public override void Render()
-        {
-            //foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
-            //    UpdateCameraMatrices(transform, camera);
-        }
-
-        private static void UpdateCameraMatrices(Transform transform, Camera camera)
+        /*private static void UpdateCameraMatrices(Transform transform, Camera camera)
         {
             float4x4 camToWorld = CalcCameraToWorldMatrix(transform);
             camera.cameraToWorld = camToWorld;
@@ -61,7 +52,7 @@ namespace DivisionEngine.Systems
                 0, m1122, 0, 0,
                 0, 0, m33, -1,
                 0, 0, m43, 0);
-        }
+        }*/
 
         public static float FovToScreenDistance(Camera cam)
         {

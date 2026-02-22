@@ -17,6 +17,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Xml;
 using Button = Avalonia.Controls.Button;
 using Math = DivisionEngine.MathLib.Math;
 
@@ -1307,7 +1308,7 @@ public partial class PropertiesWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
             HorizontalContentAlignment = HorizontalAlignment.Center,
-            //FormatString = "F2",
+            FormatString = "0.##",
             ShowButtonSpinner = hasSpinner,
         };
         numericBox.ValueChanged += (s, e) =>

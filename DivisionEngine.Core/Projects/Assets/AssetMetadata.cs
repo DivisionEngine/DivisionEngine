@@ -1,12 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DivisionEngine.Projects.Assets
+﻿namespace DivisionEngine.Projects.Assets
 {
-    internal class AssetMetadata
+    public class AssetMetadata
     {
+        public string ID { get; set; } = Guid.CreateVersion7().ToString();
+        public string FileName { get; set; } = string.Empty;
+        public string RelativePath { get; set; } = string.Empty;
+        public AssetType Type { get; set; } = AssetType.None;
+        public DateTime LastModified { get; set; }
+        public long FileSize { get; set; }
+        public List<string> Tags { get; set; } = [];
+        public Dictionary<string, object> CustomProperties { get; set; } = [];
     }
 }
