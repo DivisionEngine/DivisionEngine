@@ -25,6 +25,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.MathLib;
 using DivisionEngine.Projects;
+using DivisionEngine.Projects.Assets;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
@@ -49,6 +50,12 @@ public partial class AssetsWindow : EditorWindow
         Tiles, List
     }
 
+    /// <summary>
+    /// Current view state of this assets window.
+    /// </summary>
+    public ViewState CurrentView { get; private set; }
+
+    // Window vars
     private const double listItemHeight = 25;
     private static readonly List<AssetsWindow?> currentWindows = [];
 
@@ -67,11 +74,28 @@ public partial class AssetsWindow : EditorWindow
     private readonly Button viewButton;
     private readonly MaterialIcon viewButtonIcon;
 
-    /// <summary>
-    /// Current view state of this assets window.
-    /// </summary>
-    public ViewState CurrentView { get; private set; }
+    // Data vars
     private string currentPath;
+    private static bool eventsSubscribed = false; // Track if subscribed to events
+    private bool inProjectMode => ProjectManager.IsCurrentLoaded; // Track if in project mode
+    private string curRelativeDBPath = ""; // Relative path for database queries
+
+    /// <summary>
+    /// Static constructor to subscribe to all project events once.
+    /// </summary>
+    static AssetsWindow() => SubscribeToProjectEvents();
+
+    /// <summary>
+    /// Subscribe to project manager events.
+    /// </summary>
+    private static void SubscribeToProjectEvents()
+    {
+        if (eventsSubscribed) return;
+        ProjectManager.ProjectLoaded += OnProjectLoaded;
+        ProjectManager.ProjectClosing += OnProjectClosing;
+        ProjectManager.ProjectClosed += OnProjectClosed;
+        eventsSubscribed = true;
+    }
 
     /// <summary>
     /// Build a new assets window and link up callbacks.
@@ -253,7 +277,7 @@ public partial class AssetsWindow : EditorWindow
             listSizePanel.Children.Clear();
 
             // Dispatch asset loading
-            Dispatcher.UIThread.Post(() => LoadAssetsAtPath(newPath));
+            Dispatcher.UIThread.Post(() => LoadAssetsAtPathNew(newPath));
         }
     }
 
@@ -262,9 +286,8 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     public static void LoadAssetsForCurrentProject()
     {
-        ValidatePropertiesWindows();
-        foreach (AssetsWindow? window in currentWindows)
-            window!.Setup(ProjectManager.CurrentProjectPath);
+        ValidateWindows();
+        foreach (AssetsWindow? window in currentWindows) window!.Setup(ProjectManager.CurrentProjectPath);
     }
 
     /// <summary>
@@ -272,15 +295,14 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     public static void LoadAssets(string path)
     {
-        ValidatePropertiesWindows();
-        foreach (AssetsWindow? window in currentWindows)
-            window!.Setup(path);
+        ValidateWindows();
+        foreach (AssetsWindow? window in currentWindows) window!.Setup(path);
     }
 
     /// <summary>
     /// Makes sure all assets windows in current list are active.
     /// </summary>
-    private static void ValidatePropertiesWindows()
+    private static void ValidateWindows()
     {
         foreach (AssetsWindow? window in currentWindows.ToArray()) // Dont forget to create iterator copy
         {
@@ -305,14 +327,29 @@ public partial class AssetsWindow : EditorWindow
             return false;
         }
         currentPath = path;
-        
+
+        if (inProjectMode) // Check if in project mode
+        {
+            string assetsRoot = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
+            if (path.StartsWith(assetsRoot))
+            {
+                curRelativeDBPath = Path.GetRelativePath(assetsRoot, path);
+                if (curRelativeDBPath == ".") curRelativeDBPath = "";
+            }
+            else
+            {
+                // Path is outside Assets folder, still display but cannot use asset DB
+                curRelativeDBPath = "";
+            }
+        }
+
         // Clear panels
         assetsTilePanel.Children.Clear();
         listNamePanel.Children.Clear();
         listSizePanel.Children.Clear();
 
         // Dispatch asset loading
-        if (path == directoryField.Text) Dispatcher.UIThread.Post(() => LoadAssetsAtPath(path));
+        if (path == directoryField.Text) Dispatcher.UIThread.Post(() => LoadAssetsAtPathNew(path));
         else directoryField.Text = path;
         return true;
     }
@@ -320,7 +357,7 @@ public partial class AssetsWindow : EditorWindow
     /// <summary>
     /// Navigates up one level by reloading assets in the parent directory.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>Successful navigation up one directory level or not</returns>
     private bool NavigateUpOneLevel()
     {
         if (string.IsNullOrEmpty(currentPath)) return false;
@@ -355,26 +392,53 @@ public partial class AssetsWindow : EditorWindow
     /// Loads all assets at a specific path.
     /// </summary>
     /// <param name="path">Path to load assets at</param>
-    private void LoadAssetsAtPath(string path)
+    //private void LoadAssetsAtPath(string path)
+    //{
+    //    try
+    //    {
+    //        DirectoryInfo pathInfo = new DirectoryInfo(path);
+    //        if (!pathInfo.Exists)
+    //        {
+    //            ShowEmptyState("Directory does not exist");
+    //            itemCountText.Text = "0 items";
+    //            return;
+    //        }
+
+    //        // Load correct view
+    //        int totalAssets = LoadViewStateInterchange(pathInfo);
+
+    //        // Update count
+    //        itemCountText.Text = $"{totalAssets} item{(totalAssets != 1 ? "s" : "")}";
+
+    //        // Show empty state if no assets
+    //        if (totalAssets == 0) ShowEmptyState("No Items");
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        Debug.Error($"Failed to load assets", ex);
+    //        ShowEmptyState($"Error: {ex.Message}");
+    //        itemCountText.Text = "Error";
+    //    }
+    //}
+
+    private void LoadAssetsAtPathNew(string path)
     {
         try
         {
-            DirectoryInfo pathInfo = new DirectoryInfo(path);
-            if (!pathInfo.Exists)
+            // If we're in project mode and this path is within the Assets folder,
+            // use the AssetDatabase for files
+            if (inProjectMode)
             {
-                ShowEmptyState("Directory does not exist");
-                itemCountText.Text = "0 items";
-                return;
+                string assetsRoot = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
+                if (path.StartsWith(assetsRoot))
+                {
+                    LoadAssetsUsingDatabase(path);
+                    return;
+                }
             }
 
-            // Load correct view
-            int totalAssets = LoadViewStateInterchange(pathInfo);
-
-            // Update count
-            itemCountText.Text = $"{totalAssets} item{(totalAssets != 1 ? "s" : "")}";
-
-            // Show empty state if no assets
-            if (totalAssets == 0) ShowEmptyState("No Items");
+            // Fall back to file system mode
+            LoadAssetsUsingFileSystem(path);
         }
         catch (Exception ex)
         {
@@ -382,6 +446,82 @@ public partial class AssetsWindow : EditorWindow
             ShowEmptyState($"Error: {ex.Message}");
             itemCountText.Text = "Error";
         }
+    }
+
+    /// <summary>
+    /// Load assets using the AssetDatabase (project mode)
+    /// </summary>
+    private void LoadAssetsUsingDatabase(string path)
+    {
+        AssetDatabase? database = ProjectManager.AssetDatabase;
+        if (database == null)
+        {
+            // Fall back to file system if database isn't available
+            LoadAssetsUsingFileSystem(path);
+            return;
+        }
+
+        DirectoryInfo pathInfo = new DirectoryInfo(path);
+        if (!pathInfo.Exists)
+        {
+            ShowEmptyState("Directory does not exist");
+            itemCountText.Text = "0 items";
+            return;
+        }
+
+        // Calculate relative path for database queries
+        string assetsRoot = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
+        string relativePath = Path.GetRelativePath(assetsRoot, path);
+        if (relativePath == ".") relativePath = "";
+
+        // Get folders from file system (always needed)
+        DirectoryInfo[] folders = pathInfo.GetDirectories();
+
+        // Get assets from database
+        List<AssetMetadata> assets = [.. database.GetAssetsInFolder(relativePath)];
+        int totalAssets = folders.Length + assets.Count;
+
+        // Load correct view
+        if (CurrentView == ViewState.Tiles)
+        {
+            assetsTilePanel.IsVisible = true;
+            assetsListPanel.IsVisible = false;
+            scrollViewer.Content = assetsTilePanel;
+
+            foreach (DirectoryInfo? folder in folders) CreateFolderTile(folder);
+            foreach (AssetMetadata? asset in assets) CreateAssetTile(asset);
+        }
+        else
+        {
+            assetsTilePanel.IsVisible = false;
+            assetsListPanel.IsVisible = true;
+            scrollViewer.Content = assetsListPanel;
+
+            foreach (DirectoryInfo? folder in folders) CreateFolderListItem(folder);
+            foreach (AssetMetadata? asset in assets) CreateAssetListItem(asset);
+        }
+
+        itemCountText.Text = $"{totalAssets} item{(totalAssets != 1 ? "s" : "")}";
+        if (totalAssets == 0) ShowEmptyState("No Items");
+    }
+
+    /// <summary>
+    /// Original file system loading (for when no project is loaded)
+    /// </summary>
+    private void LoadAssetsUsingFileSystem(string path)
+    {
+        DirectoryInfo pathInfo = new DirectoryInfo(path);
+        if (!pathInfo.Exists)
+        {
+            ShowEmptyState("Directory does not exist");
+            itemCountText.Text = "0 items";
+            return;
+        }
+
+        int totalAssets = LoadViewStateInterchange(pathInfo);
+        itemCountText.Text = $"{totalAssets} item{(totalAssets != 1 ? "s" : "")}";
+
+        if (totalAssets == 0) ShowEmptyState("No Items");
     }
 
     private static async Task<long> AccumulateFolderSize(DirectoryInfo pathInfo)
@@ -814,6 +954,202 @@ public partial class AssetsWindow : EditorWindow
     }
 
     /// <summary>
+    /// Creates a tile for an asset from the database.
+    /// </summary>
+    private void CreateAssetTile(AssetMetadata asset)
+    {
+        Border assetBorder = new Border
+        {
+            Width = 80,
+            Height = 85,
+            Background = EditorColor.FromRGB(24, 24, 24),
+            BorderThickness = new Thickness(1),
+            BorderBrush = EditorColor.FromRGB(68, 68, 68),
+            CornerRadius = new CornerRadius(4),
+            Margin = new Thickness(5),
+            Padding = new Thickness(5),
+            Cursor = new Cursor(StandardCursorType.Hand),
+        };
+        StackPanel assetStack = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        MaterialIcon assetIcon = CreateAssetTypeIcon(asset.Type, 48); // Asset icon based on type
+        string assetName = Path.GetFileNameWithoutExtension(asset.FileName); // Asset name (truncated if too long)
+        if (assetName.Length > 12) assetName = string.Concat(assetName.AsSpan(0, 10), "..");
+        TextBlock assetNameText = new TextBlock
+        {
+            Text = assetName,
+            Foreground = Brushes.White,
+            FontSize = 10,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 80,
+        };
+        TextBlock typeText = new TextBlock // Asset type indicator
+        {
+            Text = GetAssetTypeShortName(asset.Type),
+            Foreground = Brushes.LightGray,
+            FontSize = 8,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
+        assetStack.Children.Add(assetIcon);
+        assetStack.Children.Add(assetNameText);
+        assetStack.Children.Add(typeText);
+        assetBorder.Child = assetStack;
+
+        // Hover effect
+        assetBorder.PointerEntered += (s, e) => { assetBorder.Background = EditorColor.FromRGB(17, 17, 17); };
+        assetBorder.PointerExited += (s, e) => { assetBorder.Background = EditorColor.FromRGB(24, 24, 24); };
+
+        // Double-click to show info (placeholder)
+        assetBorder.DoubleTapped += (s, e) =>
+        {
+            Debug.Info($"Asset: {asset.FileName} | Type: {asset.Type} | GUID: {asset.ID}");
+        };
+        assetsTilePanel.Children.Add(assetBorder);
+    }
+
+    /// <summary>
+    /// Creates a list item for an asset.
+    /// </summary>
+    private void CreateAssetListItem(AssetMetadata asset)
+    {
+        // Asset icon based on type
+        MaterialIcon assetIcon = CreateAssetTypeIcon(asset.Type, 22);
+        assetIcon.VerticalAlignment = VerticalAlignment.Center;
+        assetIcon.Padding = new Thickness(8, 2, 0, 2);
+
+        // Asset name and size
+        string assetName = Path.GetFileNameWithoutExtension(asset.FileName);
+        if (assetName.Length > 64) assetName = string.Concat(assetName.AsSpan(0, 60), "..");
+        string fileSize = EditorUI.FormatFileSize(asset.FileSize);
+
+        TextBlock assetNameText = new TextBlock
+        {
+            Text = assetName,
+            Foreground = Brushes.White,
+            FontSize = 14,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(2),
+        };
+        TextBlock assetSizeText = new TextBlock
+        {
+            Text = fileSize,
+            Foreground = Brushes.White,
+            FontSize = 14,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(4, 2, 2, 2),
+            Height = listItemHeight,
+        };
+        TextBlock assetTypeText = new TextBlock
+        {
+            Text = GetAssetTypeDisplayName(asset.Type),
+            Foreground = Brushes.LightGray,
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(10, 0, 0, 0),
+        };
+        StackPanel listName = new StackPanel
+        {
+            Children = { assetIcon, assetNameText, assetTypeText },
+            Spacing = 2,
+            Orientation = Orientation.Horizontal,
+            Height = listItemHeight,
+        };
+        StackPanel listSize = new StackPanel
+        {
+            Children = { assetSizeText },
+            Spacing = 2,
+            Orientation = Orientation.Horizontal,
+            Height = listItemHeight,
+        };
+
+        listName.DoubleTapped += (s, e) =>
+        {
+            Debug.Info($"Asset: {asset.FileName} | Type: {asset.Type} | GUID: {asset.ID}");
+        };
+        listSize.DoubleTapped += (s, e) =>
+        {
+            Debug.Info($"Asset: {asset.FileName} | Type: {asset.Type} | GUID: {asset.ID}");
+        };
+        listNamePanel.Children.Add(listName);
+        listSizePanel.Children.Add(listSize);
+    }
+
+    /// <summary>
+    /// Creates an icon for an asset type.
+    /// </summary>
+    private static MaterialIcon CreateAssetTypeIcon(AssetType type, double size)
+    {
+        MaterialIconKind iconKind = type switch
+        {
+            AssetType.Texture => MaterialIconKind.Image,
+            AssetType.SDF => MaterialIconKind.CubeOutline,
+            AssetType.Material => MaterialIconKind.Palette,
+            AssetType.Script => MaterialIconKind.CodeBraces,
+            AssetType.Audio => MaterialIconKind.Audio,
+            AssetType.Font => MaterialIconKind.FormatFont,
+            _ => MaterialIconKind.FileDocument,
+        };
+        float4 iconColor = type switch
+        {
+            AssetType.Texture => ColorPalette.SkyBlue,
+            AssetType.SDF => ColorPalette.LightSeaGreen,
+            AssetType.Material => ColorPalette.Orange,
+            AssetType.Script => ColorPalette.Khaki,
+            AssetType.Audio => ColorPalette.Coral,
+            AssetType.Font => ColorPalette.Khaki,
+            _ => ColorPalette.Gray,
+        };
+        return new MaterialIcon
+        {
+            Kind = iconKind,
+            Width = size,
+            Height = size,
+            Foreground = EditorColor.FromColor(iconColor),
+            Margin = new Thickness(0, 0, 0, 5),
+        };
+    }
+
+    /// <summary>
+    /// Gets a short display name for asset type.
+    /// </summary>
+    private static string GetAssetTypeShortName(AssetType type) => type switch
+    {
+        AssetType.Texture => "TEX",
+        AssetType.SDF => "SDF",
+        AssetType.Material => "MAT",
+        AssetType.Script => "SCR",
+        AssetType.Audio => "AUD",
+        AssetType.Font => "FNT",
+        _ => "AST",
+    };
+
+    /// <summary>
+    /// Gets a display name for asset type.
+    /// </summary>
+    private static string GetAssetTypeDisplayName(AssetType type) => type switch
+    {
+        AssetType.Texture => "Texture",
+        AssetType.SDF => "SDF",
+        AssetType.Material => "Material",
+        AssetType.Script => "Script",
+        AssetType.Audio => "Audio",
+        AssetType.Font => "Font",
+        _ => "Asset",
+    };
+
+    /// <summary>
     /// Shows an empty state in the display panel area.
     /// </summary>
     /// <param name="message">Empty message to display</param>
@@ -849,5 +1185,72 @@ public partial class AssetsWindow : EditorWindow
         if (CurrentView == ViewState.Tiles)
             assetsTilePanel.Children.Add(emptyStack);
         else listNamePanel.Children.Add(emptyStack);
+    }
+
+    /// <summary>
+    /// Called when a project is loaded.
+    /// </summary>
+    private static void OnProjectLoaded()
+    {
+        ValidateWindows();
+        foreach (AssetsWindow? window in currentWindows)
+            window?.OnProjectLoadedInternal();
+    }
+
+    /// <summary>
+    /// Called when a project is about to close.
+    /// </summary>
+    private static void OnProjectClosing()
+    {
+        ValidateWindows();
+        foreach (AssetsWindow? window in currentWindows)
+            window?.OnProjectClosingInternal();
+    }
+
+    /// <summary>
+    /// Called when a project is closed.
+    /// </summary>
+    private static void OnProjectClosed()
+    {
+        ValidateWindows();
+        foreach (AssetsWindow? window in currentWindows) window?.OnProjectClosedInternal();
+    }
+
+    /// <summary>
+    /// Instance method for project loaded.
+    /// </summary>
+    private void OnProjectLoadedInternal()
+    {
+        // Navigate to the Assets folder root
+        string assetsPath = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
+        if (Directory.Exists(assetsPath))
+            Dispatcher.UIThread.Post(() => LoadAssets(assetsPath));
+    }
+
+    /// <summary>
+    /// Instance method for project closing.
+    /// </summary>
+    private void OnProjectClosingInternal()
+    {
+        // Optional: Show saving indicator, etc.
+        Dispatcher.UIThread.Post(() => {
+            Debug.Info("Project closing, preparing assets window...");
+        });
+    }
+
+    /// <summary>
+    /// Instance method for project closed.
+    /// </summary>
+    private void OnProjectClosedInternal()
+    {
+        // Clear and show empty state
+        Dispatcher.UIThread.Post(() => {
+            currentPath = string.Empty;
+            curRelativeDBPath = "";
+            directoryField.Watermark = "No Project Loaded";
+            directoryField.Text = string.Empty;
+            itemCountText.Text = "0 items";
+            ShowEmptyState("No Project Loaded");
+        });
     }
 }

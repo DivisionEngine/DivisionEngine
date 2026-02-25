@@ -73,50 +73,23 @@
     </StackPanel>
 
    <!--Bottom Utility Bar-->
-<Grid DockPanel.Dock="Bottom" Background="#444" Height="24">
-    <Grid HorizontalAlignment="Right" VerticalAlignment="Center" Width="200">
+    <Grid DockPanel.Dock="Bottom" Background="#444" Height="24">
+        <Grid HorizontalAlignment="Right" VerticalAlignment="Center" Width="200">
+            <!--Progress Bar And Text-->
+            <Border x:Name="ProgressBarContainer" Background="Transparent" CornerRadius="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <ProgressBar x:Name="UniversalProgressBar" Height="18" Background="#111" Margin="0,0,8,0"
+                             Foreground="#FF6A00" Cursor="Hand" IsHitTestVisible="True"/>
+            </Border>
         
-        <!-- Container for the progress bar and text - this will host the flyout -->
-        <Border x:Name="ProgressBarContainer" 
-                Background="Transparent"
-                CornerRadius="3"
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Stretch">
-            
-            <!-- Progress Bar (no longer has its own ContextMenu) -->
-            <ProgressBar x:Name="UniversalProgressBar" 
-                         Height="18" 
-                         Background="#111" 
-                         Margin="0,0,8,0" 
-                         Foreground="#FF6A00" 
-                         Cursor="Hand" 
-                         IsHitTestVisible="True"/>
-            
-        </Border>
-        
-        <!-- Text overlays (remain the same) -->
-        <TextBlock x:Name="ProgressPercentageText"
-                   Text="0%"
-                   FontSize="10"
-                   FontWeight="Bold"
-                   Foreground="White"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center"
-                   IsHitTestVisible="False"
-                   IsVisible="{Binding #UniversalProgressBar.IsVisible}"/>
-        
-        <TextBlock x:Name="TaskCountText"
-                   Text="0"
-                   FontSize="10"
-                   Foreground="White"
-                   HorizontalAlignment="Right"
-                   VerticalAlignment="Center"
-                   Margin="0,0,8,0"
-                   IsHitTestVisible="False"
-                   IsVisible="{Binding #UniversalProgressBar.IsVisible}"/>
-        
+            <!--Text Overlays-->
+            <TextBlock x:Name="ProgressPercentageText" Text="0%" FontSize="10" FontWeight="Bold" Foreground="White"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                       IsVisible="{Binding #UniversalProgressBar.IsVisible}"/>
+            <TextBlock x:Name="TaskCountText" Text="0" FontSize="10" Foreground="White"
+                       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" IsHitTestVisible="False"
+                       IsVisible="{Binding #UniversalProgressBar.IsVisible}"/>
+        </Grid>
     </Grid>
-</Grid>
 
     <!--Basic Grid Layout-->
     <Grid ColumnDefinitions="*, 2, 300">

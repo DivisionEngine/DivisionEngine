@@ -212,7 +212,7 @@ namespace DivisionEngine.Editor.ViewModels
                 string projectPath = Path.Combine(selectedFolder, projectName);
 
                 // Check if folder already exists
-                if (Directory.Exists(projectPath) && Directory.GetFiles(projectPath, "*.divproj").Length > 0)
+                if (Directory.Exists(projectPath) && Directory.GetFiles(projectPath, "*.divp").Length > 0)
                 {
                     ConfirmationDialog confirmDialog = new ConfirmationDialog
                     {

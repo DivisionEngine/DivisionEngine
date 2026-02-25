@@ -16,9 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
-using DivisionEngine.Input;
-using static DivisionEngine.Debug;
-
 namespace DivisionEngine.Tests
 {
     /// <summary>

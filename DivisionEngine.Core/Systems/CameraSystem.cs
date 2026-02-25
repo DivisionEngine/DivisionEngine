@@ -16,9 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
-using ComputeSharp;
 using DivisionEngine.Components;
-using DivisionEngine.MathLib;
 using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems

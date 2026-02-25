@@ -16,18 +16,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace DivisionEngine.Projects.Assets
 {
+    /// <summary>
+    /// Represents metadata for folders in Assets folder.
+    /// </summary>
     public class FolderMetadata
     {
+        /// <summary>
+        /// Relative folder path.
+        /// </summary>
         public string FolderPath { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Asset metadatas organized by asset GUID.
+        /// </summary>
         public Dictionary<string, AssetMetadata> Assets { get; set; } = [];
+
+        /// <summary>
+        /// Last time the folder was scanned.
+        /// </summary>
         public DateTime LastScanTime { get; set; }
     }
 }

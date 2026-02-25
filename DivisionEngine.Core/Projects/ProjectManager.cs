@@ -42,21 +42,33 @@ namespace DivisionEngine.Projects
         public static bool IsCurrentLoaded =>
             !string.IsNullOrWhiteSpace(CurrentProjectPath) && !string.IsNullOrWhiteSpace(CurrentProjectName);
 
+        /// <summary>
+        /// Asset database currently in use.
+        /// </summary>
         public static AssetDatabase? AssetDatabase { get; private set; }
 
+        /// <summary>
+        /// Asset manager currently in use.
+        /// </summary>
         public static AssetManager? AssetManager { get; private set; }
 
+        // Project Events
+
+        public static event Action? ProjectLoaded;
+        public static event Action? ProjectClosing;
+        public static event Action? ProjectClosed;
+
         /// <summary>
-        /// Searches project directory to find the project file (ex. NewProject.divproj).
+        /// Searches project directory to find the project file (ex. NewProject.divp).
         /// </summary>
         /// <param name="projDir">Project directory to search</param>
-        /// <returns>Project file name (includes .divproj extension)</returns>
+        /// <returns>Project file name (includes .divp extension)</returns>
         public static string? GetProjectFile(string projDir)
         {
             DirectoryInfo projDirInfo = new DirectoryInfo(projDir);
             if (projDirInfo.Exists)
             {
-                foreach (FileInfo file in projDirInfo.EnumerateFiles("*.divproj", SearchOption.TopDirectoryOnly))
+                foreach (FileInfo file in projDirInfo.EnumerateFiles("*.divp", SearchOption.TopDirectoryOnly))
                     return file.Name;
             }
             return null;
@@ -75,7 +87,7 @@ namespace DivisionEngine.Projects
         /// <param name="projDir">Project top level directory</param>
         /// <param name="projName">Project name</param>
         /// <returns>The path of the project file</returns>
-        public static string GetProjectPath(string projDir, string projName) => $"{projDir}\\{projName}.divproj";
+        public static string GetProjectPath(string projDir, string projName) => $"{projDir}\\{projName}.divp";
 
         /// <summary>
         /// Gets the path to the world data file.
@@ -100,7 +112,7 @@ namespace DivisionEngine.Projects
         public static bool LoadProject(string projDir)
         {
             CurrentProjectPath = projDir;
-            CurrentProjectName = GetProjectFile(projDir)?.Replace(".divproj", "");
+            CurrentProjectName = GetProjectFile(projDir)?.Replace(".divp", "");
 
             if (IsCurrentLoaded)
             {
@@ -117,7 +129,7 @@ namespace DivisionEngine.Projects
 
                 // Load project file
                 DivisionProject? tempProjectData = null;
-                foreach (string projPath in Directory.EnumerateFiles(projDir, "*.divproj", SearchOption.TopDirectoryOnly))
+                foreach (string projPath in Directory.EnumerateFiles(projDir, "*.divp", SearchOption.TopDirectoryOnly))
                 {
                     string projJson = File.ReadAllText(projPath);
                     if (!string.IsNullOrEmpty(projJson))
@@ -144,6 +156,8 @@ namespace DivisionEngine.Projects
                     Debug.Info("Project Manager: World data deserialized.");
                     LoadWorldDataIntoCurrent(tempWorldData);
                 }
+
+                ProjectLoaded?.Invoke(); // Notify that a project was loaded
                 return true;
             }
             return false;
@@ -240,12 +254,7 @@ namespace DivisionEngine.Projects
         }
 
         /// <summary>
-        /// Directory setup should be:
-        /// Project Folder/
-        /// - project.divproj
-        /// - world.wld
-        /// - Assets/
-        ///     - example.png
+        /// Validates correct project directory setup.
         /// </summary>
         /// <param name="projName">The name of the project folder</param>
         /// <param name="projectDir">The directiory of the project</param>
@@ -291,11 +300,15 @@ namespace DivisionEngine.Projects
         /// </summary>
         public static void CloseProject()
         {
+            ProjectClosing?.Invoke(); // Start closing notify
+
             AssetManager?.UnloadAll();
             AssetDatabase = null;
             AssetManager = null;
             CurrentProjectName = null;
             CurrentProjectPath = null;
+
+            ProjectClosed?.Invoke(); // Closed notify
         }
     }
 }

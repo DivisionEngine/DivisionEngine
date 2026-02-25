@@ -18,6 +18,9 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
+    /// <summary>
+    /// Represents the metadata for asset files.
+    /// </summary>
     public class AssetMetadata
     {
         public string ID { get; set; } = Guid.CreateVersion7().ToString();

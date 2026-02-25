@@ -16,14 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace DivisionEngine.Projects.Assets
 {
+    /// <summary>
+    /// Type of an asset.
+    /// </summary>
     public enum AssetType
     {
         None,
@@ -35,28 +32,30 @@ namespace DivisionEngine.Projects.Assets
         Font,
     }
 
-    public class AssetRef(string guid, AssetType type)
+    /// <summary>
+    /// Reference to a loaded asset.
+    /// </summary>
+    /// <param name="id">GUID of asset</param>
+    /// <param name="type">Type of asset</param>
+    public class AssetRef(string id, AssetType type)
     {
-        public string Guid { get; set; } = guid;
+        public string ID { get; set; } = id;
         public string RelativePath { get; set; } = string.Empty;
         public AssetType ExpectedType { get; set; } = type;
 
-        public bool IsValid() => !string.IsNullOrEmpty(Guid);
+        public bool IsValid() => !string.IsNullOrEmpty(ID);
     }
 
-    public abstract class Asset
+    /// <summary>
+    /// The base class of all asset types, not for direct use.
+    /// </summary>
+    /// <param name="metadata">Asset metadata</param>
+    public abstract class Asset(AssetMetadata metadata)
     {
-        public string Guid { get; protected set; }
-        public string RelativePath { get; protected set; }
-        public AssetMetadata Metadata { get; protected set; }
+        public string ID { get; protected set; } = metadata.ID;
+        public string RelativePath { get; protected set; } = metadata.RelativePath;
+        public AssetMetadata Metadata { get; protected set; } = metadata;
         public bool IsLoaded { get; protected set; }
-
-        protected Asset(AssetMetadata metadata)
-        {
-            Metadata = metadata;
-            Guid = metadata.ID;
-            RelativePath = metadata.RelativePath;
-        }
 
         public abstract Task<bool> LoadAsync();
         public abstract void Unload();

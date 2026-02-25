@@ -19,72 +19,77 @@
 namespace DivisionEngine.Projects.Assets
 {
 
-    public class AssetManager
+    /// <summary>
+    /// Stores loaded assets and references.
+    /// </summary>
+    /// <param name="database">Asset database to pull from</param>
+    public class AssetManager(AssetDatabase database)
     {
-        private readonly AssetDatabase _database;
-        private readonly Dictionary<string, Asset> _loadedAssets = [];
-        private readonly Dictionary<string, int> _referenceCounts = [];
+        private readonly AssetDatabase database = database;
+        private readonly Dictionary<string, Asset> loadedAssets = [];
+        private readonly Dictionary<string, int> referenceCounts = [];
 
-        public AssetManager(AssetDatabase database)
+        /// <summary>
+        /// Loads an asset asynchronously.
+        /// </summary>
+        /// <typeparam name="T">Type of asset to load</typeparam>
+        /// <param name="id">GUID of asset to load</param>
+        /// <returns>Asset loading task of type <typeparamref name="T"/></returns>
+        public async Task<T?> LoadAssetAsync<T>(string id) where T : Asset
         {
-            _database = database;
-        }
-
-        public async Task<T?> LoadAssetAsync<T>(string guid) where T : Asset
-        {
-            // Check if already loaded
-            if (_loadedAssets.TryGetValue(guid, out var existing))
+            if (loadedAssets.TryGetValue(id, out Asset? existing)) // Check if already loaded
             {
-                _referenceCounts[guid]++;
+                referenceCounts[id]++;
                 return existing as T;
             }
 
-            // Get metadata
-            var metadata = _database.GetAssetByGuid(guid);
+            AssetMetadata? metadata = database.GetAssetByID(id); // Get metadata
             if (metadata == null) return null;
-
-            // Create appropriate asset type
-            var asset = CreateAssetFromMetadata(metadata);
+            Asset? asset = CreateAssetFromMetadata(metadata); // Create appropriate asset type
             if (asset == null) return null;
-
-            // Load the asset
-            bool success = await asset.LoadAsync();
+            bool success = await asset.LoadAsync(); // Load asset
             if (!success) return null;
-
-            // Store in cache
-            _loadedAssets[guid] = asset;
-            _referenceCounts[guid] = 1;
-
+            
+            loadedAssets[id] = asset; // Store in cache
+            referenceCounts[id] = 1;
             return asset as T;
         }
 
-        public void UnloadAsset(string guid)
+        /// <summary>
+        /// Unloads an asset.
+        /// </summary>
+        /// <param name="id">GUID of asset to unload</param>
+        public void UnloadAsset(string id)
         {
-            if (!_referenceCounts.TryGetValue(guid, out int value)) return;
-
-            _referenceCounts[guid] = --value;
+            if (!referenceCounts.TryGetValue(id, out int value)) return;
+            referenceCounts[id] = --value;
 
             if (value <= 0)
             {
-                if (_loadedAssets.TryGetValue(guid, out var asset))
+                if (loadedAssets.TryGetValue(id, out Asset? asset))
                 {
                     asset.Unload();
-                    _loadedAssets.Remove(guid);
+                    loadedAssets.Remove(id);
                 }
-                _referenceCounts.Remove(guid);
+                referenceCounts.Remove(id);
             }
         }
 
+        /// <summary>
+        /// Unloads all assets.
+        /// </summary>
         public void UnloadAll()
         {
-            foreach (var asset in _loadedAssets.Values)
-            {
-                asset.Unload();
-            }
-            _loadedAssets.Clear();
-            _referenceCounts.Clear();
+            foreach (Asset? asset in loadedAssets.Values) asset.Unload();
+            loadedAssets.Clear();
+            referenceCounts.Clear();
         }
 
+        /// <summary>
+        /// Creates an asset from metadata based on type.
+        /// </summary>
+        /// <param name="metadata">Loaded asset metadata</param>
+        /// <returns>Asset instance of metadata type</returns>
         private Asset? CreateAssetFromMetadata(AssetMetadata metadata)
         {
             return metadata.Type switch
