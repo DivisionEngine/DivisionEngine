@@ -749,7 +749,7 @@ namespace DivisionEngine
             if (isRefractive)
             {
                 float fresnel = Hlsl.Lerp(0.04f, 1.0f, Hlsl.Pow(1.0f - cosTheta, mainMat.reflectance));
-                float3 reflectiveCol = finalColor + surfaceColor;
+                float3 reflectiveCol = finalColor + surfaceColor; // Investigate this in the future
                 outputColor = reflectiveCol * fresnel + refractedLight * (1f - fresnel);
             }
             else outputColor = finalColor + surfaceColor;

@@ -44,7 +44,8 @@ namespace DivisionEngine.Systems
             float deltaTime = TimeSystem.DeltaTimeF;
             float speed = player.movementSpeed * deltaTime;
 
-            if (InputSystem.IsPressed(KeyCode.ShiftLeft)) speed *= player.sprintMultiplier;
+            if (InputSystem.IsPressed(KeyCode.ShiftLeft) || InputSystem.IsPressed(KeyCode.ShiftRight))
+                speed *= player.sprintMultiplier;
 
             float3 position = transform.position;
             float3 forward = transform.Forward;
@@ -65,6 +66,7 @@ namespace DivisionEngine.Systems
             if (InputSystem.IsPressed(KeyCode.E) || InputSystem.IsPressed(KeyCode.PageUp))
                 movement = movement.Add(up.Multiply(speed));
 
+            player.movementSpeed += InputSystem.ScrollDelta.Y * player.movementSpeed * 0.05f;
             position = position.Add(movement);
             transform.position = position;
         }
@@ -83,11 +85,9 @@ namespace DivisionEngine.Systems
                 float4 yawRot = Quaternion.CreateFromAxisAngle(new float3(0, 1, 0), yaw);
                 float4 pitchRot = Quaternion.CreateFromAxisAngle(new float3(1, 0, 0), pitch);
 
-                // Apply yaw first, then pitch
-                // Order matters: first rotate around world Y (yaw), then around local X (pitch)
+                // Apply yaw first, then pitch, order matters!
                 float4 newRot = Quaternion.Multiply(currentRot, yawRot);
                 newRot = Quaternion.Multiply(pitchRot, newRot);
-
                 transform.rotation = newRot.Normalize();
             }
         }
