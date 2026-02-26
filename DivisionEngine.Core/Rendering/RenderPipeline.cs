@@ -111,7 +111,6 @@ namespace DivisionEngine.Rendering
         private ReadWriteBuffer<uint2>? objectIdBuffer;
 
         // Buffer storage
-        private ReadOnlyBuffer<SDFWorldDTO>? worldBuffer;
         private ReadOnlyBuffer<SDFPrimitiveObjectDTO>? primitivesBuffer;
         private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
         private float4[]? pixels;
@@ -397,9 +396,6 @@ namespace DivisionEngine.Rendering
                     }
 
                     // Build and copy buffers
-                    worldBuffer ??= device!.AllocateReadOnlyBuffer<SDFWorldDTO>(1);
-                    worldBuffer.CopyFrom([worldDTO]);
-
                     primitivesBuffer?.Dispose();
                     primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
                     if (primitivesBuffer == null) return;
@@ -408,8 +404,8 @@ namespace DivisionEngine.Rendering
                     int outputMode = 0;
                     if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
                 
-                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, texWidth / (float)texHeight, TimeSystem.FrameCount,
-                        renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, worldBuffer, primitivesBuffer);
+                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, texWidth / (float)texHeight, TimeSystem.FrameCount, worldDTO,
+                        renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, primitivesBuffer);
                     device?.For(texWidth, texHeight, shader);
 
                     // Handle debug modes
@@ -654,7 +650,6 @@ namespace DivisionEngine.Rendering
             bounceCountTexture?.Dispose();
             depthNormalsTex?.Dispose();
             objectIdBuffer?.Dispose();
-            worldBuffer?.Dispose();
             primitivesBuffer?.Dispose();
             lightsBuffer?.Dispose();
             kernelBuffer?.Dispose();
@@ -666,7 +661,6 @@ namespace DivisionEngine.Rendering
             bounceCountTexture = null;
             depthNormalsTex = null;
             objectIdBuffer = null;
-            worldBuffer = null;
             primitivesBuffer = null;
             lightsBuffer = null;
             kernelBuffer = null;

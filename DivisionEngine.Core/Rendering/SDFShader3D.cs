@@ -30,11 +30,11 @@ namespace DivisionEngine
         float height,
         float aspect,
         int frameCount,
+        SDFWorldDTO worldData,
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadWriteTexture2D<int> bounceCountTexture,
         ReadWriteBuffer<uint2> entityIdBuffer,
-        ReadOnlyBuffer<SDFWorldDTO> worldData,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
     {
         // Main constants
@@ -52,15 +52,14 @@ namespace DivisionEngine
         // Lighting constants
         readonly float3 sunDir = new float3(0.5f, 0.8f, 0.3f);
 
-        private float AdaptiveEpsilon(float td) // Finish this
+        private float AdaptiveEpsilon(float td)
         {
-            //float pixelSize = td * worldData[0].camScreenDist / height;
-            //return Hlsl.Max(EPSILON, pixelSize * 0.5f); // Half pixel size
-            return EPSILON;
+            float pixelSize = Hlsl.Max(td * worldData.camScreenDist / height, td * worldData.camScreenDist / width);
+            return Hlsl.Max(EPSILON, pixelSize); // Could use half pixel size
         }
 
         // Quaternion rotation
-        private float3 RotateVector(float3 v, float4 r)
+        private static float3 RotateVector(float3 v, float4 r)
         {
             float3 qv = r.XYZ;
             float3 t = 2.0f * Hlsl.Cross(qv, v);
@@ -69,13 +68,13 @@ namespace DivisionEngine
 
         private float3 GetCameraRayDirNew(float2 uv)
         {
-            float px = uv.X * aspect * worldData[0].camScreenDist;
-            float py = uv.Y * worldData[0].camScreenDist;
-            float3 rayDir = worldData[0].camForward + worldData[0].camRight * px + worldData[0].camUp * py;
+            float px = uv.X * aspect * worldData.camScreenDist;
+            float py = uv.Y * worldData.camScreenDist;
+            float3 rayDir = worldData.camForward + worldData.camRight * px + worldData.camUp * py;
             return Hlsl.Normalize(rayDir);
         }
 
-        private float SphereSDF(float3 pt, float r)
+        private static float SphereSDF(float3 pt, float r)
         {
             //float3 s = new float3(8, 8, 8);
             //float3 l = new float3(100, 1, 100);
@@ -83,25 +82,25 @@ namespace DivisionEngine
             return Hlsl.Length(pt) - r;
         }
 
-        private float BoxSDF(float3 pt, float3 size)
+        private static float BoxSDF(float3 pt, float3 size)
         {
             float3 q = Hlsl.Abs(pt) - size;
             return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
         }
 
-        private float RoundedBoxSDF(float3 pt, float3 size, float r)
+        private static float RoundedBoxSDF(float3 pt, float3 size, float r)
         {
             float3 q = Hlsl.Abs(pt) - size + r;
             return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f) - r;
         }
 
-        private float TorusSDF(float3 pt, float2 tr)
+        private static float TorusSDF(float3 pt, float2 tr)
         {
             float2 q = new float2(Hlsl.Length(pt.XZ) - tr.X, pt.Y);
             return Hlsl.Length(q) - tr.Y;
         }
 
-        private float PyramidSDF(float3 pt, float h)
+        private static float PyramidSDF(float3 pt, float h)
         {
             float m2 = h * h + 0.25f;
 
@@ -122,27 +121,27 @@ namespace DivisionEngine
             return Hlsl.Sqrt((d2 + q.Z * q.Z) / m2) * Hlsl.Sign(Hlsl.Max(q.Z, -pt.Y));
         }
 
-        private float PlaneSDF(float3 pt, float3 n, float h)
+        private static float PlaneSDF(float3 pt, float3 n, float h)
         {
             return Hlsl.Dot(pt, Hlsl.Normalize(n)) + h;
         }
 
         // Bound not exact, for performance
-        private float ConeSDF(float3 pt, float2 c, float h)
+        private static float ConeSDF(float3 pt, float2 c, float h)
         {
             float q = Hlsl.Length(pt.XZ);
             return Hlsl.Max(Hlsl.Dot(c.XY, new float2(q, pt.Y)), -h - pt.Y);
         }
 
         // Vertical version, for performance
-        private float CylinderSDF(float3 pt, float r, float h)
+        private static float CylinderSDF(float3 pt, float r, float h)
         {
             float2 d = Hlsl.Abs(new float2(Hlsl.Length(pt.XZ), pt.Y)) - new float2(r, h);
             return Hlsl.Min(Hlsl.Max(d.X, d.Y), 0.0f) + Hlsl.Length(Hlsl.Max(d, 0.0f));
         }
 
         // Vertical version, for performance
-        private float CapsuleSDF(float3 pt, float r, float h)
+        private static float CapsuleSDF(float3 pt, float r, float h)
         {
             pt.Y -= Hlsl.Clamp(pt.Y, 0.0f, h);
             return Hlsl.Length(pt) - r;
@@ -245,7 +244,7 @@ namespace DivisionEngine
             float shadow = 1f;
             closestObj = -1;
 
-            for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
+            for (int i = 0; i < worldData.maxShadowRaySteps; ++i)
             {
                 dist = WorldSDF(point + depth * dir, true, out closestObj);
                 if (depth > end || shadow < -1f) break;
@@ -262,7 +261,7 @@ namespace DivisionEngine
         // New Correct PBR BRDF Functions
         // ------------------------------
 
-        private float3 DebugBRDF(float3 N, float3 V, float3 L, float roughness, float reflectance)
+        private static float3 DebugBRDF(float3 N, float3 V, float3 L, float roughness, float reflectance)
         {
             float3 H = Hlsl.Normalize(V + L);
             float NdotV = Hlsl.Max(Hlsl.Dot(N, V), 0.0f);
@@ -279,7 +278,7 @@ namespace DivisionEngine
             return new float3(D, G, (F.X + F.Y + F.Z) / 3.0f);
         }
 
-        private float3 FresnelSchlick(float cosTheta, float3 f0)
+        private static float3 FresnelSchlick(float cosTheta, float3 f0)
         {
             return f0 + (float3.One - f0) * Hlsl.Pow(1f - cosTheta, 5f);
         }
@@ -290,7 +289,7 @@ namespace DivisionEngine
         /// <param name="NoH">Normal dot Halfway</param>
         /// <param name="alpha">Roughness squared</param>
         /// <returns>Diffuse GGX factor</returns>
-        private float D_GGX(float NoH, float alpha)
+        private static float D_GGX(float NoH, float alpha)
         {
             float alpha2 = alpha * alpha;
             float NoH2 = NoH * NoH;
@@ -305,7 +304,7 @@ namespace DivisionEngine
         /// <param name="NoL">Normal dot Light</param>
         /// <param name="alpha">Roughness squared</param>
         /// <returns>G Smith value</returns>
-        private float GSmith(float NoV, float NoL, float alpha)
+        private static float GSmith(float NoV, float NoL, float alpha)
         {
             return G1_GGX_Schlick(NoL, alpha) * G1_GGX_Schlick(NoV, alpha);
         }
@@ -316,14 +315,14 @@ namespace DivisionEngine
         /// <param name="NoV">Normal dot View</param>
         /// <param name="alpha">Roughness squared</param>
         /// <returns>G1 factor for GGX Schlick</returns>
-        private float G1_GGX_Schlick(float NoV, float alpha)
+        private static float G1_GGX_Schlick(float NoV, float alpha)
         {
             float k = alpha / 2f;
             return Hlsl.Max(NoV, EPSILON) / (NoV * (1f - k) + k);
         }
 
         // Special Disney Rendering
-        private float FresnelSchlick90(float cosTheta, float f0, float f90)
+        private static float FresnelSchlick90(float cosTheta, float f0, float f90)
         {
             return f0 + (f90 - f0) * Hlsl.Pow(1f - cosTheta, 5f);
         }
@@ -336,7 +335,7 @@ namespace DivisionEngine
         /// <param name="VoH">View dot Halfway</param>
         /// <param name="alpha">Roughness value squared</param>
         /// <returns>Disney diffuse factor for BRDF</returns>
-        private float DisneyDiffuseFactor(float NoV, float NoL, float VoH, float alpha)
+        private static float DisneyDiffuseFactor(float NoV, float NoL, float VoH, float alpha)
         {
             float f90 = 0.5f + 2f * alpha * VoH * VoH;
             float F_In = FresnelSchlick90(NoL, 1f, f90);
@@ -351,13 +350,12 @@ namespace DivisionEngine
         /// <param name="viewDir">View direction</param>
         /// <param name="normal">Normal vector</param>
         /// <param name="metallic">Metallic amount 0 or 1</param>
-        /// <param name="roughness">Roughness amount 0 - 1</param>
         /// <param name="roughAlpha">Roughness * Roughness</param>
         /// <param name="baseCol">Base color of material</param>
         /// <param name="reflectance">Reflectance level of material</param>
         /// <returns>BRDF output value</returns>
-        private float3 BRDFMicrofacetFunction(float3 lightDir, float3 viewDir, float3 normal,
-            float metallic, float roughness, float roughAlpha, float3 baseCol, float reflectance)
+        private static float3 BRDFMicrofacetFunction(float3 lightDir, float3 viewDir, float3 normal,
+            float metallic, float roughAlpha, float3 baseCol, float reflectance)
         {
             float3 halfwayDir = Hlsl.Normalize(viewDir + lightDir);
             float NoV = Hlsl.Clamp(Hlsl.Dot(normal, viewDir), 0f, 1f);
@@ -369,8 +367,8 @@ namespace DivisionEngine
             f0 = Hlsl.Lerp(f0, baseCol, new float3(metallic, metallic, metallic));
 
             float3 F = FresnelSchlick(VoH, f0);
-            float D = D_GGX(NoH, roughness);
-            float G = GSmith(NoV, NoL, roughness);
+            float D = D_GGX(NoH, roughAlpha);
+            float G = GSmith(NoV, NoL, roughAlpha);
 
             // FIX 1: Add epsilon to denominator to prevent division by near-zero
             float denominator = 4f * Hlsl.Max(NoV * NoL, EPSILON);
@@ -381,7 +379,7 @@ namespace DivisionEngine
 
             // Diffuse
             float3 rhoD = baseCol;
-            rhoD *= DisneyDiffuseFactor(NoV, NoL, VoH, roughness);
+            rhoD *= DisneyDiffuseFactor(NoV, NoL, VoH, roughAlpha);
             //rhoD *= 1f - metallic;
             float3 diff = rhoD * RECIPROCAL_PI;
 
@@ -392,7 +390,7 @@ namespace DivisionEngine
         /// <summary>
         /// Calculates fresnel reflectance for dielectrics (glass, water, etc.)
         /// </summary>
-        private float SimpleFresnelDielectric(float cosθ, float f0)
+        private static float SimpleFresnelDielectric(float cosθ, float f0)
         {
             // Schlick approximation (close enough for most cases)
             return f0 + (1.0f - f0) * Hlsl.Pow(1.0f - cosθ, 5.0f);
@@ -400,7 +398,7 @@ namespace DivisionEngine
 
         // Reflections functions:
 
-        private uint HaltonHash(uint x)
+        private static uint HaltonHash(uint x)
         {
             x = x ^ 61 ^ (x >> 16);
             x += x << 3;
@@ -411,7 +409,7 @@ namespace DivisionEngine
         }
 
         // Halton sequence generator
-        private float HaltonSequence(int index, int baseNum)
+        private static float HaltonSequence(int index, int baseNum)
         {
             float result = 0.0f;
             float f = 1.0f;
@@ -426,15 +424,14 @@ namespace DivisionEngine
         }
 
         // Generate 2D Halton sample
-        private float2 Halton2D(int index)
+        private static float2 Halton2D(int index)
         {
             return new float2(HaltonSequence(index, 2), HaltonSequence(index, 3));
         }
 
-        // Importance sample GGX distribution for specular reflections
-        private float3 ImportanceSampleGGX(float2 u, float3 normal, float roughness)
+        // Importance sample GGX distribution for specular reflections, alpha = roughness * roughness
+        private static float3 ImportanceSampleGGX(float2 u, float3 normal, float alpha)
         {
-            float alpha = roughness * roughness;
             float phi = 2.0f * PI * u.X;
             float cosTheta = Hlsl.Sqrt((1.0f - u.Y) / (1.0f + (alpha * alpha - 1.0f) * u.Y));
             float sinTheta = Hlsl.Sqrt(1.0f - cosTheta * cosTheta);
@@ -451,7 +448,7 @@ namespace DivisionEngine
 
         private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out int closestObj, out float depth)
         {
-            depth = worldData[0].nearPlane;
+            depth = worldData.nearPlane;
             closestObj = -1;
             float3 hitPoint = rayOrigin;
 
@@ -466,7 +463,7 @@ namespace DivisionEngine
             return hitPoint;
         }
 
-        private bool Refract(float3 incident, float3 normal, float eta, out float3 refracted)
+        private static bool Refract(float3 incident, float3 normal, float eta, out float3 refracted)
         {
             //float3 I = Hlsl.Normalize(incident);
             //float3 N = Hlsl.Normalize(normal);
@@ -482,7 +479,7 @@ namespace DivisionEngine
             return true;
         }
 
-        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 normal, SDFPrimitiveObjectDTO startMat, uint initialObjIndex)
+        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 normal, SDFPrimitiveObjectDTO startMat)
         {
             float3 totalTransmittance = float3.One;  // Start with full transmittance
             float3 accumulatedColor = float3.Zero;
@@ -564,8 +561,7 @@ namespace DivisionEngine
                     {
                         // Raymarch from exit point
                         float3 rayStart = exitPt + currentNormal * EPSILON;
-                        float3 hitPoint = Raymarch(rayStart, currentDir, worldData[0].maxRaySteps,
-                                                  worldData[0].farPlane, out int nextObjIndex, out _);
+                        float3 hitPoint = Raymarch(rayStart, currentDir, worldData.maxRaySteps, worldData.farPlane, out int nextObjIndex, out _);
                         if (nextObjIndex >= 0 && nextObjIndex < sdfPrimitives.Length)
                         {
                             currentOrigin = hitPoint;
@@ -594,14 +590,13 @@ namespace DivisionEngine
             float3 finalColor = float3.Zero;
             float3 lightDir = Hlsl.Normalize(sunDir);
             normal = float3.Zero;
-            float farClipPlane = worldData[0].farPlane;
 
             // Trace
-            int maxRaySteps = worldData[0].maxRaySteps;
-            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out totalDist);
-            if (closestObjIndex == -1 || totalDist > farClipPlane)
+            int maxRaySteps = worldData.maxRaySteps;
+            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, worldData.farPlane, out int closestObjIndex, out totalDist);
+            if (closestObjIndex == -1 || totalDist > worldData.farPlane)
             {
-                finalColor += worldData[0].backgroundColor.XYZ;
+                finalColor += worldData.backgroundColor.XYZ;
                 return finalColor;
             }
 
@@ -620,7 +615,7 @@ namespace DivisionEngine
             // Lighting
             float3 ambientLightAmt = ambientBase * ao;
             float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
-            float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, roughness * roughness, albedoColor, specular);
+            float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness * roughness, albedoColor, specular);
             float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, /*shadowValue * */NoL);
             finalColor += directLight;
             return finalColor;
@@ -641,13 +636,13 @@ namespace DivisionEngine
             float3 contribution = float3.One;
             float cosTheta = 0f;
 
-            float3 ambientBase = 0.15f * worldData[0].backgroundColor.RGB;
+            float3 ambientBase = 0.15f * worldData.backgroundColor.RGB;
             float3 lightDir = Hlsl.Normalize(sunDir);
             float3 refractedLight = float3.Zero;
             SDFPrimitiveObjectDTO mainMat = default;
             outputNormal = float3.Zero;
             totalDist = 0f;
-            float farClipPlane = worldData[0].farPlane;
+            float farClipPlane = worldData.farPlane;
             bool firstHit = true;
             actualBounces = 0;
 
@@ -657,14 +652,14 @@ namespace DivisionEngine
             bool isRefractive = false;
 
             // Adaptive reflection step sizes
-            int maxRaySteps = worldData[0].maxRaySteps;
+            int maxRaySteps = worldData.maxRaySteps;
             for (int bounce = 0; bounce < 32; bounce++)
             {
                 // Raymarch
                 float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out float depth);
                 if (closestObjIndex == -1 || depth > farClipPlane)
                 {
-                    finalColor += contribution * worldData[0].backgroundColor.XYZ;
+                    finalColor += contribution * worldData.backgroundColor.XYZ;
                     if (firstHit) totalDist = depth;
                     break;
                 }
@@ -696,7 +691,7 @@ namespace DivisionEngine
                     {
                         isRefractive = true;
                         fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, normal, entity, (uint)closestObjIndex);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, normal, entity);
                     }
                     firstHit = false;
                 }
@@ -712,7 +707,7 @@ namespace DivisionEngine
 
                 // Direct lighting
                 float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
-                float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, roughness * roughness, albedoColor, specular);
+                float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness * roughness, albedoColor, specular);
                 float3 directLight = Hlsl.Lerp(ambientBase * ao, brdf, shadowValue * NoL);
                 if (bounce == 0) surfaceColor = directLight;
                 finalColor += contribution * directLight;
@@ -737,7 +732,7 @@ namespace DivisionEngine
                 // Actual reflection sampling
                 int reflectionSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sampleIndexInPixel * 3271 + bounce * 997;
                 float2 u = Halton2D(reflectionSampleIndex);
-                float3 halfVector = ImportanceSampleGGX(u, normal, roughness); // Importance sample
+                float3 halfVector = ImportanceSampleGGX(u, normal, roughness * roughness); // Importance sample
                 float3 reflectDir = Hlsl.Normalize(Hlsl.Reflect(rayDir, halfVector));
                 if (Hlsl.Dot(reflectDir, normal) < 0.01f) break; // Make sure reflection is above surface
 
@@ -770,7 +765,7 @@ namespace DivisionEngine
             //float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
             //uv.X *= width / height;
             float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f; // New UV math
-            float3 rayOrigin = worldData[0].cameraOrigin;
+            float3 rayOrigin = worldData.cameraOrigin;
 
             float3 accumulatedColor = float3.Zero;
             float3 accumulatedNormal = float3.Zero;
@@ -803,7 +798,7 @@ namespace DivisionEngine
                 accumulatedBounces += bounceCount;  // Accumulate bounces
             }
 
-            float maxPossibleDistance = worldData[0].farPlane - worldData[0].nearPlane;
+            float maxPossibleDistance = worldData.farPlane - worldData.nearPlane;
             float3 finalColor = accumulatedColor / SAMPLES_PER_PIXEL;
             float3 finalNormal = accumulatedNormal / SAMPLES_PER_PIXEL;
             float finalDist = accumulatedDistance / SAMPLES_PER_PIXEL;
@@ -822,16 +817,6 @@ namespace DivisionEngine
 // Functions and code obseleted
 // ----------------------------
 
-/*// Obtained via Deepseek: https://chat.deepseek.com/share/avavmqykeivckbnakl
-private float3 GetCameraRayDir(float2 uv)
-{
-    float4 rayClip = new float4(uv, 0.0f, 1.0f);
-    float4 rayView = Hlsl.Mul(worldData[0].cameraInverseProj, rayClip);
-    rayView = new float4(rayView.XY, -1.0f, 0.0f);
-    float3 rayWorld = Hlsl.Mul(worldData[0].cameraToWorld, rayView).XYZ;
-    return Hlsl.Normalize(rayWorld);
-}*/
-
 //private float2 RandomInUnitCircle(uint rngState)
 //{
 //    uint rngHash = HaltonHash(rngState);
@@ -840,13 +825,7 @@ private float3 GetCameraRayDir(float2 uv)
 //    return pointOnCircle * Hlsl.Sqrt(rngHash);
 //}
 
-/*private float3 GetCamRayDir(float2 coord)
-{
-    return Hlsl.Normalize(Hlsl.Mul(worldData[0].cameraToWorld, 
-        new float4(Hlsl.Mul(worldData[0].cameraInverseProj, new float4(coord, 0.0f, 1.0f)).XYZ, 0.0f)).XYZ);
-}
-
-// Calculates shadows
+/* Calculates shadows
 // Adapted: https://www.shadertoy.com/view/lsKcDD
 private float SoftShadow(float3 rayOrigin, float3 rayDir, float minDist, float maxDist)
 {
@@ -957,27 +936,27 @@ private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
 
         // Camera basis vectors (simplified - you may need proper extraction)
         float3 cameraForward = Hlsl.Normalize(new float3(
-            worldData[0].cameraToWorld.M31,  // Row 3, Column 1 = forward.x
-            worldData[0].cameraToWorld.M32,  // Row 3, Column 2 = forward.y
-            worldData[0].cameraToWorld.M33   // Row 3, Column 3 = forward.z
+            worldData.cameraToWorld.M31,  // Row 3, Column 1 = forward.x
+            worldData.cameraToWorld.M32,  // Row 3, Column 2 = forward.y
+            worldData.cameraToWorld.M33   // Row 3, Column 3 = forward.z
         ));
 
         float3 cameraRight = Hlsl.Normalize(new float3(
-            worldData[0].cameraToWorld.M11,  // Row 1, Column 1 = right.x
-            worldData[0].cameraToWorld.M12,  // Row 1, Column 2 = right.y
-            worldData[0].cameraToWorld.M13   // Row 1, Column 3 = right.z
+            worldData.cameraToWorld.M11,  // Row 1, Column 1 = right.x
+            worldData.cameraToWorld.M12,  // Row 1, Column 2 = right.y
+            worldData.cameraToWorld.M13   // Row 1, Column 3 = right.z
         ));
 
         float3 cameraUp = Hlsl.Normalize(new float3(
-            worldData[0].cameraToWorld.M21,  // Row 2, Column 1 = up.x
-            worldData[0].cameraToWorld.M22,  // Row 2, Column 2 = up.y
-            worldData[0].cameraToWorld.M23   // Row 2, Column 3 = up.z
+            worldData.cameraToWorld.M21,  // Row 2, Column 1 = up.x
+            worldData.cameraToWorld.M22,  // Row 2, Column 2 = up.y
+            worldData.cameraToWorld.M23   // Row 2, Column 3 = up.z
         ));
 
-        float3 rayOrigin = worldData[0].cameraOrigin;
-        float focusDistance = worldData[0].focusDistance;
-        float apertureSize = worldData[0].apertureSize;
-        int dofSamples = Hlsl.Max(worldData[0].dofSamples, 1);
+        float3 rayOrigin = worldData.cameraOrigin;
+        float focusDistance = worldData.focusDistance;
+        float apertureSize = worldData.apertureSize;
+        int dofSamples = Hlsl.Max(worldData.dofSamples, 1);
 
         // Accumulate color for multiple samples
         float3 accumulatedColor = float3.Zero;
@@ -1000,7 +979,7 @@ private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
             accumulatedDistance += totalDist;
         }
 
-        float maxPossibleDistance = worldData[0].farPlane - worldData[0].nearPlane;
+        float maxPossibleDistance = worldData.farPlane - worldData.nearPlane;
 
         // Average samples
         float3 finalColor = accumulatedColor / dofSamples;
@@ -1016,13 +995,13 @@ private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
     outputNormal = new float3(0, 0, 0);
 
     // SDF raymarch variables
-    totalDist = worldData[0].nearPlane; // Start at near clip plane
-    float farClipPlane = worldData[0].farPlane;
+    totalDist = worldData.nearPlane; // Start at near clip plane
+    float farClipPlane = worldData.farPlane;
     int closestObjIndex = -1; // Clear initial object index
-    float3 outputColor = worldData[0].backgroundColor.XYZ; // Set output skybox color
+    float3 outputColor = worldData.backgroundColor.XYZ; // Set output skybox color
     float3 hitPoint = rayOrigin;
 
-    int maxSteps = worldData[0].maxRaySteps, step;
+    int maxSteps = worldData.maxRaySteps, step;
     for (step = 0; step < maxSteps; step++)
     {
         // Accumulate ray position
@@ -1065,7 +1044,7 @@ private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
         float ao = material.ao;
 
         // Default light values
-        float3 ambientLightAmt = float3.One * 0.05f * worldData[0].backgroundColor.RGB * ao;
+        float3 ambientLightAmt = float3.One * 0.05f * worldData.backgroundColor.RGB * ao;
 
         // Shading
         float2 shadowValues = new float2(1f, 0f);
