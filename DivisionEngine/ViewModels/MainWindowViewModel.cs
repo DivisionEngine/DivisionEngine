@@ -303,6 +303,7 @@ namespace DivisionEngine.Editor.ViewModels
                     "cone" => DefaultEntities.SDFCone(),
                     _ => DefaultEntities.EmptyTransform()
                 };
+                PropertiesWindow.LoadEntityComponents(entityId); // Select entity when created
                 Debug.Info($"Created {entityType} entity with ID: {entityId}");
             }
             catch (Exception ex)

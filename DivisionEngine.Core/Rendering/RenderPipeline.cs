@@ -128,23 +128,19 @@ namespace DivisionEngine.Rendering
         /// </summary>
         public static double DeltaTime { get; private set; }
 
-        // Bounce count tracking
-        private ReadWriteTexture2D<int>? bounceCountTexture;
-        private ReadWriteTexture2D<float4>? reconstructionTex;
-
-        // Reconstruction shader fields
-        private ReadOnlyBuffer<float>? kernelBuffer;
-
         // Denoising
+        private ReadWriteTexture2D<int>? bounceCountTexture; // Bounce count tracking
+        private ReadWriteTexture2D<float4>? reconstructionTex;
+        private ReadOnlyBuffer<float>? kernelBuffer; // Reconstruction kernel
         private ReadWriteTexture2D<float4>? denoisedTex;
+
+        // Input context
+        private IInputContext? inputContext;
 
         /// <summary>
         /// Create a new render pipeline.
         /// </summary>
-        public RenderPipeline()
-        {
-            Instance = this;
-        }
+        public RenderPipeline() => Instance = this;
 
         /// <summary>
         /// Binds the WorldManager.CurrentWorld to this render pipeline.
@@ -237,41 +233,48 @@ namespace DivisionEngine.Rendering
         /// </summary>
         private void OnLoad()
         {
-            gl = GL.GetApi(RendererWindow);
-
-            // Initialize OpenGL context
-            Debug.Info("Renderer: Initialize OpenGL Context");
-            gl.GenTextures(1, out glTexture);
-            gl.BindTexture(TextureTarget.Texture2D, glTexture);
-            gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-            gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-
-            // Load graphics device
-            device = GraphicsDevice.GetDefault();
-            device.DeviceLost += Device_DeviceLost;
-
-            Debug.Info("Renderer: Compiling OpenGL Shader Program");
-            glShaderProgram = CompileShaders();
-            gl!.GenVertexArrays(1, out uint vao);
-            gl.BindVertexArray(vao);
-            Debug.Info("Renderer: VAO Bound");
-
-            try
+            lock (SyncLock)
             {
-                Debug.Info("Renderer: Creating input context...");
-                IInputContext? inputContext = RendererWindow!.CreateInput(); // Must create input context on same thread as render window!
-                if (inputContext != null)
+                if (RendererWindow == null) return;
+                gl = GL.GetApi(RendererWindow);
+
+                // Initial focus hard set to avoid cascading events
+                RenderWindowFocusd?.Invoke(true);
+
+                // Initialize OpenGL context
+                Debug.Info("Renderer: Initialize OpenGL Context");
+                gl.GenTextures(1, out glTexture);
+                gl.BindTexture(TextureTarget.Texture2D, glTexture);
+                gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
+                gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+
+                // Load graphics device
+                device = GraphicsDevice.GetDefault();
+                device.DeviceLost += Device_DeviceLost;
+
+                Debug.Info("Renderer: Compiling OpenGL Shader Program");
+                glShaderProgram = CompileShaders();
+                gl!.GenVertexArrays(1, out uint vao);
+                gl.BindVertexArray(vao);
+                Debug.Info("Renderer: VAO Bound");
+
+                try
                 {
-                    Debug.Info("Renderer: Input context created successfully");
-                    InputContextCreated?.Invoke(inputContext);
+                    Debug.Info("Renderer: Creating input context...");
+                    inputContext ??= RendererWindow.CreateInput(); // Must create input context on same thread as render window!
+                    if (inputContext != null)
+                    {
+                        Debug.Info("Renderer: Input context created successfully");
+                        InputContextCreated?.Invoke(inputContext);
+                    }
+                    else Debug.Error("Renderer: Failed to create input context");
                 }
-                else Debug.Error("Renderer: Failed to create input context");
+                catch (Exception ex)
+                {
+                    Debug.Error($"Renderer: Exception creating input context", ex);
+                }
+                InputReady = true;
             }
-            catch (Exception ex)
-            {
-                Debug.Error($"Renderer: Exception creating input context", ex);
-            }
-            InputReady = true;
         }
 
         /// <summary>
@@ -655,6 +658,7 @@ namespace DivisionEngine.Rendering
             primitivesBuffer?.Dispose();
             lightsBuffer?.Dispose();
             kernelBuffer?.Dispose();
+            inputContext?.Dispose();
 
             renderTex = null;
             denoisedTex = null;
@@ -666,6 +670,7 @@ namespace DivisionEngine.Rendering
             primitivesBuffer = null;
             lightsBuffer = null;
             kernelBuffer = null;
+            inputContext = null;
         }
     }
 }

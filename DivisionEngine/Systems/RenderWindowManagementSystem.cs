@@ -71,7 +71,6 @@ namespace DivisionEngine.Editor.Systems
         public override void FixedUpdate()
         {
             if (initializeTimer > 0) initializeTimer--;
-            
         }
 
         public async Task FocusUpdate()
@@ -79,13 +78,19 @@ namespace DivisionEngine.Editor.Systems
             if (updatingFocus) return;
             updatingFocus = true;
             await Task.Delay(300); // Wait to see if other window is immediately focused
-            Dispatcher.UIThread.Post(() => {
+
+            Dispatcher.UIThread.Post(() =>
+            {
                 if (initializeTimer == 0 && !EditorFocused && !RendererFocused && App.RendererVisible)
+                {
                     _ = App.SetEditorRenderingAsync(false);
+                    Debug.Log("Set rendering false");
+                }
                 else if ((EditorFocused || RendererFocused) && !App.RendererVisible)
                 {
                     initializeTimer = 60;
                     _ = App.SetEditorRenderingAsync(true);
+                    Debug.Log("Set rendering true");
                 }
             });
             updatingFocus = false;

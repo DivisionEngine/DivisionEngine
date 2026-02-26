@@ -76,9 +76,10 @@ public partial class AssetsWindow : EditorWindow
 
     // Data vars
     private string currentPath;
-    private static bool eventsSubscribed = false; // Track if subscribed to events
+    private static bool subscribedProjectEvents = false; // Track if subscribed to events
     private bool inProjectMode => ProjectManager.IsCurrentLoaded; // Track if in project mode
     private string curRelativeDBPath = ""; // Relative path for database queries
+    private bool subscribedDatabaseEvents = false;
 
     /// <summary>
     /// Static constructor to subscribe to all project events once.
@@ -90,11 +91,11 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     private static void SubscribeToProjectEvents()
     {
-        if (eventsSubscribed) return;
+        if (subscribedProjectEvents) return;
         ProjectManager.ProjectLoaded += OnProjectLoaded;
         ProjectManager.ProjectClosing += OnProjectClosing;
         ProjectManager.ProjectClosed += OnProjectClosed;
-        eventsSubscribed = true;
+        subscribedProjectEvents = true;
     }
 
     /// <summary>
@@ -1224,7 +1225,16 @@ public partial class AssetsWindow : EditorWindow
         // Navigate to the Assets folder root
         string assetsPath = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
         if (Directory.Exists(assetsPath))
+        {
+            // Subscribe to database events
+            if (!subscribedDatabaseEvents && ProjectManager.AssetDatabase != null)
+            {
+                ProjectManager.AssetDatabase.FolderChanged += OnAssetFolderChanged;
+                subscribedDatabaseEvents = true;
+            }
+
             Dispatcher.UIThread.Post(() => LoadAssets(assetsPath));
+        }
     }
 
     /// <summary>
@@ -1243,6 +1253,13 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     private void OnProjectClosedInternal()
     {
+        // Unsubscribe from database events
+        if (subscribedDatabaseEvents && ProjectManager.AssetDatabase != null)
+        {
+            ProjectManager.AssetDatabase.FolderChanged -= OnAssetFolderChanged;
+            subscribedDatabaseEvents = false;
+        }
+
         // Clear and show empty state
         Dispatcher.UIThread.Post(() => {
             currentPath = string.Empty;
@@ -1252,5 +1269,16 @@ public partial class AssetsWindow : EditorWindow
             itemCountText.Text = "0 items";
             ShowEmptyState("No Project Loaded");
         });
+    }
+
+    // Handle folder changes
+    private void OnAssetFolderChanged(string folderPath)
+    {
+        // Check if this folder is the one we're currently viewing
+        if (!string.IsNullOrEmpty(currentPath) && folderPath.StartsWith(currentPath))
+        {
+            // Refresh the current view
+            Dispatcher.UIThread.Post(() => LoadAssets(currentPath));
+        }
     }
 }

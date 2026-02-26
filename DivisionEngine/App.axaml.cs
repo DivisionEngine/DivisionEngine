@@ -88,7 +88,7 @@ namespace DivisionEngine.Editor
                 Renderer = new RenderPipeline();
                 Renderer.BindCurrentWorld();
 
-                // Subscribe to input context creation BEFORE starting the renderer
+                // Subscribe to input context creation before starting the renderer
                 Renderer.InputContextCreated += SetupInputHandlers;
 
                 _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
@@ -136,7 +136,7 @@ namespace DivisionEngine.Editor
                 StartEditorEngineLoop();
                 UserInput = new InputSystem();
                 _ = SetEditorRenderingAsync(true); // Start the SDFRenderer in a separate thread
-                //SetupAvaloniaInput(desktop); //re-enable this later potentially
+                //SetupAvaloniaInput(desktop); // re-enable this later potentially
 
                 // Bind editor callbacks
                 desktop.Exit += (_, _) =>
@@ -152,11 +152,11 @@ namespace DivisionEngine.Editor
         }
 
         /// <summary>
-        /// Runs the ECS main loop in the editor, referencing the EngineCore.
+        /// Runs the ECS main loop in the editor, referencing EngineCore.
         /// </summary>
         private void StartEditorEngineLoop()
         {
-            // Create Avalonia editor-integrated engine loop
+            // Create Avalonia editor integrated engine loop
             DispatcherTimer engineTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(EngineCoreFrameTime / 2)

@@ -25,11 +25,22 @@ namespace DivisionEngine.Projects.Assets
     /// </summary>
     public class AssetDatabase
     {
+        // Asset database events
+        public event Action<string>? FolderChanged; // Path of folder that changed
+
+        // Private database variables
         private readonly string assetsPath, dbPath;
         private ProjectAssetDatabase projectDB;
         private readonly FileSystemWatcher fileWatcher;
         private readonly JsonSerializerOptions jsonSerializerOptions;
 
+        private readonly HashSet<string> pendingNotifications = new();
+        private readonly System.Timers.Timer notificationThrottle;
+
+        /// <summary>
+        /// Opens a new asset database instance at an asset path.
+        /// </summary>
+        /// <param name="assetsPath">Asset path to open</param>
         public AssetDatabase(string assetsPath)
         {
             this.assetsPath = assetsPath;
@@ -40,11 +51,25 @@ namespace DivisionEngine.Projects.Assets
             Directory.CreateDirectory(assetsPath); // Ensure Assets folder exists
             LoadProjectDatabase(); // Load existing database or create new
 
+            // Throttle notifications to avoid too many refreshes
+            notificationThrottle = new System.Timers.Timer(100);
+            notificationThrottle.AutoReset = false;
+            notificationThrottle.Elapsed += (s, e) =>
+            {
+                lock (pendingNotifications)
+                {
+                    foreach (string? folder in pendingNotifications)
+                        FolderChanged?.Invoke(folder);
+                    pendingNotifications.Clear();
+                }
+            };
+
             // Setup file watcher for realtime updates
             fileWatcher = new FileSystemWatcher(assetsPath)
             {
                 IncludeSubdirectories = true,
-                EnableRaisingEvents = true
+                EnableRaisingEvents = true,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
             };
             fileWatcher.Created += OnFileChanged;
             fileWatcher.Changed += OnFileChanged;
@@ -135,7 +160,9 @@ namespace DivisionEngine.Projects.Assets
             return new AssetMetadata
             {
                 FileName = Path.GetFileName(filePath),
-                RelativePath = Path.Combine(relativeFolder, Path.GetFileName(filePath)).Replace('\\', '/'),
+                RelativePath = string.IsNullOrEmpty(relativeFolder)
+                    ? Path.GetFileName(filePath)
+                    : Path.Combine(relativeFolder, Path.GetFileName(filePath)).Replace('\\', '/'),
                 Type = DetermineAssetType(filePath),
                 LastModified = fileInfo.LastWriteTime,
                 FileSize = fileInfo.Length
@@ -209,6 +236,14 @@ namespace DivisionEngine.Projects.Assets
             // Queue a rescan of the affected folder
             string folder = Path.GetDirectoryName(e.FullPath)!;
             ScanFolder(folder);
+
+            // Queue notification
+            lock (pendingNotifications)
+            {
+                pendingNotifications.Add(folder);
+                notificationThrottle.Stop();
+                notificationThrottle.Start();
+            }
         }
 
         /// <summary>
@@ -218,6 +253,12 @@ namespace DivisionEngine.Projects.Assets
         {
             string folder = Path.GetDirectoryName(e.FullPath)!;
             ScanFolder(folder);
+            lock (pendingNotifications)
+            {
+                pendingNotifications.Add(folder);
+                notificationThrottle.Stop();
+                notificationThrottle.Start();
+            }
         }
 
         /// <summary>
@@ -225,8 +266,20 @@ namespace DivisionEngine.Projects.Assets
         /// </summary>
         private void OnFileRenamed(object sender, RenamedEventArgs e)
         {
-            string folder = Path.GetDirectoryName(e.FullPath)!;
-            ScanFolder(folder);
+            string oldFolder = Path.GetDirectoryName(e.OldFullPath)!;
+            string newFolder = Path.GetDirectoryName(e.FullPath)!;
+
+            // Scan both old and new folders
+            ScanFolder(oldFolder);
+            ScanFolder(newFolder);
+
+            lock (pendingNotifications)
+            {
+                pendingNotifications.Add(oldFolder);
+                pendingNotifications.Add(newFolder);
+                notificationThrottle.Stop();
+                notificationThrottle.Start();
+            }
         }
 
         // Query methods
