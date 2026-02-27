@@ -18,7 +18,6 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
-
     /// <summary>
     /// Stores loaded assets and references.
     /// </summary>
@@ -43,13 +42,14 @@ namespace DivisionEngine.Projects.Assets
                 return existing as T;
             }
 
-            AssetMetadata? metadata = database.GetAssetByID(id); // Get metadata
+            AssetMetadata? metadata = database.GetAssetMetadataByID(id); // Get metadata
             if (metadata == null) return null;
             Asset? asset = CreateAssetFromMetadata(metadata); // Create appropriate asset type
             if (asset == null) return null;
             bool success = await asset.LoadAsync(); // Load asset
             if (!success) return null;
-            
+
+            Debug.Info($"Asset Manager: Loaded Asset:\n{metadata.FileName}");
             loadedAssets[id] = asset; // Store in cache
             referenceCounts[id] = 1;
             return asset as T;
@@ -69,6 +69,7 @@ namespace DivisionEngine.Projects.Assets
                 if (loadedAssets.TryGetValue(id, out Asset? asset))
                 {
                     asset.Unload();
+                    Debug.Info($"Asset Manager: Unloaded Asset:\n{id}");
                     loadedAssets.Remove(id);
                 }
                 referenceCounts.Remove(id);
@@ -80,6 +81,7 @@ namespace DivisionEngine.Projects.Assets
         /// </summary>
         public void UnloadAll()
         {
+            Debug.Info($"Asset Manager: Unloaded Assets");
             foreach (Asset? asset in loadedAssets.Values) asset.Unload();
             loadedAssets.Clear();
             referenceCounts.Clear();

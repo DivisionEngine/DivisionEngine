@@ -29,7 +29,7 @@ namespace DivisionEngine.Projects.Assets
         public string FolderPath { get; set; } = string.Empty;
 
         /// <summary>
-        /// Asset metadatas organized by asset GUID.
+        /// Asset metadatas organized by asset full file path.
         /// </summary>
         public Dictionary<string, AssetMetadata> Assets { get; set; } = [];
 

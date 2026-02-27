@@ -25,17 +25,19 @@ namespace DivisionEngine.Projects.Assets
     /// </summary>
     public class AssetDatabase
     {
-        // Asset database events
-        public event Action<string>? FolderChanged; // Path of folder that changed
+        /// <summary>
+        /// Contains all the folder metadatas.
+        /// </summary>
+        public Dictionary<string, FolderMetadata> Folders { get; private set; } = []; // Key = relative folder path
 
-        // Private database variables
-        private readonly string assetsPath, dbPath;
-        private ProjectAssetDatabase projectDB;
-        private readonly FileSystemWatcher fileWatcher;
+        /// <summary>
+        /// Contains all the asset metadatas.
+        /// </summary>
+        public Dictionary<string, AssetMetadata> AllAssetsByID { get; private set; } = []; // Master GUID
+
+        // Database variables
+        private readonly string assetsPath;
         private readonly JsonSerializerOptions jsonSerializerOptions;
-
-        private readonly HashSet<string> pendingNotifications = new();
-        private readonly System.Timers.Timer notificationThrottle;
 
         /// <summary>
         /// Opens a new asset database instance at an asset path.
@@ -44,142 +46,77 @@ namespace DivisionEngine.Projects.Assets
         public AssetDatabase(string assetsPath)
         {
             this.assetsPath = assetsPath;
-            projectDB = new ProjectAssetDatabase { ProjectPath = assetsPath };
-            dbPath = Path.Combine(assetsPath, "..", "ProjectAssets.divdb");
-
             jsonSerializerOptions = new JsonSerializerOptions { WriteIndented = true };
             Directory.CreateDirectory(assetsPath); // Ensure Assets folder exists
-            LoadProjectDatabase(); // Load existing database or create new
-
-            // Throttle notifications to avoid too many refreshes
-            notificationThrottle = new System.Timers.Timer(100);
-            notificationThrottle.AutoReset = false;
-            notificationThrottle.Elapsed += (s, e) =>
-            {
-                lock (pendingNotifications)
-                {
-                    foreach (string? folder in pendingNotifications)
-                        FolderChanged?.Invoke(folder);
-                    pendingNotifications.Clear();
-                }
-            };
-
-            // Setup file watcher for realtime updates
-            fileWatcher = new FileSystemWatcher(assetsPath)
-            {
-                IncludeSubdirectories = true,
-                EnableRaisingEvents = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
-            };
-            fileWatcher.Created += OnFileChanged;
-            fileWatcher.Changed += OnFileChanged;
-            fileWatcher.Deleted += OnFileDeleted;
-            fileWatcher.Renamed += OnFileRenamed;
+            ScanAllFolders();
+            InitAllAssets();
         }
 
+        /// <summary>
+        /// Scans and updates all folders in the database.
+        /// </summary>
         public void ScanAllFolders()
         {
             foreach (string? folder in Directory.GetDirectories(assetsPath, "*", SearchOption.AllDirectories))
                 ScanFolder(folder);
             ScanFolder(assetsPath); // Also scan root
-            SaveProjectDatabase();
+        }
+
+        /// <summary>
+        /// Initializes the asset GUID database.
+        /// </summary>
+        public void InitAllAssets()
+        {
+            AllAssetsByID.Clear();
+            foreach (var folder in Folders.Values)
+            {
+                foreach (AssetMetadata asset in folder.Assets.Values)
+                    AllAssetsByID.Add(asset.ID, asset);
+            }
+            Debug.Info($"Asset Database: Loaded {AllAssetsByID.Count} assets");
         }
 
         private void ScanFolder(string folderPath)
         {
             string relativeFolder = Path.GetRelativePath(assetsPath, folderPath);
-            string metadataPath = Path.Combine(folderPath, ".divmeta");
+            string metadataPath = Path.Combine(folderPath, $"{Path.GetFileName(folderPath)}.divmeta");
 
-            FolderMetadata folderMeta;
-            if (File.Exists(metadataPath))
+            FolderMetadata folderMeta = new FolderMetadata { FolderPath = relativeFolder };
+            foreach (string? file in Directory.GetFiles(folderPath))
             {
-                // Load existing metadata
-                string json = File.ReadAllText(metadataPath);
-                folderMeta = JsonSerializer.Deserialize<FolderMetadata>(json) ?? new FolderMetadata { FolderPath = relativeFolder };
-
-                // Check for deleted files
-                var currentFiles = Directory.GetFiles(folderPath)
-                    .Where(f => !Path.GetFileName(f).StartsWith('.'))
-                    .ToDictionary(f => Path.GetFileName(f));
-
-                foreach (string? filename in folderMeta.Assets.Keys.ToList())
+                if (!file.Contains(".divmeta"))
                 {
-                    if (!currentFiles.ContainsKey(filename))
-                    {
-                        // File was deleted
-                        AssetMetadata? asset = folderMeta.Assets[filename];
-                        projectDB.AllAssetsByID.Remove(asset.ID);
-                        folderMeta.Assets.Remove(filename);
-                    }
-                }
-
-                // Check for new/modified files
-                foreach (var file in currentFiles)
-                {
-                    string fullPath = file.Value;
-                    DateTime lastModified = File.GetLastWriteTime(fullPath);
-
-                    if (folderMeta.Assets.TryGetValue(file.Key, out AssetMetadata? existingAsset))
-                    {
-                        // Update metadata if modified
-                        if (lastModified > existingAsset.LastModified)
-                            UpdateAssetMetadata(ref existingAsset, fullPath);
-                    }
-                    else
-                    {
-                        // New asset
-                        AssetMetadata? newAsset = CreateAssetMetadata(fullPath, relativeFolder);
-                        folderMeta.Assets[file.Key] = newAsset;
-                        projectDB.AllAssetsByID[newAsset.ID] = newAsset;
-                    }
-                }
-            }
-            else
-            {
-                // Create new folder metadata
-                folderMeta = new FolderMetadata { FolderPath = relativeFolder };
-                foreach (var file in Directory.GetFiles(folderPath).Where(f => !Path.GetFileName(f).StartsWith('.')))
-                {
+                    Debug.Info($"Asset Database: Creating meta file for path (initial round):\n{file}");
                     AssetMetadata? asset = CreateAssetMetadata(file, relativeFolder);
                     folderMeta.Assets[Path.GetFileName(file)] = asset;
-                    projectDB.AllAssetsByID[asset.ID] = asset;
                 }
             }
 
             folderMeta.LastScanTime = DateTime.Now;
-            projectDB.Folders[relativeFolder] = folderMeta;
+            Folders[relativeFolder] = folderMeta;
 
             // Save folder metadata
             string folderJson = JsonSerializer.Serialize(folderMeta, jsonSerializerOptions);
             File.WriteAllText(metadataPath, folderJson);
         }
 
+        /// <summary>
+        /// Creates the asset metadata.
+        /// </summary>
+        /// <param name="filePath">File path of asset</param>
+        /// <param name="relativeFolder">Folder relative to file path</param>
+        /// <returns>Generated asset metadata</returns>
         private static AssetMetadata CreateAssetMetadata(string filePath, string relativeFolder)
         {
             FileInfo fileInfo = new FileInfo(filePath);
             return new AssetMetadata
             {
                 FileName = Path.GetFileName(filePath),
-                RelativePath = string.IsNullOrEmpty(relativeFolder)
-                    ? Path.GetFileName(filePath)
-                    : Path.Combine(relativeFolder, Path.GetFileName(filePath)).Replace('\\', '/'),
+                RelativePath = Path.GetRelativePath(relativeFolder, filePath),
                 Type = DetermineAssetType(filePath),
                 LastModified = fileInfo.LastWriteTime,
-                FileSize = fileInfo.Length
+                FileSize = fileInfo.Length,
             };
-        }
-
-        /// <summary>
-        /// Updates an asset metadata file.
-        /// </summary>
-        /// <param name="metadata">Asset metadata to update</param>
-        /// <param name="filePath">File path to pull updates from</param>
-        private static void UpdateAssetMetadata(ref AssetMetadata metadata, string filePath)
-        {
-            FileInfo fileInfo = new FileInfo(filePath);
-            metadata.LastModified = fileInfo.LastWriteTime;
-            metadata.FileSize = fileInfo.Length;
-            // Don't change GUID or other permanent properties
         }
 
         /// <summary>
@@ -200,97 +137,19 @@ namespace DivisionEngine.Projects.Assets
                 ".sdf" or ".sdfLib" => AssetType.SDF,
                 ".wav" or ".mp3" or ".ogg" => AssetType.Audio,
                 ".ttf" or ".otf" => AssetType.Font,
-                _ => AssetType.None
+                _ => AssetType.None,
             };
         }
 
-        /// <summary>
-        /// Loads the project asset database.
-        /// </summary>
-        private void LoadProjectDatabase()
-        {
-            if (File.Exists(dbPath))
-            {
-                string json = File.ReadAllText(dbPath);
-                projectDB = JsonSerializer.Deserialize<ProjectAssetDatabase>(json, jsonSerializerOptions)
-                    ?? new ProjectAssetDatabase { ProjectPath = assetsPath }; // Fallback if project asset database could not be loaded
-            }
-        }
-
-        /// <summary>
-        /// Saves the project database file.
-        /// </summary>
-        private void SaveProjectDatabase()
-        {
-            string json = JsonSerializer.Serialize(projectDB, jsonSerializerOptions);
-            File.WriteAllText(dbPath, json);
-        }
-
-        // File watcher event handlers
-
-        /// <summary>
-        /// Called when a file is added or modified in the asset folder.
-        /// </summary>
-        private void OnFileChanged(object sender, FileSystemEventArgs e)
-        {
-            // Queue a rescan of the affected folder
-            string folder = Path.GetDirectoryName(e.FullPath)!;
-            ScanFolder(folder);
-
-            // Queue notification
-            lock (pendingNotifications)
-            {
-                pendingNotifications.Add(folder);
-                notificationThrottle.Stop();
-                notificationThrottle.Start();
-            }
-        }
-
-        /// <summary>
-        /// Called when a file is deleted in the asset folder.
-        /// </summary>
-        private void OnFileDeleted(object sender, FileSystemEventArgs e)
-        {
-            string folder = Path.GetDirectoryName(e.FullPath)!;
-            ScanFolder(folder);
-            lock (pendingNotifications)
-            {
-                pendingNotifications.Add(folder);
-                notificationThrottle.Stop();
-                notificationThrottle.Start();
-            }
-        }
-
-        /// <summary>
-        /// Called when a file is renamed in the asset folder.
-        /// </summary>
-        private void OnFileRenamed(object sender, RenamedEventArgs e)
-        {
-            string oldFolder = Path.GetDirectoryName(e.OldFullPath)!;
-            string newFolder = Path.GetDirectoryName(e.FullPath)!;
-
-            // Scan both old and new folders
-            ScanFolder(oldFolder);
-            ScanFolder(newFolder);
-
-            lock (pendingNotifications)
-            {
-                pendingNotifications.Add(oldFolder);
-                pendingNotifications.Add(newFolder);
-                notificationThrottle.Stop();
-                notificationThrottle.Start();
-            }
-        }
-
-        // Query methods
+        // Queries
 
         /// <summary>
         /// Gets an asset metadata by its GUID.
         /// </summary>
         /// <param name="id">Asset GUID</param>
         /// <returns>Asset metadata with GUID</returns>
-        public AssetMetadata? GetAssetByID(string id) =>
-            projectDB.AllAssetsByID.TryGetValue(id, out var asset) ? asset : null;
+        public AssetMetadata? GetAssetMetadataByID(string id) =>
+            AllAssetsByID.TryGetValue(id, out var asset) ? asset : null;
 
         /// <summary>
         /// Gets all assets in a folder path relative to the asset folder.
@@ -298,13 +157,13 @@ namespace DivisionEngine.Projects.Assets
         /// <param name="relativeFolder">Relative asset folder path</param>
         /// <returns>Enumerable of asset metadatas in relative folder</returns>
         public IEnumerable<AssetMetadata> GetAssetsInFolder(string relativeFolder) => 
-            projectDB.Folders.TryGetValue(relativeFolder, out var folder) ? folder.Assets.Values : [];
+            Folders.TryGetValue(relativeFolder, out var folder) ? folder.Assets.Values : [];
 
         /// <summary>
         /// Gets all the assets in the project database.
         /// </summary>
         /// <returns>Enumerable of all asset metadatas</returns>
-        public IEnumerable<AssetMetadata> GetAllAssets() => projectDB.AllAssetsByID.Values;
+        public IEnumerable<AssetMetadata> GetAllAssets() => AllAssetsByID.Values;
 
         /// <summary>
         /// Gets an enumerable of all asset metadatas of a type.
@@ -312,6 +171,6 @@ namespace DivisionEngine.Projects.Assets
         /// <param name="type">Asset type to test for</param>
         /// <returns>Asset metadatas organized by asset type</returns>
         public IEnumerable<AssetMetadata> GetAssetsByType(AssetType type) =>
-            projectDB.AllAssetsByID.Values.Where(a => a.Type == type);
+            AllAssetsByID.Values.Where(a => a.Type == type);
     }
 }

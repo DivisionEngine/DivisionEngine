@@ -288,10 +288,6 @@ namespace DivisionEngine.Projects
             string assetsPath = Path.Combine(projDir, "Assets");
             AssetDatabase = new AssetDatabase(assetsPath);
             AssetManager = new AssetManager(AssetDatabase);
-
-            // Initial scan of assets
-            AssetDatabase.ScanAllFolders();
-
             Debug.Info($"Asset System initialized. Found {AssetDatabase.GetAllAssets().Count()} assets.");
         }
 
