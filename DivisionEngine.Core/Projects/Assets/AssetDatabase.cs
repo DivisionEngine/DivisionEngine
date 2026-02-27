@@ -106,13 +106,13 @@ namespace DivisionEngine.Projects.Assets
         /// <param name="filePath">File path of asset</param>
         /// <param name="relativeFolder">Folder relative to file path</param>
         /// <returns>Generated asset metadata</returns>
-        private static AssetMetadata CreateAssetMetadata(string filePath, string relativeFolder)
+        private AssetMetadata CreateAssetMetadata(string filePath, string relativeFolder)
         {
             FileInfo fileInfo = new FileInfo(filePath);
             return new AssetMetadata
             {
                 FileName = Path.GetFileName(filePath),
-                RelativePath = Path.GetRelativePath(relativeFolder, filePath),
+                RelativePath = Path.GetRelativePath(assetsPath, filePath),
                 Type = DetermineAssetType(filePath),
                 LastModified = fileInfo.LastWriteTime,
                 FileSize = fileInfo.Length,
