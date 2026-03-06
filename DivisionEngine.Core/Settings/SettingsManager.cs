@@ -60,34 +60,30 @@ namespace DivisionEngine.Settings
         public static T GetSettings<T>() where T : ISettings, new()
         {
             string id = new T().ID;
-            if (Loaded.TryGetValue(id, out ISettings? existing))
-                return (T)existing;
+            if (Loaded.TryGetValue(id, out ISettings? existing)) return (T)existing;
 
+            T settings;
             string path = GetSettingsFilePath(id);
             if (File.Exists(path))
             {
                 try
                 {
                     string json = File.ReadAllText(path);
-                    T? settings = JsonSerializer.Deserialize<T>(json, serializerOptions);
-                    if (settings != null)
-                    {
-                        settings.OnLoad();
-                        Loaded[id] = settings;
-                        return settings;
-                    }
+                    settings = JsonSerializer.Deserialize<T>(json, serializerOptions) ?? new T();
+
+                    // Merge with defaults
+                    ((BaseSettings)(object)settings).MergeDefaults();
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Debug.Error($"Failed to load settings {id}", ex);
+                    settings = new T();
                 }
             }
+            else settings = new T();
 
-            T newSettings = new(); // Create new with defaults
-            newSettings.OnLoad();
-            Loaded[id] = newSettings;
-            SaveSettings(newSettings);
-            return newSettings;
+            settings.OnLoad();
+            Loaded[id] = settings;
+            return settings;
         }
 
         /// <summary>

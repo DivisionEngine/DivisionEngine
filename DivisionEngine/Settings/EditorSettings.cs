@@ -38,7 +38,8 @@ namespace DivisionEngine.Editor.Settings
 
         protected override void InitializeDefaults()
         {
-            AutoSaveInterval = 300;
+            AutoSave = true;
+            AutoSaveInterval = 120;
             RecentProjects = [];
             MaxRecentProjects = 10;
             MainWindowWidth = 1280;
@@ -51,9 +52,16 @@ namespace DivisionEngine.Editor.Settings
         }
 
         [JsonIgnore]
-        public float AutoSaveInterval
+        public bool AutoSave
         {
-            get => Get(nameof(AutoSaveInterval), 300f);
+            get => Get(nameof(AutoSave), true);
+            set => Set(nameof(AutoSave), value);
+        }
+
+        [JsonIgnore]
+        public int AutoSaveInterval
+        {
+            get => Get(nameof(AutoSaveInterval), 120);
             set => Set(nameof(AutoSaveInterval), value);
         }
 

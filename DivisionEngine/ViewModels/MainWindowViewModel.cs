@@ -167,7 +167,6 @@ namespace DivisionEngine.Editor.ViewModels
             {
                 Debug.Error($"Error saving project", ex);
             }
-            ProjectManager.SaveCurrentProject();
         }
 
         [RelayCommand]

@@ -269,7 +269,7 @@ namespace DivisionEngine.Projects
                 File.WriteAllText(GetProjectPath(projDir, projName), serializedProjectData); // Write project file
                 File.WriteAllText(GetWorldPath(projDir, worldData), serializedWorld); // Write single world file
 
-                // Asset database doesn't need saving - it's auto-saved via .divmeta files
+                // Asset database doesn't need saving, it's auto-saved via .divmeta files
 
                 return true;
             }

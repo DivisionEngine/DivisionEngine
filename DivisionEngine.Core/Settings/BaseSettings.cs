@@ -27,6 +27,20 @@ namespace DivisionEngine.Settings
         protected virtual void InitializeDefaults() { }
 
         /// <summary>
+        /// Merges default settings with any new settings created.
+        /// </summary>
+        public void MergeDefaults()
+        {
+            // Create a temporary instance with defaults
+            BaseSettings defaults = (BaseSettings)Activator.CreateInstance(GetType())!;
+
+            // Add any missing keys from defaults
+            foreach (var kvp in defaults.Settings)
+                if (!Settings.ContainsKey(kvp.Key))
+                    Settings[kvp.Key] = kvp.Value;
+        }
+
+        /// <summary>
         /// Get a setting value with type safety.
         /// </summary>
         protected T Get<T>(string key, T defaultValue)
