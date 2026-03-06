@@ -36,7 +36,7 @@ namespace DivisionEngine.Editor
     /// </summary>
     public partial class MainWindow : Window
     {
-        private static Flyout tasksFlyout;
+        private static Flyout? tasksFlyout;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MainWindow"/> class.
@@ -44,11 +44,7 @@ namespace DivisionEngine.Editor
         public MainWindow()
         {
             InitializeComponent(); // Initialize the main window components
-
-            if (DataContext is MainWindowViewModel vm)
-            {
-                vm.RequestClose = Close;
-            }
+            if (DataContext is MainWindowViewModel vm) vm.RequestClose = Close;
 #if DEBUG
             this.AttachDevTools(); // Enable developer tools in debug mode
 #endif
@@ -197,14 +193,15 @@ namespace DivisionEngine.Editor
                 if (progressText != null) progressText.Text = "0%";
                 if (taskCountText != null) taskCountText.Text = "";
             }
-            UpdateTaskFoldoutContent(tasksFlyout);
+
+            if (tasksFlyout != null) UpdateTaskFoldoutContent(tasksFlyout);
         }
 
         /// <summary>
         /// Updates the editor task manager context menu.
         /// </summary>
         /// <param name="flyout">List of tasks in the context menu</param>
-        private void UpdateTaskFoldoutContent(Flyout flyout)
+        private static void UpdateTaskFoldoutContent(Flyout flyout)
         {
             List<EditorTask> tasks = [.. EditorTaskManager.GetAll()];
             if (tasks.Count == 0)
@@ -273,7 +270,7 @@ namespace DivisionEngine.Editor
         /// <summary>
         /// Creates a full-width task item for the foldout.
         /// </summary>
-        private static Control CreateTaskFoldoutItem(EditorTask task)
+        private static Grid CreateTaskFoldoutItem(EditorTask task)
         {
             Grid grid = new Grid
             {
@@ -405,133 +402,6 @@ namespace DivisionEngine.Editor
             grid.Children.Add(descText);
             grid.Children.Add(progressText);
             grid.Children.Add(progressBar);
-            return grid;
-        }
-
-        /// <summary>
-        /// Builds the menu item for each editor task.
-        /// </summary>
-        /// <param name="task">Task to create menu item for</param>
-        /// <returns>Grid element representing task</returns>
-        private static Grid CreateTaskMenuItem(EditorTask task)
-        {
-            Grid grid = new Grid
-            {
-                ColumnDefinitions =
-                {
-                    new ColumnDefinition(GridLength.Auto), // Icon
-                    new ColumnDefinition(new GridLength(1, GridUnitType.Star)), // Content
-                    new ColumnDefinition(GridLength.Auto), // Progress & Close button
-                },
-                RowDefinitions =
-                {
-                    new RowDefinition(GridLength.Auto), // Name & X button
-                    new RowDefinition(GridLength.Auto), // Description
-                    new RowDefinition(GridLength.Auto), // Progress bar
-                },
-                MinWidth = 280, // Ensure minimum width
-                Margin = new Thickness(0, 2, 0, 2),
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-            };
-
-            MaterialIcon icon = new MaterialIcon
-            {
-                Kind = task.Icon,
-                Width = 14,
-                Height = 14,
-                Foreground = task.Progress >= 1 ? Brushes.Green : Brushes.Orange,
-                Margin = new Thickness(0, 4, 8, 0),
-                VerticalAlignment = VerticalAlignment.Top,
-            };
-            Grid.SetColumn(icon, 0);
-            Grid.SetRow(icon, 0);
-            Grid.SetRowSpan(icon, 2); // Span across name and description
-
-            TextBlock nameText = new TextBlock
-            {
-                Text = task.Name,
-                FontSize = 12,
-                FontWeight = FontWeight.SemiBold,
-                Foreground = Brushes.White,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            };
-            Grid.SetColumn(nameText, 1);
-            Grid.SetRow(nameText, 0);
-
-            Button closeButton = new Button
-            {
-                Content = "×",
-                FontSize = 16,
-                FontWeight = FontWeight.Bold,
-                Width = 20,
-                Height = 20,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Foreground = Brushes.Gray,
-                Padding = new Thickness(0),
-                Cursor = new Cursor(StandardCursorType.Hand),
-                Tag = task.Id,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center,
-                VerticalContentAlignment = VerticalAlignment.Center,
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(8, 0, 0, 0),
-            };
-            closeButton.PointerEntered += (s, e) => closeButton.Foreground = Brushes.White;
-            closeButton.PointerExited += (s, e) => closeButton.Foreground = Brushes.Gray;
-            closeButton.Click += (s, e) =>
-            {
-                if (closeButton.Tag is Guid taskId) EditorTaskManager.Remove(taskId);
-                e.Handled = true;
-            };
-            Grid.SetColumn(closeButton, 2);
-            Grid.SetRow(closeButton, 0);
-
-            TextBlock descText = new TextBlock
-            {
-                Text = task.Description,
-                FontSize = 10,
-                Foreground = EditorColor.FromRGB(180, 180, 180),
-                TextWrapping = TextWrapping.Wrap,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                Margin = new Thickness(0, 2, 28, 4), // Right margin for close button area
-            };
-            Grid.SetColumn(descText, 1);
-            Grid.SetColumnSpan(descText, 2); // Span under both progress % and X button
-            Grid.SetRow(descText, 1);
-
-            TextBlock progressText = new TextBlock
-            {
-                Text = $"{task.Progress:P0}",
-                FontSize = 10,
-                Foreground = Brushes.Gray,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 0, 24, 0), // Leave space for X button
-            };
-            Grid.SetColumn(progressText, 2);
-            Grid.SetRow(progressText, 0);
-
-            ProgressBar progressBar = new ProgressBar
-            {
-                Value = task.Progress * 100,
-                Maximum = 100,
-                Height = 4,
-                Background = EditorColor.FromRGB(40, 40, 40),
-                Foreground = task.Progress >= 1 ? Brushes.Green : Brushes.Orange,
-                Margin = new Thickness(0, 4, 0, 0),
-            };
-            Grid.SetColumn(progressBar, 0);
-            Grid.SetColumnSpan(progressBar, 3);
-            Grid.SetRow(progressBar, 2);
-
-            grid.Children.Add(icon);
-            grid.Children.Add(nameText);
-            grid.Children.Add(descText);
-            grid.Children.Add(progressText);
-            grid.Children.Add(progressBar);
-            grid.Children.Add(closeButton);
             return grid;
         }
 

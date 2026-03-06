@@ -1,4 +1,5 @@
 <Window xmlns="https://github.com/avaloniaui"
+        xmlns:icons="using:Material.Icons.Avalonia"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DivisionEngine.Editor.ViewModels"
         xmlns:local="using:DivisionEngine.Editor"
@@ -26,6 +27,9 @@
     </DataTemplate>
     <DataTemplate DataType="{x:Type local:ViewModels.PropertiesWindowViewModel}">
       <local:PropertiesWindow/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type local:ViewModels.SettingsWindowViewModel}">
+      <local:SettingsWindow/>
     </DataTemplate>
   </Window.DataTemplates>
 
@@ -101,7 +105,10 @@
                         SelectedItem="{Binding SelectedLeftTab, Mode=TwoWay}">
               <TabControl.ItemTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding Title}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="{Binding Icon}" Foreground="#888" Width="12" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </DataTemplate>
               </TabControl.ItemTemplate>
             </TabControl>
@@ -110,11 +117,12 @@
               <Button.Flyout>
                 <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
                   <StackPanel>
-                    <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,left"/>
-                    <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,left"/>
-                    <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,left"/>
-                    <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,left"/>
-                    <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,left"/>
+                    <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,left" HorizontalAlignment="Stretch"/>
+                    <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,left" HorizontalAlignment="Stretch"/>
+                    <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,left" HorizontalAlignment="Stretch"/>
+                    <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,left" HorizontalAlignment="Stretch"/>
+                    <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,left" HorizontalAlignment="Stretch"/>
+                    <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,left" HorizontalAlignment="Stretch"/>
                   </StackPanel>
                 </Flyout>
               </Button.Flyout>
@@ -128,7 +136,10 @@
                         SelectedItem="{Binding SelectedCenterTab, Mode=TwoWay}">
               <TabControl.ItemTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding Title}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="{Binding Icon}" Foreground="#888" Width="12" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </DataTemplate>
               </TabControl.ItemTemplate>
             </TabControl>
@@ -138,11 +149,12 @@
               <Button.Flyout>
                 <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
                   <StackPanel>
-                    <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,center"/>
-                    <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,center"/>
-                    <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,center"/>
-                    <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,center"/>
-                    <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,center"/>
+                    <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,center" HorizontalAlignment="Stretch"/>
+                    <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,center" HorizontalAlignment="Stretch"/>
+                    <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,center" HorizontalAlignment="Stretch"/>
+                    <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,center" HorizontalAlignment="Stretch"/>
+                    <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,center" HorizontalAlignment="Stretch"/>
+                    <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,center" HorizontalAlignment="Stretch"/>
                   </StackPanel>
                 </Flyout>
               </Button.Flyout>
@@ -157,9 +169,12 @@
           <TabControl x:Name="bottomTabs" ItemsSource="{Binding BottomTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                       SelectedItem="{Binding SelectedBottomTab, Mode=TwoWay}">
             <TabControl.ItemTemplate>
-              <DataTemplate>
-                <TextBlock Text="{Binding Title}"/>
-              </DataTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="{Binding Icon}" Foreground="#888" Width="12" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </DataTemplate>
             </TabControl.ItemTemplate>
           </TabControl>
 
@@ -168,11 +183,12 @@
             <Button.Flyout>
               <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
                 <StackPanel>
-                  <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,bottom"/>
-                  <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,bottom"/>
-                  <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,bottom"/>
-                  <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,bottom"/>
-                  <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,bottom"/>
+                  <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,bottom" HorizontalAlignment="Stretch"/>
+                  <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,bottom" HorizontalAlignment="Stretch"/>
+                  <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,bottom" HorizontalAlignment="Stretch"/>
+                  <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,bottom" HorizontalAlignment="Stretch"/>
+                  <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,bottom" HorizontalAlignment="Stretch"/>
+                  <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,bottom" HorizontalAlignment="Stretch"/>
                 </StackPanel>
               </Flyout>
             </Button.Flyout>
@@ -186,11 +202,14 @@
       <Grid Grid.Column="2">
         <TabControl x:Name="rightTabs" ItemsSource="{Binding RightTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                     SelectedItem="{Binding SelectedRightTab, Mode=TwoWay}">
-          <TabControl.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Title}"/>
-            </DataTemplate>
-          </TabControl.ItemTemplate>
+            <TabControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="{Binding Icon}" Foreground="#888" Width="12" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </DataTemplate>
+            </TabControl.ItemTemplate>
         </TabControl>
 
         <Button Content="+" FontSize="14" Width="18" Height="18"
@@ -198,11 +217,12 @@
           <Button.Flyout>
             <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
               <StackPanel>
-                <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,right"/>
-                <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,right"/>
-                <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,right"/>
-                <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,right"/>
-                <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,right"/>
+                <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,right" HorizontalAlignment="Stretch"/>
+                <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,right" HorizontalAlignment="Stretch"/>
+                <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,right" HorizontalAlignment="Stretch"/>
+                <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,right" HorizontalAlignment="Stretch"/>
+                <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,right" HorizontalAlignment="Stretch"/>
+                <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,right" HorizontalAlignment="Stretch"/>
               </StackPanel>
             </Flyout>
           </Button.Flyout>

@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
+using Material.Icons;
+
 namespace DivisionEngine.Editor.ViewModels
 {
     public partial class EnvironmentWindowViewModel : EditorWindowViewModel
@@ -23,6 +25,7 @@ namespace DivisionEngine.Editor.ViewModels
         public EnvironmentWindowViewModel()
         {
             Title = "Environment";
+            Icon = MaterialIconKind.Environment;
         }
     }
 }

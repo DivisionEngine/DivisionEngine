@@ -16,20 +16,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
+using Material.Icons;
 using ReactiveUI;
 
 namespace DivisionEngine.Editor.ViewModels
 {
     /// <summary>
-    /// Base class of all editor windows.
+    /// Base class for all editor windows.
     /// </summary>
     public partial class EditorWindowViewModel : ViewModelBase
     {
         private string title = "Untitled";
+
+        /// <summary>
+        /// Title of this editor window.
+        /// </summary>
         public string Title
         {
             get => title;
             set => this.RaiseAndSetIfChanged(ref title, value);
+        }
+
+        private MaterialIconKind icon = MaterialIconKind.DatabaseEdit;
+
+        /// <summary>
+        /// Icon of this editor window.
+        /// </summary>
+        public MaterialIconKind Icon
+        {
+            get => icon;
+            set => this.RaiseAndSetIfChanged(ref icon, value);
         }
     }
 }

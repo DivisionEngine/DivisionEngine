@@ -7,20 +7,31 @@ namespace DivisionEngine.Settings
     /// </summary>
     public class EngineSettings : BaseSettings
     {
-        private static EngineSettings? _instance;
+        private static EngineSettings? instance;
 
+        /// <summary>
+        /// Gets the singleton instance of the engine settings used to configure the application.
+        /// </summary>
+        /// <remarks>Accessing this property ensures that only one instance of the engine settings is
+        /// created and used throughout the application's lifetime. The settings are retrieved via the settings manager,
+        /// which may load them from a configuration file or other persistent storage. This property is thread-safe and
+        /// intended for global access to engine configuration.</remarks>
         [JsonIgnore]
         public static EngineSettings Instance
         {
             get
             {
-                _instance ??= SettingsManager.GetSettings<EngineSettings>();
-                return _instance;
+                instance ??= SettingsManager.GetSettings<EngineSettings>();
+                return instance;
             }
         }
 
+        /// <summary>
+        /// Engine settings file identifier.
+        /// </summary>
         public override string ID => "EngineSettings";
 
+        // Load will happen through SettingsManager
         public EngineSettings() { }
 
         protected override void InitializeDefaults()
@@ -171,9 +182,14 @@ namespace DivisionEngine.Settings
             set => Set(nameof(Difficulty), Math.Clamp(value, 0, 2));
         }
 
+        /// <summary>
+        /// Ensures that the resolution width and height meet the minimum required values when the component is loaded.
+        /// </summary>
+        /// <remarks>This method is typically called during the component's initialization process to
+        /// enforce minimum resolution constraints. Setting the resolution to at least 640x480 pixels may be necessary
+        /// for correct rendering or to meet application requirements.</remarks>
         public override void OnLoad()
         {
-            // Ensure resolution is valid
             if (ResolutionWidth < 640) ResolutionWidth = 640;
             if (ResolutionHeight < 480) ResolutionHeight = 480;
         }

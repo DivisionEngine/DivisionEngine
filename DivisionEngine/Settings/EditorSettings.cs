@@ -24,11 +24,13 @@ namespace DivisionEngine.Editor.Settings
             {
                 // Try to load from disk, or create new if doesn't exist
                 instance ??= SettingsManager.GetSettings<EditorSettings>();
-                Debug.Info("Loaded Editor Settings Instance");
                 return instance;
             }
         }
 
+        /// <summary>
+        /// Editor settings file identifier.
+        /// </summary>
         public override string ID => "EditorSettings";
 
         // Load will happen through SettingsManager
