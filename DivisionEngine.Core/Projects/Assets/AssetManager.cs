@@ -28,6 +28,10 @@ namespace DivisionEngine.Projects.Assets
         private readonly Dictionary<string, Asset> loadedAssets = [];
         private readonly Dictionary<string, int> referenceCounts = [];
 
+        public Asset? Get(string id) => loadedAssets.TryGetValue(id, out Asset? asset) ? asset : null;
+
+        public T? Get<T>(string id) where T : Asset => loadedAssets.TryGetValue(id, out Asset? asset) ? asset as T : null;
+
         /// <summary>
         /// Loads an asset asynchronously.
         /// </summary>
@@ -44,6 +48,14 @@ namespace DivisionEngine.Projects.Assets
 
             AssetMetadata? metadata = database.GetAssetMetadataByID(id); // Get metadata
             if (metadata == null) return null;
+
+            // Add type validation
+            //if (metadata.Type != GetAssetType<T>())
+            //{
+            //    Debug.Error($"Asset type mismatch: Expected {GetAssetType<T>()}, got {metadata.Type}");
+            //    return null;
+            //}
+
             Asset? asset = CreateAssetFromMetadata(metadata); // Create appropriate asset type
             if (asset == null) return null;
             bool success = await asset.LoadAsync(); // Load asset

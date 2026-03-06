@@ -24,7 +24,7 @@ namespace DivisionEngine.Editor
     /// <summary>
     /// Startup class for the Division Engine Avalonia editor application.
     /// </summary>
-    public sealed class EditorProgram
+    internal sealed class EditorProgram
     {
         // Initialization code. Don't use any Avalonia, third-party APIs or any
         // SynchronizationContext-reliant code before AppMain is called: things aren't initialized

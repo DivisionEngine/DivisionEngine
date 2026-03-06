@@ -20,6 +20,7 @@ using ComputeSharp;
 using DivisionEngine.Components;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
+using DivisionEngine.Settings;
 using DivisionEngine.Systems;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
@@ -175,6 +176,9 @@ namespace DivisionEngine.Rendering
                 options.VSync = true;
                 options.ShouldSwapAutomatically = true;
                 options.UpdatesPerSecond = requestedFPS;
+
+                // Load render window settings
+                options.Size = new Silk.NET.Maths.Vector2D<int>(EngineSettings.Instance.ResolutionWidth, EngineSettings.Instance.ResolutionHeight);
 
                 RendererWindow = Window.Create(options);
                 Debug.Info($"Renderer: Created Render Window on thread {System.Environment.CurrentManagedThreadId}");

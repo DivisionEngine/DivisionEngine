@@ -21,9 +21,11 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using DivisionEngine.Editor.Settings;
 using DivisionEngine.Editor.ViewModels;
 using DivisionEngine.Input;
 using DivisionEngine.Rendering;
+using DivisionEngine.Settings;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using System;
@@ -94,6 +96,7 @@ namespace DivisionEngine.Editor
                 _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
                 Renderer.Close += () =>
                 {
+                    EngineCore.Stop(); // Stop engine loop
                     Dispatcher.UIThread.Post(() =>
                     {
                         if (Current!.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -127,6 +130,10 @@ namespace DivisionEngine.Editor
                 // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
                 // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
                 DisableAvaloniaDataAnnotationValidation();
+
+                // Settings are automatically loaded when Instance is first accessed
+                EditorSettings settings = EditorSettings.Instance;
+
                 desktop.MainWindow = new MainWindow();
                 MainWindowViewModel vm = new MainWindowViewModel(desktop.MainWindow);
                 desktop.MainWindow.DataContext = vm;
@@ -139,8 +146,10 @@ namespace DivisionEngine.Editor
                 //SetupAvaloniaInput(desktop); // re-enable this later potentially
 
                 // Bind editor callbacks
-                desktop.Exit += (_, _) =>
+                desktop.Exit += (s, e) =>
                 {
+                    Debug.Info($"Editor application exit with code: {e.ApplicationExitCode}");
+                    SettingsManager.SaveSettings(settings); // Save editor settings on editor close
                     Renderer?.RendererWindow?.Close();
                 };
                 desktop.MainWindow.Activated += (_, _) => AppFocused!(true);

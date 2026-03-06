@@ -27,6 +27,7 @@ namespace DivisionEngine
         /// Is the engine running?
         /// </summary>
         public static bool IsRunning { get; private set; }
+
         /// <summary>
         /// Is the engine paused?
         /// </summary>
@@ -39,6 +40,7 @@ namespace DivisionEngine
         {
             IsRunning = true;
             IsPaused = false;
+            Debug.Info("Engine Core: Starting");
             WorldManager.CurrentWorld?.CallAwake();
         }
 
@@ -49,6 +51,7 @@ namespace DivisionEngine
         {
             IsRunning = false;
             IsPaused = false;
+            Debug.Info("Engine Core: Stopping");
             WorldManager.CurrentWorld?.CallUnload();
         }
 
