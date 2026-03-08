@@ -27,7 +27,7 @@ namespace DivisionEngine.Systems
     {
         private int saveTimer;
         private const int SAVE_INTERVAL = 900; // Save every 900 frames (at 60 fps about 15 seconds, 30fps, 30s)
-        private bool hasChanges;
+        private static bool hasChanges;
 
         public override void Awake()
         {
@@ -53,6 +53,6 @@ namespace DivisionEngine.Systems
         /// <summary>
         /// Call this whenever a setting changes.
         /// </summary>
-        public void MarkDirty() => hasChanges = true;
+        public static void MarkDirty() => hasChanges = true;
     }
 }

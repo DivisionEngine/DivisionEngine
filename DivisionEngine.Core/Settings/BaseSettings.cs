@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
+using DivisionEngine.Systems;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -86,6 +87,7 @@ namespace DivisionEngine.Settings
         protected void Set<T>(string key, T value)
         {
             if (value == null) Debug.Warning($"Settings System: Value of {key} setting is null");
+            SettingsSystem.MarkDirty(); // Don't forget to mark settings dirty
             Settings[key] = value!;
         }
 

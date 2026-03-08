@@ -112,8 +112,12 @@ namespace DivisionEngine.Editor.ViewModels
 
             // Initialize default tabs
             LeftTabs.Add(new WorldWindowViewModel());
+
             CenterTabs.Add(new EnvironmentWindowViewModel());
+
             RightTabs.Add(new PropertiesWindowViewModel());
+            RightTabs.Add(new SettingsWindowViewModel());
+
             BottomTabs.Add(new AssetsWindowViewModel());
             BottomTabs.Add(new ConsoleWindowViewModel());
         }
