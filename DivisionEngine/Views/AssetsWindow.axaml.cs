@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using Math = DivisionEngine.MathLib.Math;
 using Path = System.IO.Path;
 
 namespace DivisionEngine.Editor;
@@ -61,7 +62,7 @@ public partial class AssetsWindow : EditorWindow
 
     // Display panels
     private readonly ScrollViewer scrollViewer;
-    private readonly WrapPanel assetsTilePanel;
+    private readonly UniformGrid assetsTileGrid;
     private readonly Grid assetsListPanel;
     private readonly StackPanel listNamePanel;
     private readonly StackPanel listSizePanel;
@@ -146,17 +147,22 @@ public partial class AssetsWindow : EditorWindow
         assetsListPanel.Children.Add(listSizePanel);
 
         // Tiles panel
-        assetsTilePanel = new WrapPanel
+        assetsTileGrid = new UniformGrid
         {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Left,
+            Columns = 0,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Top,
         };
         scrollViewer = new ScrollViewer
         {
-            Content = assetsTilePanel,
+            Content = assetsTileGrid,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+        };
+        scrollViewer.SizeChanged += (s, e) =>
+        {
+            if (CurrentView == ViewState.Tiles) Dispatcher.UIThread.Post(UpdateTileColumns);
         };
 
         // Header setup
@@ -270,7 +276,7 @@ public partial class AssetsWindow : EditorWindow
             currentPath = newPath;
 
             // Clear panels
-            assetsTilePanel.Children.Clear();
+            assetsTileGrid.Children.Clear();
             listNamePanel.Children.Clear();
             listSizePanel.Children.Clear();
 
@@ -327,7 +333,7 @@ public partial class AssetsWindow : EditorWindow
         currentPath = path;
 
         // Clear panels
-        assetsTilePanel.Children.Clear();
+        assetsTileGrid.Children.Clear();
         listNamePanel.Children.Clear();
         listSizePanel.Children.Clear();
 
@@ -460,16 +466,19 @@ public partial class AssetsWindow : EditorWindow
         // Load correct view
         if (CurrentView == ViewState.Tiles)
         {
-            assetsTilePanel.IsVisible = true;
+            assetsTileGrid.IsVisible = true;
             assetsListPanel.IsVisible = false;
-            scrollViewer.Content = assetsTilePanel;
+            scrollViewer.Content = assetsTileGrid;
 
             foreach (DirectoryInfo? folder in folders) CreateFolderTile(folder);
             foreach (AssetMetadata? asset in assets) CreateAssetTile(asset);
+
+            // Update columns after adding items
+            UpdateTileColumns();
         }
         else
         {
-            assetsTilePanel.IsVisible = false;
+            assetsTileGrid.IsVisible = false;
             assetsListPanel.IsVisible = true;
             scrollViewer.Content = assetsListPanel;
 
@@ -535,25 +544,48 @@ public partial class AssetsWindow : EditorWindow
         FileInfo[] files = pathInfo.GetFiles();
         if (CurrentView == ViewState.Tiles)
         {
-            assetsTilePanel.IsVisible = true;
+            assetsTileGrid.IsVisible = true;
             assetsListPanel.IsVisible = false;
-            scrollViewer.Content = assetsTilePanel;
+            scrollViewer.Content = assetsTileGrid;
             foreach (DirectoryInfo folder in folders) CreateFolderTile(folder);
             foreach (FileInfo file in files) CreateFileTile(file);
+
+            // Update columns after adding items
+            UpdateTileColumns();
         }
         else
         {
-            assetsTilePanel.IsVisible = false;
+            assetsTileGrid.IsVisible = false;
             assetsListPanel.IsVisible = true;
             scrollViewer.Content = assetsListPanel;
             foreach (DirectoryInfo folder in folders) CreateFolderListItem(folder);
             foreach (FileInfo file in files) CreateFileListItem(file);
         }
 
-        scrollViewer.HorizontalAlignment = CurrentView == ViewState.Tiles
-            ? HorizontalAlignment.Left
-            : HorizontalAlignment.Stretch;
         return folders.Length + files.Length;
+    }
+
+    private void UpdateTileColumns()
+    {
+        if (CurrentView != ViewState.Tiles) return;
+
+        // Get the actual width of the scroll viewer's viewport
+        double availableWidth = scrollViewer.Bounds.Width;
+
+        // Subtract scrollbar width if visible (usually around 15-20 pixels)
+        if (scrollViewer.VerticalScrollBarVisibility == ScrollBarVisibility.Auto)
+            availableWidth -= 18; // Approximate scrollbar width
+
+        if (availableWidth > 0)
+        {
+            // Tile width is 90 (80 + 5+5 margin)
+            int newColumns = Math.Max(1, (int)(availableWidth / 90));
+            if (assetsTileGrid.Columns != newColumns)
+            {
+                assetsTileGrid.Columns = newColumns;
+                Debug.Log($"Updated columns to {newColumns} for width {availableWidth}");
+            }
+        }
     }
 
     /// <summary>
@@ -633,7 +665,7 @@ public partial class AssetsWindow : EditorWindow
         }, Brushes.Red));
 
         folderBorder.ContextMenu = contextMenu;
-        assetsTilePanel.Children.Add(folderBorder);
+        assetsTileGrid.Children.Add(folderBorder);
     }
 
     /// <summary>
@@ -723,7 +755,7 @@ public partial class AssetsWindow : EditorWindow
         }, Brushes.Red));
 
         fileBorder.ContextMenu = contextMenu;
-        assetsTilePanel.Children.Add(fileBorder);
+        assetsTileGrid.Children.Add(fileBorder);
     }
 
     /// <summary>
@@ -863,7 +895,7 @@ public partial class AssetsWindow : EditorWindow
         MaterialIconKind iconKind = extension.ToLower() switch
         {
             ".png" or ".jpg" or ".jpeg" or ".bmp" or ".tga" or ".tiff" or ".ico" => MaterialIconKind.Image,
-            //".obj" or ".fbx" or ".gltf" or ".glb" or ".stl" => MaterialIconKind.CubeOutline,
+            ".obj" or ".fbx" or ".gltf" or ".glb" or ".stl" => MaterialIconKind.CubeOutline,
             ".wav" or ".mp3" or ".ogg" or ".flac" => MaterialIconKind.Audio,
             ".cs" or ".js" or ".ts" or ".cpp" or ".h" or ".manifest" => MaterialIconKind.CodeBraces,
             ".dll" => MaterialIconKind.Library,
@@ -877,7 +909,7 @@ public partial class AssetsWindow : EditorWindow
         float4 iconColor = extension.ToLower() switch
         {
             ".png" or ".jpg" or ".jpeg" or ".bmp" or ".tga" or ".tiff" or ".ico" => ColorPalette.SkyBlue,
-            //".obj" or ".fbx" or ".gltf" or ".glb" or ".stl" => ColorPalette.LightSeaGreen,
+            ".obj" or ".fbx" or ".gltf" or ".glb" or ".stl" => ColorPalette.LightSeaGreen,
             ".wav" or ".mp3" or ".ogg" or ".flac" => ColorPalette.Coral,
             ".cs" or ".js" or ".ts" or ".cpp" or ".h" or ".manifest" => ColorPalette.Khaki,
             ".dll" => ColorPalette.SandyBrown,
@@ -987,7 +1019,7 @@ public partial class AssetsWindow : EditorWindow
         {
             Debug.Info($"Asset: {asset.FileName} | Type: {asset.Type} | GUID: {asset.ID}");
         };
-        assetsTilePanel.Children.Add(assetBorder);
+        assetsTileGrid.Children.Add(assetBorder);
     }
 
     /// <summary>
@@ -1130,7 +1162,7 @@ public partial class AssetsWindow : EditorWindow
     /// <param name="message">Empty message to display</param>
     private void ShowEmptyState(string message)
     {
-        assetsTilePanel.Children.Clear();
+        assetsTileGrid.Children.Clear();
         listNamePanel.Children.Clear();
         StackPanel emptyStack = new StackPanel
         {
@@ -1157,8 +1189,7 @@ public partial class AssetsWindow : EditorWindow
         emptyStack.Children.Add(icon);
         emptyStack.Children.Add(messageText);
         
-        if (CurrentView == ViewState.Tiles)
-            assetsTilePanel.Children.Add(emptyStack);
+        if (CurrentView == ViewState.Tiles) assetsTileGrid.Children.Add(emptyStack);
         else listNamePanel.Children.Add(emptyStack);
     }
 
