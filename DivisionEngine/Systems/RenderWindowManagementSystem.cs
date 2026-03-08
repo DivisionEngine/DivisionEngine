@@ -88,9 +88,13 @@ namespace DivisionEngine.Editor.Systems
                 }
                 else if ((EditorFocused || RendererFocused) && !App.RendererVisible)
                 {
-                    initializeTimer = 60;
-                    _ = App.SetEditorRenderingAsync(true);
-                    Debug.Log("Set rendering true");
+                    EnvironmentWindow? win = EnvironmentWindow.GetFirstActiveWindow();
+                    if (win != null && win.IsLoaded)
+                    {
+                        initializeTimer = 60;
+                        _ = App.SetEditorRenderingAsync(true);
+                        Debug.Log("Set rendering true");
+                    }
                 }
             });
             updatingFocus = false;
