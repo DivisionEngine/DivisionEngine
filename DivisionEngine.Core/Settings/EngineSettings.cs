@@ -59,19 +59,7 @@ namespace DivisionEngine.Settings
             Fullscreen = false;
             VSync = true;
             MaxFPS = 0;
-            MaxRaySteps = 128;
-            ShadowsEnabled = true;
-            ShadowQuality = 2;
-            RenderScale = 1.0f;
-            MasterVolume = 1.0f;
-            MusicVolume = 0.8f;
-            SFXVolume = 1.0f;
             MouseSensitivity = 0.5f;
-            InvertY = false;
-            KeyBindings = new Dictionary<string, string>();
-            Language = "en-US";
-            ShowTutorials = true;
-            Difficulty = 1;
         }
 
         [JsonIgnore]
@@ -110,95 +98,97 @@ namespace DivisionEngine.Settings
         }
 
         [JsonIgnore]
-        public int MaxRaySteps
-        {
-            get => Get(nameof(MaxRaySteps), 128);
-            set => Set(nameof(MaxRaySteps), value);
-        }
-
-        [JsonIgnore]
-        public bool ShadowsEnabled
-        {
-            get => Get(nameof(ShadowsEnabled), true);
-            set => Set(nameof(ShadowsEnabled), value);
-        }
-
-        [JsonIgnore]
-        public int ShadowQuality
-        {
-            get => Get(nameof(ShadowQuality), 2);
-            set => Set(nameof(ShadowQuality), Math.Clamp(value, 0, 2));
-        }
-
-        [JsonIgnore]
-        public float RenderScale
-        {
-            get => Get(nameof(RenderScale), 1.0f);
-            set => Set(nameof(RenderScale), Math.Clamp(value, 0.25f, 2.0f));
-        }
-
-        [JsonIgnore]
-        public float MasterVolume
-        {
-            get => Get(nameof(MasterVolume), 1.0f);
-            set => Set(nameof(MasterVolume), Math.Clamp(value, 0f, 1f));
-        }
-
-        [JsonIgnore]
-        public float MusicVolume
-        {
-            get => Get(nameof(MusicVolume), 0.8f);
-            set => Set(nameof(MusicVolume), Math.Clamp(value, 0f, 1f));
-        }
-
-        [JsonIgnore]
-        public float SFXVolume
-        {
-            get => Get(nameof(SFXVolume), 1.0f);
-            set => Set(nameof(SFXVolume), Math.Clamp(value, 0f, 1f));
-        }
-
-        [JsonIgnore]
         public float MouseSensitivity
         {
             get => Get(nameof(MouseSensitivity), 0.5f);
             set => Set(nameof(MouseSensitivity), Math.Clamp(value, 0.1f, 2.0f));
         }
 
-        [JsonIgnore]
-        public bool InvertY
-        {
-            get => Get(nameof(InvertY), false);
-            set => Set(nameof(InvertY), value);
-        }
+        // Ideas for later:
 
-        [JsonIgnore]
-        public Dictionary<string, string> KeyBindings
-        {
-            get => Get(nameof(KeyBindings), new Dictionary<string, string>());
-            set => Set(nameof(KeyBindings), value);
-        }
+        //[JsonIgnore]
+        //public int MaxRaySteps
+        //{
+        //    get => Get(nameof(MaxRaySteps), 128);
+        //    set => Set(nameof(MaxRaySteps), value);
+        //}
 
-        [JsonIgnore]
-        public string Language
-        {
-            get => Get(nameof(Language), "en-US");
-            set => Set(nameof(Language), value);
-        }
+        //[JsonIgnore]
+        //public bool ShadowsEnabled
+        //{
+        //    get => Get(nameof(ShadowsEnabled), true);
+        //    set => Set(nameof(ShadowsEnabled), value);
+        //}
 
-        [JsonIgnore]
-        public bool ShowTutorials
-        {
-            get => Get(nameof(ShowTutorials), true);
-            set => Set(nameof(ShowTutorials), value);
-        }
+        //[JsonIgnore]
+        //public int ShadowQuality
+        //{
+        //    get => Get(nameof(ShadowQuality), 2);
+        //    set => Set(nameof(ShadowQuality), Math.Clamp(value, 0, 2));
+        //}
 
-        [JsonIgnore]
-        public int Difficulty
-        {
-            get => Get(nameof(Difficulty), 1);
-            set => Set(nameof(Difficulty), Math.Clamp(value, 0, 2));
-        }
+        //[JsonIgnore]
+        //public float RenderScale
+        //{
+        //    get => Get(nameof(RenderScale), 1.0f);
+        //    set => Set(nameof(RenderScale), Math.Clamp(value, 0.25f, 2.0f));
+        //}
+
+        //[JsonIgnore]
+        //public float MasterVolume
+        //{
+        //    get => Get(nameof(MasterVolume), 1.0f);
+        //    set => Set(nameof(MasterVolume), Math.Clamp(value, 0f, 1f));
+        //}
+
+        //[JsonIgnore]
+        //public float MusicVolume
+        //{
+        //    get => Get(nameof(MusicVolume), 0.8f);
+        //    set => Set(nameof(MusicVolume), Math.Clamp(value, 0f, 1f));
+        //}
+
+        //[JsonIgnore]
+        //public float SFXVolume
+        //{
+        //    get => Get(nameof(SFXVolume), 1.0f);
+        //    set => Set(nameof(SFXVolume), Math.Clamp(value, 0f, 1f));
+        //}
+
+        //[JsonIgnore]
+        //public bool InvertY
+        //{
+        //    get => Get(nameof(InvertY), false);
+        //    set => Set(nameof(InvertY), value);
+        //}
+
+        //[JsonIgnore]
+        //public Dictionary<string, string> KeyBindings
+        //{
+        //    get => Get(nameof(KeyBindings), new Dictionary<string, string>());
+        //    set => Set(nameof(KeyBindings), value);
+        //}
+
+        //[JsonIgnore]
+        //public string Language
+        //{
+        //    get => Get(nameof(Language), "en-US");
+        //    set => Set(nameof(Language), value);
+        //}
+
+        //[JsonIgnore]
+        //public bool ShowTutorials
+        //{
+        //    get => Get(nameof(ShowTutorials), true);
+        //    set => Set(nameof(ShowTutorials), value);
+        //}
+
+        //[JsonIgnore]
+        //public int Difficulty
+        //{
+        //    get => Get(nameof(Difficulty), 1);
+        //    set => Set(nameof(Difficulty), Math.Clamp(value, 0, 2));
+        //}
 
         /// <summary>
         /// Ensures that the resolution width and height meet the minimum required values when the component is loaded.

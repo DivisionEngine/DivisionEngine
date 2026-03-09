@@ -119,12 +119,8 @@ public partial class SettingsWindow : EditorWindow
         LoadEditorSettings();
         AddSectionHeader("Engine Settings", MaterialIconKind.Engine); // Engine Settings
         LoadEngineSettings();
-        AddSectionHeader("Rendering Settings", MaterialIconKind.RayVertex); // Rendering Settings
-        LoadRenderingSettings();
         AddSectionHeader("Input Settings", MaterialIconKind.Keyboard); // Input Settings
         LoadInputSettings();
-        AddSectionHeader("Audio Settings", MaterialIconKind.VolumeHigh); // Audio Settings
-        LoadAudioSettings();
     }
 
     /// <summary>
@@ -136,10 +132,6 @@ public partial class SettingsWindow : EditorWindow
         AddBoolSetting("Auto Save", settings.AutoSave, val => settings.AutoSave = val);
         AddIntSetting("Auto Save Interval (seconds)", settings.AutoSaveInterval, 30, 600, val => settings.AutoSaveInterval = val);
         AddIntSetting("Max Recent Projects", settings.MaxRecentProjects, 5, 50, val => settings.MaxRecentProjects = val);
-        AddBoolSetting("Show Welcome Screen", settings.ShowWelcomeScreen, val => settings.ShowWelcomeScreen = val);
-        AddFloatSetting("Font Size", (float)settings.FontSize, 8, 24, val => settings.FontSize = val);
-        AddEnumSetting("Theme", settings.Theme, ["Dark", "Light", "System"], val => settings.Theme = val);
-        AddBoolSetting("Show Grid Lines", settings.ShowGridLines, val => settings.ShowGridLines = val);
     }
     
     /// <summary>
@@ -153,24 +145,6 @@ public partial class SettingsWindow : EditorWindow
         AddBoolSetting("Fullscreen", settings.Fullscreen, val => settings.Fullscreen = val);
         AddBoolSetting("VSync", settings.VSync, val => settings.VSync = val);
         AddIntSetting("Max FPS (0 = unlimited)", settings.MaxFPS, 0, 360, val => settings.MaxFPS = val);
-        AddIntSetting("Max Ray Steps", settings.MaxRaySteps, 32, 512, val => settings.MaxRaySteps = val);
-        AddBoolSetting("Shadows Enabled", settings.ShadowsEnabled, val => settings.ShadowsEnabled = val);
-        AddEnumSetting("Shadow Quality", settings.ShadowQuality, ["Low", "Medium", "High"],
-            val => settings.ShadowQuality = Array.IndexOf(["Low", "Medium", "High"], val));
-        AddFloatSetting("Render Scale", settings.RenderScale, 0.25f, 2.0f, val => settings.RenderScale = val);
-    }
-
-    /// <summary>
-    /// Builds rendering settings layout.
-    /// </summary>
-    private void LoadRenderingSettings()
-    {
-        EngineSettings settings = EngineSettings.Instance;
-        AddEnumSetting("Shadow Quality", settings.ShadowQuality, ["Low", "Medium", "High"],
-            val => settings.ShadowQuality = Array.IndexOf(["Low", "Medium", "High"], val));
-        AddIntSetting("Max Ray Steps", settings.MaxRaySteps, 32, 512, val => settings.MaxRaySteps = val);
-        AddFloatSetting("Render Scale", settings.RenderScale, 0.25f, 2.0f, val => settings.RenderScale = val);
-        AddBoolSetting("Shadows Enabled", settings.ShadowsEnabled, val => settings.ShadowsEnabled = val);
     }
 
     /// <summary>
@@ -179,8 +153,7 @@ public partial class SettingsWindow : EditorWindow
     private void LoadInputSettings()
     {
         EngineSettings settings = EngineSettings.Instance;
-        AddFloatSetting("Mouse Sensitivity", settings.MouseSensitivity, 0.1f, 2.0f, val => settings.MouseSensitivity = val);
-        AddBoolSetting("Invert Y", settings.InvertY, val => settings.InvertY = val);
+        AddFloatSetting("Mouse Sensitivity", settings.MouseSensitivity, 0.1f, 2f, val => settings.MouseSensitivity = val);
 
         // Key bindings placeholder
         Border keyBindingsBorder = CreateSettingBorder();
@@ -193,17 +166,6 @@ public partial class SettingsWindow : EditorWindow
         };
         keyBindingsBorder.Child = keyBindingsText;
         settingsPanel.Children.Add(keyBindingsBorder);
-    }
-
-    /// <summary>
-    /// Builds audio settings layout.
-    /// </summary>
-    private void LoadAudioSettings()
-    {
-        EngineSettings settings = EngineSettings.Instance;
-        AddFloatSetting("Master Volume", settings.MasterVolume, 0f, 1f, val => settings.MasterVolume = val);
-        AddFloatSetting("Music Volume", settings.MusicVolume, 0f, 1f, val => settings.MusicVolume = val);
-        AddFloatSetting("SFX Volume", settings.SFXVolume, 0f, 1f, val => settings.SFXVolume = val);
     }
 
     /// <summary>

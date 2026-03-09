@@ -60,13 +60,6 @@ namespace DivisionEngine.Editor.Settings
             AutoSaveInterval = 120;
             RecentProjects = [];
             MaxRecentProjects = 10;
-            MainWindowWidth = 1280;
-            MainWindowHeight = 720;
-            MainWindowMaximized = false;
-            ShowGridLines = true;
-            Theme = "Dark";
-            FontSize = 11.0;
-            ShowWelcomeScreen = true;
         }
 
         [JsonIgnore]
@@ -97,54 +90,58 @@ namespace DivisionEngine.Editor.Settings
             set => Set(nameof(MaxRecentProjects), value);
         }
 
-        [JsonIgnore]
-        public double MainWindowWidth
-        {
-            get => Get(nameof(MainWindowWidth), 1280.0);
-            set => Set(nameof(MainWindowWidth), value);
-        }
+        // Implement for editor later:
 
-        [JsonIgnore]
-        public double MainWindowHeight
-        {
-            get => Get(nameof(MainWindowHeight), 720.0);
-            set => Set(nameof(MainWindowHeight), value);
-        }
+        //[JsonIgnore]
+        //public double MainWindowWidth
+        //{
+        //    get => Get(nameof(MainWindowWidth), 1280.0);
+        //    set => Set(nameof(MainWindowWidth), value);
+        //}
 
-        [JsonIgnore]
-        public bool MainWindowMaximized
-        {
-            get => Get(nameof(MainWindowMaximized), false);
-            set => Set(nameof(MainWindowMaximized), value);
-        }
+        //[JsonIgnore]
+        //public double MainWindowHeight
+        //{
+        //    get => Get(nameof(MainWindowHeight), 720.0);
+        //    set => Set(nameof(MainWindowHeight), value);
+        //}
 
-        [JsonIgnore]
-        public bool ShowGridLines
-        {
-            get => Get(nameof(ShowGridLines), true);
-            set => Set(nameof(ShowGridLines), value);
-        }
+        //[JsonIgnore]
+        //public bool MainWindowMaximized
+        //{
+        //    get => Get(nameof(MainWindowMaximized), false);
+        //    set => Set(nameof(MainWindowMaximized), value);
+        //}
 
-        [JsonIgnore]
-        public string Theme
-        {
-            get => Get(nameof(Theme), "Dark");
-            set => Set(nameof(Theme), value);
-        }
+        // Potential settings:
 
-        [JsonIgnore]
-        public double FontSize
-        {
-            get => Get(nameof(FontSize), 11.0);
-            set => Set(nameof(FontSize), value);
-        }
+        //[JsonIgnore]
+        //public bool ShowGridLines
+        //{
+        //    get => Get(nameof(ShowGridLines), true);
+        //    set => Set(nameof(ShowGridLines), value);
+        //}
 
-        [JsonIgnore]
-        public bool ShowWelcomeScreen
-        {
-            get => Get(nameof(ShowWelcomeScreen), true);
-            set => Set(nameof(ShowWelcomeScreen), value);
-        }
+        //[JsonIgnore]
+        //public string Theme
+        //{
+        //    get => Get(nameof(Theme), "Dark");
+        //    set => Set(nameof(Theme), value);
+        //}
+
+        //[JsonIgnore]
+        //public double FontSize
+        //{
+        //    get => Get(nameof(FontSize), 11.0);
+        //    set => Set(nameof(FontSize), value);
+        //}
+
+        //[JsonIgnore]
+        //public bool ShowWelcomeScreen
+        //{
+        //    get => Get(nameof(ShowWelcomeScreen), true);
+        //    set => Set(nameof(ShowWelcomeScreen), value);
+        //}
 
         // Helper methods
         public void AddRecentProject(string path)
@@ -166,8 +163,6 @@ namespace DivisionEngine.Editor.Settings
         /// that settings are consistent and within supported limits.</remarks>
         public override void OnLoad()
         {
-            if (FontSize < 8) FontSize = 8;
-            if (FontSize > 24) FontSize = 24;
             if (MaxRecentProjects < 5) MaxRecentProjects = 5;
             if (AutoSaveInterval < 30) AutoSaveInterval = 30;
         }
