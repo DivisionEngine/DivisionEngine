@@ -418,10 +418,11 @@ public partial class AssetsWindow : EditorWindow
             // Loads assets using the database if path is in assets folder.
             string assetsRoot = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
             Debug.Log($"Proj manager assets root: {assetsRoot}");
-            if (path.StartsWith(assetsRoot))
-                LoadAssetsUsingDatabase(path);
-            else
-                LoadAssetsUsingFileSystem(path);
+
+            assetsListPanel.Children.Clear();
+            assetsTileGrid.Children.Clear();
+            if (path.StartsWith(assetsRoot)) LoadAssetsUsingDatabase(path);
+            else LoadAssetsUsingFileSystem(path);
         }
         catch (Exception ex)
         {
@@ -463,7 +464,7 @@ public partial class AssetsWindow : EditorWindow
         DirectoryInfo[] folders = pathInfo.GetDirectories();
 
         // Get assets from database - FIXED: Now using relativePath
-        List<AssetMetadata> assets = database.GetAssetsInFolder(relativePath).ToList();
+        List<AssetMetadata> assets = [.. database.GetAssetsInFolder(relativePath)];
         Debug.Info($"Found {assets.Count} assets in folder '{relativePath}'");
 
         int totalAssets = folders.Length + assets.Count;
@@ -974,9 +975,9 @@ public partial class AssetsWindow : EditorWindow
         {
             Width = 80,
             Height = 85,
-            Background = EditorColor.FromRGB(24, 24, 24),
+            Background = EditorColor.FromRGB(17, 17, 17),
             BorderThickness = new Thickness(1),
-            BorderBrush = EditorColor.FromRGB(68, 68, 68),
+            BorderBrush = EditorColor.FromRGB(10, 10, 10),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(5),
             Padding = new Thickness(5),
