@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DivisionEngine.Editor.ViewModels"
         xmlns:local="using:DivisionEngine.Editor"
+        xmlns:convert="using:DivisionEngine.Editor.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1920" d:DesignHeight="1080"
@@ -42,6 +43,18 @@
           <!--File / Edit Menu-->
         <MenuItem Header="File" Foreground="#ccc">
             <MenuItem Header="Open" Command="{Binding OpenProjectCommand}" Foreground="#ccc"/>
+
+            <!-- Recent Projects Submenu -->
+            <MenuItem Header="Recent Projects" Foreground="#ccc" IsEnabled="{Binding HasRecentProjects}"
+                      ItemsSource="{Binding RecentProjectMenuItems}">
+                <MenuItem.HeaderTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="Recent Projects"/>
+                    </DataTemplate>
+                </MenuItem.HeaderTemplate>
+            </MenuItem>
+            <Separator/>
+
             <MenuItem Header="Save" Command="{Binding SaveProjectCommand}" Foreground="#ccc"/>
             <MenuItem Header="Save As" Command="{Binding SaveProjectAsCommand}" Foreground="#ccc"/>
             <Separator/>
@@ -72,6 +85,7 @@
           <!--Other Menus-->
         <MenuItem Header="Help" Foreground="#ccc">
             <MenuItem Header="About" Command="{Binding AboutCommand}" Foreground="#ccc"/>
+            <MenuItem Header="Roadmap" Command="{Binding RoadmapCommand}" Foreground="#ccc"/>
         </MenuItem>
       </Menu>
     </StackPanel>

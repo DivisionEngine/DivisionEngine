@@ -16,14 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
+using DivisionEngine.Editor.Settings;
 using DivisionEngine.Editor.Systems;
 using DivisionEngine.Editor.Tasks;
 using DivisionEngine.Projects;
+using DivisionEngine.Settings;
+using Material.Icons.Avalonia;
 using ReactiveUI;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -37,23 +44,35 @@ namespace DivisionEngine.Editor.ViewModels
     public partial class MainWindowViewModel : ViewModelBase
     {
         // Window storage
-
         public static MainWindowViewModel? vm;
         private readonly Window mainWindow;
 
         // Main Window Menu Commands
-
         public Action? RequestClose { get; set; }
 
         // Editor window tab collections
-
         public ObservableCollection<EditorWindowViewModel> CenterTabs { get; } = [];
         public ObservableCollection<EditorWindowViewModel> BottomTabs { get; } = [];
         public ObservableCollection<EditorWindowViewModel> LeftTabs { get; } = [];
         public ObservableCollection<EditorWindowViewModel> RightTabs { get; } = [];
 
-        // Tab selection variables
+        // Recent projects
+        private ObservableCollection<string> _recentProjects = [];
+        public ObservableCollection<string> RecentProjects
+        {
+            get => _recentProjects;
+            set => this.RaiseAndSetIfChanged(ref _recentProjects, value);
+        }
+        private ObservableCollection<object> _recentProjectMenuItems = [];
+        public ObservableCollection<object> RecentProjectMenuItems
+        {
+            get => _recentProjectMenuItems;
+            set => this.RaiseAndSetIfChanged(ref _recentProjectMenuItems, value);
+        }
 
+        public bool HasRecentProjects => RecentProjects.Count > 0;
+
+        // Tab selection variables
         private EditorWindowViewModel? _selectedLeftTab;
         private EditorWindowViewModel? _selectedRightTab;
         private EditorWindowViewModel? _selectedCenterTab;
@@ -120,6 +139,121 @@ namespace DivisionEngine.Editor.ViewModels
 
             BottomTabs.Add(new AssetsWindowViewModel());
             BottomTabs.Add(new ConsoleWindowViewModel());
+
+            LoadRecentProjects(); // Load recent projects
+        }
+
+        private void LoadRecentProjects()
+        {
+            EditorSettings settings = EditorSettings.Instance;
+            RecentProjects = new ObservableCollection<string>(settings.RecentProjects);
+            this.RaisePropertyChanged(nameof(HasRecentProjects));
+            UpdateRecentProjectMenuItems();
+
+            Debug.Info($"Loaded {RecentProjects.Count} recent projects");
+        }
+
+        private void AddToRecentProjects(string path)
+        {
+            EditorSettings.Instance.AddRecentProject(path);
+            SettingsManager.SaveSettings(EditorSettings.Instance);
+            LoadRecentProjects(); // Reload to update the collection
+        }
+
+        private void UpdateRecentProjectMenuItems()
+        {
+            ObservableCollection<object> items = [];
+
+            // Add project items
+            foreach (string project in RecentProjects)
+            {
+                MenuItem menuItem = new MenuItem
+                {
+                    Foreground = Brushes.White,
+                    Command = OpenRecentProjectCommand,
+                    CommandParameter = project,
+                    Header = CreateRecentProjectHeader(project),
+                };
+                items.Add(menuItem);
+            }
+
+            // Add separator and clear all if there are items
+            if (items.Count > 0)
+            {
+                items.Add(new Separator());
+                MenuItem clearMenuItem = new MenuItem
+                {
+                    Foreground = Brushes.White,
+                    Command = ClearRecentProjectsCommand,
+                    Header = CreateClearAllHeader(),
+                };
+                items.Add(clearMenuItem);
+            }
+            RecentProjectMenuItems = items;
+        }
+
+        private static StackPanel CreateRecentProjectHeader(string projectPath)
+        {
+            StackPanel displayPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                Margin = new Thickness(2, 2, 10, 2),
+            };
+            displayPanel.Children.Add(new MaterialIcon
+            {
+                Kind = Material.Icons.MaterialIconKind.Folder,
+                Width = 16,
+                Height = 16,
+                Foreground = EditorColor.FromRGB(200, 200, 200),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+
+            StackPanel textPanel = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                Spacing = 0,
+            };
+            textPanel.Children.Add(new TextBlock
+            {
+                Text = Path.GetFileName(projectPath),
+                FontWeight = FontWeight.SemiBold,
+                FontSize = 12,
+                Foreground = Brushes.White,
+            });
+            textPanel.Children.Add(new TextBlock
+            {
+                Text = Path.GetDirectoryName(projectPath) ?? "",
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 300,
+            });
+
+            displayPanel.Children.Add(textPanel);
+            return displayPanel;
+        }
+
+        private static StackPanel CreateClearAllHeader()
+        {
+            StackPanel panel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 4,
+            };
+            panel.Children.Add(new MaterialIcon
+            {
+                Kind = Material.Icons.MaterialIconKind.Delete,
+                Width = 14,
+                Height = 14,
+                Foreground = EditorColor.FromRGB(200, 128, 128),
+            });
+            panel.Children.Add(new TextBlock
+            {
+                Text = "Clear All",
+                Foreground = Brushes.White,
+            });
+            return panel;
         }
 
         [RelayCommand]
@@ -141,14 +275,7 @@ namespace DivisionEngine.Editor.ViewModels
                 {
                     string projectPath = result[0].Path.LocalPath;
                     projectPath = Path.TrimEndingDirectorySeparator(projectPath); // Trim '\' at end of open project directory
-                    if (ProjectManager.IsDivisionProject(projectPath)) // Check if this is a valid project directory
-                    {
-                        bool success = ProjectManager.LoadProject(projectPath);
-                        if (success) // Check if loaded project
-                            AssetsWindow.LoadAssetsForCurrentProject();
-                        else Debug.Error($"Failed to load project: {projectPath}");
-                    }
-                    else Debug.Info("Selected folder is not a valid Division Engine project");
+                    await OpenProjectAtPath(projectPath);
                 }
 
                 await App.SetEditorRenderingAsync(true);
@@ -156,7 +283,48 @@ namespace DivisionEngine.Editor.ViewModels
             catch (Exception ex)
             {
                 Debug.Error($"Error opening project", ex);
+                await App.SetEditorRenderingAsync(true);
             }
+        }
+
+        [RelayCommand]
+        private async Task OpenRecentProject(string path)
+        {
+            try
+            {
+                await App.SetEditorRenderingAsync(false);
+                await OpenProjectAtPath(path);
+                await App.SetEditorRenderingAsync(true);
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Error opening recent project: {path}", ex);
+                await App.SetEditorRenderingAsync(true);
+            }
+        }
+
+        private async Task OpenProjectAtPath(string projectPath)
+        {
+            if (ProjectManager.IsDivisionProject(projectPath)) // Check if this is a valid project directory
+            {
+                bool success = ProjectManager.LoadProject(projectPath);
+                if (success) // Check if loaded project
+                {
+                    AddToRecentProjects(projectPath);
+                    AssetsWindow.LoadAssetsForCurrentProject();
+                }
+                else Debug.Error($"Failed to load project: {projectPath}");
+            }
+            else Debug.Info("Selected folder is not a valid Division Engine project");
+        }
+
+        [RelayCommand]
+        private void ClearRecentProjects()
+        {
+            EditorSettings.Instance.ClearRecentProjects();
+            SettingsManager.SaveSettings(EditorSettings.Instance); // Save immediately 
+            LoadRecentProjects(); // Reload in ViewModel
+            this.RaisePropertyChanged(nameof(HasRecentProjects)); // Force UI update
         }
 
         [RelayCommand]
@@ -236,7 +404,10 @@ namespace DivisionEngine.Editor.ViewModels
                 // Save project
                 bool success = ProjectManager.SaveNewProject(projectName, projectPath);
                 if (success) // Check if successfully saved project
+                {
+                    AddToRecentProjects(projectPath);
                     AssetsWindow.LoadAssetsForCurrentProject();
+                }
                 else Debug.Error("Failed to save project");
                 EditorTaskManager.Complete(t.Id);
 
@@ -276,6 +447,16 @@ namespace DivisionEngine.Editor.ViewModels
             Process.Start(new ProcessStartInfo
             {
                 FileName = "https://github.com/DivisionEngine/DivisionEngine",
+                UseShellExecute = true,
+            });
+        }
+
+        [RelayCommand]
+        private static void Roadmap()
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://trello.com/b/mWtyHBMf/division-engine",
                 UseShellExecute = true,
             });
         }

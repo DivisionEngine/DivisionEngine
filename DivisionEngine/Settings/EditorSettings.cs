@@ -146,13 +146,19 @@ namespace DivisionEngine.Editor.Settings
         // Helper methods
         public void AddRecentProject(string path)
         {
-            List<string> recent = RecentProjects;
+            List<string> recent = RecentProjects; // This calls the getter
             recent.Remove(path);
             recent.Insert(0, path);
 
             if (recent.Count > MaxRecentProjects)
                 recent.RemoveRange(MaxRecentProjects, recent.Count - MaxRecentProjects);
-            RecentProjects = recent;
+            
+            RecentProjects = recent; // This calls the setter and marks dirty
+        }
+
+        public void ClearRecentProjects()
+        {
+            RecentProjects = []; // This calls the setter and marks dirty
         }
 
         /// <summary>

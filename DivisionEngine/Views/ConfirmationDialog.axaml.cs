@@ -29,6 +29,8 @@ public partial class ConfirmationDialog : Window
     public ConfirmationDialog()
     {
         InitializeComponent();
+        Width = 350;
+        Height = 150;
         DataContext = this;
     }
 
