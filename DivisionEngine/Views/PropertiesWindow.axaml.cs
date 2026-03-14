@@ -59,6 +59,11 @@ public partial class PropertiesWindow : EditorWindow
 
     private uint curEntityId;
 
+    /// <summary>
+    /// Loads this entity when the properties window is opened.
+    /// </summary>
+    private static uint LastSelected { get; set; } = uint.MaxValue;
+
     public PropertiesWindow()
     {
         InitializeComponent();
@@ -182,7 +187,9 @@ public partial class PropertiesWindow : EditorWindow
         this.FindControl<Border>("MainBorder")!.Child = mainGrid;
         currentWindows.Add(this);
 
-        CreateWorldEditor(WorldManager.CurrentWorld);
+        if (W.EntityExists(LastSelected))
+            DisplayEntityComponents(LastSelected);
+        else CreateWorldEditor(WorldManager.CurrentWorld);
     }
 
     /// <summary>
@@ -359,6 +366,7 @@ public partial class PropertiesWindow : EditorWindow
     /// <param name="entityId">Entity to load components for</param>
     public static void LoadEntityComponents(uint entityId)
     {
+        LastSelected = entityId;
         ValidatePropertiesWindows();
         foreach (PropertiesWindow? window in currentWindows)
             Dispatcher.UIThread.Post(() => window!.DisplayEntityComponents(entityId));
@@ -370,6 +378,7 @@ public partial class PropertiesWindow : EditorWindow
     /// <param name="world">World data to pull from</param>
     public static void LoadWorldData(World? world)
     {
+        LastSelected = uint.MaxValue;
         ValidatePropertiesWindows();
         foreach (PropertiesWindow? window in currentWindows)
             Dispatcher.UIThread.Post(() => window!.CreateWorldEditor(world));
@@ -413,6 +422,7 @@ public partial class PropertiesWindow : EditorWindow
 
     public void CreateWorldEditor(World? curWorld)
     {
+        LastSelected = uint.MaxValue;
         if (curWorld != null)
         {
             headerText.Text = curWorld.Name;
