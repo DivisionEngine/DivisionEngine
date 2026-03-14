@@ -26,8 +26,10 @@ namespace DivisionEngine.Systems
     internal class SettingsSystem : SystemBase
     {
         private int saveTimer;
-        private const int SAVE_INTERVAL = 900; // Save every 900 frames (at 60 fps about 15 seconds, 30fps, 30s)
+        private const int SAVE_INTERVAL = 120; // Save every 120 frames (at 60 fps about 2 seconds; 30fps, 4s)
         private static bool hasChanges;
+
+        public static Action? ApplySettings;
 
         public override void Awake()
         {
@@ -46,6 +48,9 @@ namespace DivisionEngine.Systems
                 saveTimer = 0;
                 hasChanges = false;
             }
+
+            // Invoke apply settings callback
+            ApplySettings?.Invoke();
         }
 
         public override void Unload() => SettingsManager.SaveAll();

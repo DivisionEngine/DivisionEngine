@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Math = DivisionEngine.MathLib.Math;
 using Path = System.IO.Path;
@@ -456,11 +457,15 @@ public partial class AssetsWindow : EditorWindow
         string relativePath = Path.GetRelativePath(assetsRoot, path);
         if (relativePath == ".") relativePath = "";
 
+        Debug.Info($"Loading assets from: {path}, relative path: '{relativePath}'");
+
         // Get folders from file system (always needed)
         DirectoryInfo[] folders = pathInfo.GetDirectories();
 
-        // Get assets from database
-        List<AssetMetadata> assets = [.. database.GetAssetsInFolder(relativePath)];
+        // Get assets from database - FIXED: Now using relativePath
+        List<AssetMetadata> assets = database.GetAssetsInFolder(relativePath).ToList();
+        Debug.Info($"Found {assets.Count} assets in folder '{relativePath}'");
+
         int totalAssets = folders.Length + assets.Count;
 
         // Load correct view
@@ -1239,7 +1244,7 @@ public partial class AssetsWindow : EditorWindow
     {
         // Optional: Show saving indicator, etc.
         Dispatcher.UIThread.Post(() => {
-            Debug.Info("Project closing, preparing assets window...");
+            //Debug.Info("Project closing, preparing assets window...");
         });
     }
 

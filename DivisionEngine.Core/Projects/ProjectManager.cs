@@ -59,9 +59,6 @@ namespace DivisionEngine.Projects
 
         // Asset Events (forwarded from AssetDatabase for convenience)
         public static event Action<string>? AssetFolderChanged;
-        public static event Action<AssetMetadata>? AssetAdded;
-        public static event Action<AssetMetadata>? AssetRemoved;
-        public static event Action<AssetMetadata>? AssetUpdated;
 
         /// <summary>
         /// Searches project directory to find the project file (ex. NewProject.divp).
@@ -116,6 +113,9 @@ namespace DivisionEngine.Projects
         /// <returns>If the project was successfully loaded</returns>
         public static bool LoadProject(string projDir)
         {
+            // If a project is already loaded, close it before getting new path and name
+            if (IsCurrentLoaded) CloseProject();
+
             CurrentProjectPath = projDir;
             CurrentProjectName = GetProjectFile(projDir)?.Replace(".divp", "");
 
@@ -245,7 +245,10 @@ namespace DivisionEngine.Projects
         public static bool SaveCurrentProject()
         {
             if (IsCurrentLoaded)
+            {
+                Debug.Warning("Saving Project!");
                 return SaveProject(CurrentProjectName!, CurrentProjectPath!);
+            }
             return false;
         }
 
@@ -284,6 +287,7 @@ namespace DivisionEngine.Projects
         /// <returns>Whether the project directory formatting executed successfully</returns>
         private static bool ForceValidateProjectDirectory(string projName, string projectDir)
         {
+            Debug.Log("Name & Dir: " + projName + "\n" + projectDir);
             if (!string.IsNullOrEmpty(projName) && !string.IsNullOrEmpty(projectDir))
             {
                 // Validate project directory
@@ -310,14 +314,11 @@ namespace DivisionEngine.Projects
         {
             string assetsPath = Path.Combine(projDir, "Assets");
 
-            // Create database (this scans all folders)
+            // Create database (this scans all folders and loads/creates metadata)
             AssetDatabase = new AssetDatabase(assetsPath);
 
             // Forward events from database to project-level events
-            AssetDatabase.FolderChanged += AssetFolderChanged;
-            AssetDatabase.AssetAdded += AssetAdded;
-            AssetDatabase.AssetRemoved += AssetRemoved;
-            AssetDatabase.AssetUpdated += AssetUpdated;
+            AssetDatabase.FolderChanged += (folder) => AssetFolderChanged?.Invoke(folder);
 
             // Create manager
             AssetManager = new AssetManager(AssetDatabase);
@@ -330,12 +331,17 @@ namespace DivisionEngine.Projects
         /// </summary>
         public static void CloseProject()
         {
+            Debug.Info($"Project Manager: Closing {CurrentProjectName}");
+
             ProjectClosing?.Invoke(); // Start closing notify
 
-            // Unload all assets first
+            // Save all asset metadata before closing
+            AssetDatabase?.SaveAll();
+
+            // Unload all assets
             AssetManager?.UnloadAll();
 
-            // Dispose database (stops file watcher)
+            // Dispose database (no-op in simplified version)
             AssetDatabase?.Dispose();
 
             // Clear references
@@ -346,93 +352,8 @@ namespace DivisionEngine.Projects
 
             // Clear forwarded events
             AssetFolderChanged = null;
-            AssetAdded = null;
-            AssetRemoved = null;
-            AssetUpdated = null;
 
             ProjectClosed?.Invoke();
-        }
-
-        // ------------------------
-        // Asset Management Helpers
-        // ------------------------
-
-        /// <summary>
-        /// Gets an asset by GUID, loading it if necessary.
-        /// </summary>
-        public static async Task<T?> GetAssetAsync<T>(string guid) where T : Asset
-        {
-            if (AssetManager == null)
-            {
-                Debug.Error("Cannot get asset: No project loaded");
-                return null;
-            }
-
-            return await AssetManager.LoadAssetAsync<T>(guid);
-        }
-
-        /// <summary>
-        /// Gets an asset by GUID (synchronous - asset must already be loaded).
-        /// </summary>
-        public static T? GetAsset<T>(string guid) where T : Asset
-        {
-            if (AssetManager == null) return null;
-
-            // Check if already loaded without loading
-            Asset? asset = AssetManager.Get(guid);
-            return asset as T;
-        }
-
-        /// <summary>
-        /// Unloads an asset when no longer needed.
-        /// </summary>
-        public static void ReleaseAsset(string guid)
-        {
-            AssetManager?.UnloadAsset(guid);
-        }
-
-        /// <summary>
-        /// Gets metadata for an asset.
-        /// </summary>
-        public static AssetMetadata? GetAssetMetadata(string guid)
-        {
-            return AssetDatabase?.GetAssetMetadataByID(guid);
-        }
-
-        /// <summary>
-        /// Gets all assets of a specific type.
-        /// </summary>
-        public static IEnumerable<AssetMetadata> GetAssetsByType(AssetType type)
-        {
-            return AssetDatabase?.GetAssetsByType(type) ?? [];
-        }
-
-        /// <summary>
-        /// Imports a file into the project assets.
-        /// </summary>
-        public static AssetMetadata? ImportAsset(string sourceFilePath, string destinationFolder = "")
-        {
-            return AssetDatabase?.ImportAsset(sourceFilePath, destinationFolder);
-        }
-
-        /// <summary>
-        /// Deletes an asset from the project.
-        /// </summary>
-        public static bool DeleteAsset(string guid)
-        {
-            // Unload if loaded
-            AssetManager?.UnloadAsset(guid);
-
-            // Delete from database
-            return AssetDatabase?.DeleteAsset(guid) ?? false;
-        }
-
-        /// <summary>
-        /// Refreshes the asset database (rescans all folders).
-        /// </summary>
-        public static void RefreshAssetDatabase()
-        {
-            AssetDatabase?.ScanAllFolders();
         }
     }
 }

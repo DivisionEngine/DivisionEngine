@@ -86,7 +86,7 @@ namespace DivisionEngine.Editor.Settings
         [JsonIgnore]
         public int MaxRecentProjects
         {
-            get => Get(nameof(MaxRecentProjects), 10);
+            get => Get(nameof(MaxRecentProjects), 20);
             set => Set(nameof(MaxRecentProjects), value);
         }
 

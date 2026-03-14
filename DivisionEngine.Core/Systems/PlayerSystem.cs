@@ -19,6 +19,7 @@
 using DivisionEngine.Components;
 using DivisionEngine.Input;
 using DivisionEngine.MathLib;
+using DivisionEngine.Settings;
 
 namespace DivisionEngine.Systems
 {
@@ -78,8 +79,9 @@ namespace DivisionEngine.Systems
                 float2 mouseDelta = InputSystem.MouseUVDelta;
                 if (mouseDelta.X == 0f && mouseDelta.Y == 0f) return;
 
-                float yaw = mouseDelta.X * player.mouseSensitivity;
-                float pitch = -mouseDelta.Y * player.mouseSensitivity;
+                EngineSettings settings = EngineSettings.Instance;
+                float yaw = mouseDelta.X * player.mouseSensitivity * settings.MouseSensitivity;
+                float pitch = -mouseDelta.Y * player.mouseSensitivity * settings.MouseSensitivity;
 
                 float4 currentRot = transform.rotation;
                 float4 yawRot = Quaternion.CreateFromAxisAngle(new float3(0, 1, 0), yaw);

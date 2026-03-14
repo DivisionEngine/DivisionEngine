@@ -23,7 +23,7 @@ namespace DivisionEngine.Editor;
 
 public partial class ConfirmationDialog : Window
 {
-    public string Title { get; set; } = "Confirm";
+    public new string Title { get; set; } = "Confirm";
     public string Message { get; set; } = "Are you sure?";
 
     public ConfirmationDialog()

@@ -16,33 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
-using DivisionEngine.Components.FieldAttributes;
-using DivisionEngine.MathLib;
-using DivisionEngine.Projects.Assets;
-
-namespace DivisionEngine.Components
+namespace DivisionEngine.Projects.Assets
 {
-    /// <summary>
-    /// Represents the world environment.
-    /// </summary>
-    public class Environment : IComponent
+    public class FontAsset(AssetMetadata metadata) : Asset(metadata)
     {
-        /// <summary>
-        /// Environment with basic blue sky.
-        /// </summary>
-        public Environment()
+        public override Task<bool> LoadAsync()
         {
-            backgroundColor = ColorPalette.SkyBlue;
-            hdriMap = default;
+            throw new NotImplementedException();
         }
 
-        [Color(true)] public float4 backgroundColor;
-        public AssetRef hdriMap;
-
-        public IComponent Clone() => new Environment
+        public override void Unload()
         {
-            backgroundColor = backgroundColor,
-            hdriMap = hdriMap,
-        };
+            throw new NotImplementedException();
+        }
     }
 }

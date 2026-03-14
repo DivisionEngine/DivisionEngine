@@ -24,6 +24,7 @@ using Avalonia.Threading;
 using DivisionEngine.Editor.Settings;
 using DivisionEngine.Editor.ViewModels;
 using DivisionEngine.Input;
+using DivisionEngine.Projects;
 using DivisionEngine.Rendering;
 using DivisionEngine.Settings;
 using Silk.NET.Input;
@@ -72,10 +73,7 @@ namespace DivisionEngine.Editor
         /// <summary>
         /// Initializes the Avalonia UI base app.
         /// </summary>
-        public override void Initialize()
-        {
-            AvaloniaXamlLoader.Load(this);
-        }
+        public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
         /// <summary>
         /// Sets whether the editor renders using a render pipeline.
@@ -151,6 +149,9 @@ namespace DivisionEngine.Editor
                     Debug.Info($"Editor application exit with code: {e.ApplicationExitCode}");
                     SettingsManager.SaveSettings(settings); // Save editor settings on editor close
                     Renderer?.RendererWindow?.Close();
+
+                    // Close project if open on exit
+                    if (ProjectManager.IsCurrentLoaded) ProjectManager.CloseProject();
                 };
                 desktop.MainWindow.Activated += (_, _) => AppFocused!(true);
                 desktop.MainWindow.Deactivated += (_, _) => AppFocused!(false);

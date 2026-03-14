@@ -36,20 +36,11 @@ namespace DivisionEngine.Projects.Assets
         public Dictionary<string, AssetMetadata> AllAssetsByID { get; private set; } = []; // Master GUID
 
         // Events for UI updates
-        public event Action<string>? FolderChanged; // Path of folder that changed
-        public event Action<AssetMetadata>? AssetAdded;
-        public event Action<AssetMetadata>? AssetRemoved;
-        public event Action<AssetMetadata>? AssetUpdated;
+        public event Action<string>? FolderChanged; // Path of folder that changed, not currently used
 
         // Database variables
         private readonly string assetsPath;
         private readonly JsonSerializerOptions jsonSerializerOptions;
-
-        private readonly FileSystemWatcher fileWatcher;
-        private readonly HashSet<string> pendingNotifications = [];
-        private readonly System.Timers.Timer notificationThrottle;
-        private bool isDisposed = false;
-
 
         /// <summary>
         /// Opens a new asset database instance at an asset path.
@@ -60,74 +51,44 @@ namespace DivisionEngine.Projects.Assets
             this.assetsPath = assetsPath;
             jsonSerializerOptions = new JsonSerializerOptions { WriteIndented = true };
             Directory.CreateDirectory(assetsPath); // Ensure Assets folder exists
-
-            // Throttle notifications to avoid too many refreshes
-            notificationThrottle = new System.Timers.Timer(100);
-            notificationThrottle.AutoReset = false;
-            notificationThrottle.Elapsed += (s, e) =>
-            {
-                lock (pendingNotifications)
-                {
-                    foreach (string? folder in pendingNotifications)
-                        FolderChanged?.Invoke(folder);
-                    pendingNotifications.Clear();
-                }
-            };
-
-            // Setup file watcher for realtime updates
-            fileWatcher = new FileSystemWatcher(assetsPath)
-            {
-                IncludeSubdirectories = true,
-                EnableRaisingEvents = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName |
-                               NotifyFilters.LastWrite | NotifyFilters.Size,
-            };
-
-            fileWatcher.Created += OnFileChanged;
-            fileWatcher.Changed += OnFileChanged;
-            fileWatcher.Deleted += OnFileDeleted;
-            fileWatcher.Renamed += OnFileRenamed;
-
-            ScanAllFolders();
+            InitializeDatabase();
         }
 
         /// <summary>
-        /// Scans and updates all folders in the database.
+        /// Scans all folders and loads/creates metadata.
         /// </summary>
-        public void ScanAllFolders()
+        private void InitializeDatabase()
         {
-            // Clear existing data
-            Folders.Clear();
             AllAssetsByID.Clear();
+            Folders.Clear();
 
-            foreach (string? folder in Directory.GetDirectories(assetsPath, "*", SearchOption.AllDirectories))
-                ScanFolder(folder);
-            ScanFolder(assetsPath); // Also scan root
+            // Get all directories including root
+            List<string> directories = [assetsPath, .. Directory.GetDirectories(assetsPath, "*", SearchOption.AllDirectories)];
+            foreach (string dir in directories)
+                ProcessFolder(dir);
             Debug.Info($"Asset Database: Loaded {AllAssetsByID.Count} assets from {Folders.Count} folders");
         }
 
-        /// <summary>
-        /// Scans a single folder and updates its metadata.
-        /// </summary>
-        /// <param name="folderPath">Full path to folder</param>
-        /// <param name="saveMetadata">Whether to save the metadata file</param>
-        /// <returns>The folder metadata</returns>
-        private FolderMetadata ScanFolder(string folderPath, bool saveMetadata = true)
+        private void ProcessFolder(string folderPath)
         {
             string relativeFolder = Path.GetRelativePath(assetsPath, folderPath);
-            string metadataPath = Path.Combine(folderPath, $"{Path.GetFileName(folderPath)}.divmeta");
+            Debug.Warning("Relative folder: " + relativeFolder);
+            string folderName = Path.GetFileName(folderPath) == "" ? "Root" : Path.GetFileName(folderPath);
+            Debug.Warning("Asset Folder Name: " + folderName);
+            string expectedMetaFileName = folderName + ".divmeta";
+            Debug.Warning("Expected Meta Name: " + expectedMetaFileName);
+            string metadataPath = Path.Combine(folderPath, expectedMetaFileName);
+            Debug.Warning("Meta Path: " + metadataPath);
+
+            // Get all asset files (excluding any .divmeta files)
+            Dictionary<string, string> assetFiles = Directory.GetFiles(folderPath)
+                .Where(f => !f.EndsWith(".divmeta", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase);
+
+            // Get all .divmeta files in the folder
+            string[] allMetaFiles = Directory.GetFiles(folderPath, "*.divmeta", SearchOption.TopDirectoryOnly);
 
             FolderMetadata folderMeta;
-            Dictionary<string, AssetMetadata> oldAssets = [];
-
-            // Check if we already have this folder loaded
-            if (Folders.TryGetValue(relativeFolder, out var existingFolder))
-            {
-                // Store old assets for change detection
-                foreach (var kvp in existingFolder.Assets)
-                    oldAssets[kvp.Key] = kvp.Value;
-            }
-
             if (File.Exists(metadataPath))
             {
                 // Load existing metadata
@@ -135,99 +96,117 @@ namespace DivisionEngine.Projects.Assets
                 folderMeta = JsonSerializer.Deserialize<FolderMetadata>(json, jsonSerializerOptions)
                     ?? new FolderMetadata { FolderPath = relativeFolder };
 
-                // Get current files (excluding metadata files)
-                var currentFiles = Directory.GetFiles(folderPath)
-                    .Where(f => !Path.GetFileName(f).EndsWith(".divmeta", StringComparison.OrdinalIgnoreCase))
-                    .ToDictionary(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase);
+                // Validate that the loaded folder path matches
+                if (folderMeta.FolderPath != relativeFolder)
+                {
+                    Debug.Warning($"Folder path mismatch in {metadataPath}: expected '{relativeFolder}', found '{folderMeta.FolderPath}'. Updating.");
+                    folderMeta.FolderPath = relativeFolder;
+                }
+
+                // Delete any other stray .divmeta files (from previous folder names)
+                foreach (string oldMetaFile in allMetaFiles)
+                {
+                    if (oldMetaFile != metadataPath)
+                    {
+                        try
+                        {
+                            File.Delete(oldMetaFile);
+                            Debug.Info($"Deleted old metadata file: {oldMetaFile}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.Error($"Failed to delete old metadata file {oldMetaFile}", ex);
+                        }
+                    }
+                }
 
                 // Check for deleted files
                 foreach (string filename in folderMeta.Assets.Keys.ToList())
                 {
-                    if (!currentFiles.ContainsKey(filename))
+                    if (!assetFiles.ContainsKey(filename))
                     {
                         // File was deleted
                         AssetMetadata asset = folderMeta.Assets[filename];
                         folderMeta.Assets.Remove(filename);
                         AllAssetsByID.Remove(asset.ID);
-                        AssetRemoved?.Invoke(asset);
                         Debug.Info($"Asset removed: {asset.FileName}");
                     }
                 }
 
                 // Check for new/modified files
-                foreach (var file in currentFiles)
+                foreach (var kvp in assetFiles)
                 {
-                    string fullPath = file.Value;
+                    string filename = kvp.Key;
+                    string fullPath = kvp.Value;
                     DateTime lastModified = File.GetLastWriteTime(fullPath);
 
-                    if (folderMeta.Assets.TryGetValue(file.Key, out AssetMetadata? existingAsset))
+                    if (folderMeta.Assets.TryGetValue(filename, out AssetMetadata? existingAsset))
                     {
-                        // Update metadata if modified
+                        // Update if modified
                         if (lastModified > existingAsset.LastModified)
                         {
                             UpdateAssetMetadata(existingAsset, fullPath);
-                            AssetUpdated?.Invoke(existingAsset);
                             Debug.Info($"Asset updated: {existingAsset.FileName}");
                         }
                     }
                     else
                     {
-                        // New asset - preserve old GUID if file was just renamed
-                        AssetMetadata? oldAsset = null;
-                        if (oldAssets.TryGetValue(file.Key, out var possibleOld))
-                        {
-                            // Same filename, different content? Probably not a rename
-                        }
-
-                        AssetMetadata newAsset = CreateAssetMetadata(fullPath, relativeFolder);
-                        folderMeta.Assets[file.Key] = newAsset;
+                        // New asset
+                        AssetMetadata newAsset = CreateAssetMetadata(fullPath);
+                        folderMeta.Assets[filename] = newAsset;
                         AllAssetsByID[newAsset.ID] = newAsset;
-                        AssetAdded?.Invoke(newAsset);
                         Debug.Info($"Asset added: {newAsset.FileName} (GUID: {newAsset.ID})");
                     }
                 }
             }
             else
             {
-                // Create new folder metadata
+                // No metadata file – create new
                 folderMeta = new FolderMetadata { FolderPath = relativeFolder };
 
-                foreach (string file in Directory.GetFiles(folderPath)
-                    .Where(f => !Path.GetFileName(f).EndsWith(".divmeta", StringComparison.OrdinalIgnoreCase)))
+                foreach (string file in assetFiles.Values)
                 {
-                    AssetMetadata asset = CreateAssetMetadata(file, relativeFolder);
+                    AssetMetadata asset = CreateAssetMetadata(file);
                     folderMeta.Assets[Path.GetFileName(file)] = asset;
                     AllAssetsByID[asset.ID] = asset;
-                    AssetAdded?.Invoke(asset);
                     Debug.Info($"Asset discovered: {asset.FileName} (GUID: {asset.ID})");
                 }
+
+                // Immediately save the new metadata file so it exists on disk
+                SaveFolderMetadata(folderPath, folderMeta);
             }
 
-            folderMeta.LastScanTime = DateTime.Now;
             Folders[relativeFolder] = folderMeta;
-
-            // Save folder metadata if requested
-            if (saveMetadata)
-            {
-                string folderJson = JsonSerializer.Serialize(folderMeta, jsonSerializerOptions);
-                File.WriteAllText(metadataPath, folderJson);
-            }
-
-            return folderMeta;
         }
 
-
         /// <summary>
-        /// Creates the asset metadata.
+        /// Saves all folder metadata files (call on project exit).
         /// </summary>
-        /// <param name="filePath">File path of asset</param>
-        /// <param name="relativeFolder">Folder relative to file path</param>
-        /// <returns>Generated asset metadata</returns>
-        private AssetMetadata CreateAssetMetadata(string filePath, string relativeFolder)
+        public void SaveAll()
+        {
+            foreach (var kvp in Folders)
+            {
+                string folderPath = Path.Combine(assetsPath, kvp.Key);
+                SaveFolderMetadata(folderPath, kvp.Value);
+            }
+            Debug.Info("Asset Database: All metadata saved.");
+        }
+
+        private void SaveFolderMetadata(string folderPath, FolderMetadata metadata)
+        {
+            string folderName = Path.GetFileName(folderPath) == "" ? "Root" : Path.GetFileName(folderPath);
+            string metadataPath = Path.Combine(folderPath, folderName + ".divmeta");
+            string json = JsonSerializer.Serialize(metadata, jsonSerializerOptions);
+            File.WriteAllText(metadataPath, json);
+        }
+
+        private AssetMetadata CreateAssetMetadata(string filePath)
         {
             FileInfo fileInfo = new FileInfo(filePath);
             return new AssetMetadata
             {
+                // ID is auto-generated by constructor, but we can set it explicitly if needed.
+                // Here we rely on the default constructor generating a new GUID.
                 FileName = Path.GetFileName(filePath),
                 RelativePath = Path.GetRelativePath(assetsPath, filePath),
                 Type = DetermineAssetType(filePath),
@@ -236,32 +215,23 @@ namespace DivisionEngine.Projects.Assets
             };
         }
 
-        /// <summary>
-        /// Updates existing asset metadata without changing GUID.
-        /// </summary>
-        private void UpdateAssetMetadata(AssetMetadata metadata, string filePath)
+        private static void UpdateAssetMetadata(AssetMetadata metadata, string filePath)
         {
             FileInfo fileInfo = new FileInfo(filePath);
             metadata.LastModified = fileInfo.LastWriteTime;
             metadata.FileSize = fileInfo.Length;
-            // Don't change GUID or other permanent properties
+            // GUID remains unchanged
         }
 
-        /// <summary>
-        /// Finds the correct asset type based on its file path.
-        /// </summary>
-        /// <param name="filePath">Path of asset file</param>
-        /// <returns>Asset file type</returns>
         private static AssetType DetermineAssetType(string filePath)
         {
             string ext = Path.GetExtension(filePath).ToLowerInvariant();
-            return ext switch
+            return ext switch 
             {
                 ".png" or ".jpg" or ".jpeg" or ".bmp" or ".tga" => AssetType.Texture,
                 ".obj" or ".fbx" or ".gltf" => AssetType.SDF,
                 ".mat" => AssetType.Material,
-                ".shader" or ".hlsl" => AssetType.Script,
-                ".cs" when filePath.Contains("ComputeShaders") => AssetType.Script,
+                ".shader" or ".hlsl" or ".cs" => AssetType.Script,
                 ".sdf" or ".sdfLib" => AssetType.SDF,
                 ".wav" or ".mp3" or ".ogg" => AssetType.Audio,
                 ".ttf" or ".otf" => AssetType.Font,
@@ -269,122 +239,39 @@ namespace DivisionEngine.Projects.Assets
             };
         }
 
-        // File watcher event handlers
-
-        private void OnFileChanged(object sender, FileSystemEventArgs e)
-        {
-            if (IsMetadataFile(e.Name)) return;
-            if (IsDisposed) return;
-
-            string folder = Path.GetDirectoryName(e.FullPath)!;
-            var folderMeta = ScanFolder(folder);
-
-            // Queue notification
-            lock (pendingNotifications)
-            {
-                pendingNotifications.Add(folder);
-                notificationThrottle.Stop();
-                notificationThrottle.Start();
-            }
-        }
-
-        private void OnFileDeleted(object sender, FileSystemEventArgs e)
-        {
-            if (IsMetadataFile(e.Name)) return;
-            if (IsDisposed) return;
-
-            string folder = Path.GetDirectoryName(e.FullPath)!;
-            var folderMeta = ScanFolder(folder);
-
-            lock (pendingNotifications)
-            {
-                pendingNotifications.Add(folder);
-                notificationThrottle.Stop();
-                notificationThrottle.Start();
-            }
-        }
-
-        private void OnFileRenamed(object sender, RenamedEventArgs e)
-        {
-            if (IsMetadataFile(e.Name) || IsMetadataFile(e.OldName)) return;
-            if (IsDisposed) return;
-
-            string oldFolder = Path.GetDirectoryName(e.OldFullPath)!;
-            string newFolder = Path.GetDirectoryName(e.FullPath)!;
-
-            // Scan both old and new folders
-            if (oldFolder == newFolder)
-            {
-                // Same folder - just rename
-                ScanFolder(oldFolder);
-            }
-            else
-            {
-                // Moved between folders - scan both
-                ScanFolder(oldFolder);
-                ScanFolder(newFolder);
-            }
-
-            lock (pendingNotifications)
-            {
-                pendingNotifications.Add(oldFolder);
-                pendingNotifications.Add(newFolder);
-                notificationThrottle.Stop();
-                notificationThrottle.Start();
-            }
-        }
-
-        private bool IsMetadataFile(string? fileName)
-        {
-            return fileName?.EndsWith(".divmeta", StringComparison.OrdinalIgnoreCase) ?? false;
-        }
-
-        private bool IsDisposed => isDisposed;
-
+        // ----------
         // Public API
-
-        /// <summary>
-        /// Refreshes a specific folder.
-        /// </summary>
-        public void RefreshFolder(string folderPath)
-        {
-            if (!folderPath.StartsWith(assetsPath))
-                folderPath = Path.Combine(assetsPath, folderPath);
-
-            if (Directory.Exists(folderPath))
-            {
-                ScanFolder(folderPath);
-                FolderChanged?.Invoke(folderPath);
-            }
-        }
+        // ----------
 
         /// <summary>
         /// Gets an asset metadata by its GUID.
         /// </summary>
-        /// <param name="id">Asset GUID</param>
-        /// <returns>Asset metadata with GUID</returns>
-        public AssetMetadata? GetAssetMetadataByID(string id) =>
-            AllAssetsByID.TryGetValue(id, out var asset) ? asset : null;
+        public AssetMetadata? GetAssetMetadataByID(string? id) =>
+            AllAssetsByID.TryGetValue(id ?? string.Empty, out var asset) ? asset : null;
 
         /// <summary>
         /// Gets all assets in a folder path relative to the asset folder.
         /// </summary>
-        /// <param name="relativeFolder">Relative asset folder path</param>
-        /// <returns>Enumerable of asset metadatas in relative folder</returns>
-        public IEnumerable<AssetMetadata> GetAssetsInFolder(string relativeFolder) => 
-            Folders.TryGetValue(relativeFolder, out var folder) ? folder.Assets.Values : [];
+        public IEnumerable<AssetMetadata> GetAssetsInFolder(string relativeFolder)
+        {
+            if (Folders.TryGetValue(relativeFolder, out var folder))
+            {
+                Debug.Info($"GetAssetsInFolder('{relativeFolder}') found {folder.Assets.Count} assets");
+                return folder.Assets.Values;
+            }
+
+            Debug.Warning($"GetAssetsInFolder('{relativeFolder}') - folder not found");
+            return [];
+        }
 
         /// <summary>
         /// Gets all the assets in the project database.
         /// </summary>
-        /// <returns>Enumerable of all asset metadatas</returns>
         public IEnumerable<AssetMetadata> GetAllAssets() => AllAssetsByID.Values;
 
         /// <summary>
         /// Gets an enumerable of all asset metadatas of a type.
         /// </summary>
-        /// <param name="type">Asset type to test for</param>
-        /// <returns>Asset metadatas organized by asset type</returns>
         public IEnumerable<AssetMetadata> GetAssetsByType(AssetType type) =>
             AllAssetsByID.Values.Where(a => a.Type == type);
 
@@ -393,89 +280,17 @@ namespace DivisionEngine.Projects.Assets
         /// </summary>
         public string? GetAssetFullPath(string id)
         {
-            var asset = GetAssetMetadataByID(id);
+            AssetMetadata? asset = GetAssetMetadataByID(id);
             return asset != null ? Path.Combine(assetsPath, asset.RelativePath) : null;
-        }
-
-        /// <summary>
-        /// Imports an existing file into the asset database.
-        /// </summary>
-        public AssetMetadata? ImportAsset(string sourceFilePath, string destinationFolder)
-        {
-            if (!File.Exists(sourceFilePath))
-                return null;
-
-            string fileName = Path.GetFileName(sourceFilePath);
-            string destPath = Path.Combine(assetsPath, destinationFolder, fileName);
-
-            // Ensure destination directory exists
-            Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-
-            // Copy file
-            File.Copy(sourceFilePath, destPath, overwrite: true);
-
-            // Scan the destination folder
-            string folderPath = Path.GetDirectoryName(destPath)!;
-            var folderMeta = ScanFolder(folderPath);
-
-            // Return the new asset
-            return folderMeta.Assets.TryGetValue(fileName, out var asset) ? asset : null;
-        }
-
-        /// <summary>
-        /// Deletes an asset by GUID.
-        /// </summary>
-        public bool DeleteAsset(string id)
-        {
-            var asset = GetAssetMetadataByID(id);
-            if (asset == null) return false;
-
-            string fullPath = Path.Combine(assetsPath, asset.RelativePath);
-            if (File.Exists(fullPath))
-            {
-                File.Delete(fullPath);
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Renames an asset.
-        /// </summary>
-        public AssetMetadata? RenameAsset(string id, string newName)
-        {
-            var asset = GetAssetMetadataByID(id);
-            if (asset == null) return null;
-
-            string oldPath = Path.Combine(assetsPath, asset.RelativePath);
-            string directory = Path.GetDirectoryName(oldPath)!;
-            string extension = Path.GetExtension(oldPath);
-            string newFileName = newName + extension;
-            string newPath = Path.Combine(directory, newFileName);
-
-            if (File.Exists(newPath)) return null; // Name conflict
-
-            File.Move(oldPath, newPath);
-
-            // Scan the folder to update metadata
-            string folder = Path.GetDirectoryName(newPath)!;
-            var folderMeta = ScanFolder(folder);
-
-            return folderMeta.Assets.TryGetValue(newFileName, out var newAsset) ? newAsset : null;
         }
 
         public void Dispose()
         {
-            if (isDisposed) return;
-
-            isDisposed = true;
-            fileWatcher?.Dispose();
-            notificationThrottle?.Dispose();
-
-            FolderChanged = null;
-            AssetAdded = null;
-            AssetRemoved = null;
-            AssetUpdated = null;
+            //GC.SuppressFinalize(this);
+            // Implemnent later, nothing to dispose
         }
+
+        // Optional: Import, Delete, Rename (can be added later)
+
     }
 }

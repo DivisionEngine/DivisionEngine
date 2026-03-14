@@ -40,29 +40,29 @@ namespace DivisionEngine.Projects.Assets
         /// <returns>Asset loading task of type <typeparamref name="T"/></returns>
         public async Task<T?> LoadAssetAsync<T>(string id) where T : Asset
         {
-            if (loadedAssets.TryGetValue(id, out Asset? existing)) // Check if already loaded
+            if (loadedAssets.TryGetValue(id, out Asset? existing))
             {
                 referenceCounts[id]++;
                 return existing as T;
             }
 
-            AssetMetadata? metadata = database.GetAssetMetadataByID(id); // Get metadata
+            AssetMetadata? metadata = database.GetAssetMetadataByID(id); // Now uncommented
             if (metadata == null) return null;
 
             // Add type validation
-            //if (metadata.Type != GetAssetType<T>())
-            //{
-            //    Debug.Error($"Asset type mismatch: Expected {GetAssetType<T>()}, got {metadata.Type}");
-            //    return null;
-            //}
+            if (metadata.Type != GetAssetType<T>())
+            {
+                Debug.Error($"Asset type mismatch: Expected {GetAssetType<T>()}, got {metadata.Type}");
+                return null;
+            }
 
-            Asset? asset = CreateAssetFromMetadata(metadata); // Create appropriate asset type
+            Asset? asset = CreateAssetFromMetadata(metadata);
             if (asset == null) return null;
-            bool success = await asset.LoadAsync(); // Load asset
+            bool success = await asset.LoadAsync();
             if (!success) return null;
 
             Debug.Info($"Asset Manager: Loaded Asset:\n{metadata.FileName}");
-            loadedAssets[id] = asset; // Store in cache
+            loadedAssets[id] = asset;
             referenceCounts[id] = 1;
             return asset as T;
         }
@@ -104,17 +104,28 @@ namespace DivisionEngine.Projects.Assets
         /// </summary>
         /// <param name="metadata">Loaded asset metadata</param>
         /// <returns>Asset instance of metadata type</returns>
-        private Asset? CreateAssetFromMetadata(AssetMetadata metadata)
+        private static Asset? CreateAssetFromMetadata(AssetMetadata metadata)
         {
             return metadata.Type switch
             {
-                //AssetType.Texture => new TextureAsset(metadata),
-                //AssetType.Material => new MaterialAsset(metadata),
-                //AssetType.Script => new ScriptAsset(metadata),
+                AssetType.Texture => new TextureAsset(metadata),
+                AssetType.Material => new MaterialAsset(metadata),
+                //AssetType.Script => new ScriptAsset(metadata), Add in future!
                 //AssetType.SDF => new SDFLibraryAsset(metadata),
                 // Add others as needed
                 _ => null
             };
+        }
+
+        private static AssetType GetAssetType<T>() where T : Asset
+        {
+            if (typeof(T) == typeof(TextureAsset)) return AssetType.Texture;
+            if (typeof(T) == typeof(MaterialAsset)) return AssetType.Material;
+            // if (typeof(T) == typeof(SDFLibraryAsset)) return AssetType.SDF;
+            // if (typeof(T) == typeof(ScriptAsset)) return AssetType.Script;
+            if (typeof(T) == typeof(AudioAsset)) return AssetType.Audio;
+            if (typeof(T) == typeof(FontAsset)) return AssetType.Font;
+            return AssetType.None;
         }
     }
 }

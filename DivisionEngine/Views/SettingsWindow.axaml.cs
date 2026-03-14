@@ -33,6 +33,9 @@ using System.Linq;
 
 namespace DivisionEngine.Editor;
 
+/// <summary>
+/// Represents the settings window in the Division editor.
+/// </summary>
 public partial class SettingsWindow : EditorWindow
 {
     private static readonly List<SettingsWindow?> currentWindows = [];
@@ -103,9 +106,7 @@ public partial class SettingsWindow : EditorWindow
 
         this.FindControl<Border>("MainBorder")!.Child = mainGrid;
         currentWindows.Add(this);
-
-        // Load settings
-        LoadSettings();
+        LoadSettings(); // Load all settings
     }
 
     /// <summary>
@@ -114,7 +115,6 @@ public partial class SettingsWindow : EditorWindow
     private void LoadSettings()
     {
         settingsPanel.Children.Clear();
-        
         AddSectionHeader("Editor Settings", MaterialIconKind.Cog); // Editor Settings
         LoadEditorSettings();
         AddSectionHeader("Engine Settings", MaterialIconKind.Engine); // Engine Settings
@@ -130,8 +130,8 @@ public partial class SettingsWindow : EditorWindow
     {
         EditorSettings settings = EditorSettings.Instance;
         AddBoolSetting("Auto Save", settings.AutoSave, val => settings.AutoSave = val);
-        AddIntSetting("Auto Save Interval (seconds)", settings.AutoSaveInterval, 30, 600, val => settings.AutoSaveInterval = val);
-        AddIntSetting("Max Recent Projects", settings.MaxRecentProjects, 5, 50, val => settings.MaxRecentProjects = val);
+        AddIntSetting("Auto Save Interval (frames)", settings.AutoSaveInterval, 30, 600, val => settings.AutoSaveInterval = val);
+        AddIntSetting("Max Recent Projects", settings.MaxRecentProjects, 2, 20, val => settings.MaxRecentProjects = val);
     }
     
     /// <summary>
@@ -144,7 +144,7 @@ public partial class SettingsWindow : EditorWindow
         AddIntSetting("Resolution Height", settings.ResolutionHeight, 480, 4320, val => settings.ResolutionHeight = val);
         AddBoolSetting("Fullscreen", settings.Fullscreen, val => settings.Fullscreen = val);
         AddBoolSetting("VSync", settings.VSync, val => settings.VSync = val);
-        AddIntSetting("Max FPS (0 = unlimited)", settings.MaxFPS, 0, 360, val => settings.MaxFPS = val);
+        AddIntSetting("Max FPS (0 = unlimited)", settings.MaxFPS, 0, 1024, val => settings.MaxFPS = val);
     }
 
     /// <summary>
@@ -153,7 +153,7 @@ public partial class SettingsWindow : EditorWindow
     private void LoadInputSettings()
     {
         EngineSettings settings = EngineSettings.Instance;
-        AddFloatSetting("Mouse Sensitivity", settings.MouseSensitivity, 0.1f, 2f, val => settings.MouseSensitivity = val);
+        AddFloatSetting("Mouse Sensitivity", settings.MouseSensitivity, 0.01f, 20f, val => settings.MouseSensitivity = val);
 
         // Key bindings placeholder
         Border keyBindingsBorder = CreateSettingBorder();
@@ -223,7 +223,6 @@ public partial class SettingsWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
         DockPanel.SetDock(labelText, Dock.Left);
-
         CheckBox checkBox = new CheckBox
         {
             IsChecked = initialValue,
@@ -251,7 +250,6 @@ public partial class SettingsWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
         DockPanel.SetDock(labelText, Dock.Left);
-
         NumericUpDown numBox = CreateFloatNumericBox(initialValue, onChanged);
         numBox.Minimum = (decimal)min;
         numBox.Maximum = (decimal)max;
@@ -277,7 +275,6 @@ public partial class SettingsWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
         DockPanel.SetDock(labelText, Dock.Left);
-
         NumericUpDown numBox = CreateIntegerNumericBox(initialValue, onChanged);
         numBox.Minimum = min;
         numBox.Maximum = max;
@@ -303,7 +300,6 @@ public partial class SettingsWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
         DockPanel.SetDock(labelText, Dock.Left);
-
         ComboBox comboBox = new ComboBox
         {
             ItemsSource = displayNames,

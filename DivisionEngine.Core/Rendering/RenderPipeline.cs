@@ -159,9 +159,11 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Initializes and runs the render window.
         /// </summary>
+        /// <param name="defaultFPS">The default fallback FPS if engine settings cannot be located</param>
+        /// <param name="editorMode">If the render pipeline is running in editor mode</param>
         /// <remarks>This method creates a render window with default options, sets up event handlers for
         /// loading and rendering.</remarks>
-        public void Run(double requestedFPS, bool editorMode)
+        public void Run(double defaultFPS, bool editorMode)
         {
             try
             {
@@ -175,7 +177,10 @@ namespace DivisionEngine.Rendering
                 options.IsVisible = true;
                 options.VSync = true;
                 options.ShouldSwapAutomatically = true;
-                options.UpdatesPerSecond = requestedFPS;
+
+                if (EngineSettings.Instance.MaxFPS > 0)
+                    options.UpdatesPerSecond = EngineSettings.Instance.MaxFPS;
+                else options.UpdatesPerSecond = defaultFPS;
 
                 // Load render window settings
                 options.Size = new Silk.NET.Maths.Vector2D<int>(EngineSettings.Instance.ResolutionWidth, EngineSettings.Instance.ResolutionHeight);
@@ -314,8 +319,12 @@ namespace DivisionEngine.Rendering
             IWindow? window;
             lock (SyncLock)
             {
+                if (RendererWindow == null || RendererWindow.IsClosing) return;
+
+                // Apply render window settings
+                RendererWindow.VSync = EngineSettings.Instance.VSync;
+                RendererWindow.FramesPerSecond = EngineSettings.Instance.MaxFPS;
                 window = RendererWindow;
-                if (window == null || window.IsClosing) return;
             }
 
             try

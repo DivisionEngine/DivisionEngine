@@ -783,10 +783,10 @@ namespace DivisionEngine
                     float2 jitteredUV = uv + jitter * 2f;
                     rayDir = GetCameraRayDirNew(jitteredUV);
                 }
-                else
-                {
-                    rayDir = GetCameraRayDirNew(uv);
-                }
+                //else
+                //{
+                //    rayDir = GetCameraRayDirNew(uv);
+                //}
 
                 // Automatically skip reflection bounces for non-reflective materials
                 float3 color = TraceRay(pixel, rayOrigin, rayDir, sample,

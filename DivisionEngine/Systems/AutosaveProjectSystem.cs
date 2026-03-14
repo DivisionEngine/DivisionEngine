@@ -50,7 +50,8 @@ namespace DivisionEngine.Editor.Systems
 
         public override void Unload()
         {
-            if (EditorSettings.Instance.AutoSave) ProjectManager.SaveCurrentProject();
+            if (EditorSettings.Instance.AutoSave && ProjectManager.IsCurrentLoaded)
+                ProjectManager.SaveCurrentProject();
         }
     }
 }

@@ -100,8 +100,8 @@ namespace DivisionEngine.Settings
         [JsonIgnore]
         public float MouseSensitivity
         {
-            get => Get(nameof(MouseSensitivity), 0.5f);
-            set => Set(nameof(MouseSensitivity), Math.Clamp(value, 0.1f, 2.0f));
+            get => Get(nameof(MouseSensitivity), 1f);
+            set => Set(nameof(MouseSensitivity), Math.Clamp(value, 0.01f, 20f));
         }
 
         // Ideas for later:

@@ -18,8 +18,10 @@
 //
 using DivisionEngine.Input;
 using DivisionEngine.Rendering;
+using DivisionEngine.Settings;
 using Silk.NET.Input;
 using Silk.NET.Maths;
+using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Player;
 
@@ -31,8 +33,8 @@ public class GameStartup
     public static RenderPipeline? Renderer { get; private set; }
     public static InputSystem? UserInput { get; private set; }
 
-    public const int EngineFrameTimeMS = 16; // Around 60 fps
-    public const double RequestedFPS = 60;
+    public const int DefaultEngineFrameTimeMS = 16; // Around 60 fps
+    public const double DefaultRequestedFPS = 60;
 
     private static Task? engineCoreTask;
     private static CancellationTokenSource? engineCancellationTokenSource;
@@ -51,7 +53,7 @@ public class GameStartup
 
         // Run engine loop
         engineCancellationTokenSource = new CancellationTokenSource();
-        engineCoreTask = Task.Run(() => RunEngineLoop(EngineFrameTimeMS / 2, engineCancellationTokenSource.Token));
+        engineCoreTask = Task.Run(() => RunEngineLoop(DefaultEngineFrameTimeMS / 2, engineCancellationTokenSource.Token));
 
         // Run render pipeline
         Renderer = new RenderPipeline();
@@ -59,7 +61,7 @@ public class GameStartup
         Renderer.Close += EngineCore.Stop; // Stop engine loop
 
         Renderer.BindCurrentWorld(); // Bind loaded project
-        Renderer.Run(RequestedFPS, false);
+        Renderer.Run(DefaultRequestedFPS, false);
 
         // Cancel and stop engine loop
         engineCancellationTokenSource.Cancel();
@@ -79,7 +81,11 @@ public class GameStartup
             while (!cancellationToken.IsCancellationRequested)
             {
                 EngineCore.RunFrame();
-                Thread.Sleep(frameTime);
+
+                // Make sure engine will sleep by some frame time
+                int engineSleep = Math.RoundToInt(1f / EngineSettings.Instance.MaxFPS * 1000f);
+                if (engineSleep > 0) Thread.Sleep(engineSleep);
+                else Thread.Sleep(frameTime);
             }
         }
         catch (OperationCanceledException) { }
