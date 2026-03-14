@@ -263,18 +263,18 @@ namespace DivisionEngine.Editor.ViewModels
             {
                 await App.SetEditorRenderingAsync(false);
 
-                // Open folder dialog for selecting project directory
+                var suggestedLocation = await GetSuggestedProjectLocation(); // Get the starting folder
                 var result = await mainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
                     Title = "Open Project Folder",
                     AllowMultiple = false,
-                    SuggestedStartLocation = await mainWindow.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Documents)
+                    SuggestedStartLocation = suggestedLocation
                 });
 
                 if (result.Count > 0 && !string.IsNullOrEmpty(result[0].Path.LocalPath))
                 {
                     string projectPath = result[0].Path.LocalPath;
-                    projectPath = Path.TrimEndingDirectorySeparator(projectPath); // Trim '\' at end of open project directory
+                    projectPath = Path.TrimEndingDirectorySeparator(projectPath);
                     await OpenProjectAtPath(projectPath);
                 }
 
@@ -285,6 +285,45 @@ namespace DivisionEngine.Editor.ViewModels
                 Debug.Error($"Error opening project", ex);
                 await App.SetEditorRenderingAsync(true);
             }
+        }
+
+        /// <summary>
+        /// Determines the best starting folder for the open project dialog.
+        /// </summary>
+        private async Task<IStorageFolder?> GetSuggestedProjectLocation()
+        {
+            try
+            {
+                // Use the most recent project's folder (if it exists)
+                if (RecentProjects.Count > 0)
+                {
+                    string mostRecentProject = RecentProjects[0];
+                    string? parentDirectory = Path.GetDirectoryName(mostRecentProject);
+                    if (!string.IsNullOrEmpty(parentDirectory) && Directory.Exists(parentDirectory))
+                    {
+                        var parentFolder = await mainWindow.StorageProvider.TryGetFolderFromPathAsync(parentDirectory);
+                        if (parentFolder != null)
+                        {
+                            Debug.Info($"Using parent folder of most recent project: {parentDirectory}");
+                            return parentFolder;
+                        }
+                    }
+                }
+
+                // Fallback to Documents folder
+                var documents = await mainWindow.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Documents);
+                if (documents != null)
+                {
+                    Debug.Info("Using Documents folder as fallback");
+                    return documents;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Error determining suggested project location", ex);
+            }
+
+            return null;
         }
 
         [RelayCommand]
@@ -344,7 +383,7 @@ namespace DivisionEngine.Editor.ViewModels
         [RelayCommand]
         private async Task SaveProjectAs()
         {
-            EditorTask t = EditorTaskManager.Create("Test Task", "Test Description", 0f);
+            EditorTask t = EditorTaskManager.Create("Saving Project", "Creating new project...", 0f);
             ShowProgress = true;
             try
             {
@@ -363,12 +402,15 @@ namespace DivisionEngine.Editor.ViewModels
                     return;
                 }
 
+                // Get suggested location for saving
+                var suggestedLocation = await GetSuggestedProjectLocation();
+
                 // Choose folder location
                 var folderResult = await mainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
                     Title = "Select Project Location",
                     AllowMultiple = false,
-                    SuggestedStartLocation = await mainWindow.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Documents)
+                    SuggestedStartLocation = suggestedLocation
                 });
                 EditorTaskManager.Update(t.Id, 0.75f);
 
@@ -403,7 +445,7 @@ namespace DivisionEngine.Editor.ViewModels
 
                 // Save project
                 bool success = ProjectManager.SaveNewProject(projectName, projectPath);
-                if (success) // Check if successfully saved project
+                if (success)
                 {
                     AddToRecentProjects(projectPath);
                     AssetsWindow.LoadAssetsForCurrentProject();
