@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
+using DivisionEngine.Projects.Assets;
 using System.Reflection;
 using System.Text.Json;
 
@@ -83,7 +84,42 @@ namespace DivisionEngine.Serialization
             if (value == "null") return null;
 
             // Handle custom types
-            if (targetType == typeof(float3))
+            if (targetType == typeof(AssetRef) || 
+                (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(AssetRef<>)))
+            {
+                // Try to parse as new format "AssetRef:guid:type"
+                if (value.StartsWith("(AssetRef:"))
+                {
+                    string[] parts = value[1..(value.Length - 1)].Split(':');
+                    if (parts.Length >= 2)
+                    {
+                        string id = parts[1];
+                        if (int.TryParse(parts[2], out int typeValue)) // Safely parse the enum value
+                        {
+                            AssetType expectedType = (AssetType)typeValue;
+
+                            // Create instance based on type
+                            if (targetType.IsGenericType) return Activator.CreateInstance(targetType, id); // For generic AssetRef<T>
+                            else return Activator.CreateInstance(targetType, id, expectedType); // For non-generic AssetRef
+                        }
+                    }
+
+                    // If parsing fails, log warning and return empty
+                    Debug.Warning($"Failed to parse AssetRef format: {value}");
+                }
+
+                // Try to parse as raw ID (for backward compatibility with old saves)
+                if (!string.IsNullOrEmpty(value) && !value.Contains('(') && !value.Contains(','))
+                {
+                    if (targetType.IsGenericType) return Activator.CreateInstance(targetType, value);
+                    else return Activator.CreateInstance(targetType, value, AssetType.None);
+                }
+
+                // Return empty AssetRef as fallback
+                if (targetType.IsGenericType) return Activator.CreateInstance(targetType, string.Empty);
+                else return new AssetRef("", AssetType.None);
+            }
+            else if (targetType == typeof(float3))
             {
                 // Parse format: "(1,2,3)"
                 string trimmed = value.Trim('(', ')');
@@ -130,18 +166,13 @@ namespace DivisionEngine.Serialization
             else if (targetType == typeof(string))
             {
                 // Remove quotes if still present
-                if (value.StartsWith('"') && value.EndsWith('"'))
-                    return value.Trim('"');
+                if (value.StartsWith('"') && value.EndsWith('"')) return value.Trim('"');
                 return value;
             }
-            else if (targetType == typeof(bool))
-                return bool.Parse(value);
-            else if (targetType == typeof(float))
-                return float.Parse(value);
-            else if (targetType == typeof(int))
-                return int.Parse(value);
-            else if (targetType.IsEnum)
-                return Enum.Parse(targetType, value);
+            else if (targetType == typeof(bool)) return bool.Parse(value);
+            else if (targetType == typeof(float)) return float.Parse(value);
+            else if (targetType == typeof(int)) return int.Parse(value);
+            else if (targetType.IsEnum) return Enum.Parse(targetType, value);
 
             Debug.Warning($"Unhandled property parse type: {targetType.Name}");
             return null;

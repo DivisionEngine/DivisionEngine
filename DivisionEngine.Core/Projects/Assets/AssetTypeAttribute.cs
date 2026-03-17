@@ -18,17 +18,16 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
-    [AssetType(AssetType.Font)]
-    public class FontAsset(AssetMetadata metadata) : Asset(metadata)
+    /// <summary>
+    /// Assigns asset types to asset classes.
+    /// </summary>
+    /// <param name="type">Type of asset</param>
+    [AttributeUsage(AttributeTargets.Class, Inherited = false)]
+    internal class AssetTypeAttribute(AssetType type) : Attribute
     {
-        public override Task<bool> LoadAsync()
-        {
-            throw new NotImplementedException();
-        }
-
-        public override void Unload()
-        {
-            throw new NotImplementedException();
-        }
+        /// <summary>
+        /// Type of asset.
+        /// </summary>
+        public AssetType Type { get; } = type;
     }
 }

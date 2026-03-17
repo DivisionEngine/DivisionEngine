@@ -25,8 +25,19 @@ namespace DivisionEngine.Serialization
     /// </summary>
     public class ComponentData
     {
+        /// <summary>
+        /// Type name of component.
+        /// </summary>
         public string TypeName { get; set; }
+
+        /// <summary>
+        /// Name of encapsulating assembly for component type.
+        /// </summary>
         public string AssemblyName { get; set; }
+
+        /// <summary>
+        /// Serialized list of component properties.
+        /// </summary>
         public Dictionary<string, string> Properties { get; set; }
 
         [JsonConstructor]
@@ -37,6 +48,10 @@ namespace DivisionEngine.Serialization
             Properties = [];
         }
 
+        /// <summary>
+        /// Generates serialized component data.
+        /// </summary>
+        /// <param name="component">Component to serialize</param>
         public ComponentData(IComponent component)
         {
             TypeName = component.GetType().Name;

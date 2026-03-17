@@ -18,8 +18,8 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
-    [AssetType(AssetType.Font)]
-    public class FontAsset(AssetMetadata metadata) : Asset(metadata)
+    [AssetType(AssetType.Script)]
+    public class ScriptAsset(AssetMetadata metadata) : Asset(metadata)
     {
         public override Task<bool> LoadAsync()
         {

@@ -79,6 +79,7 @@ public partial class AssetsWindow : EditorWindow
     // Data vars
     private string currentPath;
     private static bool subscribedProjectEvents = false; // Track if subscribed to events
+    private bool subscribedToFolderEvents = false; // Track if subscribed to asset folder events
 
     /// <summary>
     /// Static constructor to subscribe to all project events once.
@@ -378,39 +379,6 @@ public partial class AssetsWindow : EditorWindow
         }
     }
 
-    /// <summary>
-    /// Loads all assets at a specific path.
-    /// </summary>
-    /// <param name="path">Path to load assets at</param>
-    //private void LoadAssetsAtPath(string path)
-    //{
-    //    try
-    //    {
-    //        DirectoryInfo pathInfo = new DirectoryInfo(path);
-    //        if (!pathInfo.Exists)
-    //        {
-    //            ShowEmptyState("Directory does not exist");
-    //            itemCountText.Text = "0 items";
-    //            return;
-    //        }
-
-    //        // Load correct view
-    //        int totalAssets = LoadViewStateInterchange(pathInfo);
-
-    //        // Update count
-    //        itemCountText.Text = $"{totalAssets} item{(totalAssets != 1 ? "s" : "")}";
-
-    //        // Show empty state if no assets
-    //        if (totalAssets == 0) ShowEmptyState("No Items");
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        Debug.Error($"Failed to load assets", ex);
-    //        ShowEmptyState($"Error: {ex.Message}");
-    //        itemCountText.Text = "Error";
-    //    }
-    //}
-
     private void LoadAssetsAtPathNew(string path)
     {
         try
@@ -437,8 +405,7 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     private void LoadAssetsUsingDatabase(string path)
     {
-        AssetDatabase? database = ProjectManager.AssetDatabase;
-        if (database == null)
+        if (!ProjectManager.IsCurrentLoaded || AssetDatabase.Folders.Count == 0)
         {
             // Fall back to file system if database isn't available
             LoadAssetsUsingFileSystem(path);
@@ -454,18 +421,17 @@ public partial class AssetsWindow : EditorWindow
         }
 
         // Calculate relative path for database queries
-        string assetsRoot = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
-        string relativePath = Path.GetRelativePath(assetsRoot, path);
+        string relativePath = AssetDatabase.GetProjectRelativePath(path);
         if (relativePath == ".") relativePath = "";
 
-        Debug.Info($"Loading assets from: {path}, relative path: '{relativePath}'");
+        //Debug.Info($"Loading assets from: {path}, relative path: '{relativePath}'");
 
         // Get folders from file system (always needed)
         DirectoryInfo[] folders = pathInfo.GetDirectories();
 
         // Get assets from database - FIXED: Now using relativePath
-        List<AssetMetadata> assets = [.. database.GetAssetsInFolder(relativePath)];
-        Debug.Info($"Found {assets.Count} assets in folder '{relativePath}'");
+        List<AssetMetadata> assets = [.. AssetDatabase.GetAssetsInFolder(relativePath)];
+        //Debug.Info($"Found {assets.Count} assets in folder '{relativePath}'");
 
         int totalAssets = folders.Length + assets.Count;
 
@@ -1233,6 +1199,12 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     private void OnProjectLoadedInternal()
     {
+        if (!subscribedToFolderEvents)
+        {
+            ProjectManager.AssetFolderChanged += OnAssetFolderChanged;
+            subscribedToFolderEvents = true;
+        }
+
         // Navigate to the Assets folder root
         string assetsPath = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
         if (Directory.Exists(assetsPath)) Dispatcher.UIThread.Post(() => LoadAssets(assetsPath));
@@ -1254,6 +1226,12 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     private void OnProjectClosedInternal()
     {
+        if (subscribedToFolderEvents)
+        {
+            ProjectManager.AssetFolderChanged -= OnAssetFolderChanged;
+            subscribedToFolderEvents = false;
+        }
+
         // Clear and show empty state
         Dispatcher.UIThread.Post(() => {
             currentPath = string.Empty;

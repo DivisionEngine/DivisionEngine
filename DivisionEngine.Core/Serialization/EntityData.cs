@@ -25,15 +25,24 @@ namespace DivisionEngine.Serialization
     /// </summary>
     public class EntityData
     {
+        /// <summary>
+        /// ID of entity.
+        /// </summary>
         public uint Id { get; set; }
+
+        /// <summary>
+        /// Serialized list of components on entity.
+        /// </summary>
         public List<ComponentData> Components { get; set; }
 
         [JsonConstructor]
-        public EntityData()
-        {
-            Components = [];
-        }
+        public EntityData() => Components = [];
 
+        /// <summary>
+        /// Creates serialized entity data.
+        /// </summary>
+        /// <param name="entity">Entity ID</param>
+        /// <param name="world">World to pull from</param>
         public EntityData(uint entity, World world)
         {
             Id = entity;

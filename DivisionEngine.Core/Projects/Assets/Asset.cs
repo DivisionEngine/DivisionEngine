@@ -51,7 +51,8 @@ namespace DivisionEngine.Projects.Assets
         public string ID { get; set; } = id;
         public AssetType ExpectedType { get; set; } = type;
 
-        // Not serialized - runtime only
+        public AssetRef() : this(string.Empty, AssetType.None) { }
+
         [JsonIgnore] public Asset? LoadedAsset { get; internal set; } = null;
         [JsonIgnore] public readonly bool IsLoaded => LoadedAsset != null;
 
@@ -59,33 +60,24 @@ namespace DivisionEngine.Projects.Assets
     }
 
     /// <summary>
-    /// Generic version for type safety in code.
+    /// Reference to an asset. This is what components store.
     /// </summary>
     public struct AssetRef<T>(string id) where T : Asset
     {
         public string ID { get; set; } = id;
-        public AssetType ExpectedType { get; set; } = GetExpectedType();
+        public AssetType ExpectedType { get; set; } = AssetDatabase.GetAssetType<T>();
+
+        public AssetRef() : this(string.Empty) { }
 
         [JsonIgnore] public T? LoadedAsset { get; internal set; } = null;
         [JsonIgnore] public readonly bool IsLoaded => LoadedAsset != null;
-
-        private static AssetType GetExpectedType()
-        {
-            if (typeof(T) == typeof(TextureAsset)) return AssetType.Texture;
-            if (typeof(T) == typeof(MaterialAsset)) return AssetType.Material;
-            //if (typeof(T) == typeof(SDFLibraryAsset)) return AssetType.SDF;
-            //if (typeof(T) == typeof(ScriptAsset)) return AssetType.Script;
-            if (typeof(T) == typeof(AudioAsset)) return AssetType.Audio;
-            if (typeof(T) == typeof(FontAsset)) return AssetType.Font;
-            return AssetType.None;
-        }
 
         public static implicit operator AssetRef(AssetRef<T> generic) =>
             new(generic.ID, generic.ExpectedType);
 
         public static implicit operator AssetRef<T>(AssetRef standard)
         {
-            if (standard.ExpectedType != GetExpectedType())
+            if (standard.ExpectedType != AssetDatabase.GetAssetType<T>())
                 throw new InvalidCastException($"Cannot cast AssetRef of type {standard.ExpectedType} to {typeof(T).Name}");
             return new AssetRef<T> { ID = standard.ID, ExpectedType = standard.ExpectedType };
         }

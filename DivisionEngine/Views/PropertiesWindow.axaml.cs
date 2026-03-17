@@ -20,13 +20,11 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
-using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components.FieldAttributes;
 using DivisionEngine.MathLib;
-using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using Material.Icons;
 using Material.Icons.Avalonia;
@@ -329,7 +327,7 @@ public partial class PropertiesWindow : EditorWindow
     private static List<Type> GetComponentTypes()
     {
         List<Type> componentTypes = [];
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        foreach (Assembly? assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
             try
             {
@@ -1416,21 +1414,11 @@ public partial class PropertiesWindow : EditorWindow
             HorizontalAlignment = HorizontalAlignment.Center,
             FontSize = 12,
         };
-
-        // Update on color change
-        colorPicker.ColorChanged += (s, e) =>
+        colorPicker.ColorChanged += (s, e) => // Update on color change
         {
             Color selectedColor = colorPicker.Color;
-
-            // Convert to float4
-            float4 newColor = new float4(
-                selectedColor.R / 255f,
-                selectedColor.G / 255f,
-                selectedColor.B / 255f,
-                selectedColor.A / 255f);
-
-            // Update component
-            field.SetValue(component, newColor);
+            float4 newColor = new float4(selectedColor.R / 255f, selectedColor.G / 255f, selectedColor.B / 255f, selectedColor.A / 255f);
+            field.SetValue(component, newColor); // Update component
         };
 
         fieldPanel.Children.Add(colorPicker);
@@ -1520,532 +1508,125 @@ public partial class PropertiesWindow : EditorWindow
 
     #region AssetReferences
 
-    private static StackPanel? CreateAssetRefEditor(FieldInfo field, IComponent component)
+    private static Control CreateAssetRefEditor(FieldInfo field, IComponent component)
     {
+        // Get current value
         object? fieldValue = field.GetValue(component);
-        if (fieldValue == null) return null;
+        if (fieldValue == null) return new TextBlock { Text = "Error" };
 
-        // Get the expected asset type from the field
-        AssetType expectedType = AssetType.None;
-        Type assetRefType = field.FieldType;
+        // Determine asset type
+        AssetType expectedType = GetExpectedTypeFromField(field, fieldValue);
+        string currentId = GetAssetId(fieldValue);
 
-        // Handle both generic and non-generic AssetRef
-        if (assetRefType.IsGenericType && assetRefType.GetGenericTypeDefinition() == typeof(AssetRef<>))
+        // Get current asset name
+        string currentName = "None";
+        if (!string.IsNullOrEmpty(currentId))
         {
-            // Generic AssetRef<T>
-            Type assetType = assetRefType.GetGenericArguments()[0];
-            expectedType = GetAssetTypeFromType(assetType);
-        }
-        else if (assetRefType == typeof(AssetRef))
-        {
-            // Non-generic AssetRef - get ExpectedType from field value
-            PropertyInfo? expectedTypeProp = assetRefType.GetProperty("ExpectedType");
-            if (expectedTypeProp != null)
-                expectedType = (AssetType)(expectedTypeProp.GetValue(fieldValue) ?? AssetType.None);
+            AssetMetadata? metadata = AssetDatabase.GetAssetMetadataByID(currentId);
+            currentName = metadata != null ? Path.GetFileNameWithoutExtension(metadata.FileName) : "Missing";
         }
 
-        StackPanel fieldPanel = new StackPanel
+        // Simple button
+        Button button = new Button
         {
-            Orientation = Orientation.Horizontal,
-            MinHeight = 24,
-            Margin = new Thickness(0, 2, 0, 2),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-
-        // Create asset picker button
-        Button assetPicker = new Button
-        {
-            Content = CreateAssetPickerContent(fieldValue, expectedType),
-            Padding = new Thickness(8, 4),
-            BorderBrush = EditorColor.FromRGB(45, 45, 45),
+            Content = $"{expectedType}: {currentName}",
+            Background = EditorColor.FromRGB(32, 32, 32),
             BorderThickness = new Thickness(1),
-            Background = EditorColor.FromRGB(32, 32, 32),
-            Foreground = Brushes.White,
-            CornerRadius = new CornerRadius(4),
-            HorizontalContentAlignment = HorizontalAlignment.Left,
-            MinWidth = 200,
-            Tag = fieldValue,
-        };
-
-        // Create flyout with asset selector
-        Flyout flyout = new Flyout
-        {
-            Placement = PlacementMode.BottomEdgeAlignedLeft,
-            ShowMode = FlyoutShowMode.Standard,
-        };
-
-        // Build the selector content (will be recreated each time flyout opens)
-        assetPicker.Click += (_, _) =>
-        {
-            flyout.Content = CreateAssetSelector(field, component, expectedType, assetPicker, flyout);
-            flyout.ShowAt(assetPicker);
-        };
-
-        // Clear button (to set to none)
-        Button clearButton = new Button
-        {
-            Content = new MaterialIcon
-            {
-                Kind = MaterialIconKind.Close,
-                Width = 14,
-                Height = 14,
-                Foreground = EditorColor.FromRGB(200, 100, 100),
-            },
-            Padding = new Thickness(4),
-            Margin = new Thickness(4, 0, 0, 0),
-            BorderThickness = new Thickness(0),
-            Background = EditorColor.FromRGB(40, 40, 40),
-            CornerRadius = new CornerRadius(4),
-            VerticalAlignment = VerticalAlignment.Center,
-            IsVisible = !string.IsNullOrEmpty(GetAssetRefId(fieldValue)),
-        };
-
-        clearButton.Click += (_, _) =>
-        {
-            SetAssetRefValue(field, component, null);
-            assetPicker.Content = CreateAssetPickerContent(null, expectedType);
-            clearButton.IsVisible = false;
-        };
-
-        fieldPanel.Children.Add(assetPicker);
-        fieldPanel.Children.Add(clearButton);
-
-        return fieldPanel;
-    }
-
-    private static StackPanel CreateAssetPickerContent(object? assetRef, AssetType expectedType)
-    {
-        StackPanel content = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-
-        // Icon based on asset type
-        MaterialIcon icon = new MaterialIcon
-        {
-            Kind = GetIconForAssetType(expectedType),
-            Width = 16,
-            Height = 16,
-            Foreground = EditorColor.FromColor(GetColorForAssetType(expectedType)),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-
-        // Asset info
-        StackPanel textPanel = new StackPanel
-        {
-            Orientation = Orientation.Vertical,
-            Spacing = 2,
-        };
-
-        string? assetId = GetAssetRefId(assetRef);
-        bool hasAsset = !string.IsNullOrEmpty(assetId);
-
-        if (hasAsset)
-        {
-            // Try to get asset metadata
-            AssetMetadata? metadata = ProjectManager.AssetDatabase?.GetAssetMetadataByID(assetId);
-            if (metadata != null)
-            {
-                textPanel.Children.Add(new TextBlock
-                {
-                    Text = Path.GetFileNameWithoutExtension(metadata.FileName),
-                    FontSize = 11,
-                    FontWeight = FontWeight.Medium,
-                    Foreground = Brushes.White,
-                });
-                textPanel.Children.Add(new TextBlock
-                {
-                    Text = $"{metadata.Type} • {EditorUI.FormatFileSize(metadata.FileSize)}",
-                    FontSize = 9,
-                    Foreground = EditorColor.FromRGB(160, 160, 160),
-                });
-            }
-            else
-            {
-                textPanel.Children.Add(new TextBlock
-                {
-                    Text = "Missing Asset",
-                    FontSize = 11,
-                    FontWeight = FontWeight.Medium,
-                    Foreground = EditorColor.FromRGB(220, 100, 100),
-                });
-                textPanel.Children.Add(new TextBlock
-                {
-                    Text = $"ID: {assetId?[..8]}...",
-                    FontSize = 9,
-                    Foreground = EditorColor.FromRGB(160, 160, 160),
-                });
-            }
-        }
-        else
-        {
-            textPanel.Children.Add(new TextBlock
-            {
-                Text = $"None ({expectedType})",
-                FontSize = 11,
-                FontStyle = FontStyle.Italic,
-                Foreground = EditorColor.FromRGB(140, 140, 140),
-            });
-            textPanel.Children.Add(new TextBlock
-            {
-                Text = "Click to select...",
-                FontSize = 9,
-                Foreground = EditorColor.FromRGB(120, 120, 120),
-            });
-        }
-
-        content.Children.Add(icon);
-        content.Children.Add(textPanel);
-
-        // Add chevron
-        content.Children.Add(new MaterialIcon
-        {
-            Kind = MaterialIconKind.ChevronDown,
-            Width = 14,
-            Height = 14,
-            Foreground = EditorColor.FromRGB(140, 140, 140),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(20, 0, 0, 0),
-        });
-
-        return content;
-    }
-
-    private static StackPanel CreateAssetSelector(FieldInfo field, IComponent component,
-    AssetType expectedType, Button parentButton, Flyout parentFlyout)
-    {
-        StackPanel selectorPanel = new StackPanel
-        {
-            Spacing = 8,
-            MinWidth = 280,
-            MaxWidth = 350,
-            Background = EditorColor.FromRGB(24, 24, 24),
-        };
-
-        // Header
-        selectorPanel.Children.Add(new TextBlock
-        {
-            Text = $"Select {expectedType} Asset",
-            FontSize = 14,
-            FontWeight = FontWeight.SemiBold,
-            Foreground = Brushes.White,
-            Margin = new Thickness(8, 8, 8, 4),
-        });
-
-        // Search box
-        TextBox searchBox = new TextBox
-        {
-            Watermark = "Search assets...",
-            FontSize = 12,
-            Background = EditorColor.FromRGB(32, 32, 32),
-            Foreground = Brushes.White,
-            BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(4),
             Padding = new Thickness(8, 4),
-            Margin = new Thickness(8, 0, 8, 4),
+            MinWidth = 150,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
         };
 
-        // Asset container (ScrollViewer with StackPanel)
-        ScrollViewer scrollViewer = new ScrollViewer
+        // Simple flyout with list
+        Flyout flyout = new Flyout();
+        button.Click += (_, _) =>
         {
-            MaxHeight = 300,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Background = EditorColor.FromRGB(20, 20, 20),
-        };
+            StackPanel panel = new StackPanel { Background = EditorColor.FromRGB(24, 24, 24), MinWidth = 200 };
 
-        StackPanel assetsContainer = new StackPanel
-        {
-            Orientation = Orientation.Vertical,
-            Margin = new Thickness(0),
-        };
-        scrollViewer.Content = assetsContainer;
-
-        // Get assets from database - FIXED: GetAssetsByType works without relative path
-        List<AssetMetadata> allAssets = [];
-        if (ProjectManager.AssetDatabase != null)
-        {
-            allAssets = ProjectManager.AssetDatabase.GetAssetsByType(expectedType).ToList();
-            Debug.Info($"Found {allAssets.Count} assets of type {expectedType}");
-        }
-        else
-        {
-            Debug.Warning("AssetDatabase is null, cannot load assets");
-        }
-
-        string currentAssetId = GetAssetRefId(field.GetValue(component)) ?? "";
-
-        // Function to refresh the asset list based on search
-        Action<string> refreshAssetList = (filter) =>
-        {
-            assetsContainer.Children.Clear();
-
-            // Add "None" option first
-            Border noneBorder = CreateAssetItemBorder("None", null, currentAssetId == "", () =>
+            // "None" option
+            Button noneBtn = new Button
             {
-                SetAssetRefValue(field, component, null);
-                parentButton.Content = CreateAssetPickerContent(null, expectedType);
-
-                // Find and update clear button visibility
-                if (parentButton.Parent is StackPanel parentPanel)
-                {
-                    foreach (var child in parentPanel.Children)
-                    {
-                        if (child is Button btn && btn.Content is MaterialIcon icon && icon.Kind == MaterialIconKind.Close)
-                        {
-                            btn.IsVisible = false;
-                            break;
-                        }
-                    }
-                }
-
-                parentFlyout.Hide();
-            }, true);
-            assetsContainer.Children.Add(noneBorder);
-
-            // Filter and add assets
-            var filteredAssets = allAssets
-                .Where(a => string.IsNullOrEmpty(filter) ||
-                           a.FileName.Contains(filter, StringComparison.InvariantCultureIgnoreCase) ||
-                           Path.GetFileNameWithoutExtension(a.FileName).Contains(filter, StringComparison.InvariantCultureIgnoreCase))
-                .OrderBy(a => a.FileName);
-
-            foreach (AssetMetadata asset in filteredAssets)
+                Content = "None",
+                Background = EditorColor.FromRGB(28, 28, 28),
+                BorderThickness = new Thickness(0),
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(2)
+            };
+            noneBtn.Click += (_, _) =>
             {
-                bool isSelected = asset.ID == currentAssetId;
-                Border assetBorder = CreateAssetItemBorder(asset, isSelected, () =>
+                SetAssetValue(field, component, null);
+                button.Content = $"{expectedType}: None";
+                flyout.Hide();
+            };
+            panel.Children.Add(noneBtn);
+
+            // Asset options
+            foreach (AssetMetadata? asset in AssetDatabase.GetAssetsByType(expectedType))
+            {
+                if (asset == null) continue;
+
+                Button assetBtn = new Button
                 {
-                    SetAssetRefValue(field, component, asset.ID);
-                    parentButton.Content = CreateAssetPickerContent(
-                        field.GetValue(component),
-                        expectedType
-                    );
-
-                    // Update clear button visibility
-                    if (parentButton.Parent is StackPanel parentPanel)
-                    {
-                        foreach (var child in parentPanel.Children)
-                        {
-                            if (child is Button btn && btn.Content is MaterialIcon icon && icon.Kind == MaterialIconKind.Close)
-                            {
-                                btn.IsVisible = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    parentFlyout.Hide();
-                });
-                assetsContainer.Children.Add(assetBorder);
+                    Content = Path.GetFileNameWithoutExtension(asset.FileName),
+                    Background = EditorColor.FromRGB(28, 28, 28),
+                    BorderThickness = new Thickness(0),
+                    HorizontalContentAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(2)
+                };
+                assetBtn.Click += (_, _) =>
+                {
+                    SetAssetValue(field, component, asset.ID);
+                    button.Content = $"{expectedType}: {Path.GetFileNameWithoutExtension(asset.FileName)}";
+                    flyout.Hide();
+                };
+                panel.Children.Add(assetBtn);
             }
 
-            // No results
-            if (filteredAssets.Count() == 0 && !string.IsNullOrEmpty(filter))
-            {
-                assetsContainer.Children.Add(new TextBlock
-                {
-                    Text = "No matching assets",
-                    FontStyle = FontStyle.Italic,
-                    Foreground = EditorColor.FromRGB(160, 160, 160),
-                    Padding = new Thickness(8, 8),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                });
-            }
+            flyout.Content = panel;
+            flyout.ShowAt(button);
         };
 
-        // Initial population
-        refreshAssetList("");
-
-        // Search handler
-        searchBox.TextChanged += (s, e) =>
-        {
-            refreshAssetList(searchBox.Text ?? "");
-        };
-
-        selectorPanel.Children.Add(searchBox);
-        selectorPanel.Children.Add(scrollViewer);
-
-        return selectorPanel;
+        return button;
     }
 
-    private static Border CreateAssetItemBorder(AssetMetadata asset, bool isSelected, Action onClick)
+    private static AssetType GetExpectedTypeFromField(FieldInfo field, object fieldValue)
     {
-        return CreateAssetItemBorder(
-            Path.GetFileNameWithoutExtension(asset.FileName),
-            asset,
-            isSelected,
-            onClick,
-            false
-        );
-    }
-
-    private static Border CreateAssetItemBorder(string text, AssetMetadata? asset, bool isSelected, Action onClick, bool isNone)
-    {
-        Border border = new Border
-        {
-            Background = isSelected ? EditorColor.FromRGB(48, 48, 48) : EditorColor.FromRGB(28, 28, 28),
-            Padding = new Thickness(8, 6),
-            Margin = new Thickness(0, 1, 0, 0),
-            Cursor = new Cursor(StandardCursorType.Hand),
-        };
-
-        // Hover effect
-        border.PointerEntered += (_, _) =>
-        {
-            if (!isSelected)
-                border.Background = EditorColor.FromRGB(38, 38, 38);
-        };
-        border.PointerExited += (_, _) =>
-        {
-            if (!isSelected)
-                border.Background = EditorColor.FromRGB(28, 28, 28);
-        };
-
-        border.PointerPressed += (_, _) => onClick();
-
-        if (isNone)
-        {
-            border.Child = new TextBlock
-            {
-                Text = text,
-                FontStyle = FontStyle.Italic,
-                Foreground = EditorColor.FromRGB(160, 160, 160),
-            };
-        }
-        else
-        {
-            DockPanel itemPanel = new DockPanel();
-
-            MaterialIcon icon = new MaterialIcon
-            {
-                Kind = GetIconForAssetType(asset!.Type),
-                Width = 16,
-                Height = 16,
-                Foreground = EditorColor.FromColor(GetColorForAssetType(asset.Type)),
-                Margin = new Thickness(0, 0, 8, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-
-            StackPanel textPanel = new StackPanel
-            {
-                Orientation = Orientation.Vertical,
-            };
-
-            textPanel.Children.Add(new TextBlock
-            {
-                Text = Path.GetFileNameWithoutExtension(asset.FileName),
-                FontSize = 12,
-                FontWeight = isSelected ? FontWeight.Bold : FontWeight.Medium,
-                Foreground = isSelected ? Brushes.White : EditorColor.FromRGB(220, 220, 220),
-            });
-
-            textPanel.Children.Add(new TextBlock
-            {
-                Text = $"{EditorUI.FormatFileSize(asset.FileSize)} • {Path.GetDirectoryName(asset.RelativePath)}",
-                FontSize = 9,
-                Foreground = EditorColor.FromRGB(160, 160, 160),
-            });
-
-            DockPanel.SetDock(icon, Dock.Left);
-            itemPanel.Children.Add(icon);
-            itemPanel.Children.Add(textPanel);
-
-            if (isSelected)
-            {
-                itemPanel.Children.Add(new MaterialIcon
-                {
-                    Kind = MaterialIconKind.Check,
-                    Width = 16,
-                    Height = 16,
-                    Foreground = EditorColor.FromRGB(100, 255, 100),
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    Margin = new Thickness(8, 0, 0, 0),
-                });
-            }
-
-            border.Child = itemPanel;
-        }
-
-        return border;
-    }
-
-    // Helper methods for AssetRef manipulation
-    private static string? GetAssetRefId(object? assetRef)
-    {
-        if (assetRef == null) return null;
-
-        Type type = assetRef.GetType();
-        PropertyInfo? idProp = type.GetProperty("ID");
-        return idProp?.GetValue(assetRef) as string;
-    }
-
-    private static void SetAssetRefValue(FieldInfo field, IComponent component, string? assetId)
-    {
-        object? currentValue = field.GetValue(component);
         Type fieldType = field.FieldType;
-
         if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>))
         {
-            // Generic AssetRef<T>
             Type assetType = fieldType.GetGenericArguments()[0];
-            AssetType expectedType = GetAssetTypeFromType(assetType);
+            return AssetDatabase.GetAssetType(assetType);
+        }
+        else if (fieldType == typeof(AssetRef))
+        {
+            PropertyInfo? typeProp = fieldType.GetProperty("ExpectedType");
+            return (AssetType)(typeProp?.GetValue(fieldValue) ?? AssetType.None);
+        }
+        return AssetType.None;
+    }
 
-            // Create new AssetRef<T> instance
+    private static string GetAssetId(object fieldValue) => fieldValue.GetType().GetProperty("ID")?.GetValue(fieldValue) as string ?? "";
+
+    private static void SetAssetValue(FieldInfo field, IComponent component, string? assetId)
+    {
+        Type fieldType = field.FieldType;
+        if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>))
+        {
             object? newValue = Activator.CreateInstance(fieldType, assetId ?? string.Empty);
             field.SetValue(component, newValue);
         }
         else if (fieldType == typeof(AssetRef))
         {
-            // Non-generic AssetRef
+            object? current = field.GetValue(component);
             AssetType expectedType = AssetType.None;
-            if (currentValue != null)
+            if (current != null)
             {
                 PropertyInfo? typeProp = fieldType.GetProperty("ExpectedType");
-                expectedType = (AssetType)(typeProp?.GetValue(currentValue) ?? AssetType.None);
+                expectedType = (AssetType)(typeProp?.GetValue(current) ?? AssetType.None);
             }
-
             object? newValue = Activator.CreateInstance(fieldType, assetId ?? string.Empty, expectedType);
             field.SetValue(component, newValue);
         }
-    }
-
-    private static AssetType GetAssetTypeFromType(Type type)
-    {
-        if (type == typeof(TextureAsset)) return AssetType.Texture;
-        if (type == typeof(MaterialAsset)) return AssetType.Material;
-        if (type == typeof(AudioAsset)) return AssetType.Audio;
-        if (type == typeof(FontAsset)) return AssetType.Font;
-        // Add others as needed
-        return AssetType.None;
-    }
-
-    private static MaterialIconKind GetIconForAssetType(AssetType type)
-    {
-        return type switch
-        {
-            AssetType.Texture => MaterialIconKind.Image,
-            AssetType.Material => MaterialIconKind.Palette,
-            AssetType.Script => MaterialIconKind.CodeBraces,
-            AssetType.SDF => MaterialIconKind.CubeOutline,
-            AssetType.Audio => MaterialIconKind.Audio,
-            AssetType.Font => MaterialIconKind.FormatFont,
-            _ => MaterialIconKind.FileDocument,
-        };
-    }
-
-    private static float4 GetColorForAssetType(AssetType type)
-    {
-        return type switch
-        {
-            AssetType.Texture => ColorPalette.SkyBlue,
-            AssetType.Material => ColorPalette.Orange,
-            AssetType.Script => ColorPalette.Khaki,
-            AssetType.SDF => ColorPalette.LightSeaGreen,
-            AssetType.Audio => ColorPalette.Coral,
-            AssetType.Font => ColorPalette.Khaki,
-            _ => ColorPalette.Gray,
-        };
     }
 
     #endregion AssetReferences
@@ -2079,7 +1660,6 @@ public partial class PropertiesWindow : EditorWindow
                 Foreground = Brushes.White,
                 VerticalAlignment = VerticalAlignment.Center,
             });
-
             ToolTip.SetTip(control, tooltipContent);
             ToolTip.SetPlacement(control, PlacementMode.Top);
             ToolTip.SetShowDelay(control, 400);

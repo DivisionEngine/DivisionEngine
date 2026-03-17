@@ -18,6 +18,7 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
+    [AssetType(AssetType.Audio)]
     public class AudioAsset(AssetMetadata metadata) : Asset(metadata)
     {
         public override Task<bool> LoadAsync()

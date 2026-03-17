@@ -18,6 +18,7 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
+    [AssetType(AssetType.Material)]
     public class MaterialAsset(AssetMetadata metadata) : Asset(metadata)
     {
         public override Task<bool> LoadAsync()

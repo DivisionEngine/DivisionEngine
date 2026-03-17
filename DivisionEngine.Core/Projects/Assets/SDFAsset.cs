@@ -18,8 +18,8 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
-    [AssetType(AssetType.Font)]
-    public class FontAsset(AssetMetadata metadata) : Asset(metadata)
+    [AssetType(AssetType.SDF)]
+    public class SDFAsset(AssetMetadata metadata) : Asset(metadata)
     {
         public override Task<bool> LoadAsync()
         {

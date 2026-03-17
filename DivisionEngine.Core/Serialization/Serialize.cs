@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Division Engine.  If not, see <https://www.gnu.org/licenses/>.
 //
+using DivisionEngine.Projects.Assets;
 using System.Reflection;
 using System.Text.Json;
 
@@ -62,7 +63,23 @@ namespace DivisionEngine.Serialization
                     // Adaptive serialization for some special types
                     string serializedField = fieldVal.ToString()!;
 
-                    if (fieldType == typeof(float2))
+                    // Handle custom types
+                    if (fieldType == typeof(AssetRef) ||
+                        (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>)))
+                    {
+                        // Get ID and ExpectedType via reflection
+                        PropertyInfo? idProp = fieldType.GetProperty("ID");
+                        PropertyInfo? typeProp = fieldType.GetProperty("ExpectedType");
+
+                        string id = idProp != null ?
+                            (idProp.GetValue(fieldVal)?.ToString() ?? "") : "";
+                        int expectedType = typeProp != null ?
+                            (int)(typeProp.GetValue(fieldVal) ?? 0) : 0;
+
+                        // Store as special format: "(AssetRef:{id}:{expectedType})"
+                        serializedField = $"(AssetRef:{id}:{expectedType})";
+                    }
+                    else if (fieldType == typeof(float2))
                     {
                         float2 vec = (float2)fieldVal;
                         serializedField = $"({vec.X},{vec.Y})";

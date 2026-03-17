@@ -25,8 +25,19 @@ namespace DivisionEngine.Serialization
     /// </summary>
     public class WorldData
     {
+        /// <summary>
+        /// Name of world.
+        /// </summary>
         public string Name { get; set; }
+
+        /// <summary>
+        /// Next entity ID in world.
+        /// </summary>
         public uint NextEntityId { get; set; }
+
+        /// <summary>
+        /// Serialized entities list in from world data.
+        /// </summary>
         public List<EntityData> Entities { get; set; }
 
         /// <summary>
@@ -50,8 +61,7 @@ namespace DivisionEngine.Serialization
             Name = world.Name;
             NextEntityId = world.NextEntityId;
             Entities = [];
-            foreach (uint entity in world.entities)
-                Entities.Add(new EntityData(entity, world));
+            foreach (uint entity in world.entities) Entities.Add(new EntityData(entity, world));
         }
     }
 }

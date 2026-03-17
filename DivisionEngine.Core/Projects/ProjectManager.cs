@@ -43,11 +43,6 @@ namespace DivisionEngine.Projects
             !string.IsNullOrWhiteSpace(CurrentProjectPath) && !string.IsNullOrWhiteSpace(CurrentProjectName);
 
         /// <summary>
-        /// Asset database currently in use.
-        /// </summary>
-        public static AssetDatabase? AssetDatabase { get; private set; }
-
-        /// <summary>
         /// Asset manager currently in use.
         /// </summary>
         public static AssetManager? AssetManager { get; private set; }
@@ -130,7 +125,7 @@ namespace DivisionEngine.Projects
                 }
 
                 // Initialize Asset System
-                InitializeAssetSystem(projDir);
+                InitializeAssetSystem();
 
                 // Load project file
                 DivisionProject? tempProjectData = null;
@@ -178,7 +173,6 @@ namespace DivisionEngine.Projects
         private static void LoadProjectData(DivisionProject projectData)
         {
             // Project settings can be loaded here eventually.
-            
         }
 
         /// <summary>
@@ -245,10 +239,7 @@ namespace DivisionEngine.Projects
         public static bool SaveCurrentProject()
         {
             if (IsCurrentLoaded)
-            {
-                Debug.Warning("Saving Project!");
                 return SaveProject(CurrentProjectName!, CurrentProjectPath!);
-            }
             return false;
         }
 
@@ -287,7 +278,6 @@ namespace DivisionEngine.Projects
         /// <returns>Whether the project directory formatting executed successfully</returns>
         private static bool ForceValidateProjectDirectory(string projName, string projectDir)
         {
-            Debug.Log("Name & Dir: " + projName + "\n" + projectDir);
             if (!string.IsNullOrEmpty(projName) && !string.IsNullOrEmpty(projectDir))
             {
                 // Validate project directory
@@ -309,21 +299,12 @@ namespace DivisionEngine.Projects
         /// <summary>
         /// Sets up the asset database and asset manager.
         /// </summary>
-        /// <param name="projDir">Project directory</param>
-        private static void InitializeAssetSystem(string projDir)
+        private static void InitializeAssetSystem()
         {
-            string assetsPath = Path.Combine(projDir, "Assets");
-
-            // Create database (this scans all folders and loads/creates metadata)
-            AssetDatabase = new AssetDatabase(assetsPath);
-
-            // Forward events from database to project-level events
+            // Initialize the asset database
+            AssetDatabase.Initialize();
             AssetDatabase.FolderChanged += (folder) => AssetFolderChanged?.Invoke(folder);
-
-            // Create manager
-            AssetManager = new AssetManager(AssetDatabase);
-
-            Debug.Info($"Asset System initialized. Found {AssetDatabase.GetAllAssets().Count()} assets.");
+            AssetManager = new AssetManager(); // Create asset manager instance
         }
 
         /// <summary>
@@ -334,25 +315,16 @@ namespace DivisionEngine.Projects
             Debug.Info($"Project Manager: Closing {CurrentProjectName}");
 
             ProjectClosing?.Invoke(); // Start closing notify
-
-            // Save all asset metadata before closing
-            AssetDatabase?.SaveAll();
-
-            // Unload all assets
-            AssetManager?.UnloadAll();
-
-            // Dispose database (no-op in simplified version)
-            AssetDatabase?.Dispose();
+            AssetDatabase.SaveAll(); // Save all asset metadata before closing
+            AssetManager?.UnloadAll(); // Unload all assets
 
             // Clear references
-            AssetDatabase = null;
             AssetManager = null;
             CurrentProjectName = null;
             CurrentProjectPath = null;
 
             // Clear forwarded events
             AssetFolderChanged = null;
-
             ProjectClosed?.Invoke();
         }
     }

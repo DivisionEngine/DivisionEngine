@@ -18,6 +18,7 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
+    [AssetType(AssetType.Texture)]
     public class TextureAsset(AssetMetadata metadata) : Asset(metadata)
     {
         // Texture-specific properties

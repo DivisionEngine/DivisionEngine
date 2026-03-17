@@ -21,10 +21,8 @@ namespace DivisionEngine.Projects.Assets
     /// <summary>
     /// Stores loaded assets and references.
     /// </summary>
-    /// <param name="database">Asset database to pull from</param>
-    public class AssetManager(AssetDatabase database)
+    public class AssetManager
     {
-        private readonly AssetDatabase database = database;
         private readonly Dictionary<string, Asset> loadedAssets = [];
         private readonly Dictionary<string, int> referenceCounts = [];
 
@@ -46,7 +44,7 @@ namespace DivisionEngine.Projects.Assets
                 return existing as T;
             }
 
-            AssetMetadata? metadata = database.GetAssetMetadataByID(id); // Now uncommented
+            AssetMetadata? metadata = AssetDatabase.GetAssetMetadataByID(id); // Now uncommented
             if (metadata == null) return null;
 
             // Add type validation
