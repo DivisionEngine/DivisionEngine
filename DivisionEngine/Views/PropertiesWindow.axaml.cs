@@ -1526,36 +1526,59 @@ public partial class PropertiesWindow : EditorWindow
             currentName = metadata != null ? Path.GetFileNameWithoutExtension(metadata.FileName) : "Missing";
         }
 
-        // Simple button
-        Button button = new Button
+        StackPanel buttonContentPanel = new StackPanel
         {
-            Content = $"{expectedType}: {currentName}",
-            Background = EditorColor.FromRGB(32, 32, 32),
-            BorderThickness = new Thickness(1),
+            Orientation = Orientation.Horizontal,
+            Spacing = 5,
+        };
+        TextBlock assetRefButtonText = new TextBlock
+        {
+            Text = currentName,
+            FontSize = 12,
+            Foreground = EditorColor.FromRGB(200, 200, 200),
+        };
+        buttonContentPanel.Children.Add(new MaterialIcon
+        {
+            Kind = GetAssetIcon(expectedType),
+            Foreground = EditorColor.FromColor(GetAssetColor(expectedType)),
+            Width = 12,
+            Height = 12,
+        });
+        buttonContentPanel.Children.Add(assetRefButtonText);
+        Button assetRefButton = new Button
+        {
+            Content = buttonContentPanel,
+            Background = EditorColor.FromRGB(17, 17, 17),
+            BorderThickness = new Thickness(0),
             Padding = new Thickness(8, 4),
             MinWidth = 150,
             HorizontalContentAlignment = HorizontalAlignment.Left,
         };
 
-        // Simple flyout with list
+        // Flyout with list
         Flyout flyout = new Flyout();
-        button.Click += (_, _) =>
+        assetRefButton.Click += (_, _) =>
         {
-            StackPanel panel = new StackPanel { Background = EditorColor.FromRGB(24, 24, 24), MinWidth = 200 };
+            StackPanel panel = new StackPanel
+            {
+                MinWidth = 200,
+            };
 
-            // "None" option
+            // None option
             Button noneBtn = new Button
             {
                 Content = "None",
-                Background = EditorColor.FromRGB(28, 28, 28),
+                FontSize = 10,
+                Background = EditorColor.FromRGB(10, 10, 10),
                 BorderThickness = new Thickness(0),
-                HorizontalContentAlignment = HorizontalAlignment.Left,
-                Margin = new Thickness(2)
+                CornerRadius = new CornerRadius(0),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Margin = new Thickness(1),
             };
             noneBtn.Click += (_, _) =>
             {
                 SetAssetValue(field, component, null);
-                button.Content = $"{expectedType}: None";
+                assetRefButtonText.Text = "None";
                 flyout.Hide();
             };
             panel.Children.Add(noneBtn);
@@ -1564,29 +1587,29 @@ public partial class PropertiesWindow : EditorWindow
             foreach (AssetMetadata? asset in AssetDatabase.GetAssetsByType(expectedType))
             {
                 if (asset == null) continue;
-
                 Button assetBtn = new Button
                 {
                     Content = Path.GetFileNameWithoutExtension(asset.FileName),
-                    Background = EditorColor.FromRGB(28, 28, 28),
+                    FontSize = 10,
+                    Background = EditorColor.FromRGB(10, 10, 10),
                     BorderThickness = new Thickness(0),
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(2)
+                    CornerRadius = new CornerRadius(0),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Margin = new Thickness(1),
                 };
                 assetBtn.Click += (_, _) =>
                 {
                     SetAssetValue(field, component, asset.ID);
-                    button.Content = $"{expectedType}: {Path.GetFileNameWithoutExtension(asset.FileName)}";
+                    assetRefButtonText.Text = $"{Path.GetFileNameWithoutExtension(asset.FileName)}";
                     flyout.Hide();
                 };
                 panel.Children.Add(assetBtn);
             }
 
             flyout.Content = panel;
-            flyout.ShowAt(button);
+            flyout.ShowAt(assetRefButton);
         };
-
-        return button;
+        return assetRefButton;
     }
 
     private static AssetType GetExpectedTypeFromField(FieldInfo field, object fieldValue)
@@ -1628,6 +1651,28 @@ public partial class PropertiesWindow : EditorWindow
             field.SetValue(component, newValue);
         }
     }
+
+    private static MaterialIconKind GetAssetIcon(AssetType type) => type switch
+    {
+        AssetType.Texture => MaterialIconKind.Image,
+        AssetType.Script => MaterialIconKind.Code,
+        AssetType.SDF => MaterialIconKind.VectorUnion,
+        AssetType.Material => MaterialIconKind.Style,
+        AssetType.Audio => MaterialIconKind.Music,
+        AssetType.Font => MaterialIconKind.FormatLetterCase,
+        _ => MaterialIconKind.Box,
+    };
+
+    private static float4 GetAssetColor(AssetType type) => type switch
+    {
+        AssetType.Texture => ColorPalette.SkyBlue,
+        AssetType.Script => ColorPalette.Lime,
+        AssetType.SDF => ColorPalette.LightSeaGreen,
+        AssetType.Material => ColorPalette.Salmon,
+        AssetType.Audio => ColorPalette.LightCoral,
+        AssetType.Font => ColorPalette.Khaki,
+        _ => ColorPalette.Gray,
+    };
 
     #endregion AssetReferences
 

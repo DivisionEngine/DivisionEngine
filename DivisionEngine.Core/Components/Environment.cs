@@ -37,7 +37,7 @@ namespace DivisionEngine.Components
         }
 
         [Color(true)] public float4 backgroundColor;
-        public AssetRef<TextureAsset> hdriMap;
+        public AssetRef<AudioAsset> hdriMap; // Testing this for now
 
         public IComponent Clone() => new Environment
         {
