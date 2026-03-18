@@ -503,12 +503,22 @@ namespace DivisionEngine.Editor.ViewModels
             });
         }
 
+        [RelayCommand]
+        private static void Forum()
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/orgs/DivisionEngine/discussions",
+                UseShellExecute = true,
+            });
+        }
+
         /// <summary>
         /// Creates an entity straight from the "Add" menu.
         /// </summary>
         /// <param name="entityType">Entity type to add (as camel case string key)</param>
         [RelayCommand]
-        private void CreateEntity(string entityType)
+        private static void CreateEntity(string entityType)
         {
             try
             {

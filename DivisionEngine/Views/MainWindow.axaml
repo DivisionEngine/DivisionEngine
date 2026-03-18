@@ -86,6 +86,7 @@
         <MenuItem Header="Help" Foreground="#ccc">
             <MenuItem Header="About" Command="{Binding AboutCommand}" Foreground="#ccc"/>
             <MenuItem Header="Roadmap" Command="{Binding RoadmapCommand}" Foreground="#ccc"/>
+            <MenuItem Header="Forum" Command="{Binding ForumCommand}" Foreground="#ccc"/>
         </MenuItem>
       </Menu>
     </StackPanel>

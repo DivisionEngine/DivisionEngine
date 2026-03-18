@@ -26,8 +26,19 @@ namespace DivisionEngine.Projects.Assets
         private readonly Dictionary<string, Asset> loadedAssets = [];
         private readonly Dictionary<string, int> referenceCounts = [];
 
+        /// <summary>
+        /// Gets an asset from a list of loaded assets.
+        /// </summary>
+        /// <param name="id">GUID of asset to find</param>
+        /// <returns>Loaded asset base type</returns>
         public Asset? Get(string id) => loadedAssets.TryGetValue(id, out Asset? asset) ? asset : null;
 
+        /// <summary>
+        /// Gets an asset from a list of loaded assets.
+        /// </summary>
+        /// <typeparam name="T">Type of asset to find</typeparam>
+        /// <param name="id">GUID of asset to find</param>
+        /// <returns>Loaded asset</returns>
         public T? Get<T>(string id) where T : Asset => loadedAssets.TryGetValue(id, out Asset? asset) ? asset as T : null;
 
         /// <summary>
@@ -44,20 +55,17 @@ namespace DivisionEngine.Projects.Assets
                 return existing as T;
             }
 
-            AssetMetadata? metadata = AssetDatabase.GetAssetMetadataByID(id); // Now uncommented
-            if (metadata == null) return null;
-
-            // Add type validation
-            if (metadata.Type != GetAssetType<T>())
+            AssetMetadata? metadata = AssetDatabase.GetAssetMetadataByID(id);
+            if (metadata == null) return null; // Null validation
+            if (metadata.Type != AssetDatabase.GetAssetType<T>()) // Type validation
             {
-                Debug.Error($"Asset type mismatch: Expected {GetAssetType<T>()}, got {metadata.Type}");
+                Debug.Error($"Asset type mismatch: Expected {AssetDatabase.GetAssetType<T>()}, got {metadata.Type}");
                 return null;
             }
 
             Asset? asset = CreateAssetFromMetadata(metadata);
             if (asset == null) return null;
-            bool success = await asset.LoadAsync();
-            if (!success) return null;
+            if (!await asset.LoadAsync()) return null;
 
             Debug.Info($"Asset Manager: Loaded Asset:\n{metadata.FileName}");
             loadedAssets[id] = asset;
@@ -102,28 +110,15 @@ namespace DivisionEngine.Projects.Assets
         /// </summary>
         /// <param name="metadata">Loaded asset metadata</param>
         /// <returns>Asset instance of metadata type</returns>
-        private static Asset? CreateAssetFromMetadata(AssetMetadata metadata)
+        private static Asset? CreateAssetFromMetadata(AssetMetadata metadata) => metadata.Type switch
         {
-            return metadata.Type switch
-            {
-                AssetType.Texture => new TextureAsset(metadata),
-                AssetType.Material => new MaterialAsset(metadata),
-                //AssetType.Script => new ScriptAsset(metadata), Add in future!
-                //AssetType.SDF => new SDFLibraryAsset(metadata),
-                // Add others as needed
-                _ => null
-            };
-        }
-
-        private static AssetType GetAssetType<T>() where T : Asset
-        {
-            if (typeof(T) == typeof(TextureAsset)) return AssetType.Texture;
-            if (typeof(T) == typeof(MaterialAsset)) return AssetType.Material;
-            // if (typeof(T) == typeof(SDFLibraryAsset)) return AssetType.SDF;
-            // if (typeof(T) == typeof(ScriptAsset)) return AssetType.Script;
-            if (typeof(T) == typeof(AudioAsset)) return AssetType.Audio;
-            if (typeof(T) == typeof(FontAsset)) return AssetType.Font;
-            return AssetType.None;
-        }
+            AssetType.Texture => new TextureAsset(metadata),
+            AssetType.Material => new MaterialAsset(metadata),
+            AssetType.Script => new ScriptAsset(metadata),
+            AssetType.SDF => new SDFAsset(metadata),
+            AssetType.Audio => new AudioAsset(metadata),
+            // Add others as needed
+            _ => null
+        };
     }
 }

@@ -72,14 +72,11 @@ namespace DivisionEngine.Projects.Assets
         {
             AllAssetsByID.Clear();
             Folders.Clear();
-
-            // Ensures assets path exists
-            Directory.CreateDirectory(AssetsPath);
+            Directory.CreateDirectory(AssetsPath); // Ensures assets path exists
 
             // Get all directories including root
             List<string> directories = [AssetsPath, .. Directory.GetDirectories(AssetsPath, "*", SearchOption.AllDirectories)];
             foreach (string dir in directories) ProcessFolder(dir);
-
             Debug.Info($"Asset Database: Loaded {AllAssetsByID.Count} assets from {Folders.Count} folders");
         }
 
