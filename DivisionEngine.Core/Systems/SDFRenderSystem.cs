@@ -149,6 +149,7 @@ namespace DivisionEngine.Systems
                         Math.Max(1f / transform.scaling.X, EPSILON),
                         Math.Max(1f / transform.scaling.Y, EPSILON),
                         Math.Max(1f / transform.scaling.Z, EPSILON)),
+                    color = new float4(1f, 0f, 1f, 1f), // Default render color if no material active
                 };
 
                 // Effects
