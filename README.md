@@ -11,7 +11,7 @@ The render pipeline is built using an OpenGL backend with HLSL shaders written i
 Picture this:
 - SDF-based rendering
 - GPU compute acceleration in C#
-- Source available
+- Open source
 - ECS backend, fast data handling
 - Convenient editor tooling
 
@@ -41,24 +41,31 @@ Tutorials by Inigo Quilez (Not sponsored, just useful for learning constructive 
 - Paint a 3D character with math: https://youtu.be/8--5LwHRhjk?si=fH9QwvCz6dLptHE1
 
 ## License:
-Division Engine uses a custom source-available license, below is a summary of the basic terms.
+Division Engine is free and open-source software licensed under **GNU General Public License v3.0 (GPL 3.0)**
 
 #### You may:
-- View and study the source code
-- Build free, non-commercial games
-- Learn from the architecture
-- Share your non-commercial projects
+- Use it for any purpose (commercial or non-commercial)
+- Modify it to fit your needs
+- Distribute copies to others
+- Sell it (but see requirements below)
 
-#### You may not:
-- Use in competing game engines
-- Use commercially without permission
-- Remove copyright notices
-- Redistribute modified engine code
+#### You must:
+- Include the original copyright notice
+- State significant changes you make
+- Disclose source when you distribute
+- License derivatives under GPL 3.0
 
-*Non-commercial use* (free games, no ads, no monetization) is always allowed.
+### Commercial Use
 
-*Commercial use* requires a separate license - contact me for details.
+Yes, you can use Division Engine commercially! The engine is free for any use.
 
+*The only requirement*: If you distribute a modified version of the engine itself (not your game assets or code), those modifications must be shared under GPL 3.0.
+
+### What about the planned marketplace?
+
+In the future there will be a Division Engine marketplace, completely separate with its own terms. The engine remains free and GPL-licensed. The marketplace will be where creators can buy/sell assets, projects, etc. with revenue supporting ongoing development.
+
+**In short:** You can build anything with Division Engine - free games, commercial games, modded versions - as long as any distributed version (including modified versions) remains under GPL 3.0 with source code available.
 *Full license terms are available in [LICENSE.txt](LICENSE.txt)*
 
 ## Editor Preview Screenshots:
