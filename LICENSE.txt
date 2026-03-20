@@ -61,4 +61,4 @@ If any provision of this license is held to be unenforceable or invalid, that pr
 
 ---
 
-**Note for existing users:** Versions of Division Engine committed to this repository prior to March 19, 2026 were originally shared under the GNU GPL 3.0 license. Those specific historical versions remain available under the GPL 3.0 terms. All code from March 19, 2026 onwards is governed exclusively by this license.
+Note for existing users: Versions of Division Engine committed to this repository prior to March 19, 2026 were originally shared under the GNU GPL 3.0 license. Those specific historical versions remain available under the GPL 3.0 terms. All code from March 19, 2026 onwards is governed exclusively by this license.
