@@ -4,7 +4,7 @@
 
 Division Engine is an SDF-based game engine written entirely in C#. Utilizing Avalonia UI for the interface and Silk.NET for native rendering, Division Engine features a comprehensive build pipeline that dynamically builds HLSL shader code from .NET code, thanks to a library called ComputeSharp.
 
-*Note: This engine is still in preview and has known issues; it is specifically for experimentation and education only.*
+*Note: This engine is still in preview and has known issues; it is specifically built for experimentation and education only.*
 
 The render pipeline is built using an OpenGL backend with HLSL shaders written in C# using ComputeSharp.
 
@@ -39,6 +39,27 @@ Tutorials by Inigo Quilez (Not sponsored, just useful for learning constructive 
 - Build mathematical worlds: https://youtu.be/0ifChJ0nJfM?si=ypKU1rz-8JloPlj2
 - Build a 3D landscape: https://youtu.be/BFld4EBO2RE?si=EASXvq-ez2qBOIHN
 - Paint a 3D character with math: https://youtu.be/8--5LwHRhjk?si=fH9QwvCz6dLptHE1
+
+## License:
+Division Engine uses a custom source-available license, below is a summary of the basic terms.
+
+#### You may:
+- View and study the source code
+- Build free, non-commercial games
+- Learn from the architecture
+- Share your non-commercial projects
+
+#### You may not:
+- Use in competing game engines
+- Use commercially without permission
+- Remove copyright notices
+- Redistribute modified engine code
+
+*Non-commercial use* (free games, no ads, no monetization) is always allowed.
+
+*Commercial use* requires a separate license - contact me for details.
+
+*Full license terms are available in [LICENSE.txt](LICENSE.txt)*
 
 ## Editor Preview Screenshots:
 <img width="1919" height="1029" alt="Screenshot 2026-02-12 015857" src="https://github.com/user-attachments/assets/7fe0f9b6-5a65-4160-ad74-874034a14ee6" />
