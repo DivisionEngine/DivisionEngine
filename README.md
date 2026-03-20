@@ -11,7 +11,7 @@ The render pipeline is built using an OpenGL backend with HLSL shaders written i
 Picture this:
 - SDF-based rendering
 - GPU compute acceleration in C#
-- Open source
+- Source available
 - ECS backend, fast data handling
 - Convenient editor tooling
 
