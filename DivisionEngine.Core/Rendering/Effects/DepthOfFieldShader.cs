@@ -17,21 +17,24 @@ namespace DivisionEngine.Rendering.Effects
     [GeneratedComputeShaderDescriptor]
     [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
     public readonly partial struct FastDepthOfFieldShader(
-        float width, float height, float focalDistance, float focalLength,
-        float farPlaneDistance, float nearPlaneDistance, int maxBlurRadius,
+        float width,
+        float height,
         ReadWriteTexture2D<float4> inputTexture,
         ReadWriteTexture2D<float4> outputTexture,
-        ReadWriteTexture2D<float4> depthNormals) : IComputeShader
+        ReadWriteTexture2D<float4> depthNormals,
+        ReadWriteBuffer<uint2> objectIdBuffer,
+        ReadOnlyBuffer<SDFPrimitiveObjectDTO> primitivesBuffer,
+        SDFWorldDTO worldDTO) : IComputeShader
     {
 
         public void Execute()
         {
             int2 pixel = ThreadIds.XY;
             float normalizedDepth = depthNormals[pixel].X;
-            float worldDepth = Hlsl.Lerp(nearPlaneDistance, farPlaneDistance, normalizedDepth);
-            float distanceFromFocal = Hlsl.Abs(worldDepth - focalDistance);
-            float blurAmount = Hlsl.Saturate(distanceFromFocal / focalLength);
-            float blurRadius = blurAmount * blurAmount * maxBlurRadius;
+            float worldDepth = Hlsl.Lerp(worldDTO.nearPlane, worldDTO.farPlane, normalizedDepth);
+            float distanceFromFocal = Hlsl.Abs(worldDepth - worldDTO.focusDistance);
+            float blurAmount = Hlsl.Saturate(distanceFromFocal / worldDTO.focalLength);
+            float blurRadius = blurAmount * blurAmount * 16f;
 
             if (blurRadius < 0.5f)
             {
