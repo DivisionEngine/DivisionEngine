@@ -72,6 +72,9 @@
             <MenuItem Header="Camera" Command="{Binding CreateEntityCommand}" CommandParameter="camera"/>
             <MenuItem Header="Environment" Command="{Binding CreateEntityCommand}" CommandParameter="environment"/>
             <Separator/>
+            <MenuItem Header="Directional Light" Command="{Binding CreateEntityCommand}" CommandParameter="directionalLight"/>
+            <MenuItem Header="Point Light" Command="{Binding CreateEntityCommand}" CommandParameter="pointLight"/>
+            <Separator/>
             <MenuItem Header="Sphere" Command="{Binding CreateEntityCommand}" CommandParameter="sphere"/>
             <MenuItem Header="Box" Command="{Binding CreateEntityCommand}" CommandParameter="box"/>
             <MenuItem Header="Rounded Box" Command="{Binding CreateEntityCommand}" CommandParameter="roundedBox"/>

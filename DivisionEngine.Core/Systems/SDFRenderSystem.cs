@@ -10,6 +10,7 @@ using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
+using DivisionEngine.MathLib;
 using DivisionEngine.Rendering;
 using Environment = DivisionEngine.Components.Environment;
 using Math = DivisionEngine.MathLib.Math;
@@ -99,29 +100,30 @@ namespace DivisionEngine.Systems
                 // Setup
                 SDFLightDTO curLight = new SDFLightDTO
                 {
-                    type = -1,
                     position = transform.position,
                     rotation = transform.rotation,
                 };
-                
-                // Effects
+
+                // Lights
                 if (W.HasComponent<DirectionalLight>(id))
                 {
                     DirectionalLight light = W.GetComponent<DirectionalLight>(id)!;
+                    curLight.type = 0;
                     curLight.color = light.color;
                     curLight.intensity = light.intensity;
+                    sdfLights.Add(curLight);
                 }
-                if (W.HasComponent<PointLight>(id))
+                else if (W.HasComponent<PointLight>(id))
                 {
                     PointLight light = W.GetComponent<PointLight>(id)!;
+                    curLight.type = 1;
                     curLight.color = light.color;
                     curLight.intensity = light.intensity;
+                    curLight.radius = light.radius;
+                    sdfLights.Add(curLight);
                 }
 
                 // Space to add more lights in the future
-
-                // Add the current light
-                if (curLight.type != -1) sdfLights.Add(curLight);
             }
 
             // Gather and transform all primitives and effects
@@ -187,8 +189,7 @@ namespace DivisionEngine.Systems
                         Math.Lerp(f0.X, mat.albedoColor.X, mat.metallic),
                         Math.Lerp(f0.Y, mat.albedoColor.Y, mat.metallic),
                         Math.Lerp(f0.Z, mat.albedoColor.Z, mat.metallic));
-                    if (curPrimitive.hasRefraction == 1)
-                        curPrimitive.f0_dielectric = Math.Pow((mat.ior - 1.0f) / (mat.ior + 1.0f), 2.0f);
+                    if (curPrimitive.hasRefraction == 1) curPrimitive.f0_dielectric = Math.Pow((mat.ior - 1.0f) / (mat.ior + 1.0f), 2.0f);
                 }
 
                 // Primitives
@@ -197,60 +198,66 @@ namespace DivisionEngine.Systems
                     SDFSphere sphere = W.GetComponent<SDFSphere>(id)!;
                     curPrimitive.type = 0; // Sphere type
                     curPrimitive.parameters = new float4(sphere.radius, 0f, 0f, 0f);
+                    sdfPrimitives.Add(curPrimitive);
                 }
                 if (W.HasComponent<SDFBox>(id)) // Check box primitive
                 {
                     SDFBox box = W.GetComponent<SDFBox>(id)!;
                     curPrimitive.type = 1; // Box type
                     curPrimitive.parameters = new float4(box.size.X, box.size.Y, box.size.Z, 0f);
+                    sdfPrimitives.Add(curPrimitive);
                 }
                 if (W.HasComponent<SDFRoundedBox>(id)) // Check rounded box primitive
                 {
                     SDFRoundedBox roundedBox = W.GetComponent<SDFRoundedBox>(id)!;
                     curPrimitive.type = 2; // Rounded box type
                     curPrimitive.parameters = new float4(roundedBox.size.X, roundedBox.size.Y, roundedBox.size.Z, roundedBox.bevel);
+                    sdfPrimitives.Add(curPrimitive);
                 }
                 if (W.HasComponent<SDFTorus>(id)) // Check torus primitive
                 {
                     SDFTorus torus = W.GetComponent<SDFTorus>(id)!;
                     curPrimitive.type = 3; // Torus type
                     curPrimitive.parameters = new float4(torus.wholeRadius, torus.ringRadius, 0f, 0f);
+                    sdfPrimitives.Add(curPrimitive);
                 }
                 if (W.HasComponent<SDFPyramid>(id)) // Check pyramid primitive
                 {
                     SDFPyramid pyramid = W.GetComponent<SDFPyramid>(id)!;
                     curPrimitive.type = 4; // Pyramid type
                     curPrimitive.parameters = new float4(pyramid.height, 0f, 0f, 0f);
+                    sdfPrimitives.Add(curPrimitive);
                 }
                 if (W.HasComponent<SDFPlane>(id)) // Check plane primitive
                 {
                     SDFPlane plane = W.GetComponent<SDFPlane>(id)!;
                     curPrimitive.type = 5; // Plane type
                     curPrimitive.parameters = new float4(plane.normal.X, plane.normal.Y, plane.normal.Z, plane.height);
+                    sdfPrimitives.Add(curPrimitive);
                 }
                 if (W.HasComponent<SDFCylinder>(id)) // Check cylinder primitive
                 {
                     SDFCylinder cylinder = W.GetComponent<SDFCylinder>(id)!;
                     curPrimitive.type = 6; // Cylinder type
                     curPrimitive.parameters = new float4(cylinder.radius, cylinder.height, 0f, 0f);
+                    sdfPrimitives.Add(curPrimitive);
                 }
                 if (W.HasComponent<SDFCapsule>(id)) // Check capsule primitive
                 {
                     SDFCapsule capsule = W.GetComponent<SDFCapsule>(id)!;
                     curPrimitive.type = 7; // Capsule type
                     curPrimitive.parameters = new float4(capsule.radius, capsule.height, 0f, 0f);
+                    sdfPrimitives.Add(curPrimitive);
                 }
                 if (W.HasComponent<SDFCone>(id)) // Check cone primitive
                 {
                     SDFCone cone = W.GetComponent<SDFCone>(id)!;
                     curPrimitive.type = 8; // Cone type
                     curPrimitive.parameters = new float4(cone.cone.X, cone.cone.Y, cone.height, 0f);
+                    sdfPrimitives.Add(curPrimitive);
                 }
 
                 // Space to find more SDF primitives in the future
-
-                // Add the current primitive
-                if (curPrimitive.type != -1) sdfPrimitives.Add(curPrimitive);
             }
 
             return (worldData, sdfPrimitives.ToArray(), sdfLights.ToArray());

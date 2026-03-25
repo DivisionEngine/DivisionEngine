@@ -68,7 +68,7 @@ namespace DivisionEngine.Rendering
         public float2 shadowDistances; // 8b
         public bool2 shadowEffects; // 8b
         public float4 absorptionColor; // 16b
-        public int hasReflection; // 4b - must use int type when in DTO
+        public int hasReflection; // 4b - must use integer type when in DTO
         public int hasRefraction; // 4b
         public int reflectionShadows; // 4b
         public float reflectRayStepFalloff; // 4b
@@ -84,11 +84,12 @@ namespace DivisionEngine.Rendering
     {
         // Base Properties
         public int type; // 4b
-        public float3 position; // 12b
-        public float4 rotation; // 16b
-
-        // Light Properties
+        public float3 position; // 12b - directional light uses this for direction vector instead
+        public float4 rotation; // 16b - directional light uses this for direction vector instead
         public float4 color; // 16b
         public float intensity; // 4b
+
+        // Point Light Properties
+        public float radius; // 4b
     }
 }

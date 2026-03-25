@@ -14,21 +14,21 @@ namespace DivisionEngine.Components.Lights
     /// </summary>
     public class DirectionalLight : IComponent
     {
+        /// <summary>
+        /// White directional light with base direction and default intensity.
+        /// </summary>
         public DirectionalLight()
         {
             color = ColorPalette.White;
-            direction = new float3(1f, 0f, 0f);
             intensity = 1f;
         }
 
         public float4 color;
-        public float3 direction;
         public float intensity;
 
         public IComponent Clone() => new DirectionalLight
         {
             color = color,
-            direction = direction,
             intensity = intensity,
         };
     }

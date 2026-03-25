@@ -6,6 +6,7 @@
 // project root for full license terms.
 //
 using DivisionEngine.Components;
+using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
@@ -48,6 +49,24 @@ namespace DivisionEngine.Editor
             uint environment = W.CreateEntity(name);
             W.AddComponent(environment, new Environment());
             return environment;
+        }
+
+        public static uint DirectionalLight(string name = "New Directional Light")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint directionalLight = W.CreateTransformEntity(name);
+            W.AddComponent(directionalLight, new DirectionalLight());
+            return directionalLight;
+        }
+
+        public static uint PointLight(string name = "New Point Light")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint pointLight = W.CreateTransformEntity(name);
+            W.AddComponent(pointLight, new PointLight());
+            return pointLight;
         }
 
         public static uint SDFSphere(string name = "New Sphere")

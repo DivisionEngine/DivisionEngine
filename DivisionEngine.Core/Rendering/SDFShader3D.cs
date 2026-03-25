@@ -24,7 +24,8 @@ namespace DivisionEngine
         ReadWriteTexture2D<float4> depthNormals,
         ReadWriteTexture2D<int> bounceCountTexture,
         ReadWriteBuffer<uint2> entityIdBuffer,
-        ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives) : IComputeShader
+        ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
+        ReadOnlyBuffer<SDFLightDTO> lights) : IComputeShader
     {
         // Main constants
         const float EPSILON = 0.0001f;
@@ -37,9 +38,6 @@ namespace DivisionEngine
         const float MIN_REFLECTION_CHANCE = 0.01f;
         const float MIN_THROUGHPUT = 0.01f;
         const float REFLECTION_BIAS = 2f; // Multiplier for normal offset
-
-        // Lighting constants
-        readonly float3 sunDir = new float3(0.5f, 0.8f, 0.3f);
 
         private float AdaptiveEpsilon(float td)
         {
@@ -191,7 +189,7 @@ namespace DivisionEngine
         }
 
         /// <summary>
-        /// Very fast high quality normal calculation. (4 samples)
+        /// Very fast high quality normal calculation (4 samples).
         /// </summary>
         /// <param name="pos">Hit position</param>
         /// <returns>World normal vector</returns>
@@ -246,6 +244,81 @@ namespace DivisionEngine
             return Hlsl.SmoothStep(-1f, 0f, shadow);
         }
 
+        // --------------------
+        // Lighting Calculation
+        // --------------------
+
+        /// <summary>
+        /// Calculate lighting contribution from all lights
+        /// </summary>
+        private float3 CalculateLighting(float3 hitPoint, float3 normal, float3 viewDir,
+            SDFPrimitiveObjectDTO material, float shadowValue, int closestObjIndex)
+        {
+            float3 totalLight = float3.Zero;
+            for (int i = 0; i < lights.Length; i++)
+            {
+                SDFLightDTO light = lights[i];
+
+                if (light.type == 0) // Directional light
+                {
+                    float3 lightDir = Hlsl.Normalize(RotateVector(new float3(0, 0, -1), light.rotation)); // Directional lights use direction vector
+                    float3 lightColor = light.color.RGB * light.intensity;
+
+                    float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
+                    if (NoL <= 0f) continue;
+
+                    // Calculate shadow for directional light
+                    float lightShadow = 1f;
+                    if (material.shadowEffects.Y)
+                    {
+                        float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
+                        lightShadow = SoftShadow2(shadowOrigin, lightDir,
+                            material.shadowDistances.X, material.shadowDistances.Y, out _);
+                    }
+
+                    // Calculate BRDF here now
+                    float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal,
+                        material.metallic, material.roughness * material.roughness,
+                        material.color.RGB, material.specular);
+                    totalLight += brdf * lightColor * NoL * lightShadow;
+                }
+                else if (light.type == 1) // Point light
+                {
+                    float3 lightVec = light.position - hitPoint;
+                    float distance = Hlsl.Length(lightVec);
+                    float3 lightDir = lightVec / distance;
+                    float attenuation = 1f / (distance * distance);
+
+                    // Apply radius falloff
+                    float radiusFactor = Hlsl.Saturate(1f - (distance / light.radius));
+                    attenuation *= radiusFactor;
+
+                    float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
+                    if (NoL <= 0f || attenuation <= 0f) continue;
+
+                    float3 lightColor = light.color.RGB * light.intensity * attenuation;
+
+                    // Simplified shadow for point lights (optional - performance heavy)
+                    float lightShadow = 1f;
+                    if (material.shadowEffects.Y && distance < light.radius * 2f)
+                    {
+                        // Basic point light shadow (could be optimized)
+                        float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
+                        lightShadow = SoftShadow2(shadowOrigin, lightDir,
+                            material.shadowDistances.X, distance, out _);
+                    }
+
+                    // Calculate point light BRDF
+                    float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal,
+                        material.metallic, material.roughness * material.roughness,
+                        material.color.RGB, material.specular);
+                    totalLight += brdf * lightColor * NoL * lightShadow;
+                }
+            }
+
+            return totalLight;
+        }
+
         // ------------------------------
         // New Correct PBR BRDF Functions
         // ------------------------------
@@ -263,7 +336,7 @@ namespace DivisionEngine
             float3 f0 = float3.One * 0.16f * reflectance * reflectance;
             float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(V, H), 0.0f), f0);
 
-            // Return RGB with: R = D, G = G, B = average(F)
+            // Return RGB with R = D, G = G, B = average(F)
             return new float3(D, G, (F.X + F.Y + F.Z) / 3.0f);
         }
 
@@ -359,11 +432,11 @@ namespace DivisionEngine
             float D = D_GGX(NoH, roughAlpha);
             float G = GSmith(NoV, NoL, roughAlpha);
 
-            // FIX 1: Add epsilon to denominator to prevent division by near-zero
+            // Add epsilon to denominator to prevent division by near-zero
             float denominator = 4f * Hlsl.Max(NoV * NoL, EPSILON);
             float3 specular = F * D * G / denominator;
 
-            // FIX 2: Clamp specular to prevent fireflies
+            // Clamp specular to prevent fireflies
             specular = Hlsl.Min(specular, 20.0f); // Limit max brightness
 
             // Diffuse
@@ -372,7 +445,7 @@ namespace DivisionEngine
             //rhoD *= 1f - metallic;
             float3 diff = rhoD * RECIPROCAL_PI;
 
-            // FIX 3: Clamp final BRDF result
+            // Clamp final BRDF result
             return Hlsl.Min(diff + specular, 100.0f); // Hard cap to prevent explosions
         }
 
@@ -577,7 +650,6 @@ namespace DivisionEngine
             out float3 normal, out float totalDist)
         {
             float3 finalColor = float3.Zero;
-            float3 lightDir = Hlsl.Normalize(sunDir);
             normal = float3.Zero;
 
             // Trace
@@ -593,20 +665,11 @@ namespace DivisionEngine
             normal = FastNormal(hitPoint);
             float3 viewDir = -rayDir;
 
-            // Get material properties
+            // Calculate lighting for refraction
             SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
-            float3 albedoColor = entity.color.RGB;
-            float metallic = entity.metallic;
-            float roughness = Hlsl.Max(entity.roughness, 0.1f);
-            float specular = entity.specular;
-            float ao = entity.ao;
-
-            // Lighting
-            float3 ambientLightAmt = ambientBase * ao;
-            float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
-            float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness * roughness, albedoColor, specular);
-            float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, /*shadowValue * */NoL);
-            finalColor += directLight;
+            float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity, /*shadowValue*/ 1f, closestObjIndex); // Temporarily hardcode shadows
+            float3 ambientLight = ambientBase * entity.ao;
+            finalColor += ambientLight + directLight;
             return finalColor;
         }
 
@@ -626,7 +689,6 @@ namespace DivisionEngine
             float cosTheta = 0f;
 
             float3 ambientBase = 0.15f * worldData.backgroundColor.RGB;
-            float3 lightDir = Hlsl.Normalize(sunDir);
             float3 refractedLight = float3.Zero;
             SDFPrimitiveObjectDTO mainMat = default;
             outputNormal = float3.Zero;
@@ -662,11 +724,8 @@ namespace DivisionEngine
 
                 // Get material properties
                 SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
-                float3 albedoColor = entity.color.RGB;
                 float metallic = entity.metallic;
                 float roughness = Hlsl.Max(entity.roughness, 0.1f);
-                float specular = entity.specular;
-                float ao = entity.ao;
 
                 // Calculate fresnel term
                 cosTheta = Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f);
@@ -686,18 +745,41 @@ namespace DivisionEngine
                 }
 
                 // Shadows
+                //float shadowValue = 1f;
+                //if (entity.shadowEffects.Y && (bounce == 0 || entity.reflectionShadows == 1))
+                //{
+                //    float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
+                //    float2 shadowDistances = entity.shadowDistances;
+                //    shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out _);
+                //}
+
+                // New Shadows
                 float shadowValue = 1f;
                 if (entity.shadowEffects.Y && (bounce == 0 || entity.reflectionShadows == 1))
                 {
-                    float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                    float2 shadowDistances = entity.shadowDistances;
-                    shadowValue = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y, out _);
+                    // For shadows, we need to know which light to shadow against
+                    // For now, shadow against the first directional light
+                    // You can improve this by finding the main directional light
+                    float3 mainLightDir = float3.Zero;
+                    for (int i = 0; i < lights.Length; i++)
+                    {
+                        if (lights[i].type == 0) // Directional light
+                        {
+                            mainLightDir = Hlsl.Normalize(lights[i].position);
+                            break;
+                        }
+                    }
+
+                    if (Hlsl.Length(mainLightDir) > 0f)
+                    {
+                        float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
+                        float2 shadowDistances = entity.shadowDistances;
+                        shadowValue = SoftShadow2(shadowOrigin, mainLightDir, shadowDistances.X, shadowDistances.Y, out _);
+                    }
                 }
 
-                // Direct lighting
-                float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
-                float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness * roughness, albedoColor, specular);
-                float3 directLight = Hlsl.Lerp(ambientBase * ao, brdf, shadowValue * NoL);
+                // New lighting
+                float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity, shadowValue, closestObjIndex);
                 if (bounce == 0) surfaceColor = directLight;
                 finalColor += contribution * directLight;
 
@@ -806,14 +888,6 @@ namespace DivisionEngine
 // Functions and code obseleted
 // ----------------------------
 
-//private float2 RandomInUnitCircle(uint rngState)
-//{
-//    uint rngHash = HaltonHash(rngState);
-//    float angle = rngHash * 2 * PI;
-//    float2 pointOnCircle = new float2(Hlsl.Cos(angle), Hlsl.Sin(angle));
-//    return pointOnCircle * Hlsl.Sqrt(rngHash);
-//}
-
 /* Calculates shadows
 // Adapted: https://www.shadertoy.com/view/lsKcDD
 private float SoftShadow(float3 rayOrigin, float3 rayDir, float minDist, float maxDist)
@@ -912,150 +986,6 @@ private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
     return new float2(kd, lastObj);
 }*/
 
-/*public void Execute()
-    {
-        int2 pixel = ThreadIds.XY; // Get pixel position
-        texture[pixel] = new float4(0, 0, 0, 0); // Clear render texture
-        depthNormals[pixel] = new float4(0, 0, 0, 0); // Clear depth and normal texture
-        objectIdBuffer[pixel.X + pixel.Y * (int)width] = -1; // Clear object ID buffer
-
-        // Get uv coord
-        float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
-        uv.X *= width / height;
-
-        // Camera basis vectors (simplified - you may need proper extraction)
-        float3 cameraForward = Hlsl.Normalize(new float3(
-            worldData.cameraToWorld.M31,  // Row 3, Column 1 = forward.x
-            worldData.cameraToWorld.M32,  // Row 3, Column 2 = forward.y
-            worldData.cameraToWorld.M33   // Row 3, Column 3 = forward.z
-        ));
-
-        float3 cameraRight = Hlsl.Normalize(new float3(
-            worldData.cameraToWorld.M11,  // Row 1, Column 1 = right.x
-            worldData.cameraToWorld.M12,  // Row 1, Column 2 = right.y
-            worldData.cameraToWorld.M13   // Row 1, Column 3 = right.z
-        ));
-
-        float3 cameraUp = Hlsl.Normalize(new float3(
-            worldData.cameraToWorld.M21,  // Row 2, Column 1 = up.x
-            worldData.cameraToWorld.M22,  // Row 2, Column 2 = up.y
-            worldData.cameraToWorld.M23   // Row 2, Column 3 = up.z
-        ));
-
-        float3 rayOrigin = worldData.cameraOrigin;
-        float focusDistance = worldData.focusDistance;
-        float apertureSize = worldData.apertureSize;
-        int dofSamples = Hlsl.Max(worldData.dofSamples, 1);
-
-        // Accumulate color for multiple samples
-        float3 accumulatedColor = float3.Zero;
-        float3 accumulatedNormal = float3.Zero;
-        float accumulatedDistance = 0f;
-
-        for (int sample = 0; sample < dofSamples; sample++)
-        {
-            // Unique seed per sample
-            float2 pixelCoord = (float2)pixel + new float2(0.5f, 0.5f);
-            //uint seed = (uint)(pixelCoord.X * 1973 + pixelCoord.Y * 9277 + sample * 26699 + (uint)frame);
-
-            // Get original ray direction
-            float3 rayDir = GetCameraRayDir(uv);
-
-            // Trace ray
-            float3 color = TraceRay(pixel, rayOrigin, rayDir, out float3 outputNormal, out float totalDist);
-            accumulatedNormal += outputNormal;
-            accumulatedColor += color;
-            accumulatedDistance += totalDist;
-        }
-
-        float maxPossibleDistance = worldData.farPlane - worldData.nearPlane;
-
-        // Average samples
-        float3 finalColor = accumulatedColor / dofSamples;
-        float3 finalNormal = accumulatedNormal / dofSamples;
-        float finalDist = accumulatedDistance / dofSamples;
-        texture[pixel] = new float4(finalColor, 1.0f);
-        depthNormals[pixel] = new float4(finalDist / maxPossibleDistance, finalNormal);
-    }*/
-
-/*private float3 TraceRay(int2 pixel, float3 rayOrigin, float3 rayDir, out float3 outputNormal, out float totalDist)
-{
-    // SDF depth and normal variables
-    outputNormal = new float3(0, 0, 0);
-
-    // SDF raymarch variables
-    totalDist = worldData.nearPlane; // Start at near clip plane
-    float farClipPlane = worldData.farPlane;
-    int closestObjIndex = -1; // Clear initial object index
-    float3 outputColor = worldData.backgroundColor.XYZ; // Set output skybox color
-    float3 hitPoint = rayOrigin;
-
-    int maxSteps = worldData.maxRaySteps, step;
-    for (step = 0; step < maxSteps; step++)
-    {
-        // Accumulate ray position
-        hitPoint = rayOrigin + rayDir * totalDist;
-
-        // Calculate SDF world dist function
-        float2 worldSDFData = WorldSDF(hitPoint, false);
-        float worldDist = worldSDFData.X;
-        if (worldDist < EPSILON)
-        {
-            closestObjIndex = (int)worldSDFData.Y;
-            break;
-        }
-
-        // Accumulate ray dist
-        totalDist += worldDist;
-
-        // Ray missed all SDFs
-        if (totalDist > farClipPlane) break;
-    }
-    float stepCost = step / (float)maxSteps;
-
-    if (closestObjIndex > -1)
-    {
-        // Get lighting vectors
-        float3 normal = FastNormal(hitPoint);
-        float3 viewDir = -rayDir;
-        float3 lightDir = Hlsl.Normalize(sunDir);
-
-        // Update data buffers
-        outputNormal = normal;
-        objectIdBuffer[pixel.X + pixel.Y * (int)width] = closestObjIndex;
-
-        // Get material
-        SDFPrimitiveObjectDTO material = sdfPrimitives[closestObjIndex];
-        float3 albedoColor = material.color.RGB;
-        float metallic = material.metallic;
-        float roughness = material.roughness;
-        float specular = material.specular;
-        float ao = material.ao;
-
-        // Default light values
-        float3 ambientLightAmt = float3.One * 0.05f * worldData.backgroundColor.RGB * ao;
-
-        // Shading
-        float2 shadowValues = new float2(1f, 0f);
-        float3 shadowOrigin = hitPoint + normal * EPSILON;
-        float2 shadowDistances = sdfPrimitives[closestObjIndex].shadowDistances;
-        if (sdfPrimitives[closestObjIndex].shadowEffects.Y)
-            shadowValues = SoftShadow2(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
-
-        // Lighing
-        float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), EPSILON);
-        float3 directLighting = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness, albedoColor, specular);
-        outputColor = Hlsl.Lerp(ambientLightAmt, directLighting * 1.5f, shadowValues.X * NoL);
-
-        // Debug shadows
-        if (outputMode == 2) outputColor = new float3(shadowValues.X, shadowValues.Y / sdfPrimitives.Length, 0f);
-        else if (outputMode == 3) outputColor = DebugBRDF(normal, viewDir, lightDir, roughness, specular);
-    }
-
-    if (outputMode == 1) outputColor = new float3(stepCost, stepCost, stepCost); // Debug ray steps
-    return outputColor;
-}*/
-
 /*private float3 RIS_SampleReflection(
     int2 pixel,
     float3 hitPoint,
@@ -1133,5 +1063,16 @@ private float CalculatePhysicallyBasedAO(int2 pixel, float3 p, float3 n)
 
     return (reservoir.sampleDirection, float3.One, misWeight);
 }*/
+
+// Old lighting
+//float3 ambientLightAmt = ambientBase * ao;
+//float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
+//float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness * roughness, albedoColor, specular);
+//float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, /*shadowValue * */NoL);
+
+// Old direct lighting
+//float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
+//float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness * roughness, albedoColor, specular);
+//float3 directLight = Hlsl.Lerp(ambientBase * ao, brdf, shadowValue * NoL);
 
 #pragma warning restore CA1416 // Validate platform compatibility

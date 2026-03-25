@@ -402,12 +402,16 @@ namespace DivisionEngine.Rendering
                     primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
                     if (primitivesBuffer == null) return;
 
+                    lightsBuffer?.Dispose();
+                    lightsBuffer = device?.AllocateReadOnlyBuffer(sdfLightsDTO);
+                    if (lightsBuffer == null) return;
+
                     // Dispatch SDF compute shader
                     int outputMode = 0;
                     if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
                 
                     SDFShader3D shader = new SDFShader3D(texWidth, texHeight, texWidth / (float)texHeight, TimeSystem.FrameCount, worldDTO,
-                        renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, primitivesBuffer);
+                        renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, primitivesBuffer, lightsBuffer);
                     device?.For(texWidth, texHeight, shader);
 
                     // Handle debug modes

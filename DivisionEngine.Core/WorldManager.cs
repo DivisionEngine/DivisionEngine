@@ -6,6 +6,7 @@
 // project root for full license terms.
 //
 using DivisionEngine.Components;
+using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
@@ -47,6 +48,9 @@ namespace DivisionEngine
 
             uint environmentEntity = newDefaultWorld.CreateEntity("Environment");
             newDefaultWorld.AddComponent(environmentEntity, new Environment());
+
+            uint sunEntity = newDefaultWorld.CreateTransformEntity("Sun");
+            newDefaultWorld.AddComponent(sunEntity, new DirectionalLight());
 
             // Spheres
             int sphereCount = 1;
