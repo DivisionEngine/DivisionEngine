@@ -193,17 +193,28 @@ namespace DivisionEngine
         /// </summary>
         /// <param name="pos">Hit position</param>
         /// <returns>World normal vector</returns>
-        private float3 FastNormal(float3 pos)
+        private float3 FastNormal(float3 pos) // for function f(p)
         {
-            float3 n = new float3(0f, 0f, 0f);
-            for (int i = 0; i < 4; i++)
-            {
-                float3 e = 0.5773f * (2f * new float3(((i + 3) >> 1) & 1, (i >> 1) & 1, i & 1) - 1f);
-                n += e * WorldSDF(pos + EPSILON * 50 * e, false, out _);
-                if (n.X + n.Y + n.Z > 100f) break;
-            }
-            return Hlsl.Normalize(n);
+            float h = EPSILON * 50; // replace by an appropriate value
+            float2 k = new float2(1f, -1f);
+            return Hlsl.Normalize(k.XYY * WorldSDF(pos + k.XYY * h, false, out _) +
+                              k.YYX * WorldSDF(pos + k.YYX * h, false, out _) +
+                              k.YXY * WorldSDF(pos + k.YXY * h, false, out _) +
+                              k.XXX * WorldSDF(pos + k.XXX * h, false, out _));
         }
+
+        // Platform compliant version
+        //private float3 FastNormal(float3 pos)
+        //{
+        //    float3 n = new float3(0f, 0f, 0f);
+        //    for (int i = 0; i < 4; i++)
+        //    {
+        //        float3 e = 0.5773f * (2f * new float3(((i + 3) >> 1) & 1, (i >> 1) & 1, i & 1) - 1f);
+        //        n += e * WorldSDF(pos + EPSILON * 50 * e, false, out _);
+        //        if (n.X + n.Y + n.Z > 100f) break;
+        //    }
+        //    return Hlsl.Normalize(n);
+        //}
 
         /// <summary>
         /// 6-Sample normal calculation.
