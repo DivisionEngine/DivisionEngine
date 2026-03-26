@@ -14,6 +14,9 @@ namespace DivisionEngine.Components.Lights
     /// </summary>
     public class PointLight : IComponent
     {
+        /// <summary>
+        /// White point light with radius = 10.
+        /// </summary>
         public PointLight()
         {
             color = ColorPalette.White;

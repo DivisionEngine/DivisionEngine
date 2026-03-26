@@ -87,6 +87,17 @@ namespace DivisionEngine.Systems
                 break; // Use first camera
             }
 
+            // Gather fog data
+            foreach (var (_, fog) in W.QueryData<VolumetricFog>())
+            {
+                worldData.fogDensity = fog.density;
+                worldData.fogColor = fog.color;
+                worldData.fogAbsorption = fog.absorption;
+                worldData.fogScattering = fog.scattering;
+                worldData.fogAnisotropy = fog.anisotropy;
+                break; // Use first fog component
+            }
+
             // Gather environment data
             foreach (var (_, environment) in W.QueryData<Environment>())
             {
@@ -180,6 +191,7 @@ namespace DivisionEngine.Systems
                     curPrimitive.specular = mat.specular;
                     curPrimitive.ior = mat.ior;
                     curPrimitive.ao = mat.ambientOcclusion;
+                    curPrimitive.aoRange = mat.ambientRange;
                     curPrimitive.reflectance = mat.reflectance;
 
                     // Precalculate material values

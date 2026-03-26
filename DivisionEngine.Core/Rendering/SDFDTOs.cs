@@ -36,6 +36,13 @@ namespace DivisionEngine.Rendering
         public float divisionThreshold; // 4b
         public int divisionDomain; // 4b
         public int aTrousStepCount; // 4b
+
+        // Fog settings
+        public float fogDensity;
+        public float4 fogColor;
+        public float fogAbsorption;
+        public float fogScattering;
+        public float fogAnisotropy;
     }
 
     /// <summary>
@@ -58,6 +65,7 @@ namespace DivisionEngine.Rendering
         public float specular; // 4b
         public float ior; // 4b
         public float ao; // 4b
+        public float aoRange; // 4b
         public float reflectance; // 4b
 
         // Precalculated Material Properties
@@ -84,8 +92,8 @@ namespace DivisionEngine.Rendering
     {
         // Base Properties
         public int type; // 4b
-        public float3 position; // 12b - directional light uses this for direction vector instead
-        public float4 rotation; // 16b - directional light uses this for direction vector instead
+        public float3 position; // 12b
+        public float4 rotation; // 16b
         public float4 color; // 16b
         public float intensity; // 4b
 

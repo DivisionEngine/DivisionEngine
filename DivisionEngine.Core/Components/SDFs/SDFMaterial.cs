@@ -48,7 +48,8 @@ namespace DivisionEngine.Components.SDFs
             roughness = 0.2f;
             specular = 1f;
             ior = 1.0f;
-            ambientOcclusion = 0.3f;
+            ambientOcclusion = 0.7f;
+            ambientRange = 1f;
             reflectance = 2f;
         }
 
@@ -58,6 +59,7 @@ namespace DivisionEngine.Components.SDFs
         public float specular;
         [Range(1f, 3f)] public float ior;
         [Range(0f, 1f)] public float ambientOcclusion;
+        [Range(0f, 10f)] public float ambientRange;
         [Range(0f, 10f)] public float reflectance;
 
         public IComponent Clone() => new SDFMaterial
@@ -68,6 +70,7 @@ namespace DivisionEngine.Components.SDFs
             specular = specular,
             ior = ior,
             ambientOcclusion = ambientOcclusion,
+            ambientRange = ambientRange,
             reflectance = reflectance,
         };
     }

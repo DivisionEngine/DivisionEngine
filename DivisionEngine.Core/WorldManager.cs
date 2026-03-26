@@ -49,7 +49,11 @@ namespace DivisionEngine
             uint environmentEntity = newDefaultWorld.CreateEntity("Environment");
             newDefaultWorld.AddComponent(environmentEntity, new Environment());
 
-            uint sunEntity = newDefaultWorld.CreateTransformEntity("Sun");
+            uint sunEntity = newDefaultWorld.CreateEntity("Sun");
+            newDefaultWorld.AddComponent(sunEntity, new Transform
+            {
+                rotation = new float3(140f, -70f, 0f).EulerToQuaternion(),
+            });
             newDefaultWorld.AddComponent(sunEntity, new DirectionalLight());
 
             // Spheres
