@@ -64,8 +64,7 @@ namespace DivisionEngine.Rendering
         public float roughness; // 4b
         public float specular; // 4b
         public float ior; // 4b
-        public float ao; // 4b
-        public float aoRange; // 4b
+        public float3 aoValues; // 12b - stores AO, AO Range, and AO Falloff respectively
         public float reflectance; // 4b
 
         // Precalculated Material Properties

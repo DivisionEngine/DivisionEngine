@@ -39,7 +39,7 @@ namespace DivisionEngine.Components.SDFs
         const float IOR_POLYCARBONATE = 1.58f;
 
         /// <summary>
-        /// White material with metallic = 0, roughness = 0.5, specular = 0.5, ior = 1, and ao = 0.
+        /// White material with metallic = 0, roughness = 0.5, specular = 0.5, ior = 1, and ao = 0.7.
         /// </summary>
         public SDFMaterial()
         {
@@ -50,6 +50,7 @@ namespace DivisionEngine.Components.SDFs
             ior = 1.0f;
             ambientOcclusion = 0.7f;
             ambientRange = 1f;
+            ambientFalloff = 2f;
             reflectance = 2f;
         }
 
@@ -57,9 +58,19 @@ namespace DivisionEngine.Components.SDFs
         [Range(0f, 1f)] public float metallic;
         [Range(0f, 1f)] public float roughness;
         public float specular;
+
+        [Tooltip("Index of refraction")]
         [Range(1f, 3f)] public float ior;
+
         [Range(0f, 1f)] public float ambientOcclusion;
+
+        [Tooltip("Ambient occlusion maximum falloff distance")]
         [Range(0f, 10f)] public float ambientRange;
+
+        [Tooltip("Ambient occlusion falloff curve, higher value = faster falloff")]
+        [Range(0f, 10f)] public float ambientFalloff;
+
+        [Tooltip("Raymarched reflection intensity, useful for combining with refractions")]
         [Range(0f, 10f)] public float reflectance;
 
         public IComponent Clone() => new SDFMaterial
@@ -71,6 +82,7 @@ namespace DivisionEngine.Components.SDFs
             ior = ior,
             ambientOcclusion = ambientOcclusion,
             ambientRange = ambientRange,
+            ambientFalloff = ambientFalloff,
             reflectance = reflectance,
         };
     }

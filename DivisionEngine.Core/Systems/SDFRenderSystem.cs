@@ -190,8 +190,7 @@ namespace DivisionEngine.Systems
                     curPrimitive.roughness = mat.roughness;
                     curPrimitive.specular = mat.specular;
                     curPrimitive.ior = mat.ior;
-                    curPrimitive.ao = mat.ambientOcclusion;
-                    curPrimitive.aoRange = mat.ambientRange;
+                    curPrimitive.aoValues = new float3(mat.ambientOcclusion, mat.ambientRange, mat.ambientFalloff);
                     curPrimitive.reflectance = mat.reflectance;
 
                     // Precalculate material values
