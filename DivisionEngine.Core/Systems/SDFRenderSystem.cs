@@ -140,6 +140,19 @@ namespace DivisionEngine.Systems
                 // Space to add more lights in the future
             }
 
+            // Create default sun light if no lights exits, to prevent a crash
+            if (sdfLights.Count < 1)
+            {
+                sdfLights.Add(new SDFLightDTO
+                {
+                    position = new float3(0f, 0f, 0f),
+                    rotation = Quaternion.Identity,
+                    type = 0,
+                    color = ColorPalette.Magenta,
+                    intensity = 1f,
+                });
+            }
+
             // Calculate main light direction
             for (int i = 0; i < sdfLights.Count; i++)
             {
