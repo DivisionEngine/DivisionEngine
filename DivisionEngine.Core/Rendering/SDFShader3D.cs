@@ -837,7 +837,7 @@ namespace DivisionEngine
 
                 // Lighting with ambient occlusion
                 float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity, out float lightShadow);
-                if (lightShadow == 1f) aoValue = 1f;
+                if (Hlsl.Length(directLight) > 0.001f) aoValue = 1f;
                 float3 ambientLight = ambientBase * aoValue;
 
                 if (bounce == 0) surfaceColor = directLight;
