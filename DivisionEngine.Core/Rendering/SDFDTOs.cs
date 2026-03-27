@@ -25,6 +25,8 @@ namespace DivisionEngine.Rendering
         public float4 backgroundColor; // 16b
         public int maxRaySteps; // 4b
         public int maxShadowRaySteps; // 4b
+        public float shadowScale; // 4b
+        public float3 mainLightDir; // 12b - precalculate main light direction
 
         // DoF Properties
         public float focusDistance; // 4b

@@ -17,20 +17,23 @@ namespace DivisionEngine.Components
     public class Environment : IComponent
     {
         /// <summary>
-        /// Environment with basic blue sky.
+        /// Environment with basic blue sky and shadow scale = 10 meters.
         /// </summary>
         public Environment()
         {
             backgroundColor = ColorPalette.SkyBlue;
+            shadowScale = 20f;
             hdriMap = default;
         }
 
         [Color(true)] public float4 backgroundColor;
+        [Tooltip("Shadow penumbra range in meters")] public float shadowScale;
         public AssetRef<AudioAsset> hdriMap; // Testing this for now
 
         public IComponent Clone() => new Environment
         {
             backgroundColor = backgroundColor,
+            shadowScale = shadowScale,
             hdriMap = hdriMap,
         };
     }

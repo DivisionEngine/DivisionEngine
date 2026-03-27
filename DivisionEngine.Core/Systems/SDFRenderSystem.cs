@@ -5,6 +5,7 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using ComputeSharp;
 using DivisionEngine.Components;
 using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs;
@@ -102,6 +103,8 @@ namespace DivisionEngine.Systems
             foreach (var (_, environment) in W.QueryData<Environment>())
             {
                 worldData.backgroundColor = environment.backgroundColor;
+                worldData.mainLightDir = new float3(1, 0, 0);
+                worldData.shadowScale = environment.shadowScale;
                 break; // Use first environment
             }
 
@@ -135,6 +138,16 @@ namespace DivisionEngine.Systems
                 }
 
                 // Space to add more lights in the future
+            }
+
+            // Calculate main light direction
+            for (int i = 0; i < sdfLights.Count; i++)
+            {
+                if (sdfLights[i].type == 0)
+                {
+                    worldData.mainLightDir = sdfLights[i].rotation.RotateVector(new float3(0, 0, -1)).Normalize();
+                    break;
+                }
             }
 
             // Gather and transform all primitives and effects

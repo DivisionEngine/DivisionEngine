@@ -215,7 +215,7 @@ namespace DivisionEngine
         //    for (int i = 0; i < 4; i++)
         //    {
         //        float3 e = 0.5773f * (2f * new float3(((i + 3) >> 1) & 1, (i >> 1) & 1, i & 1) - 1f);
-        //        n += e * WorldSDF(pos + EPSILON * 50 * e, false, out _);
+        //        n += e * WorldSDF(pos + EPSILON * 50 * e, false, uint.MaxValue, out _);
         //        if (n.X + n.Y + n.Z > 100f) break;
         //    }
         //    return Hlsl.Normalize(n);
@@ -256,8 +256,8 @@ namespace DivisionEngine
                 dist = WorldSDF(point + depth * dir, true, uint.MaxValue, out closestObj);
                 if (depth > end || shadow < -1f) break;
 
-                shadow = Hlsl.Min(shadow, 40f * dist / depth);
-                depth += Hlsl.Clamp(dist, 0.005f, 10f);
+                shadow = Hlsl.Min(shadow, worldData.shadowScale * dist / depth);
+                depth += Hlsl.Clamp(dist, 0.01f, 10f);
             }
 
             shadow = Hlsl.Max(shadow, -1f);
@@ -267,14 +267,14 @@ namespace DivisionEngine
         /// <summary>
         /// Calculate lighting contribution from all lights
         /// </summary>
-        private float3 CalculateLighting(float3 hitPoint, float3 normal, float3 viewDir,
-            SDFPrimitiveObjectDTO material, float shadowValue, int closestObjIndex)
+        private float3 CalculateLighting(float3 hitPoint, float3 normal, float3 viewDir, SDFPrimitiveObjectDTO material, out float lightShadow)
         {
             float3 totalLight = float3.Zero;
+            lightShadow = 1f;
+
             for (int i = 0; i < lights.Length; i++)
             {
                 SDFLightDTO light = lights[i];
-
                 if (light.type == 0) // Directional light
                 {
                     float3 lightDir = Hlsl.Normalize(RotateVector(new float3(0, 0, -1), light.rotation)); // Directional lights use direction vector
@@ -284,12 +284,11 @@ namespace DivisionEngine
                     if (NoL <= 0f) continue;
 
                     // Calculate shadow for directional light
-                    float lightShadow = 1f;
                     if (material.shadowEffects.Y)
                     {
                         float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                        lightShadow = SoftShadow2(shadowOrigin, lightDir,
-                            material.shadowDistances.X, material.shadowDistances.Y, out _);
+                        lightShadow = Hlsl.Min(SoftShadow2(shadowOrigin, lightDir,
+                            material.shadowDistances.X, material.shadowDistances.Y, out _), lightShadow);
                     }
 
                     // Calculate BRDF here now
@@ -315,13 +314,12 @@ namespace DivisionEngine
                     float3 lightColor = light.color.RGB * light.intensity * attenuation;
 
                     // Simplified shadow for point lights
-                    float lightShadow = 1f;
                     if (material.shadowEffects.Y && distance < light.radius * 2f)
                     {
                         // Basic point light shadow (could be optimized)
                         float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                        lightShadow = SoftShadow2(shadowOrigin, lightDir,
-                            material.shadowDistances.X, distance, out _);
+                        lightShadow = Hlsl.Min(SoftShadow2(shadowOrigin, lightDir,
+                            material.shadowDistances.X, distance, out _), lightShadow);
                     }
 
                     // Calculate point light BRDF
@@ -517,9 +515,9 @@ namespace DivisionEngine
         // Importance sample GGX distribution for specular reflections, alpha = roughness * roughness
         private static float3 ImportanceSampleGGX(float2 u, float3 normal, float alpha)
         {
-            float phi = 2.0f * PI * u.X;
-            float cosTheta = Hlsl.Sqrt((1.0f - u.Y) / (1.0f + (alpha * alpha - 1.0f) * u.Y));
-            float sinTheta = Hlsl.Sqrt(1.0f - cosTheta * cosTheta);
+            float phi = 2f * PI * u.X;
+            float cosTheta = Hlsl.Sqrt((1f - u.Y) / (1f + (alpha * alpha - 1f) * u.Y));
+            float sinTheta = Hlsl.Sqrt(1f - cosTheta * cosTheta);
 
             // Spherical to cartesian
             float3 h = new float3(Hlsl.Cos(phi) * sinTheta, Hlsl.Sin(phi) * sinTheta, cosTheta);
@@ -622,7 +620,7 @@ namespace DivisionEngine
 
         private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 normal, SDFPrimitiveObjectDTO startMat)
         {
-            float3 totalTransmittance = float3.One;  // Start with full transmittance
+            float3 totalTransmittance = float3.One; // Start with full transmittance
             float3 accumulatedColor = float3.Zero;
 
             // Current state
@@ -697,8 +695,7 @@ namespace DivisionEngine
                     currentDir = refractDir;
                     currentNormal = exitNorm;
 
-                    // If just exited to air
-                    if (!currentlyInsideObject)
+                    if (!currentlyInsideObject) // If just exited to air
                     {
                         // Raymarch from exit point
                         float3 rayStart = exitPt + currentNormal * EPSILON;
@@ -754,7 +751,7 @@ namespace DivisionEngine
             }
 
             // Calculate lighting for refraction
-            float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity, /*shadowValue*/ 1f, closestObjIndex); // Temporarily hardcode shadows
+            float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity, out float lightShadow);
             float3 ambientLight = ambientBase * aoValue;
             finalColor += ambientLight + directLight;
             return finalColor;
@@ -784,19 +781,11 @@ namespace DivisionEngine
             bool firstHit = true;
             actualBounces = 0;
 
-            // Track ray segment for fog integration
-            float rayStartDist = worldData.nearPlane;
-            float rayEndDist = farClipPlane;
-
             // Refraction coloring
             float3 surfaceColor = float3.Zero;
             float fresnelFactor = 0f;
             bool isRefractive = false;
-            float aoValue = 1.0f;
-
-            // Store the first hit point and distance for fog
-            float3 firstHitPoint = float3.Zero;
-            float firstHitDistance = farClipPlane;
+            float aoValue = 1f;
 
             // Adaptive reflection step sizes
             int maxRaySteps = worldData.maxRaySteps;
@@ -806,13 +795,8 @@ namespace DivisionEngine
                 float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out float depth);
                 if (closestObjIndex == -1 || depth > farClipPlane)
                 {
-                    rayEndDist = depth;
                     finalColor += contribution * worldData.backgroundColor.XYZ;
-                    if (firstHit)
-                    {
-                        totalDist = depth;
-                        firstHitDistance = depth;
-                    }
+                    if (firstHit) totalDist = depth;
                     break;
                 }
 
@@ -835,18 +819,12 @@ namespace DivisionEngine
                 {
                     outputNormal = normal;
                     totalDist = depth;
-                    firstHitPoint = hitPoint;
-                    firstHitDistance = depth;
                     entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2((uint)closestObjIndex, entity.entityId);
                     mainMat = entity;
 
                     // Calculate ambient occlusion for the hit point
-                    aoValue = 1f;
                     if (aoStrength > 0f)
-                    {
-                        aoValue = CalculateAOSimple(hitPoint, normal, entity);
-                        aoValue = Hlsl.Lerp(1f, aoValue, aoStrength);
-                    }
+                        aoValue = Hlsl.Lerp(1f, CalculateAOSimple(hitPoint, normal, entity), aoStrength);
 
                     if (entity.hasRefraction == 1)
                     {
@@ -857,30 +835,9 @@ namespace DivisionEngine
                     firstHit = false;
                 }
 
-                // Shadows
-                float shadowValue = 1f;
-                if (entity.shadowEffects.Y && (bounce == 0 || entity.reflectionShadows == 1))
-                {
-                    float3 mainLightDir = float3.Zero;
-                    for (int i = 0; i < lights.Length; i++)
-                    {
-                        if (lights[i].type == 0)
-                        {
-                            mainLightDir = Hlsl.Normalize(lights[i].position);
-                            break;
-                        }
-                    }
-
-                    if (Hlsl.Length(mainLightDir) > 0f)
-                    {
-                        float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                        float2 shadowDistances = entity.shadowDistances;
-                        shadowValue = SoftShadow2(shadowOrigin, mainLightDir, shadowDistances.X, shadowDistances.Y, out _);
-                    }
-                }
-
                 // Lighting with ambient occlusion
-                float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity, shadowValue, closestObjIndex);
+                float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity, out float lightShadow);
+                if (lightShadow == 1f) aoValue = 1f;
                 float3 ambientLight = ambientBase * aoValue;
 
                 if (bounce == 0) surfaceColor = directLight;
@@ -909,47 +866,6 @@ namespace DivisionEngine
 
                 rayOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                 rayDir = reflectDir;
-
-                rayStartDist = depth;
-            }
-
-            // Integrate volumetric fog along the ray
-            float3 fogColor = float3.Zero;
-            if (worldData.fogDensity > 0.0f && firstHitDistance < farClipPlane)
-            {
-                // Get main light direction and color for fog scattering
-                float3 mainLightDir = float3.Zero;
-                float3 mainLightColor = float3.Zero;
-                for (int i = 0; i < lights.Length; i++)
-                {
-                    if (lights[i].type == 0)
-                    {
-                        mainLightDir = Hlsl.Normalize(RotateVector(new float3(0, 0, -1), lights[i].rotation));
-                        mainLightColor = lights[i].color.RGB * lights[i].intensity;
-                        break;
-                    }
-                }
-
-                fogColor = IntegrateVolumetricFog(rayOrigin, rayDir, worldData.nearPlane, firstHitDistance,
-                    mainLightDir, mainLightColor);
-            }
-            else if (worldData.fogDensity > 0.0f && firstHitDistance >= farClipPlane)
-            {
-                // No hit
-                float3 mainLightDir = float3.Zero;
-                float3 mainLightColor = float3.Zero;
-                for (int i = 0; i < lights.Length; i++)
-                {
-                    if (lights[i].type == 0)
-                    {
-                        mainLightDir = Hlsl.Normalize(RotateVector(new float3(0, 0, -1), lights[i].rotation));
-                        mainLightColor = lights[i].color.RGB * lights[i].intensity;
-                        break;
-                    }
-                }
-
-                fogColor = IntegrateVolumetricFog(rayOrigin, rayDir, worldData.nearPlane, farClipPlane,
-                    mainLightDir, mainLightColor);
             }
 
             float3 outputColor;
@@ -960,13 +876,6 @@ namespace DivisionEngine
                 outputColor = reflectiveCol * fresnel + refractedLight * (1f - fresnel);
             }
             else outputColor = finalColor + surfaceColor;
-
-            // Apply fog (mix with fog color based on distance)
-            if (worldData.fogDensity > 0.0f)
-            {
-                float fogAmount = Hlsl.Saturate(1.0f - Hlsl.Exp(-worldData.fogDensity * firstHitDistance));
-                outputColor = Hlsl.Lerp(outputColor, fogColor + worldData.fogColor.RGB * fogAmount, fogAmount);
-            }
 
             return outputColor;
         }
