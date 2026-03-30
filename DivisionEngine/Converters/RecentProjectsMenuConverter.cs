@@ -22,7 +22,7 @@ namespace DivisionEngine.Editor.Converters
     /// <summary>
     /// Converts a list of recent project paths and a command into menu items for display.
     /// </summary>
-    public class RecentProjectsMenuConverter : IMultiValueConverter
+    internal class RecentProjectsMenuConverter : IMultiValueConverter
     {
         public static readonly RecentProjectsMenuConverter Instance = new();
 
@@ -43,15 +43,12 @@ namespace DivisionEngine.Editor.Converters
                     DataContext = values[1], // Ensure command has proper context
                 };
 
-                // Create a nice display with icon, project name, and path
                 StackPanel displayPanel = new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
                     Spacing = 8,
                     Margin = new Thickness(2, 2, 10, 2),
                 };
-
-                // Add icon
                 displayPanel.Children.Add(new MaterialIcon
                 {
                     Kind = Material.Icons.MaterialIconKind.Folder,
@@ -60,8 +57,6 @@ namespace DivisionEngine.Editor.Converters
                     Foreground = Brushes.Gold,
                     VerticalAlignment = VerticalAlignment.Center,
                 });
-
-                // Add project name and path
                 StackPanel textPanel = new StackPanel
                 {
                     Orientation = Orientation.Vertical,
@@ -90,7 +85,6 @@ namespace DivisionEngine.Editor.Converters
                 menuItem.Header = displayPanel;
                 menuItems.Add(menuItem);
             }
-
             return menuItems;
         }
     }

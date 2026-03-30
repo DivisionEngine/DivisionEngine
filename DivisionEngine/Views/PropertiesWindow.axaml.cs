@@ -177,6 +177,13 @@ public partial class PropertiesWindow : EditorWindow
         if (W.EntityExists(LastSelected))
             DisplayEntityComponents(LastSelected);
         else CreateWorldEditor(WorldManager.CurrentWorld);
+
+        Selection.OnSelectionChanged += OnSelectedObject; // Add window to selection system
+    }
+    private void OnSelectedObject(object? selection)
+    {
+        if (Selection.SelectedType == Selection.SelectionType.Entity)
+            LoadEntityComponents((uint)selection);
     }
 
     /// <summary>

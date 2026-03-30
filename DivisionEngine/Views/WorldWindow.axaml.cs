@@ -120,7 +120,10 @@ public partial class WorldWindow : EditorWindow
             UpdateDisplay(world); // Update world display
 
             // Add handlers
-            PointerPressed += (s, e) => { if (!isRenaming) PropertiesWindow.LoadEntityComponents(entityId); };
+            PointerPressed += (s, e) => 
+            {
+                if (!isRenaming) Selection.SelectEntity(entityId);
+            };
             ContextRequested += (s, e) =>
             {
                 if (!isRenaming)
@@ -370,6 +373,7 @@ public partial class WorldWindow : EditorWindow
                 source = (source as StyledElement)?.Parent;
             }
 
+            Selection.Clear();
             PropertiesWindow.LoadWorldData(WorldManager.CurrentWorld);
         };
 

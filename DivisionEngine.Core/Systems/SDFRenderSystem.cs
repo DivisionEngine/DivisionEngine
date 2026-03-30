@@ -149,7 +149,7 @@ namespace DivisionEngine.Systems
                     rotation = Quaternion.Identity,
                     type = 0,
                     color = ColorPalette.Magenta,
-                    intensity = 1f,
+                    intensity = 0f,
                 });
             }
 

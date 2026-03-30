@@ -5,6 +5,8 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using DivisionEngine.Components.FieldAttributes;
+
 namespace DivisionEngine.Components.SDFs.Effects
 {
     /// <summary>
@@ -47,7 +49,7 @@ namespace DivisionEngine.Components.SDFs.Effects
         /// <summary>
         /// Anisotropy for Henyey-Greenstein phase function (-1 = back scattering, 0 = isotropic, 1 = forward scattering).
         /// </summary>
-        public float anisotropy;
+        [Range(0f, 1f)] public float anisotropy;
 
         public IComponent Clone() => new VolumetricFog
         {

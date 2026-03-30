@@ -53,8 +53,12 @@ namespace DivisionEngine.Editor.Systems
 
             // Make sure object selection is enabled and getting called
             EntitySelectionSystem.CanSelect = true;
-            EntitySelectionSystem.OnEntitySelected += PropertiesWindow.LoadEntityComponents;
-            EntitySelectionSystem.OnNoEntityFound += () => PropertiesWindow.LoadWorldData(WorldManager.CurrentWorld);
+            EntitySelectionSystem.OnEntitySelected += Selection.SelectEntity;
+            EntitySelectionSystem.OnNoEntityFound += () =>
+            {
+                Selection.Clear();
+                PropertiesWindow.LoadWorldData(WorldManager.CurrentWorld);
+            };
         }
 
         public override void FixedUpdate()

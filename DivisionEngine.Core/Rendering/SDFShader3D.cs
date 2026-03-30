@@ -69,10 +69,19 @@ namespace DivisionEngine
             return Hlsl.Length(pt) - r;
         }
 
-        private static float BoxSDF(float3 pt, float3 size)
+        private float BoxSDF(float3 pt, float3 size)
         {
-            float3 q = Hlsl.Abs(pt) - size;
-            return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
+            //float3 q = Hlsl.Abs(pt) - size;
+            //float box = Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
+
+            float3 s = new float3(8, 8, 8);
+            float3 l = new float3(10000, 6, 10000);
+            float3 q = pt - s * Hlsl.Clamp(Hlsl.Round(pt / s), -l, l);
+
+            float sd1 = TorusSDF(q, size.XY);
+            float sd2 = PyramidSDF(q, size.X);
+
+            return Hlsl.Lerp(sd1, sd2, Hlsl.Saturate(worldData.fogAnisotropy));
         }
 
         private static float RoundedBoxSDF(float3 pt, float3 size, float r)
@@ -267,10 +276,10 @@ namespace DivisionEngine
         /// <summary>
         /// Calculate lighting contribution from all lights
         /// </summary>
-        private float3 CalculateLighting(float3 hitPoint, float3 normal, float3 viewDir, SDFPrimitiveObjectDTO material, out float lightShadow)
+        private float3 CalculateLighting(float3 hitPoint, float3 normal, float3 viewDir, SDFPrimitiveObjectDTO material)
         {
             float3 totalLight = float3.Zero;
-            lightShadow = 1f;
+            float lightShadow = 1f;
 
             for (int i = 0; i < lights.Length; i++)
             {
@@ -340,7 +349,7 @@ namespace DivisionEngine
         /// <param name="normal">Initial hit normal</param>
         /// <param name="entity">Initial entity hit</param>
         /// <returns>Occlusion value at hit point</returns>
-        private float CalculateAOSimple(float3 hitPoint, float3 normal, SDFPrimitiveObjectDTO entity)
+        private float CalculateAO(float3 hitPoint, float3 normal, SDFPrimitiveObjectDTO entity)
         {
             float3 samplePoint = hitPoint + normal * EPSILON; // Normal vector offset
             float worldDist = WorldSDF(samplePoint, false, entity.entityId, out _); // Get distance to the next closest object
@@ -745,13 +754,10 @@ namespace DivisionEngine
             SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
             float aoValue = 1f;
             if (entity.aoValues.X > 0f)
-            {
-                aoValue = CalculateAOSimple(hitPoint, normal, entity);
-                aoValue = Hlsl.Lerp(1f, aoValue, entity.aoValues.X);
-            }
+                aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, entity), entity.aoValues.X);
 
             // Calculate lighting for refraction
-            float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity, out float lightShadow);
+            float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity);
             float3 ambientLight = ambientBase * aoValue;
             finalColor += ambientLight + directLight;
             return finalColor;
@@ -824,7 +830,7 @@ namespace DivisionEngine
 
                     // Calculate ambient occlusion for the hit point
                     if (aoStrength > 0f)
-                        aoValue = Hlsl.Lerp(1f, CalculateAOSimple(hitPoint, normal, entity), aoStrength);
+                        aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, entity), aoStrength);
 
                     if (entity.hasRefraction == 1)
                     {
@@ -836,7 +842,7 @@ namespace DivisionEngine
                 }
 
                 // Lighting with ambient occlusion
-                float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity, out float lightShadow);
+                float3 directLight = CalculateLighting(hitPoint, normal, viewDir, entity);
                 if (Hlsl.Length(directLight) > 0.001f) aoValue = 1f;
                 float3 ambientLight = ambientBase * aoValue;
 
