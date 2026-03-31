@@ -66,7 +66,6 @@ namespace DivisionEngine.Editor
                     Debug.Warning($"File does not exist: {file.FullName}");
                     return;
                 }
-
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = file.FullName,
@@ -88,7 +87,7 @@ namespace DivisionEngine.Editor
         public static string FormatFileSize(long bytes, int decimalPlaces = 1)
         {
             if (bytes <= 0) return "0 B";
-            string[] sizeSuffixes = { "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
+            string[] sizeSuffixes = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
             // Use log to find the right unit index
             int unitIndex = (int)Math.Min(Math.Floor(Math.Log(bytes, 1024)), sizeSuffixes.Length - 1);

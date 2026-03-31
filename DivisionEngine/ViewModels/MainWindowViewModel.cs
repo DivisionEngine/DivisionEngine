@@ -19,7 +19,6 @@ using DivisionEngine.Settings;
 using Material.Icons.Avalonia;
 using ReactiveUI;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -46,68 +45,79 @@ namespace DivisionEngine.Editor.ViewModels
         public ObservableCollection<EditorWindowViewModel> RightTabs { get; } = [];
 
         // Recent projects
-        private ObservableCollection<string> _recentProjects = [];
+        private ObservableCollection<string> recentProjects = [];
         public ObservableCollection<string> RecentProjects
         {
-            get => _recentProjects;
-            set => this.RaiseAndSetIfChanged(ref _recentProjects, value);
+            get => recentProjects;
+            set => this.RaiseAndSetIfChanged(ref recentProjects, value);
         }
-        private ObservableCollection<object> _recentProjectMenuItems = [];
+        private ObservableCollection<object> recentProjectMenuItems = [];
         public ObservableCollection<object> RecentProjectMenuItems
         {
-            get => _recentProjectMenuItems;
-            set => this.RaiseAndSetIfChanged(ref _recentProjectMenuItems, value);
+            get => recentProjectMenuItems;
+            set => this.RaiseAndSetIfChanged(ref recentProjectMenuItems, value);
         }
 
         public bool HasRecentProjects => RecentProjects.Count > 0;
 
         // Tab selection variables
-        private EditorWindowViewModel? _selectedLeftTab;
-        private EditorWindowViewModel? _selectedRightTab;
-        private EditorWindowViewModel? _selectedCenterTab;
-        private EditorWindowViewModel? _selectedBottomTab;
+        private EditorWindowViewModel? selectedLeftTab;
+        private EditorWindowViewModel? selectedRightTab;
+        private EditorWindowViewModel? selectedCenterTab;
+        private EditorWindowViewModel? selectedBottomTab;
 
         public EditorWindowViewModel? SelectedLeftTab
         {
-            get => _selectedLeftTab;
-            set => this.RaiseAndSetIfChanged(ref _selectedLeftTab, value);
+            get => selectedLeftTab;
+            set => this.RaiseAndSetIfChanged(ref selectedLeftTab, value);
         }
         public EditorWindowViewModel? SelectedRightTab
         {
-            get => _selectedRightTab;
-            set => this.RaiseAndSetIfChanged(ref _selectedRightTab, value);
+            get => selectedRightTab;
+            set => this.RaiseAndSetIfChanged(ref selectedRightTab, value);
         }
         public EditorWindowViewModel? SelectedCenterTab
         {
-            get => _selectedCenterTab;
-            set => this.RaiseAndSetIfChanged(ref _selectedCenterTab, value);
+            get => selectedCenterTab;
+            set => this.RaiseAndSetIfChanged(ref selectedCenterTab, value);
         }
         public EditorWindowViewModel? SelectedBottomTab
         {
-            get => _selectedBottomTab;
-            set => this.RaiseAndSetIfChanged(ref _selectedBottomTab, value);
+            get => selectedBottomTab;
+            set => this.RaiseAndSetIfChanged(ref selectedBottomTab, value);
         }
 
         // Main Window API
 
-        private double? _progressVal;
-        private bool? _showProgress;
+        private double? progressVal;
+        private bool? showProgress;
+        private string? recentControlsText;
 
         /// <summary>
         /// Editor progress bar value between 0.0 and 1.0.
         /// </summary>
         public double? ProgressValue
         {
-            get => _progressVal;
-            set => this.RaiseAndSetIfChanged(ref _progressVal, value);
+            get => progressVal;
+            set => this.RaiseAndSetIfChanged(ref progressVal, value);
         }
+
         /// <summary>
         /// Enables or disables the progress bar.
         /// </summary>
         public bool? ShowProgress
         {
-            get => _showProgress;
-            set => this.RaiseAndSetIfChanged(ref _showProgress, value);
+            get => showProgress;
+            set => this.RaiseAndSetIfChanged(ref showProgress, value);
+        }
+
+        /// <summary>
+        /// States what the recent controls text should be.
+        /// </summary>
+        public string? RecentControlsText
+        {
+            get => recentControlsText;
+            set => this.RaiseAndSetIfChanged(ref recentControlsText, value);
         }
 
         /// <summary>

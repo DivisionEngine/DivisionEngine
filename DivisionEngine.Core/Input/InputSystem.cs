@@ -6,6 +6,8 @@
 // project root for full license terms.
 //
 using DivisionEngine.MathLib;
+using Silk.NET.GLFW;
+using Silk.NET.Input;
 
 namespace DivisionEngine.Input
 {
@@ -244,6 +246,33 @@ namespace DivisionEngine.Input
         public static bool IsPressed(KeyCode key)
         {
             lock (Instance!.syncLock) return Instance.pressedKeys.Contains(key);
+        }
+
+        /// <summary>
+        /// Checks if any control key is pressed.
+        /// </summary>
+        public static bool IsCtrlPressed()
+        {
+            lock (Instance!.syncLock) return Instance.pressedKeys.Contains(KeyCode.ControlLeft)
+                    || Instance.pressedKeys.Contains(KeyCode.ControlRight);
+        }
+
+        /// <summary>
+        /// Checks if any alt key is pressed.
+        /// </summary>
+        public static bool IsAltPressed()
+        {
+            lock (Instance!.syncLock) return Instance.pressedKeys.Contains(KeyCode.AltLeft)
+                    || Instance.pressedKeys.Contains(KeyCode.AltRight);
+        }
+
+        /// <summary>
+        /// Checks if any shift key is pressed.
+        /// </summary>
+        public static bool IsShiftPressed()
+        {
+            lock (Instance!.syncLock) return Instance.pressedKeys.Contains(KeyCode.ShiftLeft)
+                    || Instance.pressedKeys.Contains(KeyCode.ShiftRight);
         }
 
         /// <summary>

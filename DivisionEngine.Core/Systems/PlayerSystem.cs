@@ -8,6 +8,7 @@
 using DivisionEngine.Components;
 using DivisionEngine.Input;
 using DivisionEngine.MathLib;
+using DivisionEngine.Rendering;
 using DivisionEngine.Settings;
 
 namespace DivisionEngine.Systems
@@ -17,10 +18,23 @@ namespace DivisionEngine.Systems
     /// </summary>
     public class PlayerSystem : SystemBase
     {
+        /// <summary>
+        /// Tracks the window focus of the render window to make sure focused before updating player.
+        /// </summary>
+        private static bool WindowFocused { get; set; } = false;
+
+        public override void Awake()
+        {
+            RenderPipeline.RenderWindowFocusd += (f) => WindowFocused = f;
+        }
+
         public override void Update()
         {
-            foreach (var (_, transform, player) in W.QueryData<Transform, Player>())
-                HandlePlayerInput(transform, player);
+            if (WindowFocused)
+            {
+                foreach (var (_, transform, player) in W.QueryData<Transform, Player>())
+                    HandlePlayerInput(transform, player);
+            }
         }
 
         private static void HandlePlayerInput(Transform transform, Player player)

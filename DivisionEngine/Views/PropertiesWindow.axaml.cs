@@ -182,8 +182,8 @@ public partial class PropertiesWindow : EditorWindow
     }
     private void OnSelectedObject(object? selection)
     {
-        if (Selection.SelectedType == Selection.SelectionType.Entity)
-            LoadEntityComponents((uint)selection);
+        if (Selection.SelectedType == SelectionType.Entity)
+            LoadEntityComponents((uint)selection!);
     }
 
     /// <summary>

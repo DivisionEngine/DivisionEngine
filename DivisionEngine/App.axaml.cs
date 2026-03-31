@@ -130,7 +130,7 @@ namespace DivisionEngine.Editor
                 StartEditorEngineLoop();
                 UserInput = new InputSystem();
                 _ = SetEditorRenderingAsync(true); // Start the SDFRenderer in a separate thread
-                //SetupAvaloniaInput(desktop); // re-enable this later potentially
+                SetupAvaloniaInput(desktop);
 
                 // Bind editor callbacks
                 desktop.Exit += (s, e) =>

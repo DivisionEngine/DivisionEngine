@@ -7,30 +7,54 @@
 //
 using System;
 
-namespace DivisionEngine
+namespace DivisionEngine.Editor
 {
+    /// <summary>
+    /// Represents the type of object selected.
+    /// </summary>
+    public enum SelectionType
+    {
+        None, Entity, Asset, Other
+    }
+
     /// <summary>
     /// Stores the current selection in the editor.
     /// </summary>
     public static class Selection
     {
         /// <summary>
-        /// Represents the type of object selected.
+        /// Called when the selection is changed.
         /// </summary>
-        public enum SelectionType
-        {
-            None, Entity, Asset, Other
-        }
-
         public static Action<object?>? OnSelectionChanged { get; set; }
+
+        /// <summary>
+        /// Selected object reference.
+        /// </summary>
         public static object? SelectedObj { get; private set; }
+
+        /// <summary>
+        /// Selected type of object.
+        /// </summary>
         public static SelectionType SelectedType { get; private set; } = SelectionType.None;
+
+        /// <summary>
+        /// Shortcut to get selected entity, or null if none exists.
+        /// </summary>
+        public static uint Entity { get; private set; }
+
+        /// <summary>
+        /// Shortcut to get selected asset, or null if none exists.
+        /// </summary>
+        public static string? Asset { get; private set; }
 
         /// <summary>
         /// Clears the current selection.
         /// </summary>
         public static void Clear()
         {
+            Entity = uint.MaxValue;
+            Asset = null;
+
             SelectedObj = null;
             SelectedType = SelectionType.None;
             OnSelectionChanged?.Invoke(null);
@@ -42,6 +66,9 @@ namespace DivisionEngine
         /// <param name="entityID">ID of an entity</param>
         public static void SelectEntity(uint entityID)
         {
+            Entity = entityID;
+            Asset = null;
+
             SelectedObj = entityID;
             SelectedType = SelectionType.Entity;
             OnSelectionChanged?.Invoke(entityID);
@@ -53,6 +80,9 @@ namespace DivisionEngine
         /// <param name="assetID">Asset GUID</param>
         public static void SelectAsset(string assetID)
         {
+            Entity = uint.MaxValue;
+            Asset = assetID;
+
             SelectedObj = assetID;
             SelectedType = SelectionType.Asset;
             OnSelectionChanged?.Invoke(assetID);
@@ -64,6 +94,9 @@ namespace DivisionEngine
         /// <param name="selection">Selected object</param>
         public static void SelectObject(object selection)
         {
+            Entity = uint.MaxValue;
+            Asset = null;
+
             SelectedObj = selection;
             SelectedType = SelectionType.Asset;
             OnSelectionChanged?.Invoke(selection);
