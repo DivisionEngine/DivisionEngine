@@ -19,10 +19,10 @@ namespace DivisionEngine
         float height,
         float aspect,
         int frameCount,
+        int debugMode,
         SDFWorldDTO worldData,
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
-        ReadWriteTexture2D<int> bounceCountTexture,
         ReadWriteBuffer<uint2> entityIdBuffer,
         ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
         ReadOnlyBuffer<SDFLightDTO> lights) : IComputeShader
@@ -38,6 +38,30 @@ namespace DivisionEngine
         const float MIN_REFLECTION_CHANCE = 0.01f;
         const float MIN_THROUGHPUT = 0.01f;
         const float REFLECTION_BIAS = 2f; // Multiplier for normal offset
+
+        /// <summary>
+        /// Picks a random color from an integer.
+        /// </summary>
+        /// <param name="id">Object ID</param>
+        /// <returns>Random hashed color</returns>
+        private float3 IntToColor(uint id)
+        {
+            // Mix the bits using prime numbers
+            uint hash = id;
+            hash ^= hash >> 16;
+            hash *= 0x85ebca6b;
+            hash ^= hash >> 13;
+            hash *= 0xc2b2ae35;
+            hash ^= hash >> 16;
+
+            // Convert to float in [0,1] range
+            float r = (hash & 0xFF) / 255.0f;
+            float g = ((hash >> 8) & 0xFF) / 255.0f;
+            float b = ((hash >> 16) & 0xFF) / 255.0f;
+
+            // Ensure minimum brightness and saturation
+            return Hlsl.Max(new float3(r, g, b), 0.2f);
+        }
 
         private float AdaptiveEpsilon(float td)
         {
@@ -538,6 +562,23 @@ namespace DivisionEngine
             return Hlsl.Normalize(tangent * h.X + bitangent * h.Y + normal * h.Z);
         }
 
+        private static float3 DebugBRDF(float3 N, float3 V, float3 L, float roughness, float reflectance)
+        {
+            float3 H = Hlsl.Normalize(V + L);
+            float NdotV = Hlsl.Max(Hlsl.Dot(N, V), 0.0f);
+            float NdotL = Hlsl.Max(Hlsl.Dot(N, L), 0.0f);
+            float NdotH = Hlsl.Max(Hlsl.Dot(N, H), 0.0f);
+
+            float D = D_GGX(NdotH, roughness);
+            float G = G1_GGX_Schlick(NdotV, roughness) * G1_GGX_Schlick(NdotL, roughness);
+
+            float3 f0 = float3.One * 0.16f * reflectance * reflectance;
+            float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(V, H), 0.0f), f0);
+
+            // Return RGB with R = D, G = G, B = average(F)
+            return new float3(D, G, (F.X + F.Y + F.Z) / 3.0f);
+        }
+
         // --------------
         // Volumetric Fog
         // --------------
@@ -596,13 +637,13 @@ namespace DivisionEngine
         // Raymarching
         // -----------
 
-        private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out int closestObj, out float depth)
+        private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out int closestObj, out float depth, out int steps)
         {
             depth = worldData.nearPlane;
             closestObj = -1;
             float3 hitPoint = rayOrigin;
 
-            for (int step = 0; step < maxSteps && depth < farClipPlane; step++)
+            for (steps = 0; steps < maxSteps && depth < farClipPlane; steps++)
             {
                 hitPoint = rayOrigin + rayDir * depth;
                 float worldDist = WorldSDF(hitPoint, false, uint.MaxValue, out closestObj);
@@ -627,7 +668,7 @@ namespace DivisionEngine
             return true;
         }
 
-        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 normal, SDFPrimitiveObjectDTO startMat)
+        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 normal, SDFPrimitiveObjectDTO startMat, out int steps)
         {
             float3 totalTransmittance = float3.One; // Start with full transmittance
             float3 accumulatedColor = float3.Zero;
@@ -638,6 +679,8 @@ namespace DivisionEngine
             float3 currentNormal = normal;
             SDFPrimitiveObjectDTO currentMat = startMat;
             bool currentlyInsideObject = true;
+            int tracedSteps = 0;
+            steps = 0;
 
             for (int transmit = 0; transmit < startMat.refractMaxRecursion; transmit++)
             {
@@ -694,8 +737,9 @@ namespace DivisionEngine
                         float3 segmentTransmittance = Hlsl.Exp(absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
                         totalTransmittance *= segmentTransmittance;
 
-                        float3 bgColor = TraceRefractionExitRay(p, refractDir, ambientBase, out _, out _);
+                        float3 bgColor = TraceRefractionExitRay(p, refractDir, ambientBase, out _, out _, out tracedSteps);
                         accumulatedColor = bgColor;
+                        steps += tracedSteps;
                         break;
                     }
 
@@ -708,7 +752,10 @@ namespace DivisionEngine
                     {
                         // Raymarch from exit point
                         float3 rayStart = exitPt + currentNormal * EPSILON;
-                        float3 hitPoint = Raymarch(rayStart, currentDir, worldData.maxRaySteps, worldData.farPlane, out int nextObjIndex, out _);
+                        float3 hitPoint = Raymarch(rayStart, currentDir, worldData.maxRaySteps, worldData.farPlane,
+                            out int nextObjIndex, out _, out tracedSteps);
+                        steps += tracedSteps;
+
                         if (nextObjIndex >= 0 && nextObjIndex < sdfPrimitives.Length)
                         {
                             currentOrigin = hitPoint;
@@ -719,8 +766,9 @@ namespace DivisionEngine
                         }
                         else
                         {
-                            float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, ambientBase, out _, out _);
+                            float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, ambientBase, out _, out _, out tracedSteps);
                             accumulatedColor = bgColor;
+                            steps += tracedSteps;
                             break;
                         }
                     }
@@ -732,14 +780,14 @@ namespace DivisionEngine
         }
 
         private float3 TraceRefractionExitRay(float3 rayOrigin, float3 rayDir, float3 ambientBase,
-            out float3 normal, out float totalDist)
+            out float3 normal, out float totalDist, out int steps)
         {
             float3 finalColor = float3.Zero;
             normal = float3.Zero;
 
             // Trace
             int maxRaySteps = worldData.maxRaySteps;
-            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, worldData.farPlane, out int closestObjIndex, out totalDist);
+            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, worldData.farPlane, out int closestObjIndex, out totalDist, out steps);
             if (closestObjIndex == -1 || totalDist > worldData.farPlane)
             {
                 finalColor += worldData.backgroundColor.XYZ;
@@ -772,7 +820,7 @@ namespace DivisionEngine
         /// <param name="totalDist">Total distance traversed</param> 
         /// <returns>Output raymarch color, with effects</returns>
         private float3 TraceRay(int2 pixel, float3 rayOrigin, float3 rayDir, int sampleIndexInPixel,
-            out float3 outputNormal, out float totalDist, out int actualBounces)
+            out float3 outputNormal, out float totalDist, out int steps)
         {
             float3 finalColor = float3.Zero;
             float3 contribution = float3.One;
@@ -785,7 +833,8 @@ namespace DivisionEngine
             totalDist = 0f;
             float farClipPlane = worldData.farPlane;
             bool firstHit = true;
-            actualBounces = 0;
+            int tracedSteps = 0;
+            steps = 0;
 
             // Refraction coloring
             float3 surfaceColor = float3.Zero;
@@ -798,7 +847,10 @@ namespace DivisionEngine
             for (int bounce = 0; bounce < 32; bounce++)
             {
                 // Raymarch
-                float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane, out int closestObjIndex, out float depth);
+                float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane,
+                    out int closestObjIndex, out float depth, out tracedSteps);
+                steps += tracedSteps;
+
                 if (closestObjIndex == -1 || depth > farClipPlane)
                 {
                     finalColor += contribution * worldData.backgroundColor.XYZ;
@@ -811,7 +863,6 @@ namespace DivisionEngine
                 if (Hlsl.Dot(normal, rayDir) > 0f)
                     normal = -normal;
                 float3 viewDir = -rayDir;
-                actualBounces = bounce + 1;
 
                 // Get material properties
                 SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
@@ -836,7 +887,8 @@ namespace DivisionEngine
                     {
                         isRefractive = true;
                         fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, normal, entity);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, normal, entity, out tracedSteps);
+                        steps += tracedSteps;
                     }
                     firstHit = false;
                 }
@@ -895,7 +947,6 @@ namespace DivisionEngine
             texture[pixel] = new float4(0, 0, 0, 0);
             depthNormals[pixel] = new float4(0, 0, 0, 0);
             entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2(uint.MaxValue, uint.MaxValue);
-            bounceCountTexture[pixel] = 0;  // Initialize bounce count
 
             //float2 uv = (float2)pixel / new float2(width, height) * 2.0f - 1.0f;
             //uv.X *= width / height;
@@ -905,7 +956,7 @@ namespace DivisionEngine
             float3 accumulatedColor = float3.Zero;
             float3 accumulatedNormal = float3.Zero;
             float accumulatedDistance = 0f;
-            int accumulatedBounces = 0;  // NEW: Accumulate bounce counts
+            int steps = 0;
 
             for (int sample = 0; sample < SAMPLES_PER_PIXEL; sample++)
             {
@@ -925,12 +976,11 @@ namespace DivisionEngine
 
                 // Automatically skip reflection bounces for non-reflective materials
                 float3 color = TraceRay(pixel, rayOrigin, rayDir, sample,
-                    out float3 outputNormal, out float dist, out int bounceCount);
-
+                    out float3 outputNormal, out float dist, out int tracedSteps);
+                steps += tracedSteps;
                 accumulatedColor += color;
                 accumulatedNormal += outputNormal;
                 accumulatedDistance += dist;
-                accumulatedBounces += bounceCount;  // Accumulate bounces
             }
 
             float maxPossibleDistance = worldData.farPlane - worldData.nearPlane;
@@ -940,10 +990,42 @@ namespace DivisionEngine
 
             // Optional ACES:
             finalColor = Hlsl.Saturate(finalColor * (2.51f * finalColor + 0.03f) / (finalColor * (2.43f * finalColor + 0.59f) + 0.14f));
-            
+
+            // Final
             texture[pixel] = new float4(finalColor, 1.0f);
             depthNormals[pixel] = new float4(finalDist / maxPossibleDistance, finalNormal);
-            bounceCountTexture[pixel] = accumulatedBounces / SAMPLES_PER_PIXEL; // Write bounces to map
+
+            // Debugging:
+            if (debugMode > 0)
+            {
+                if (debugMode == 1) // Depth buffer
+                {
+                    float depth = depthNormals[pixel].R;
+                    texture[pixel] = new float4(depth, depth, depth, 1);
+                }
+                else if (debugMode == 2) // World normal buffer
+                    texture[pixel] = new float4(depthNormals[pixel].GBA, 1);
+                else if (debugMode == 3) // Object ID buffer
+                {
+                    float3 objColor = IntToColor(entityIdBuffer[pixel.X + pixel.Y * (int)width].X);
+                    texture[pixel] = new float4(objColor, 1);
+                }
+                else if (debugMode == 4) // Ray steps
+                {
+                    float stepValue = (float)steps / worldData.maxRaySteps;
+                    texture[pixel] = new float4(stepValue, stepValue, stepValue, 1);
+                }
+                //else if (debugMode == 5) // Shadows
+                //{
+                //    float3 objColor = IntToColor(objectIdBuffer[pixel.X + pixel.Y * width].X);
+                //    texture[pixel] = new float4(objColor, 1);
+                //}
+                //else if (debugMode == 6) // BRDF
+                //{
+                //    float3 objColor = DebugBRDF(objectIdBuffer[pixel.X + pixel.Y * width].X);
+                //    texture[pixel] = new float4(objColor, 1);
+                //}
+            }
         }
     }
 }

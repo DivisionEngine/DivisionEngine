@@ -118,8 +118,6 @@ namespace DivisionEngine.Rendering
         public static double DeltaTime { get; private set; }
 
         // Denoising
-        private ReadWriteTexture2D<int>? bounceCountTexture; // Bounce count tracking
-        private ReadWriteTexture2D<float4>? reconstructionTex;
         private ReadOnlyBuffer<float>? kernelBuffer; // Reconstruction kernel
         private ReadWriteTexture2D<float4>? denoisedTex;
 
@@ -360,20 +358,6 @@ namespace DivisionEngine.Rendering
                         denoisedTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
                     }
 
-                    // Build bounce count texture
-                    if (bounceCountTexture == null || bounceCountTexture.Width != texWidth || bounceCountTexture.Height != texHeight)
-                    {
-                        bounceCountTexture?.Dispose();
-                        bounceCountTexture = device!.AllocateReadWriteTexture2D<int>(texWidth, texHeight);
-                    }
-
-                    // Build reconstruction texture
-                    if (reconstructionTex == null || reconstructionTex.Width != texWidth || reconstructionTex.Height != texHeight)
-                    {
-                        reconstructionTex?.Dispose();
-                        reconstructionTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                    }
-
                     // Build depth and normal texture
                     if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || depthNormalPixels == null)
                     {
@@ -409,35 +393,15 @@ namespace DivisionEngine.Rendering
                     // Dispatch SDF compute shader
                     int outputMode = 0;
                     if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
-                
-                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, texWidth / (float)texHeight, TimeSystem.FrameCount, worldDTO,
-                        renderTex, depthNormalsTex, bounceCountTexture, objectIdBuffer, primitivesBuffer, lightsBuffer);
+                    
+                    // Debugging handled in-shader now (again)
+                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, texWidth / (float)texHeight, TimeSystem.FrameCount, (int)debugMode, worldDTO,
+                        renderTex, depthNormalsTex, objectIdBuffer, primitivesBuffer, lightsBuffer);
                     device?.For(texWidth, texHeight, shader);
-
-                    // Handle debug modes
-                    if ((int)debugMode > 0 && (int)debugMode < 4 && renderTex != null && depthNormalsTex != null && objectIdBuffer != null)
-                    {
-                        SDFDebug3D debugShader = new SDFDebug3D(renderTex, depthNormalsTex, objectIdBuffer,
-                            (int)debugMode, texWidth);
-                        device?.For(texWidth, texHeight, debugShader);
-                    }
                 }
 
                 // Rendering pipeline
                 ReadWriteTexture2D<float4>? currentTexture = renderTex;
-
-                // Reflection Reconstruction (fix incomplete rays)
-                if (/*worldDTO.enableReflectionReconstruction == 1*/ false && debugMode == DebugMode.None)
-                {
-                    lock (SyncLock)
-                    {
-                        ReflectionReconstructionShader reconstructionShader = new ReflectionReconstructionShader(
-                            texWidth, texHeight, 2, 8,
-                            currentTexture!, reconstructionTex!, bounceCountTexture!, depthNormalsTex!);
-                        device?.For(texWidth, texHeight, reconstructionShader);
-                    }
-                    currentTexture = reconstructionTex; // Use reconstructed result
-                }
 
                 // Division Denoising
                 if (worldDTO.enableDivisionDenoise == 1 && debugMode == DebugMode.None &&
@@ -651,8 +615,6 @@ namespace DivisionEngine.Rendering
         {
             renderTex?.Dispose();
             denoisedTex?.Dispose();
-            reconstructionTex?.Dispose();
-            bounceCountTexture?.Dispose();
             depthNormalsTex?.Dispose();
             objectIdBuffer?.Dispose();
             primitivesBuffer?.Dispose();
@@ -662,8 +624,6 @@ namespace DivisionEngine.Rendering
 
             renderTex = null;
             denoisedTex = null;
-            reconstructionTex = null;
-            bounceCountTexture = null;
             depthNormalsTex = null;
             objectIdBuffer = null;
             primitivesBuffer = null;
