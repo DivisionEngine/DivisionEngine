@@ -102,6 +102,7 @@ namespace DivisionEngine.Systems
             foreach (var (_, environment) in W.QueryData<Environment>())
             {
                 worldData.backgroundColor = environment.backgroundColor;
+                worldData.ambientStrength = environment.ambientStrength;
                 worldData.mainLightDir = new float3(1, 0, 0);
                 worldData.shadowScale = environment.shadowScale;
                 break; // Use first environment

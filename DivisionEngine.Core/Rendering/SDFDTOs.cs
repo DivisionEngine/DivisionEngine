@@ -23,6 +23,7 @@ namespace DivisionEngine.Rendering
 
         // Environment Properties
         public float4 backgroundColor; // 16b
+        public float ambientStrength; // 4b
         public int maxRaySteps; // 4b
         public int maxShadowRaySteps; // 4b
         public float shadowScale; // 4b

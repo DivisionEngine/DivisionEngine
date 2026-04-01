@@ -22,17 +22,20 @@ namespace DivisionEngine.Components
         public Environment()
         {
             backgroundColor = ColorPalette.SkyBlue;
+            ambientStrength = 0.15f;
             shadowScale = 20f;
             hdriMap = default;
         }
 
         [Color(true)] public float4 backgroundColor;
+        [Range(0f, 1f)] public float ambientStrength;
         [Tooltip("Shadow penumbra range in meters")] public float shadowScale;
         public AssetRef<AudioAsset> hdriMap; // Testing this for now
 
         public IComponent Clone() => new Environment
         {
             backgroundColor = backgroundColor,
+            ambientStrength = ambientStrength,
             shadowScale = shadowScale,
             hdriMap = hdriMap,
         };
