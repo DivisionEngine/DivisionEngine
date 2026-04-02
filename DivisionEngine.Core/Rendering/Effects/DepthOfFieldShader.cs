@@ -23,7 +23,7 @@ namespace DivisionEngine.Rendering.Effects
         ReadWriteTexture2D<float4> outputTexture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadWriteBuffer<uint2> objectIdBuffer,
-        ReadOnlyBuffer<SDFPrimitiveObjectDTO> primitivesBuffer,
+        ReadOnlyBuffer<SDFObjectDTO> sdfObjBuffer,
         SDFWorldDTO worldDTO) : IComputeShader
     {
 

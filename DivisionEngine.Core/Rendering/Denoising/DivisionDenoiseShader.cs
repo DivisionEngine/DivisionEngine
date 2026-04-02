@@ -21,7 +21,7 @@ namespace DivisionEngine.Rendering
         ReadWriteTexture2D<float4> inputTexture,
         ReadWriteTexture2D<float4> outputTexture,
         ReadWriteTexture2D<float4> depthNormals,
-        ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
+        ReadOnlyBuffer<SDFObjectDTO> sdfObjects,
         ReadWriteBuffer<uint2> objectIdBuffer) : IComputeShader
     {
         // More forgiving thresholds for noisy reflections
@@ -68,7 +68,7 @@ namespace DivisionEngine.Rendering
             }
 
             // Get roughness from material
-            float roughness = sdfPrimitives[centerObjId].roughness;
+            float roughness = sdfObjects[centerObjId].roughness;
 
             // Perform custom Division Denoising
             if (pixel.X > divisionDomain - 1 && pixel.Y > divisionDomain - 1 &&
@@ -77,7 +77,7 @@ namespace DivisionEngine.Rendering
             outputTexture[pixel] = centerColor;
 
             // Skip blur if not reflective or very smooth
-            if (sdfPrimitives[centerObjId].hasReflection == 0 || roughness < MIN_ROUGHNESS_BLUR)
+            if (sdfObjects[centerObjId].hasReflection == 0 || roughness < MIN_ROUGHNESS_BLUR)
             {
                 outputTexture[pixel] = centerColor;
                 return;

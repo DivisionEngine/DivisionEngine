@@ -37,7 +37,7 @@ namespace DivisionEngine
             World newDefaultWorld = new World("default");
             newDefaultWorld.RegisterAllSystems();
 
-            // Environment setup
+            // (Player) Camera
             uint cameraEntity = newDefaultWorld.CreateEntity("Camera");
             newDefaultWorld.AddComponent(cameraEntity, new Transform
             {
@@ -46,9 +46,11 @@ namespace DivisionEngine
             newDefaultWorld.AddComponent(cameraEntity, new Camera());
             newDefaultWorld.AddComponent(cameraEntity, new Player());
 
+            // Environment
             uint environmentEntity = newDefaultWorld.CreateEntity("Environment");
             newDefaultWorld.AddComponent(environmentEntity, new Environment());
 
+            // Sun
             uint sunEntity = newDefaultWorld.CreateEntity("Sun");
             newDefaultWorld.AddComponent(sunEntity, new Transform
             {
@@ -84,32 +86,35 @@ namespace DivisionEngine
                 }
             }
 
-            uint roundedBoxEntity = newDefaultWorld.CreateEntity("Rounded Box");
-            newDefaultWorld.AddComponent(roundedBoxEntity, new Transform
+            // Terrain
+            uint terrainEntity = newDefaultWorld.CreateEntity("Terrain");
+            newDefaultWorld.AddComponent(terrainEntity, new Transform
             {
-                position = new float3(0, -4, 0),
+                position = new float3(0, -20, 0),
             });
-            newDefaultWorld.AddComponent(roundedBoxEntity, new SDFRoundedBox
+            newDefaultWorld.AddComponent(terrainEntity, new SDFTerrain
             {
-                size = new float3(40f, 1f, 40f),
-                bevel = 0.25f,
+                scale = 200f,
+                height = 500f,
             });
-            newDefaultWorld.AddComponent(roundedBoxEntity, new SDFMaterial
+            newDefaultWorld.AddComponent(terrainEntity, new SDFMaterial
             {
-                albedoColor = ColorPalette.DeepSkyBlue,
+                albedoColor = ColorPalette.ForestGreen,
+                stepBias = 0.85f,
             });
-            newDefaultWorld.AddComponent(roundedBoxEntity, new SoftShadows());
-            newDefaultWorld.AddComponent(roundedBoxEntity, new Reflections());
+            newDefaultWorld.AddComponent(terrainEntity, new SoftShadows());
 
-            uint boxEntity = newDefaultWorld.CreateEntity("Box");
+            // Rounded Box
+            uint boxEntity = newDefaultWorld.CreateEntity("Rounded Box");
             newDefaultWorld.AddComponent(boxEntity, new Transform
             {
                 position = new float3(5, 3, -5),
                 rotation = Quaternion.CreateFromYawPitchRoll(Random.NextFloat(), Random.NextFloat(), Random.NextFloat()),
             });
-            newDefaultWorld.AddComponent(boxEntity, new SDFBox
+            newDefaultWorld.AddComponent(boxEntity, new SDFRoundedBox
             {
                 size = new float3(1f, 2f, 1f),
+                bevel = 0.25f,
             });
             newDefaultWorld.AddComponent(boxEntity, new SDFMaterial
             {
@@ -118,6 +123,7 @@ namespace DivisionEngine
             newDefaultWorld.AddComponent(boxEntity, new SoftShadows());
             newDefaultWorld.AddComponent(boxEntity, new Reflections());
 
+            // Create world
             SetWorld(newDefaultWorld);
             if (makeCurrent)
             {

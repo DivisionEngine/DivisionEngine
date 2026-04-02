@@ -9,7 +9,6 @@
 
 using ComputeSharp;
 using DivisionEngine.Rendering;
-using System.IO.Pipelines;
 
 namespace DivisionEngine
 {
@@ -25,7 +24,7 @@ namespace DivisionEngine
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadWriteBuffer<uint2> entityIdBuffer,
-        ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
+        ReadOnlyBuffer<SDFObjectDTO> sdfObjects,
         ReadOnlyBuffer<SDFLightDTO> lights) : IComputeShader
     {
         // Main constants
@@ -94,7 +93,7 @@ namespace DivisionEngine
             return Hlsl.Length(pt) - r;
         }
 
-        private float BoxSDF(float3 pt, float3 size)
+        private static float BoxSDF(float3 pt, float3 size)
         {
             float3 q = Hlsl.Abs(pt) - size;
             return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
@@ -168,6 +167,39 @@ namespace DivisionEngine
             return Hlsl.Length(pt) - r;
         }
 
+        // ------------------
+        // Terrain Generation
+        // ------------------
+
+        private float TerrainSDF(float3 pt, float size, float heightScale, float persistence, float lacunarity)
+        {
+            float height = SimplexNoise.FBM2D(pt.XZ / size, 4, persistence, lacunarity);
+            float grassHeight = SimplexNoise.FBM2D(pt.XZ / 10f + new float2(103, -1025), 2, persistence, lacunarity);
+            float terrainHeight = height * heightScale - (heightScale / 2f);
+
+            // Repeating balls
+            float spacing = 1f;
+            float ballRadius = 0.1f;
+
+            // Get position within repeating cell
+            float2 cellPos = new float2(
+                Hlsl.Fmod(Hlsl.Abs(pt.X), spacing) - spacing * 0.5f,
+                Hlsl.Fmod(Hlsl.Abs(pt.Z), spacing) - spacing * 0.5f
+            );
+
+            // Ball at each grid point (placed on terrain surface)
+            float3 grassLocal = new float3(cellPos.X, pt.Y - terrainHeight, cellPos.Y);
+            float grass = CapsuleSDF(grassLocal, ballRadius, grassHeight * 2f);
+
+            // Box terrain - for the future
+            //float3 q = Hlsl.Abs(pt) - new float3(size, 0f, size);
+            //if (pt.Y > 0f) q.Y -= terrainHeight - (heightScale / 3f);
+            //float terrain = Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
+
+            float terrain = pt.Y - terrainHeight;
+            return Hlsl.Min(terrain, grass);
+        }
+
         /// <summary>
         /// Calculates the SDF distance for the world at a point.
         /// </summary>
@@ -179,39 +211,42 @@ namespace DivisionEngine
             float minDist = MIN_TRAVERSE_DIST;
 
             closest = -1;
-            for (int i = 0; i < sdfPrimitives.Length; i++)
+            for (int i = 0; i < sdfObjects.Length; i++)
             {
-                SDFPrimitiveObjectDTO curPrimitive = sdfPrimitives[i];
-                if (shadowCastCheck && !curPrimitive.shadowEffects.X) continue;
-                if (sdfPrimitives[i].entityId == excludeID) continue; // Exclude to get second-closest object
-                float3 scaling = curPrimitive.scaling;
-                float3 curPoint = point - curPrimitive.position; // Transform SDF
-                curPoint = RotateVector(curPoint, curPrimitive.rotation); // Rotate SDF
+                SDFObjectDTO curSDF = sdfObjects[i];
+                if (shadowCastCheck && !curSDF.shadowEffects.X) continue;
+                if (sdfObjects[i].entityId == excludeID) continue; // Exclude to get second-closest object
+                float3 scaling = curSDF.scaling;
+                float3 curPoint = point - curSDF.position; // Transform SDF
+                curPoint = RotateVector(curPoint, curSDF.rotation); // Rotate SDF
                 curPoint *= scaling;
 
                 // Scale distance function
                 float dist = Hlsl.Min(scaling.X, Hlsl.Min(scaling.Y, scaling.Z));
-                if (curPrimitive.type == 0) // Adds sphere SDFs
-                    dist *= SphereSDF(curPoint, curPrimitive.parameters.X);
-                else if (curPrimitive.type == 1) // Adds box SDFs
-                    dist *= BoxSDF(curPoint, curPrimitive.parameters.XYZ);
-                else if (curPrimitive.type == 2) // Adds rounded box SDFs
-                    dist *= RoundedBoxSDF(curPoint, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
-                else if (curPrimitive.type == 3) // Adds torus SDFs
-                    dist *= TorusSDF(curPoint, curPrimitive.parameters.XY);
-                else if (curPrimitive.type == 4) // Adds pyramid SDFs
-                    dist *= PyramidSDF(curPoint, curPrimitive.parameters.X);
-                else if (curPrimitive.type == 5) // Adds plane SDFs
-                    dist *= PlaneSDF(curPoint, curPrimitive.parameters.XYZ, curPrimitive.parameters.W);
-                else if (curPrimitive.type == 6) // Adds cylinder SDFs
-                    dist *= CylinderSDF(curPoint, curPrimitive.parameters.X, curPrimitive.parameters.Y);
-                else if (curPrimitive.type == 7) // Adds capsule SDFs
-                    dist *= CapsuleSDF(curPoint, curPrimitive.parameters.X, curPrimitive.parameters.Y);
-                else if (curPrimitive.type == 8) // Adds cone SDFs
-                    dist *= ConeSDF(curPoint, curPrimitive.parameters.XY, curPrimitive.parameters.Z);
+                if (curSDF.type == 0) // Adds sphere SDFs
+                    dist *= SphereSDF(curPoint, curSDF.parameters.X);
+                else if (curSDF.type == 1) // Adds box SDFs
+                    dist *= BoxSDF(curPoint, curSDF.parameters.XYZ);
+                else if (curSDF.type == 2) // Adds rounded box SDFs
+                    dist *= RoundedBoxSDF(curPoint, curSDF.parameters.XYZ, curSDF.parameters.W);
+                else if (curSDF.type == 3) // Adds torus SDFs
+                    dist *= TorusSDF(curPoint, curSDF.parameters.XY);
+                else if (curSDF.type == 4) // Adds pyramid SDFs
+                    dist *= PyramidSDF(curPoint, curSDF.parameters.X);
+                else if (curSDF.type == 5) // Adds plane SDFs
+                    dist *= PlaneSDF(curPoint, curSDF.parameters.XYZ, curSDF.parameters.W);
+                else if (curSDF.type == 6) // Adds cylinder SDFs
+                    dist *= CylinderSDF(curPoint, curSDF.parameters.X, curSDF.parameters.Y);
+                else if (curSDF.type == 7) // Adds capsule SDFs
+                    dist *= CapsuleSDF(curPoint, curSDF.parameters.X, curSDF.parameters.Y);
+                else if (curSDF.type == 8) // Adds cone SDFs
+                    dist *= ConeSDF(curPoint, curSDF.parameters.XY, curSDF.parameters.Z);
+                else if (curSDF.type == 9) // Adds terrain SDFs
+                    dist *= TerrainSDF(curPoint, curSDF.parameters.X, curSDF.parameters.Y, curSDF.parameters.Z, curSDF.parameters.W);
                 else // Default to sphere SDF
-                    dist *= SphereSDF(curPoint, curPrimitive.parameters.X);
+                    dist *= SphereSDF(curPoint, curSDF.parameters.X);
 
+                dist *= curSDF.stepBias;
                 if (Hlsl.Abs(dist) < minDist)
                 {
                     closest = i;
@@ -301,7 +336,7 @@ namespace DivisionEngine
         /// <summary>
         /// Calculate lighting contribution from all lights
         /// </summary>
-        private float3 CalculateLighting(float3 hitPoint, float3 normal, float3 viewDir, SDFPrimitiveObjectDTO material)
+        private float3 CalculateLighting(float3 hitPoint, float3 normal, float3 viewDir, SDFObjectDTO material)
         {
             float3 totalLight = float3.Zero;
             float lightShadow = 1f;
@@ -374,7 +409,7 @@ namespace DivisionEngine
         /// <param name="normal">Initial hit normal</param>
         /// <param name="entity">Initial entity hit</param>
         /// <returns>Occlusion value at hit point</returns>
-        private float CalculateAO(float3 hitPoint, float3 normal, SDFPrimitiveObjectDTO entity)
+        private float CalculateAO(float3 hitPoint, float3 normal, SDFObjectDTO entity)
         {
             float3 samplePoint = hitPoint + normal * EPSILON; // Normal vector offset
             float worldDist = WorldSDF(samplePoint, false, entity.entityId, out _); // Get distance to the next closest object
@@ -569,7 +604,7 @@ namespace DivisionEngine
             uint2 idData = entityIdBuffer[pixel.X + pixel.Y * (int)width];
             if (idData.X != uint.MaxValue)
             {
-                SDFPrimitiveObjectDTO entity = sdfPrimitives[(int)idData.X];
+                SDFObjectDTO entity = sdfObjects[(int)idData.X];
                 float3 normal = depthNormals[pixel].GBA;
                 float3 viewDir = -rayDir;
 
@@ -725,7 +760,7 @@ namespace DivisionEngine
             return true;
         }
 
-        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 normal, SDFPrimitiveObjectDTO startMat, out int steps)
+        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 normal, SDFObjectDTO startMat, out int steps)
         {
             float3 totalTransmittance = float3.One; // Start with full transmittance
             float3 accumulatedColor = float3.Zero;
@@ -734,7 +769,7 @@ namespace DivisionEngine
             float3 currentOrigin = startOrigin;
             float3 currentDir = startDir;
             float3 currentNormal = normal;
-            SDFPrimitiveObjectDTO currentMat = startMat;
+            SDFObjectDTO currentMat = startMat;
             bool currentlyInsideObject = true;
             steps = 0;
 
@@ -775,7 +810,7 @@ namespace DivisionEngine
                             currentlyInsideObject = nowInside;
                             if (currentlyInsideObject && exitClosestObj != -1)
                             {
-                                currentMat = sdfPrimitives[exitClosestObj];
+                                currentMat = sdfObjects[exitClosestObj];
                                 absorptionCoefficient = Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
                             }
                             break;
@@ -813,12 +848,12 @@ namespace DivisionEngine
                             out int nextObjIndex, out _, out tracedSteps);
                         steps += tracedSteps;
 
-                        if (nextObjIndex >= 0 && nextObjIndex < sdfPrimitives.Length)
+                        if (nextObjIndex >= 0 && nextObjIndex < sdfObjects.Length)
                         {
                             currentOrigin = hitPoint;
                             currentNormal = FastNormal(hitPoint);
                             if (Hlsl.Dot(currentNormal, currentDir) > 0) currentNormal = -currentNormal;
-                            currentMat = sdfPrimitives[nextObjIndex];
+                            currentMat = sdfObjects[nextObjIndex];
                             currentlyInsideObject = true;
                         }
                         else
@@ -856,7 +891,7 @@ namespace DivisionEngine
             float3 viewDir = -rayDir;
 
             // Calculate ambient occlusion for the hit point
-            SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
+            SDFObjectDTO entity = sdfObjects[closestObjIndex];
             float aoValue = 1f;
             if (entity.aoValues.X > 0f)
                 aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, entity), entity.aoValues.X);
@@ -885,7 +920,7 @@ namespace DivisionEngine
             float cosTheta = 0f;
 
             float3 refractedLight = float3.Zero;
-            SDFPrimitiveObjectDTO mainMat = default;
+            SDFObjectDTO mainMat = default;
             outputNormal = float3.Zero;
             totalDist = 0f;
             float farClipPlane = worldData.farPlane;
@@ -921,7 +956,7 @@ namespace DivisionEngine
                 float3 viewDir = -rayDir;
 
                 // Get material properties
-                SDFPrimitiveObjectDTO entity = sdfPrimitives[closestObjIndex];
+                SDFObjectDTO entity = sdfObjects[closestObjIndex];
                 float metallic = entity.metallic;
                 float roughness = Hlsl.Max(entity.roughness, 0.1f);
                 float aoStrength = entity.aoValues.X;
@@ -1081,7 +1116,7 @@ namespace DivisionEngine
                     uint2 idData = entityIdBuffer[pixel.X + pixel.Y * (int)width];
                     if (idData.X != uint.MaxValue)
                     {
-                        SDFPrimitiveObjectDTO entity = sdfPrimitives[(int)idData.X];
+                        SDFObjectDTO entity = sdfObjects[(int)idData.X];
                         float3 hitPoint = rayOrigin + rayDir * depthNormals[pixel].R * (worldData.farPlane - worldData.nearPlane);
                         float3 normal = depthNormals[pixel].GBA;
 

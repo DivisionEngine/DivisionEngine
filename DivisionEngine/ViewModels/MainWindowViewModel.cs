@@ -538,6 +538,7 @@ namespace DivisionEngine.Editor.ViewModels
                     "cylinder" => DefaultEntities.SDFCylinder(),
                     "capsule" => DefaultEntities.SDFCapsule(),
                     "cone" => DefaultEntities.SDFCone(),
+                    "terrain" => DefaultEntities.Terrain(),
                     _ => DefaultEntities.EmptyTransform()
                 };
                 PropertiesWindow.LoadEntityComponents(entityId); // Select entity when created

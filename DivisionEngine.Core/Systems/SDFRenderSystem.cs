@@ -30,9 +30,9 @@ namespace DivisionEngine.Systems
         public static SDFWorldDTO PreparedWorldDTO { get; private set; }
 
         /// <summary>
-        /// Prepared settings for all SDF primitives in the world.
+        /// Prepared settings for all SDF objects in the world.
         /// </summary>
-        public static SDFPrimitiveObjectDTO[] PreparedPrimitivesDTO { get; private set; } = [];
+        public static SDFObjectDTO[] PreparedSDFObjectsDTO { get; private set; } = [];
 
         /// <summary>
         /// Prepared settings for all SDF lights in the world.
@@ -42,16 +42,16 @@ namespace DivisionEngine.Systems
         /// <summary>
         /// Called right before the world is rendered to screen.
         /// </summary>
-        public override void Render() => (PreparedWorldDTO, PreparedPrimitivesDTO, PreparedLightsDTO) = GetFullWorldSDFData();
+        public override void Render() => (PreparedWorldDTO, PreparedSDFObjectsDTO, PreparedLightsDTO) = GetFullWorldSDFData();
 
         /// <summary>
         /// Translates the world to a GPU-relevant format.
         /// </summary>
         /// <returns>ECS world information as data buffers</returns>
-        public static (SDFWorldDTO, SDFPrimitiveObjectDTO[], SDFLightDTO[]) GetFullWorldSDFData()
+        public static (SDFWorldDTO, SDFObjectDTO[], SDFLightDTO[]) GetFullWorldSDFData()
         {
             SDFWorldDTO worldData = new SDFWorldDTO();
-            List<SDFPrimitiveObjectDTO> sdfPrimitives = [];
+            List<SDFObjectDTO> sdfObjects = [];
             List<SDFLightDTO> sdfLights = [];
 
             // Gather camera data
@@ -163,11 +163,11 @@ namespace DivisionEngine.Systems
                 }
             }
 
-            // Gather and transform all primitives and effects
+            // Gather and transform all SDFs and effects
             foreach (var (id, transform) in W.QueryData<Transform>())
             {
                 // Setup
-                SDFPrimitiveObjectDTO curPrimitive = new SDFPrimitiveObjectDTO
+                SDFObjectDTO curSDF = new SDFObjectDTO
                 {
                     entityId = id,
                     type = -1,
@@ -178,126 +178,137 @@ namespace DivisionEngine.Systems
                         Math.Max(1f / transform.scaling.Y, EPSILON),
                         Math.Max(1f / transform.scaling.Z, EPSILON)),
                     color = new float4(1f, 0f, 1f, 1f), // Default render color if no material active
+                    stepBias = 1f,
                 };
 
                 // Effects
                 if (W.HasComponent<SoftShadows>(id))
                 {
                     SoftShadows shadows = W.GetComponent<SoftShadows>(id)!;
-                    curPrimitive.shadowEffects = new bool2(shadows.shadowCaster, shadows.shadowReceiver);
-                    curPrimitive.shadowDistances = new float2(shadows.minDistance, shadows.maxDistance);
+                    curSDF.shadowEffects = new bool2(shadows.shadowCaster, shadows.shadowReceiver);
+                    curSDF.shadowDistances = new float2(shadows.minDistance, shadows.maxDistance);
                 }
                 if (W.HasComponent<Reflections>(id))
                 {
                     Reflections reflect = W.GetComponent<Reflections>(id)!;
-                    if (reflect.hasReflections) curPrimitive.hasReflection = 1;
-                    else curPrimitive.hasReflection = 0;
-                    if (reflect.reflectionShadows) curPrimitive.reflectionShadows = 1;
-                    else curPrimitive.reflectionShadows = 0;
-                    curPrimitive.reflectRayStepFalloff = reflect.rayStepsFalloff;
-                    curPrimitive.reflectionMaxBounces = reflect.maxBounces;
+                    if (reflect.hasReflections) curSDF.hasReflection = 1;
+                    else curSDF.hasReflection = 0;
+                    if (reflect.reflectionShadows) curSDF.reflectionShadows = 1;
+                    else curSDF.reflectionShadows = 0;
+                    curSDF.reflectRayStepFalloff = reflect.rayStepsFalloff;
+                    curSDF.reflectionMaxBounces = reflect.maxBounces;
                 }
                 if (W.HasComponent<Refractions>(id))
                 {
                     Refractions refract = W.GetComponent<Refractions>(id)!;
-                    if (refract.hasRefractions) curPrimitive.hasRefraction = 1;
-                    else curPrimitive.hasRefraction = 0;
-                    curPrimitive.absorptionColor = refract.absorptionColor;
-                    curPrimitive.refractionMaxSteps = refract.maxRaySteps;
-                    curPrimitive.refractMaxRecursion = refract.maxRecursionTraces;
+                    if (refract.hasRefractions) curSDF.hasRefraction = 1;
+                    else curSDF.hasRefraction = 0;
+                    curSDF.absorptionColor = refract.absorptionColor;
+                    curSDF.refractionMaxSteps = refract.maxRaySteps;
+                    curSDF.refractMaxRecursion = refract.maxRecursionTraces;
                 }
 
                 // Material
                 if (W.HasComponent<SDFMaterial>(id))
                 {
                     SDFMaterial mat = W.GetComponent<SDFMaterial>(id)!;
-                    curPrimitive.color = mat.albedoColor;
-                    curPrimitive.metallic = mat.metallic;
-                    curPrimitive.roughness = mat.roughness;
-                    curPrimitive.specular = mat.specular;
-                    curPrimitive.ior = mat.ior;
-                    curPrimitive.aoValues = new float3(mat.ambientOcclusion, mat.ambientRange, mat.ambientFalloff);
-                    curPrimitive.reflectance = mat.reflectance;
+                    curSDF.color = mat.albedoColor;
+                    curSDF.metallic = mat.metallic;
+                    curSDF.roughness = mat.roughness;
+                    curSDF.specular = mat.specular;
+                    curSDF.ior = mat.ior;
+                    curSDF.aoValues = new float3(mat.ambientOcclusion, mat.ambientRange, mat.ambientFalloff);
+                    curSDF.reflectance = mat.reflectance;
+                    curSDF.stepBias = mat.stepBias;
 
                     // Precalculate material values
                     float s2016 = 0.16f * mat.specular * mat.specular;
                     float3 f0 = new float3(s2016, s2016, s2016);
-                    curPrimitive.f0_reflectance = new float3(
+                    curSDF.f0_reflectance = new float3(
                         Math.Lerp(f0.X, mat.albedoColor.X, mat.metallic),
                         Math.Lerp(f0.Y, mat.albedoColor.Y, mat.metallic),
                         Math.Lerp(f0.Z, mat.albedoColor.Z, mat.metallic));
-                    if (curPrimitive.hasRefraction == 1) curPrimitive.f0_dielectric = Math.Pow((mat.ior - 1.0f) / (mat.ior + 1.0f), 2.0f);
+                    if (curSDF.hasRefraction == 1) curSDF.f0_dielectric = Math.Pow((mat.ior - 1.0f) / (mat.ior + 1.0f), 2.0f);
                 }
 
-                // Primitives
+                // SDF Objects
                 if (W.HasComponent<SDFSphere>(id)) // Check sphere primitive
                 {
                     SDFSphere sphere = W.GetComponent<SDFSphere>(id)!;
-                    curPrimitive.type = 0; // Sphere type
-                    curPrimitive.parameters = new float4(sphere.radius, 0f, 0f, 0f);
-                    sdfPrimitives.Add(curPrimitive);
+                    curSDF.type = 0; // Sphere type
+                    curSDF.parameters = new float4(sphere.radius, 0f, 0f, 0f);
+                    sdfObjects.Add(curSDF);
                 }
                 if (W.HasComponent<SDFBox>(id)) // Check box primitive
                 {
                     SDFBox box = W.GetComponent<SDFBox>(id)!;
-                    curPrimitive.type = 1; // Box type
-                    curPrimitive.parameters = new float4(box.size.X, box.size.Y, box.size.Z, 0f);
-                    sdfPrimitives.Add(curPrimitive);
+                    curSDF.type = 1; // Box type
+                    curSDF.parameters = new float4(box.size.X, box.size.Y, box.size.Z, 0f);
+                    sdfObjects.Add(curSDF);
                 }
                 if (W.HasComponent<SDFRoundedBox>(id)) // Check rounded box primitive
                 {
                     SDFRoundedBox roundedBox = W.GetComponent<SDFRoundedBox>(id)!;
-                    curPrimitive.type = 2; // Rounded box type
-                    curPrimitive.parameters = new float4(roundedBox.size.X, roundedBox.size.Y, roundedBox.size.Z, roundedBox.bevel);
-                    sdfPrimitives.Add(curPrimitive);
+                    curSDF.type = 2; // Rounded box type
+                    curSDF.parameters = new float4(roundedBox.size.X, roundedBox.size.Y, roundedBox.size.Z, roundedBox.bevel);
+                    sdfObjects.Add(curSDF);
                 }
                 if (W.HasComponent<SDFTorus>(id)) // Check torus primitive
                 {
                     SDFTorus torus = W.GetComponent<SDFTorus>(id)!;
-                    curPrimitive.type = 3; // Torus type
-                    curPrimitive.parameters = new float4(torus.wholeRadius, torus.ringRadius, 0f, 0f);
-                    sdfPrimitives.Add(curPrimitive);
+                    curSDF.type = 3; // Torus type
+                    curSDF.parameters = new float4(torus.wholeRadius, torus.ringRadius, 0f, 0f);
+                    sdfObjects.Add(curSDF);
                 }
                 if (W.HasComponent<SDFPyramid>(id)) // Check pyramid primitive
                 {
                     SDFPyramid pyramid = W.GetComponent<SDFPyramid>(id)!;
-                    curPrimitive.type = 4; // Pyramid type
-                    curPrimitive.parameters = new float4(pyramid.height, 0f, 0f, 0f);
-                    sdfPrimitives.Add(curPrimitive);
+                    curSDF.type = 4; // Pyramid type
+                    curSDF.parameters = new float4(pyramid.height, 0f, 0f, 0f);
+                    sdfObjects.Add(curSDF);
                 }
                 if (W.HasComponent<SDFPlane>(id)) // Check plane primitive
                 {
                     SDFPlane plane = W.GetComponent<SDFPlane>(id)!;
-                    curPrimitive.type = 5; // Plane type
-                    curPrimitive.parameters = new float4(plane.normal.X, plane.normal.Y, plane.normal.Z, plane.height);
-                    sdfPrimitives.Add(curPrimitive);
+                    curSDF.type = 5; // Plane type
+                    curSDF.parameters = new float4(plane.normal.X, plane.normal.Y, plane.normal.Z, plane.height);
+                    sdfObjects.Add(curSDF);
                 }
                 if (W.HasComponent<SDFCylinder>(id)) // Check cylinder primitive
                 {
                     SDFCylinder cylinder = W.GetComponent<SDFCylinder>(id)!;
-                    curPrimitive.type = 6; // Cylinder type
-                    curPrimitive.parameters = new float4(cylinder.radius, cylinder.height, 0f, 0f);
-                    sdfPrimitives.Add(curPrimitive);
+                    curSDF.type = 6; // Cylinder type
+                    curSDF.parameters = new float4(cylinder.radius, cylinder.height, 0f, 0f);
+                    sdfObjects.Add(curSDF);
                 }
                 if (W.HasComponent<SDFCapsule>(id)) // Check capsule primitive
                 {
                     SDFCapsule capsule = W.GetComponent<SDFCapsule>(id)!;
-                    curPrimitive.type = 7; // Capsule type
-                    curPrimitive.parameters = new float4(capsule.radius, capsule.height, 0f, 0f);
-                    sdfPrimitives.Add(curPrimitive);
+                    curSDF.type = 7; // Capsule type
+                    curSDF.parameters = new float4(capsule.radius, capsule.height, 0f, 0f);
+                    sdfObjects.Add(curSDF);
                 }
                 if (W.HasComponent<SDFCone>(id)) // Check cone primitive
                 {
                     SDFCone cone = W.GetComponent<SDFCone>(id)!;
-                    curPrimitive.type = 8; // Cone type
-                    curPrimitive.parameters = new float4(cone.cone.X, cone.cone.Y, cone.height, 0f);
-                    sdfPrimitives.Add(curPrimitive);
+                    curSDF.type = 8; // Cone type
+                    curSDF.parameters = new float4(cone.cone.X, cone.cone.Y, cone.height, 0f);
+                    sdfObjects.Add(curSDF);
                 }
 
-                // Space to find more SDF primitives in the future
+                // Terrains
+                if (W.HasComponent<SDFTerrain>(id)) // Check terrain SDF
+                {
+                    SDFTerrain terrain = W.GetComponent<SDFTerrain>(id)!;
+                    curSDF.type = 9; // Terrain type
+                    curSDF.parameters = new float4(terrain.scale, terrain.height, terrain.persistence, terrain.lacunarity);
+                    sdfObjects.Add(curSDF);
+                }
+
+                // Space to find more SDF objects in the future
             }
 
-            return (worldData, sdfPrimitives.ToArray(), sdfLights.ToArray());
+            return (worldData, sdfObjects.ToArray(), sdfLights.ToArray());
         }
     }
 }

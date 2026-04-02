@@ -84,6 +84,8 @@
             <MenuItem Header="Cylinder" Command="{Binding CreateEntityCommand}" CommandParameter="cylinder"/>
             <MenuItem Header="Capsule" Command="{Binding CreateEntityCommand}" CommandParameter="capsule"/>
             <MenuItem Header="Cone" Command="{Binding CreateEntityCommand}" CommandParameter="cone"/>
+            <Separator/>
+            <MenuItem Header="Terrain" Command="{Binding CreateEntityCommand}" CommandParameter="terrain"/>
         </MenuItem>
           <!--Other Menus-->
         <MenuItem Header="Help" Foreground="#ccc">

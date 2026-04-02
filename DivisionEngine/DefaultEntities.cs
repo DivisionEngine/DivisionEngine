@@ -185,5 +185,16 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new Refractions());
             return sdf;
         }
+
+        public static uint Terrain(string name = "New Terrain")
+        {
+            if (WorldManager.CurrentWorld == null)
+                Debug.Warning("No world is currently loaded to add entities to");
+            uint sdf = W.CreateTransformEntity(name);
+            W.AddComponent(sdf, new SDFTerrain());
+            W.AddComponent(sdf, new SDFMaterial());
+            W.AddComponent(sdf, new SoftShadows());
+            return sdf;
+        }
     }
 }

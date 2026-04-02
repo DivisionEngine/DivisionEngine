@@ -52,6 +52,7 @@ namespace DivisionEngine.Components.SDFs
             ambientRange = 1f;
             ambientFalloff = 2f;
             reflectance = 2f;
+            stepBias = 1f;
         }
 
         [Color(false)] public float4 albedoColor;
@@ -73,6 +74,9 @@ namespace DivisionEngine.Components.SDFs
         [Tooltip("Raymarched reflection intensity, useful for combining with refractions")]
         [Range(0f, 10f)] public float reflectance;
 
+        [Tooltip("A multiplier given to any SDF that can modify the step size to it")]
+        [Range(0.1f, 1.5f)] public float stepBias;
+
         public IComponent Clone() => new SDFMaterial
         {
             albedoColor = albedoColor,
@@ -84,6 +88,7 @@ namespace DivisionEngine.Components.SDFs
             ambientRange = ambientRange,
             ambientFalloff = ambientFalloff,
             reflectance = reflectance,
+            stepBias = stepBias,
         };
     }
 }

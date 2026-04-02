@@ -49,9 +49,9 @@ namespace DivisionEngine.Rendering
     }
 
     /// <summary>
-    /// Transfers SDF primitive object data to GPU for rendering.
+    /// Transfers SDF object data to GPU for rendering.
     /// </summary>
-    public struct SDFPrimitiveObjectDTO
+    public struct SDFObjectDTO
     {
         // Base Properties
         public uint entityId; // 4b
@@ -60,6 +60,7 @@ namespace DivisionEngine.Rendering
         public float4 rotation; // 16b
         public float3 scaling; // 12b
         public float4 parameters; // 16b
+        public float stepBias; // 4b
 
         // Material Properties
         public float4 color; // 16b

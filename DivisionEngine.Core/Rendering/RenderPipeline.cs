@@ -101,7 +101,7 @@ namespace DivisionEngine.Rendering
         private ReadWriteBuffer<uint2>? objectIdBuffer;
 
         // Buffer storage
-        private ReadOnlyBuffer<SDFPrimitiveObjectDTO>? primitivesBuffer;
+        private ReadOnlyBuffer<SDFObjectDTO>? sdfObjBuffer;
         private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
         private float4[]? pixels;
         private float4[]? depthNormalPixels;
@@ -327,16 +327,16 @@ namespace DivisionEngine.Rendering
             }
 
             SDFWorldDTO worldDTO;
-            SDFPrimitiveObjectDTO[] sdfPrimitivesDTO;
+            SDFObjectDTO[] sdfObjDTO;
             SDFLightDTO[] sdfLightsDTO;
             lock (SyncLock)
             {
                 worldDTO = SDFRenderSystem.PreparedWorldDTO;
-                sdfPrimitivesDTO = SDFRenderSystem.PreparedPrimitivesDTO;
+                sdfObjDTO = SDFRenderSystem.PreparedSDFObjectsDTO;
                 sdfLightsDTO = SDFRenderSystem.PreparedLightsDTO;
             }
 
-            if (sdfPrimitivesDTO.Length < 1) return;
+            if (sdfObjDTO.Length < 1) return;
             //Debug.Warning("device name: " + device.Name);
 
             try
@@ -382,9 +382,9 @@ namespace DivisionEngine.Rendering
                     }
 
                     // Build and copy buffers
-                    primitivesBuffer?.Dispose();
-                    primitivesBuffer = device?.AllocateReadOnlyBuffer(sdfPrimitivesDTO);
-                    if (primitivesBuffer == null) return;
+                    sdfObjBuffer?.Dispose();
+                    sdfObjBuffer = device?.AllocateReadOnlyBuffer(sdfObjDTO);
+                    if (sdfObjBuffer == null) return;
 
                     lightsBuffer?.Dispose();
                     lightsBuffer = device?.AllocateReadOnlyBuffer(sdfLightsDTO);
@@ -396,7 +396,7 @@ namespace DivisionEngine.Rendering
                     
                     // Debugging handled in-shader now (again)
                     SDFShader3D shader = new SDFShader3D(texWidth, texHeight, texWidth / (float)texHeight, TimeSystem.FrameCount, (int)debugMode, worldDTO,
-                        renderTex, depthNormalsTex, objectIdBuffer, primitivesBuffer, lightsBuffer);
+                        renderTex, depthNormalsTex, objectIdBuffer, sdfObjBuffer, lightsBuffer);
                     device?.For(texWidth, texHeight, shader);
                 }
 
@@ -411,7 +411,7 @@ namespace DivisionEngine.Rendering
                     {
                         DivisionDenoiseShader denoiseShader = new DivisionDenoiseShader(
                             texWidth, texHeight, worldDTO.divisionThreshold, worldDTO.divisionDomain,
-                            currentTexture, denoisedTex, depthNormalsTex, primitivesBuffer, objectIdBuffer);
+                            currentTexture, denoisedTex, depthNormalsTex, sdfObjBuffer, objectIdBuffer);
                         device?.For(texWidth, texHeight, denoiseShader);
                     }
                     currentTexture = denoisedTex;
@@ -431,7 +431,7 @@ namespace DivisionEngine.Rendering
                         {
                             ATrousDenoiseShader aTrousShader = new ATrousDenoiseShader(
                                 texWidth, texHeight, stepSize, ping, pong, depthNormalsTex,
-                                primitivesBuffer, objectIdBuffer, kernelBuffer);
+                                sdfObjBuffer, objectIdBuffer, kernelBuffer);
                             device?.For(texWidth, texHeight, aTrousShader);
                         }
 
@@ -454,7 +454,7 @@ namespace DivisionEngine.Rendering
                         {
                             FastDepthOfFieldShader dofShader = new FastDepthOfFieldShader(
                                 texWidth, texHeight, // Max blur radius
-                                source, target, depthNormalsTex, objectIdBuffer, primitivesBuffer, worldDTO);
+                                source, target, depthNormalsTex, objectIdBuffer, sdfObjBuffer, worldDTO);
                             device?.For(texWidth, texHeight, dofShader);
                         }
                         currentTexture = target;
@@ -617,7 +617,7 @@ namespace DivisionEngine.Rendering
             denoisedTex?.Dispose();
             depthNormalsTex?.Dispose();
             objectIdBuffer?.Dispose();
-            primitivesBuffer?.Dispose();
+            sdfObjBuffer?.Dispose();
             lightsBuffer?.Dispose();
             kernelBuffer?.Dispose();
             inputContext?.Dispose();
@@ -626,7 +626,7 @@ namespace DivisionEngine.Rendering
             denoisedTex = null;
             depthNormalsTex = null;
             objectIdBuffer = null;
-            primitivesBuffer = null;
+            sdfObjBuffer = null;
             lightsBuffer = null;
             kernelBuffer = null;
             inputContext = null;

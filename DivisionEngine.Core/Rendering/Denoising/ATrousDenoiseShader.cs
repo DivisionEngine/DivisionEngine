@@ -20,7 +20,7 @@ namespace DivisionEngine.Rendering.Denoising
     /// <param name="inputTexture">Input render</param>
     /// <param name="outputTexture">Output denoised render</param>
     /// <param name="depthNormals">Depth normal texture</param>
-    /// <param name="sdfPrimitives">SDF primitives list</param>
+    /// <param name="sdfObjects">SDF objects list</param>
     /// <param name="objectIdBuffer">Object ID Buffer</param>
     [GeneratedComputeShaderDescriptor]
     [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
@@ -31,7 +31,7 @@ namespace DivisionEngine.Rendering.Denoising
         ReadWriteTexture2D<float4> inputTexture,
         ReadWriteTexture2D<float4> outputTexture,
         ReadWriteTexture2D<float4> depthNormals,
-        ReadOnlyBuffer<SDFPrimitiveObjectDTO> sdfPrimitives,
+        ReadOnlyBuffer<SDFObjectDTO> sdfObjects,
         ReadWriteBuffer<uint2> objectIdBuffer,
         ReadOnlyBuffer<float> kernelBuffer) : IComputeShader
     {
@@ -47,8 +47,8 @@ namespace DivisionEngine.Rendering.Denoising
             }
 
             // Check reflections enabled
-            float roughness = sdfPrimitives[centerObjId].roughness;
-            if (sdfPrimitives[centerObjId].hasReflection == 0 || roughness < 0.05f)
+            float roughness = sdfObjects[centerObjId].roughness;
+            if (sdfObjects[centerObjId].hasReflection == 0 || roughness < 0.05f)
             {
                 outputTexture[pixel] = inputTexture[pixel];
                 return;
