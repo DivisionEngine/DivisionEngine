@@ -24,6 +24,7 @@ namespace DivisionEngine.Components
             farClip = 10000f;
 
             enableDepthOfField = false;
+            enableAutofocus = false;
             focusDistance = 24f;
             focalLength = 26f;
 
@@ -38,25 +39,38 @@ namespace DivisionEngine.Components
         }
 
         // Camera vars
-        [Tooltip("The viewing angle of the camera")] public float fieldOfView;
-        [Tooltip("Near clip plane that the camera starts rendering at")] public float nearClip;
-        [Tooltip("Far clip plane that the camera stops rendering at")] public float farClip;
+        [Tooltip("The viewing angle of the camera")]
+        public float fieldOfView;
+        [Tooltip("Near clip plane that the camera starts rendering at")]
+        public float nearClip;
+        [Tooltip("Far clip plane that the camera stops rendering at")]
+        public float farClip;
 
         // Depth of field vars
         public bool enableDepthOfField;
-        [Tooltip("Distance at which DOF = 0")] public float focusDistance;
-        [Tooltip("Falloff distance for DOF")] public float focalLength;
+        [Tooltip("Attempts to calculate focal length and focus distance based on scene content")]
+        public bool enableAutofocus;
+        [Tooltip("Distance at which DOF = 0")]
+        public float focusDistance;
+        [Tooltip("Falloff distance for DOF")]
+        public float focalLength;
 
         // SDF rendering vars
-        [Tooltip("Max number of trace steps")] public int maxRaySteps;
-        [Tooltip("Max trace steps for shadows")] public int maxShadowRaySteps;
+        [Tooltip("Max number of trace steps")]
+        public int maxRaySteps;
+        [Tooltip("Max trace steps for shadows")]
+        public int maxShadowRaySteps;
 
         // Denoise vars
         public bool enableDivisionDenoise;
-        [Tooltip("Enable A-Trous wavelet denoising")] public bool enableATrousDenoise;
-        [Range(0f, 1f)] public float divisionDenoiseThreshold;
-        [Tooltip("Size of radius in render image to take blur samples from")][Range(1, 4)] public int divisionDenoiseDomain;
-        [Range(1, 5)] public int aTrousStepCount;
+        [Tooltip("Enable A-Trous wavelet denoising")]
+        public bool enableATrousDenoise;
+        [Range(0f, 1f)]
+        public float divisionDenoiseThreshold;
+        [Range(1, 4)][Tooltip("Size of radius in render image to take blur samples from")]
+        public int divisionDenoiseDomain;
+        [Range(1, 5)]
+        public int aTrousStepCount;
 
         public IComponent Clone() => new Camera
         {
@@ -65,6 +79,7 @@ namespace DivisionEngine.Components
             farClip = farClip,
 
             enableDepthOfField = enableDepthOfField,
+            enableAutofocus = enableAutofocus,
             focusDistance = focusDistance,
             focalLength = focalLength,
 

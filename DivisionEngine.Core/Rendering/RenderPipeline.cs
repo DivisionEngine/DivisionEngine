@@ -103,8 +103,16 @@ namespace DivisionEngine.Rendering
         // Buffer storage
         private ReadOnlyBuffer<SDFObjectDTO>? sdfObjBuffer;
         private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
-        private float4[]? pixels;
-        private float4[]? depthNormalPixels;
+
+        /// <summary>
+        /// Rendered pixels buffer.
+        /// </summary>
+        public float4[]? Pixels { get; private set; }
+
+        /// <summary>
+        /// Depth and world normals (r - depth, gba - normalized world normal vector).
+        /// </summary>
+        public float4[]? DepthNormalPixels { get; private set; }
 
         // Time measurement
 
@@ -344,11 +352,11 @@ namespace DivisionEngine.Rendering
                 lock (SyncLock)
                 {
                     // Build render texture
-                    if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight || pixels == null)
+                    if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight || Pixels == null)
                     {
                         renderTex?.Dispose();
                         renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                        pixels = new float4[texWidth * texHeight];
+                        Pixels = new float4[texWidth * texHeight];
                     }
 
                     // Build denoised texture (for post-process)
@@ -359,11 +367,11 @@ namespace DivisionEngine.Rendering
                     }
 
                     // Build depth and normal texture
-                    if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || depthNormalPixels == null)
+                    if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || DepthNormalPixels == null)
                     {
                         depthNormalsTex?.Dispose();
                         depthNormalsTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                        depthNormalPixels = new float4[texWidth * texHeight];
+                        DepthNormalPixels = new float4[texWidth * texHeight];
                     }
 
                     // Build object ID buffer
@@ -463,9 +471,9 @@ namespace DivisionEngine.Rendering
                 }
 
                 // Copy final result for OpenGL display
-                depthNormalsTex?.CopyTo(depthNormalPixels!);
+                depthNormalsTex?.CopyTo(DepthNormalPixels!);
                 objectIdBuffer?.CopyTo(ObjectIDs!);
-                currentTexture?.CopyTo(pixels!);
+                currentTexture?.CopyTo(Pixels!);
             }
             catch (ObjectDisposedException ex)
             {
@@ -483,7 +491,7 @@ namespace DivisionEngine.Rendering
             // Push final texture to OpenGL
             unsafe
             {
-                fixed (float4* dataPtr = pixels)
+                fixed (float4* dataPtr = Pixels)
                 {
                     gl!.BindTexture(TextureTarget.Texture2D, glTexture);
                     gl.TexImage2D(
