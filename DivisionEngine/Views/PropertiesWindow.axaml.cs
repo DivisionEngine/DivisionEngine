@@ -207,7 +207,7 @@ public partial class PropertiesWindow : EditorWindow
                 Height = 12,
             },
             Text = "",
-            Watermark = "Search Components...",
+            PlaceholderText = "Search Components...",
             FontSize = 12,
             Foreground = EditorColor.FromRGB(220, 220, 220),
             Background = EditorColor.FromRGB(17, 17, 17),

@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -167,7 +168,7 @@ public partial class AssetsWindow : EditorWindow
         directoryField = new TextBox
         {
             Text = string.Empty,
-            Watermark = "No Project Loaded",
+            PlaceholderText = "No Project Loaded",
             FontSize = 11,
             Foreground = Brushes.White,
             Margin = new Thickness(5),
@@ -315,7 +316,7 @@ public partial class AssetsWindow : EditorWindow
         if (string.IsNullOrEmpty(path))
         {
             Debug.Warning("Could not load assets, no project is loaded");
-            directoryField.Watermark = "No Project Loaded";
+            directoryField.PlaceholderText = "No Project Loaded";
             directoryField.Text = string.Empty;
             itemCountText.Text = "0 items";
             return false;
@@ -705,7 +706,9 @@ public partial class AssetsWindow : EditorWindow
         }));
         contextMenu.Items.Add(CreateMenuItem("Copy Path", MaterialIconKind.ContentCopy, () =>
         {
-            TopLevel.GetTopLevel(this)?.Clipboard?.SetTextAsync(file.FullName);
+            DataTransfer clipboardData = new DataTransfer(); // This new clipboard thing is hella annoying wtf
+            clipboardData.Add(DataTransferItem.CreateText(file.FullName));
+            TopLevel.GetTopLevel(this)?.Clipboard?.SetDataAsync(clipboardData);
             Debug.Info($"Copying path: {file.FullName}");
         }));
         contextMenu.Items.Add(new Separator());
@@ -1223,7 +1226,7 @@ public partial class AssetsWindow : EditorWindow
         // Clear and show empty state
         Dispatcher.UIThread.Post(() => {
             currentPath = string.Empty;
-            directoryField.Watermark = "No Project Loaded";
+            directoryField.PlaceholderText = "No Project Loaded";
             directoryField.Text = string.Empty;
             itemCountText.Text = "0 items";
             ShowEmptyState("No Project Loaded");

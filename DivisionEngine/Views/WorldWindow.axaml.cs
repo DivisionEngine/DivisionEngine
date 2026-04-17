@@ -90,7 +90,7 @@ public partial class WorldWindow : EditorWindow
             };
             renameTextBox = new TextBox
             {
-                Watermark = "Rename",
+                PlaceholderText = "Rename",
                 FontSize = 12,
                 IsVisible = false,
                 Margin = new Thickness(2, 0, 0, 0),
@@ -316,7 +316,7 @@ public partial class WorldWindow : EditorWindow
         {
             InnerLeftContent = searchIcon,
             Text = "",
-            Watermark = "Search Entities...",
+            PlaceholderText = "Search Entities...",
             FontSize = 12,
             Foreground = EditorColor.FromRGB(220, 220, 220),
             Background = EditorColor.FromRGB(17, 17, 17),

@@ -81,7 +81,7 @@ public partial class ConsoleWindow : EditorWindow
         {
             InnerLeftContent = searchIcon,
             Text = "",
-            Watermark = "Search Logs...",
+            PlaceholderText = "Search Logs...",
             FontSize = 12,
             Foreground = EditorColor.FromRGB(220, 220, 220),
             Background = EditorColor.FromRGB(17, 17, 17),
