@@ -32,6 +32,9 @@
     <DataTemplate DataType="{x:Type local:ViewModels.SettingsWindowViewModel}">
       <local:SettingsWindow/>
     </DataTemplate>
+    <DataTemplate DataType="{x:Type local:ViewModels.DeveloperWindowViewModel}">
+      <local:DeveloperWindow/>
+    </DataTemplate>
   </Window.DataTemplates>
 
   <!--Main Window-->
@@ -147,6 +150,7 @@
                     <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,left" HorizontalAlignment="Stretch"/>
                     <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,left" HorizontalAlignment="Stretch"/>
                     <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,left" HorizontalAlignment="Stretch"/>
+                    <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,left" HorizontalAlignment="Stretch"/>
                   </StackPanel>
                 </Flyout>
               </Button.Flyout>
@@ -179,6 +183,7 @@
                     <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,center" HorizontalAlignment="Stretch"/>
                     <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,center" HorizontalAlignment="Stretch"/>
                     <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,center" HorizontalAlignment="Stretch"/>
+                    <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,center" HorizontalAlignment="Stretch"/>
                   </StackPanel>
                 </Flyout>
               </Button.Flyout>
@@ -213,6 +218,7 @@
                   <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,bottom" HorizontalAlignment="Stretch"/>
                   <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,bottom" HorizontalAlignment="Stretch"/>
                   <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,bottom" HorizontalAlignment="Stretch"/>
+                  <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,bottom" HorizontalAlignment="Stretch"/>
                 </StackPanel>
               </Flyout>
             </Button.Flyout>
@@ -247,6 +253,7 @@
                 <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,right" HorizontalAlignment="Stretch"/>
                 <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,right" HorizontalAlignment="Stretch"/>
                 <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,right" HorizontalAlignment="Stretch"/>
+                <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,right" HorizontalAlignment="Stretch"/>
               </StackPanel>
             </Flyout>
           </Button.Flyout>

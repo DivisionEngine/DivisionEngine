@@ -567,6 +567,7 @@ namespace DivisionEngine.Editor.ViewModels
                 "Properties" => new PropertiesWindowViewModel(),
                 "World" => new WorldWindowViewModel(),
                 "Settings" => new SettingsWindowViewModel(),
+                "Developer" => new DeveloperWindowViewModel(),
                 _ => null
             };
 

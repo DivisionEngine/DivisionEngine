@@ -11,7 +11,7 @@
         Background="#111">
   <StackPanel Margin="20" Spacing="15">
         <TextBlock Text="Enter Project Name:" FontSize="14"/>
-        <TextBox Text="{Binding ProjectName}" Watermark="MyProject" FontSize="14"/>
+        <TextBox Text="{Binding ProjectName}" PlaceholderText="MyProject" FontSize="14"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
             <Button Content="Cancel" Click="Cancel_Click" Width="80"/>
             <Button Content="OK" Click="Ok_Click" Width="80" IsDefault="True"/>
