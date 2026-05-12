@@ -6,8 +6,6 @@
 // project root for full license terms.
 //
 using DivisionEngine.MathLib;
-using Silk.NET.GLFW;
-using Silk.NET.Input;
 
 namespace DivisionEngine.Input
 {

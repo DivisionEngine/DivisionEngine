@@ -180,7 +180,7 @@ namespace DivisionEngine.Projects.Assets
         }
 
         /// <summary>
-        /// Saves all folder metadata files (call on project exit).
+        /// Saves all folder metadata files (called on project exit as well).
         /// </summary>
         public static void SaveAll()
         {

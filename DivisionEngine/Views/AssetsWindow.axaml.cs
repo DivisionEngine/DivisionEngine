@@ -248,11 +248,256 @@ public partial class AssetsWindow : EditorWindow
         grid.Children.Add(scrollViewer);
         this.FindControl<Border>("MainBorder")!.Child = grid;
 
+        AttachBackgroundContextMenu();
+
         // Finish assets window setup
         CurrentView = ViewState.Tiles;
         currentPath = string.Empty;
         currentWindows.Add(this);
         Dispatcher.UIThread.Post(LoadAssetsForCurrentProject);
+    }
+
+    /// <summary>
+    /// Attaches the background context menu to the assets window.
+    /// </summary>
+    private void AttachBackgroundContextMenu()
+    {
+        ContextMenu backgroundContextMenu = new ContextMenu
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            BorderBrush = EditorColor.FromRGB(128, 128, 128)
+        };
+
+        backgroundContextMenu.Items.Add(CreateMenuItem("Show in Explorer", MaterialIconKind.FolderOpen, () =>
+        {
+            if (!string.IsNullOrEmpty(currentPath) && Directory.Exists(currentPath))
+                Process.Start("explorer.exe", currentPath);
+        }));
+
+        backgroundContextMenu.Items.Add(new Separator());
+        backgroundContextMenu.Items.Add(CreateMenuItem("New Folder", MaterialIconKind.FolderPlus, () =>
+        {
+            CreateNewItem(true);
+        }));
+        backgroundContextMenu.Items.Add(CreateMenuItem("New C# Script", MaterialIconKind.CodeBraces, () =>
+        {
+            CreateNewItem(false, "cs",
+                "using DivisionEngine;\n" +
+                "using DivisionEngine.Components;\n" +
+                "\n" +
+                "public class NewScript : ScriptComponent\n" +
+                "{\n" +
+                "    public override void OnStart()\n" +
+                "    {\n" +
+                "        // Initialization code here\n" +
+                "    }\n" +
+                "\n" +
+                "    public override void OnUpdate(float deltaTime)\n" +
+                "    {\n" +
+                "        // Update code here\n" +
+                "    }\n" +
+                "}");
+        }));
+        backgroundContextMenu.Items.Add(CreateMenuItem("New Text File", MaterialIconKind.FileDocument, () =>
+        {
+            CreateNewItem(false, "txt", "");
+        }));
+        backgroundContextMenu.Items.Add(CreateMenuItem("New JSON File", MaterialIconKind.CodeJson, () =>
+        {
+            CreateNewItem(false, "json", "{\n    \n}");
+        }));
+
+        scrollViewer.ContextMenu = backgroundContextMenu;
+    }
+
+    /// <summary>
+    /// Creates a temporary rename box for new file/folder creation.
+    /// </summary>
+    private void CreateNewItem(bool isFolder, string extension = "", string defaultContent = "")
+    {
+        // Create temporary item with text box
+        Border tempItem = new Border
+        {
+            Width = 80,
+            Height = isFolder ? 85 : 85,
+            Background = EditorColor.FromRGB(34, 34, 68),
+            BorderThickness = new Thickness(2),
+            BorderBrush = EditorColor.FromRGB(100, 100, 200),
+            CornerRadius = new CornerRadius(4),
+            Margin = new Thickness(5),
+            Padding = new Thickness(5),
+        };
+
+        StackPanel itemStack = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        // Icon
+        MaterialIcon icon = isFolder
+            ? new MaterialIcon { Kind = MaterialIconKind.Folder, Width = 48, Height = 48, Foreground = EditorColor.FromColor(ColorPalette.Mint) }
+            : CreateFileIcon($".{extension}", 48);
+
+        // Text box for name input
+        TextBox nameBox = new TextBox
+        {
+            Text = isFolder ? "New Folder" : $"New{extension.ToUpper()}File",
+            FontSize = 10,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Width = 70,
+            MaxLength = 50,
+            Background = EditorColor.FromRGB(40, 40, 40),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(1),
+            BorderBrush = EditorColor.FromRGB(100, 100, 100),
+            Margin = new Thickness(0, 5, 0, 0)
+        };
+
+        // Extension text for files
+        TextBlock? extensionText = null;
+        if (!isFolder && !string.IsNullOrEmpty(extension))
+        {
+            extensionText = new TextBlock
+            {
+                Text = $".{extension.ToUpper()}",
+                Foreground = Brushes.LightGray,
+                FontSize = 8,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+        }
+
+        itemStack.Children.Add(icon);
+        itemStack.Children.Add(nameBox);
+        if (extensionText != null) itemStack.Children.Add(extensionText);
+        tempItem.Child = itemStack;
+
+        // Add to tile panel at the beginning
+        assetsTileGrid.Children.Insert(0, tempItem);
+
+        // Focus and select the text
+        nameBox.Focus();
+        nameBox.SelectAll();
+
+        // Handle name submission
+        bool completed = false;
+
+        void CompleteCreation(bool cancel)
+        {
+            if (completed) return;
+            completed = true;
+
+            if (!cancel)
+            {
+                string newName = nameBox.Text.Trim();
+                if (string.IsNullOrEmpty(newName))
+                {
+                    cancel = true;
+                }
+                else
+                {
+                    // Remove invalid characters
+                    char[] invalidChars = Path.GetInvalidFileNameChars();
+                    foreach (char c in invalidChars)
+                        newName = newName.Replace(c.ToString(), "");
+
+                    if (string.IsNullOrEmpty(newName))
+                    {
+                        cancel = true;
+                    }
+                    else
+                    {
+                        // Create the file or folder
+                        Task.Run(() => CreateFileOrFolderAsync(newName, isFolder, extension, defaultContent));
+                    }
+                }
+            }
+
+            // Remove temporary item
+            assetsTileGrid.Children.Remove(tempItem);
+        }
+
+        nameBox.KeyDown += (s, e) =>
+        {
+            if (e.Key == Key.Enter)
+            {
+                CompleteCreation(false);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                CompleteCreation(true);
+                e.Handled = true;
+            }
+        };
+
+        nameBox.LostFocus += (s, e) =>
+        {
+            // Small delay to allow Enter key to process first
+            Dispatcher.UIThread.Post(() => CompleteCreation(true), DispatcherPriority.Background);
+        };
+
+        // Update tile columns after adding
+        UpdateTileColumns();
+    }
+
+    /// <summary>
+    /// Creates the actual file or folder on disk.
+    /// </summary>
+    private async void CreateFileOrFolderAsync(string name, bool isFolder, string extension, string defaultContent)
+    {
+        try
+        {
+            await App.SetEditorRenderingAsync(false);
+
+            string newPath;
+            if (isFolder)
+            {
+                newPath = Path.Combine(currentPath, name);
+                Directory.CreateDirectory(newPath);
+                Debug.Info($"Created folder: {newPath}");
+            }
+            else
+            {
+                string fileName = extension == "cs" ? name : $"{name}.{extension}";
+                if (!fileName.EndsWith($".{extension}")) fileName += $".{extension}";
+
+                newPath = Path.Combine(currentPath, fileName);
+
+                // Write content to file
+                await File.WriteAllTextAsync(newPath, defaultContent);
+                Debug.Info($"Created file: {newPath}");
+            }
+
+            // Force refresh the AssetDatabase
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Refresh the database
+                if (ProjectManager.IsCurrentLoaded)
+                {
+                    AssetDatabase.SaveAll();
+                    AssetDatabase.Initialize(); // Rescan all assets
+                }
+
+                // Refresh the current view
+                LoadAssets(currentPath);
+            });
+
+            await App.SetEditorRenderingAsync(true);
+        }
+        catch (Exception ex)
+        {
+            await App.SetEditorRenderingAsync(true);
+            Debug.Error($"Failed to create {(isFolder ? "folder" : "file")}: {name}", ex);
+
+            // TODO: add notify in future
+            //await Dispatcher.UIThread.Post(() =>
+            //{
+            //    ShowNotification($"Failed to create: {ex.Message}", true);
+            //});
+        }
     }
 
     /// <summary>
@@ -685,18 +930,16 @@ public partial class AssetsWindow : EditorWindow
         fileStack.Children.Add(extensionText);
         fileBorder.Child = fileStack;
 
-        // Hover effect
+        // File tile handlers
         fileBorder.PointerEntered += (s, e) => { fileBorder.Background = EditorColor.FromRGB(17, 17, 17); };
         fileBorder.PointerExited += (s, e) => { fileBorder.Background = EditorColor.FromRGB(24, 24, 24); };
-
-        // Add double-click to open file
         fileBorder.DoubleTapped += (s, e) => EditorUI.OpenFile(file);
 
         // Add context menu
         ContextMenu contextMenu = new ContextMenu
         {
             Background = EditorColor.FromRGB(68, 68, 68),
-            BorderBrush = EditorColor.FromRGB(128, 128, 128)
+            BorderBrush = EditorColor.FromRGB(128, 128, 128),
         };
         contextMenu.Items.Add(CreateMenuItem("Open", MaterialIconKind.FileDocument, () => EditorUI.OpenFile(file)));
         contextMenu.Items.Add(CreateMenuItem("Rename", MaterialIconKind.Pencil, () =>
@@ -961,7 +1204,7 @@ public partial class AssetsWindow : EditorWindow
         };
         TextBlock typeText = new TextBlock // Asset type indicator
         {
-            Text = GetAssetTypeShortName(asset.Type),
+            Text = GetAssetTypeDisplayName(asset.Type),
             Foreground = Brushes.LightGray,
             FontSize = 8,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -973,14 +1216,71 @@ public partial class AssetsWindow : EditorWindow
         assetBorder.Child = assetStack;
 
         // Hover effect
-        assetBorder.PointerEntered += (s, e) => { assetBorder.Background = EditorColor.FromRGB(17, 17, 17); };
-        assetBorder.PointerExited += (s, e) => { assetBorder.Background = EditorColor.FromRGB(24, 24, 24); };
+        assetBorder.PointerEntered += (s, e) => { assetBorder.Background = EditorColor.FromRGB(24, 24, 24); };
+        assetBorder.PointerExited += (s, e) => { assetBorder.Background = EditorColor.FromRGB(17, 17, 17); };
 
         // Double-click to show info (placeholder)
         assetBorder.DoubleTapped += (s, e) =>
         {
             Debug.Info($"Asset: {asset.FileName} | Type: {asset.Type} | GUID: {asset.ID}");
         };
+
+        // Add context menu for assets
+        ContextMenu contextMenu = new ContextMenu
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            BorderBrush = EditorColor.FromRGB(128, 128, 128)
+        };
+
+        // Get full file path if possible
+        string fullPath = Path.Combine(ProjectManager.CurrentProjectPath ?? "", asset.RelativePath);
+        bool fileExists = File.Exists(fullPath);
+
+        contextMenu.Items.Add(CreateMenuItem("Open", MaterialIconKind.FileDocument, () =>
+        {
+            if (fileExists) EditorUI.OpenFile(new FileInfo(fullPath));
+        }));
+        contextMenu.Items.Add(CreateMenuItem("Show in Explorer", MaterialIconKind.FolderOpen, () =>
+        {
+            if (!string.IsNullOrEmpty(fullPath) && Directory.Exists(Path.GetDirectoryName(fullPath)))
+                Process.Start("explorer.exe", Path.GetDirectoryName(fullPath)!);
+        }));
+        contextMenu.Items.Add(CreateMenuItem("Copy GUID", MaterialIconKind.Identifier, async () =>
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null)
+            {
+                DataTransfer clipboardData = new DataTransfer(); // New clipboard setup
+                clipboardData.Add(DataTransferItem.CreateText(asset.ID));
+                TopLevel.GetTopLevel(this)?.Clipboard?.SetDataAsync(clipboardData);
+                Debug.Info($"Copied asset GUID: {asset.ID}");
+            }
+        }));
+        contextMenu.Items.Add(CreateMenuItem("Copy Path", MaterialIconKind.ContentCopy, async () =>
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null)
+            {
+                DataTransfer clipboardData = new DataTransfer();
+                clipboardData.Add(DataTransferItem.CreateText(asset.RelativePath));
+                TopLevel.GetTopLevel(this)?.Clipboard?.SetDataAsync(clipboardData);
+                Debug.Info($"Copied asset path: {asset.RelativePath}");
+            }
+        }));
+        contextMenu.Items.Add(new Separator());
+        contextMenu.Items.Add(CreateMenuItem("Rename", MaterialIconKind.Pencil, () =>
+        {
+            Debug.Info($"Renaming asset: {asset.FileName}");
+            // TODO: Implement rename functionality
+        }));
+        contextMenu.Items.Add(new Separator());
+        contextMenu.Items.Add(CreateMenuItem("Delete", MaterialIconKind.Delete, () =>
+        {
+            Debug.Info($"Deleting asset: {asset.FileName}");
+            // TODO: Implement delete functionality
+        }, Brushes.Red));
+
+        assetBorder.ContextMenu = contextMenu;
         assetsTileGrid.Children.Add(assetBorder);
     }
 
@@ -1089,20 +1389,6 @@ public partial class AssetsWindow : EditorWindow
             Margin = new Thickness(0, 0, 0, 5),
         };
     }
-
-    /// <summary>
-    /// Gets a short display name for asset type.
-    /// </summary>
-    private static string GetAssetTypeShortName(AssetType type) => type switch
-    {
-        AssetType.Texture => "TEX",
-        AssetType.SDF => "SDF",
-        AssetType.Material => "MAT",
-        AssetType.Script => "SCR",
-        AssetType.Audio => "AUD",
-        AssetType.Font => "FNT",
-        _ => "AST",
-    };
 
     /// <summary>
     /// Gets a display name for asset type.

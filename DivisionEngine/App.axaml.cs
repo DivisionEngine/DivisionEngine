@@ -7,7 +7,6 @@
 //
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using DivisionEngine.Editor.Settings;
@@ -19,7 +18,6 @@ using DivisionEngine.Settings;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace DivisionEngine.Editor
