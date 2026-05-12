@@ -138,9 +138,9 @@
                 </DataTemplate>
               </TabControl.ItemTemplate>
             </TabControl>
-            <Button Content="+" FontSize="14" Width="18" Height="18"
+            <Button x:Name="LeftAddButton" Content="+" FontSize="14" Width="18" Height="18"
                     Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
-              <Button.Flyout>
+              <!--Button.Flyout>
                 <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
                   <StackPanel>
                     <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,left" HorizontalAlignment="Stretch"/>
@@ -152,7 +152,7 @@
                     <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,left" HorizontalAlignment="Stretch"/>
                   </StackPanel>
                 </Flyout>
-              </Button.Flyout>
+              </Button.Flyout-->
             </Button>
           </Grid>
           <GridSplitter Grid.Column="1" ResizeDirection="Auto"/>
@@ -171,9 +171,9 @@
               </TabControl.ItemTemplate>
             </TabControl>
 
-            <Button Content="+" FontSize="14" Width="18" Height="18"
+            <Button x:Name="CenterAddButton" Content="+" FontSize="14" Width="18" Height="18"
                     Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
-              <Button.Flyout>
+              <!--Button.Flyout>
                 <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
                   <StackPanel>
                     <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,center" HorizontalAlignment="Stretch"/>
@@ -185,7 +185,7 @@
                     <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,center" HorizontalAlignment="Stretch"/>
                   </StackPanel>
                 </Flyout>
-              </Button.Flyout>
+              </Button.Flyout-->
             </Button>
           </Grid>
         </Grid>
@@ -206,9 +206,9 @@
             </TabControl.ItemTemplate>
           </TabControl>
 
-          <Button Content="+" FontSize="14" Width="18" Height="18"
+          <Button x:Name="BottomAddButton" Content="+" FontSize="14" Width="18" Height="18"
                     Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
-            <Button.Flyout>
+            <!--Button.Flyout>
               <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
                 <StackPanel>
                   <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,bottom" HorizontalAlignment="Stretch"/>
@@ -220,7 +220,7 @@
                   <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,bottom" HorizontalAlignment="Stretch"/>
                 </StackPanel>
               </Flyout>
-            </Button.Flyout>
+            </Button.Flyout-->
           </Button>
         </Grid>
       </Grid>
@@ -241,9 +241,9 @@
             </TabControl.ItemTemplate>
         </TabControl>
 
-        <Button Content="+" FontSize="14" Width="18" Height="18"
+        <Button x:Name="RightAddButton" Content="+" FontSize="14" Width="18" Height="18"
                     Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
-          <Button.Flyout>
+          <!--Button.Flyout>
             <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
               <StackPanel>
                 <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,right" HorizontalAlignment="Stretch"/>
@@ -255,7 +255,7 @@
                 <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,right" HorizontalAlignment="Stretch"/>
               </StackPanel>
             </Flyout>
-          </Button.Flyout>
+          </Button.Flyout-->
         </Button>
       </Grid>
     </Grid>

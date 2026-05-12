@@ -602,6 +602,36 @@ namespace DivisionEngine.Editor.ViewModels
         }
 
         /// <summary>
+        /// Adds a window to the specified panel.
+        /// </summary>
+        public void AddWindowToPanel(EditorWindowViewModel viewModel, string panelType)
+        {
+            // Re-enable renderer if needed (special case for Environment window)
+            if (viewModel is EnvironmentWindowViewModel && !App.RendererVisible)
+                RenderWindowManagementSystem.SetVisible(true);
+
+            switch (panelType)
+            {
+                case "left":
+                    LeftTabs.Add(viewModel);
+                    SelectedLeftTab = viewModel;
+                    break;
+                case "right":
+                    RightTabs.Add(viewModel);
+                    SelectedRightTab = viewModel;
+                    break;
+                case "bottom":
+                    BottomTabs.Add(viewModel);
+                    SelectedBottomTab = viewModel;
+                    break;
+                default:
+                    CenterTabs.Add(viewModel);
+                    SelectedCenterTab = viewModel;
+                    break;
+            }
+        }
+
+        /// <summary>
         /// Called when a tab must be closed on one of the main panel areas.
         /// </summary>
         /// <param name="vm">Tab type to close</param>

@@ -13,6 +13,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using DivisionEngine.Editor.Tasks;
 using DivisionEngine.Editor.ViewModels;
+using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
@@ -25,6 +26,19 @@ namespace DivisionEngine.Editor
     /// </summary>
     public partial class MainWindow : Window
     {
+        // All available windows per tab group are defined here
+        private readonly List<(string AvaiableTabGroups, Type ViewModelType)> AvailableWindows =
+        [
+            ("left,right,center,bottom", typeof(WorldWindowViewModel)),
+            ("left,right,center,bottom", typeof(EnvironmentWindowViewModel)),
+            ("left,right,center,bottom", typeof(AssetsWindowViewModel)),
+            ("left,right,center,bottom", typeof(ConsoleWindowViewModel)),
+            ("left,right,center,bottom", typeof(PropertiesWindowViewModel)),
+            ("left,right,center,bottom", typeof(SettingsWindowViewModel)),
+            ("left,right,center,bottom", typeof(DeveloperWindowViewModel)),
+        ];
+
+        // Bottom nav bar vars
         private static Flyout? tasksFlyout;
 
         /// <summary>
@@ -39,6 +53,7 @@ namespace DivisionEngine.Editor
 #endif
             AttachContextMenus();
             SetupUniversalProgressBar(); // Build editor task system UI
+            SetupAddButtons(); // Add this line
         }
 
         /// <summary>
@@ -114,6 +129,81 @@ namespace DivisionEngine.Editor
                 contextMenu.Items.Add(duplicateMenuItem);
             }
             return contextMenu;
+        }
+
+        private void SetupAddButtons()
+        {
+            SetupAddButton(LeftAddButton, "left");
+            SetupAddButton(CenterAddButton, "center");
+            SetupAddButton(BottomAddButton, "bottom");
+            SetupAddButton(RightAddButton, "right");
+        }
+
+        private void SetupAddButton(Button button, string panelType)
+        {
+            if (button == null) return;
+            Flyout flyout = new Flyout
+            {
+                Placement = PlacementMode.Bottom,
+                ShowMode = FlyoutShowMode.TransientWithDismissOnPointerMoveAway,
+            };
+
+            StackPanel stackPanel = new StackPanel();
+            foreach (var (AvaiableTabGroups, ViewModelType) in AvailableWindows)
+            {
+                if (!AvaiableTabGroups.Contains(panelType, StringComparison.InvariantCultureIgnoreCase)) continue;
+
+                // Create a temporary instance to get window info
+                EditorWindowViewModel? tempInstance = Activator.CreateInstance(ViewModelType) as EditorWindowViewModel;
+                string windowTitle = tempInstance?.Title ?? ViewModelType.Name.Replace("WindowViewModel", "");
+                MaterialIconKind windowIcon = tempInstance?.Icon ?? MaterialIconKind.DatabaseEdit;
+
+                StackPanel menuPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Margin = new Thickness(0),
+                    Background = EditorColor.FromRGB(24, 24, 24),
+                };
+                MaterialIcon menuIcon = new MaterialIcon
+                {
+                    Kind = windowIcon,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0),
+                    Padding = new Thickness(12, 4, 6, 4),
+                    CornerRadius = new CornerRadius(0),
+                    Foreground = EditorColor.FromRGB(200, 200, 200),
+                };
+                TextBlock menuLabel = new TextBlock
+                {
+                    Text = windowTitle,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0),
+                    Padding = new Thickness(12, 4),
+                    Foreground = EditorColor.FromRGB(200, 200, 200),
+                };
+                menuPanel.Children.Add(menuIcon);
+                menuPanel.Children.Add(menuLabel);
+
+                Type viewModelType = ViewModelType; // Store the type locally to avoid closure issues
+                menuPanel.PointerPressed += (s, e) =>
+                {
+                    if (DataContext is MainWindowViewModel vm &&
+                        Activator.CreateInstance(viewModelType) is EditorWindowViewModel viewModel)
+                        vm.AddWindowToPanel(viewModel, panelType);
+                    flyout.Hide();
+                };
+                menuPanel.PointerEntered += (s, e) =>
+                    menuPanel.Background = EditorColor.FromRGB(10, 10, 10);
+                menuPanel.PointerExited += (s, e) =>
+                    menuPanel.Background = EditorColor.FromRGB(24, 24, 24);
+                stackPanel.Children.Add(menuPanel);
+            }
+
+            flyout.Content = stackPanel;
+            button.Flyout = flyout;
         }
 
         /// <summary>
