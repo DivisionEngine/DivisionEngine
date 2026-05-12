@@ -138,6 +138,7 @@ namespace DivisionEngine.Editor.ViewModels
 
             BottomTabs.Add(new AssetsWindowViewModel());
             BottomTabs.Add(new ConsoleWindowViewModel());
+            BottomTabs.Add(new DeveloperWindowViewModel());
 
             LoadRecentProjects(); // Load recent projects
         }

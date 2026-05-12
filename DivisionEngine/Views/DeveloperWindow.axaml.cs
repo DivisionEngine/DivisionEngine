@@ -17,6 +17,7 @@ using DivisionEngine.MathLib;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -47,23 +48,23 @@ public partial class DeveloperWindow : EditorWindow
         tabControl = new TabControl
         {
             Margin = new Thickness(4),
-            Background = EditorColor.FromRGB(45, 45, 45)
+            Background = EditorColor.FromRGBA(24, 24, 24, 0),
         };
 
         // Colors Tab
         Grid colorsTab = CreateColorsTab();
         tabControl.Items.Add(new TabItem
         {
-            Header = "🎨 Colors",
-            Content = colorsTab
+            Header = "Colors",
+            Content = colorsTab,
         });
 
         // Icons Tab
         Grid iconsTab = CreateIconsTab();
         tabControl.Items.Add(new TabItem
         {
-            Header = "🔤 Material Icons",
-            Content = iconsTab
+            Header = "Material Icons",
+            Content = iconsTab,
         });
 
         mainPanel.Children.Add(tabControl);
@@ -80,22 +81,23 @@ public partial class DeveloperWindow : EditorWindow
             RowDefinitions =
             {
                 new RowDefinition(GridLength.Auto),
-                new RowDefinition(GridLength.Star)
+                new RowDefinition(GridLength.Star),
             }
         };
         StackPanel searchPanel = new StackPanel // Search bar
         {
             Orientation = Orientation.Horizontal,
             Spacing = 8,
-            Margin = new Thickness(0, 0, 0, 8)
+            Margin = new Thickness(0, 0, 0, 8),
         };
         MaterialIcon searchIcon = new MaterialIcon
         {
             Kind = MaterialIconKind.Magnify,
-            Foreground = EditorColor.FromRGB(128, 128, 128),
+            Foreground = EditorColor.FromRGB(140, 140, 140),
             Width = 16,
             Height = 16,
-            VerticalAlignment = VerticalAlignment.Center
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
         };
 
         colorSearchBox = new TextBox
@@ -103,10 +105,10 @@ public partial class DeveloperWindow : EditorWindow
             InnerLeftContent = searchIcon,
             PlaceholderText = "Search colors...",
             Width = 250,
-            Background = EditorColor.FromRGB(30, 30, 30),
+            Background = EditorColor.FromRGB(20, 20, 20),
             Foreground = Brushes.White,
-            BorderThickness = new Thickness(1),
-            BorderBrush = EditorColor.FromRGB(60, 60, 60)
+            BorderThickness = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
         };
         colorSearchBox.TextChanged += ColorSearchBox_TextChanged;
 
@@ -114,7 +116,7 @@ public partial class DeveloperWindow : EditorWindow
         {
             Text = "Loading...",
             Foreground = Brushes.Gray,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
         };
 
         searchPanel.Children.Add(colorSearchBox);
@@ -122,12 +124,12 @@ public partial class DeveloperWindow : EditorWindow
 
         colorScrollViewer = new ScrollViewer // Color grid
         {
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         };
         colorPanel = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Spacing = 2
+            Spacing = 2,
         };
         colorScrollViewer.Content = colorPanel;
 
@@ -137,10 +139,7 @@ public partial class DeveloperWindow : EditorWindow
         mainGrid.Children.Add(searchPanel);
         mainGrid.Children.Add(colorScrollViewer);
 
-        LoadAllColors((text) => // Load colors
-        {
-            Dispatcher.UIThread.Post(() => statsText.Text = text);
-        });
+        LoadAllColors((text) => Dispatcher.UIThread.Post(() => statsText.Text = text));
         return mainGrid;
     }
 
@@ -152,7 +151,7 @@ public partial class DeveloperWindow : EditorWindow
             RowDefinitions =
             {
                 new RowDefinition(GridLength.Auto),
-                new RowDefinition(GridLength.Star)
+                new RowDefinition(GridLength.Star),
             }
         };
 
@@ -160,15 +159,16 @@ public partial class DeveloperWindow : EditorWindow
         {
             Orientation = Orientation.Horizontal,
             Spacing = 12,
-            Margin = new Thickness(0, 0, 0, 8)
+            Margin = new Thickness(0, 0, 0, 8),
         };
         MaterialIcon searchIcon = new MaterialIcon
         {
             Kind = MaterialIconKind.Magnify,
-            Foreground = EditorColor.FromRGB(128, 128, 128),
+            Foreground = EditorColor.FromRGB(140, 140, 140),
             Width = 16,
             Height = 16,
-            VerticalAlignment = VerticalAlignment.Center
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
         };
 
         iconSearchBox = new TextBox
@@ -176,10 +176,10 @@ public partial class DeveloperWindow : EditorWindow
             InnerLeftContent = searchIcon,
             PlaceholderText = "Search icons...",
             Width = 300,
-            Background = EditorColor.FromRGB(30, 30, 30),
+            Background = EditorColor.FromRGB(20, 20, 20),
             Foreground = Brushes.White,
-            BorderThickness = new Thickness(1),
-            BorderBrush = EditorColor.FromRGB(60, 60, 60)
+            BorderThickness = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
         };
         iconSearchBox.TextChanged += IconSearchBox_TextChanged;
 
@@ -187,27 +187,29 @@ public partial class DeveloperWindow : EditorWindow
         {
             Orientation = Orientation.Horizontal,
             Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
         };
         sizePanel.Children.Add(new TextBlock
         {
             Text = "Size:",
             Foreground = Brushes.White,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
         });
 
         iconSizeComboBox = new ComboBox
         {
             Width = 80,
-            Background = EditorColor.FromRGB(30, 30, 30),
+            SelectedItem = "24",
+            Background = EditorColor.FromRGB(20, 20, 20),
             Foreground = Brushes.White,
-            SelectedIndex = 2
+            BorderThickness = new Thickness(0),
         };
         iconSizeComboBox.Items.Add("16");
         iconSizeComboBox.Items.Add("24");
         iconSizeComboBox.Items.Add("32");
         iconSizeComboBox.Items.Add("48");
         iconSizeComboBox.Items.Add("64");
+        iconSizeComboBox.Items.Add("128");
         iconSizeComboBox.SelectionChanged += IconSize_SelectionChanged;
         sizePanel.Children.Add(iconSizeComboBox);
 
@@ -216,7 +218,7 @@ public partial class DeveloperWindow : EditorWindow
             Text = "Loading...",
             Foreground = Brushes.Gray,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(12, 0, 0, 0)
+            Margin = new Thickness(12, 0, 0, 0),
         };
 
         controlsPanel.Children.Add(iconSearchBox);
@@ -240,10 +242,7 @@ public partial class DeveloperWindow : EditorWindow
         mainGrid.Children.Add(controlsPanel);
         mainGrid.Children.Add(iconScrollViewer);
 
-        LoadAllIcons((count) => // Load icons
-        {
-            Dispatcher.UIThread.Post(() => statsText.Text = $"{count} icons");
-        });
+        LoadAllIcons((count) => Dispatcher.UIThread.Post(() => statsText.Text = $"{count} icons"));
         return mainGrid;
     }
 
@@ -277,8 +276,10 @@ public partial class DeveloperWindow : EditorWindow
             Margin = new Thickness(0, 2),
             Padding = new Thickness(8, 6),
             CornerRadius = new CornerRadius(4),
-            Background = EditorColor.FromRGB(30, 30, 30),
-            Cursor = new Cursor(StandardCursorType.Hand)
+            BorderThickness = new Thickness(0, 0, 2, 2),
+            BorderBrush = EditorColor.FromRGB(10, 10, 10),
+            Background = EditorColor.FromRGB(20, 20, 20),
+            Cursor = new Cursor(StandardCursorType.Hand),
         };
         Grid panel = new Grid
         {
@@ -286,11 +287,11 @@ public partial class DeveloperWindow : EditorWindow
             {
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(new GridLength(1, GridUnitType.Star)),
-                new ColumnDefinition(GridLength.Auto)
+                new ColumnDefinition(GridLength.Auto),
             },
             RowDefinitions =
             {
-                new RowDefinition(GridLength.Auto)
+                new RowDefinition(GridLength.Auto),
             }
         };
         Border swatch = new Border // Color swatch
@@ -303,25 +304,25 @@ public partial class DeveloperWindow : EditorWindow
                 (byte)(color.Y * 255),
                 (byte)(color.Z * 255))),
             BorderThickness = new Thickness(1),
-            BorderBrush = EditorColor.FromRGB(80, 80, 80),
-            Margin = new Thickness(0, 0, 12, 0)
+            BorderBrush = EditorColor.FromRGB(100, 100, 100),
+            Margin = new Thickness(0, 0, 12, 0),
         };
         TextBlock nameText = new TextBlock // Color name
         {
             Text = name,
-            Foreground = Brushes.White,
-            FontSize = 12,
+            Foreground = EditorColor.FromRGB(200, 200, 200),
+            FontSize = 14,
             VerticalAlignment = VerticalAlignment.Center,
-            FontWeight = FontWeight.Medium
+            FontWeight = FontWeight.Medium,
         };
         TextBlock rgbText = new TextBlock // RGB values
         {
-            Text = $"RGB({(byte)(color.X * 255)}, {(byte)(color.Y * 255)}, {(byte)(color.Z * 255)})",
-            Foreground = Brushes.Gray,
-            FontSize = 11,
+            Text = $"RGBA({(byte)(color.X * 255)}, {(byte)(color.Y * 255)}, {(byte)(color.Z * 255)}, {(byte)(color.W * 255)})",
+            Foreground = EditorColor.FromRGB(180, 180, 180),
+            FontSize = 14,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(12, 0, 0, 0),
-            FontFamily = "Consolas, monospace"
+            Margin = new Thickness(12, 0, 8, 0),
+            FontFamily = "Consolas, monospace",
         };
 
         Grid.SetColumn(swatch, 0);
@@ -343,7 +344,7 @@ public partial class DeveloperWindow : EditorWindow
 
                 // Visual feedback
                 IBrush originalBg = border.Background;
-                border.Background = EditorColor.FromRGB(50, 50, 80);
+                border.Background = EditorColor.FromRGB(10, 10, 10);
                 Dispatcher.UIThread.Post(() =>
                 {
                     border.Background = originalBg;
@@ -383,18 +384,22 @@ public partial class DeveloperWindow : EditorWindow
         Dispatcher.UIThread.Post(() =>
         {
             iconPanel?.Children.Clear();
-            var iconValues = Enum.GetValues<MaterialIconKind>();
-            var iconCount = iconValues.Length;
-            updateStats(iconCount);
+            MaterialIconKind[] iconValues = Enum.GetValues<MaterialIconKind>();
 
+            int iconCount = 0;
+            HashSet<string> iconIdentifiers = [];
             foreach (MaterialIconKind kind in iconValues)
             {
                 if (iconPanel == null) break;
+                if (iconIdentifiers.Contains(kind.ToString())) continue;
 
-                var iconControl = CreateIconDisplayControl(kind);
+                Border iconControl = CreateIconDisplayControl(kind);
                 iconPanel.Children.Add(iconControl);
+                iconIdentifiers.Add(kind.ToString());
+                iconCount++;
             }
 
+            updateStats(iconCount);
             ApplyIconFilter();
         });
     }
@@ -406,15 +411,17 @@ public partial class DeveloperWindow : EditorWindow
             Margin = new Thickness(2),
             Padding = new Thickness(8, 6),
             CornerRadius = new CornerRadius(4),
-            Background = EditorColor.FromRGB(35, 35, 35),
+            BorderThickness = new Thickness(0, 0, 2, 2),
+            BorderBrush = EditorColor.FromRGB(10, 10, 10),
+            Background = EditorColor.FromRGB(20, 20, 20),
             Cursor = new Cursor(StandardCursorType.Hand),
-            MinWidth = 150
+            MinWidth = 150,
         };
         StackPanel panel = new StackPanel
         {
             Orientation = Orientation.Vertical,
             Spacing = 6,
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
         };
         MaterialIcon icon = new MaterialIcon // Icon preview
         {
@@ -422,21 +429,21 @@ public partial class DeveloperWindow : EditorWindow
             Width = currentIconSize,
             Height = currentIconSize,
             Foreground = Brushes.White,
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
         };
         TextBlock nameText = new TextBlock // Icon name (formatted for readability)
         {
-            Text = FormatIconName(kind.ToString()),
+            Text = kind.ToString(),
             Foreground = Brushes.White,
             FontSize = 11,
             HorizontalAlignment = HorizontalAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
             MaxWidth = 130,
-            TextAlignment = TextAlignment.Center
+            TextAlignment = TextAlignment.Center,
         };
         ToolTip toolTip = new ToolTip // Raw name tooltip
         {
-            Content = kind.ToString()
+            Content = kind.ToString(),
         };
         ToolTip.SetTip(border, toolTip);
 
@@ -466,8 +473,6 @@ public partial class DeveloperWindow : EditorWindow
         border.Child = panel;
         return border;
     }
-
-    private static string FormatIconName(string name) => IconNameRegex().Replace(name, " $1");
 
     private void ApplyIconFilter()
     {
@@ -514,7 +519,4 @@ public partial class DeveloperWindow : EditorWindow
             }
         }
     }
-
-    [System.Text.RegularExpressions.GeneratedRegex("(\\B[A-Z])")]
-    private static partial System.Text.RegularExpressions.Regex IconNameRegex();
 }
