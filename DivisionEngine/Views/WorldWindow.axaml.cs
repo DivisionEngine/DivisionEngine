@@ -12,6 +12,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components;
+using DivisionEngine.Editor.ViewModels;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
@@ -145,11 +146,8 @@ public partial class WorldWindow : EditorWindow
         {
             ContextMenu menu = new ContextMenu
             {
-                Background = EditorColor.FromRGB(24, 24, 24),
-                BorderBrush = EditorColor.FromRGB(68, 68, 68),
-                BorderThickness = new Thickness(0),
-                CornerRadius = new CornerRadius(0),
-                Padding = new Thickness(0),
+                Background = EditorColor.FromRGB(68, 68, 68),
+                BorderBrush = EditorColor.FromRGB(128, 128, 128),
             };
             List<MenuItem> menuItems = [];
 
@@ -329,7 +327,6 @@ public partial class WorldWindow : EditorWindow
         header.Children.Add(entitiesHeader);
         header.Children.Add(headerSearchBox);
 
-        // Now using StackPanel
         entitiesPanel = new StackPanel
         {
             Margin = new Thickness(8, 8, 8, 8),
@@ -349,6 +346,9 @@ public partial class WorldWindow : EditorWindow
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
 
+        // Attach context menu
+        AttachBackgroundContextMenu();
+
         // Create main grid with row definitions
         mainGrid = new Grid
         {
@@ -365,11 +365,8 @@ public partial class WorldWindow : EditorWindow
             AvaloniaObject? source = e.Source as AvaloniaObject;
             while (source != null)
             {
-                if (source is EntityItemControl)
-                {
-                    // Click was on an entity or its child elements - don't trigger background click
-                    return;
-                }
+                // Click was on an entity or its child elements, don't trigger background click
+                if (source is EntityItemControl) return;
                 source = (source as StyledElement)?.Parent;
             }
 
@@ -391,6 +388,67 @@ public partial class WorldWindow : EditorWindow
         };
         worldWinUpdater.Tick += WorldWinUpdater_Tick;
         worldWinUpdater.Start();
+    }
+
+    /// <summary>
+    /// Attaches a context menu to the background of the world window.
+    /// </summary>
+    private void AttachBackgroundContextMenu()
+    {
+        ContextMenu backgroundContextMenu = new ContextMenu
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            BorderBrush = EditorColor.FromRGB(128, 128, 128),
+        };
+
+        // Entity types
+        var entityTypes = new Dictionary<string, (string DisplayName, MaterialIconKind Icon)>
+        {
+            ["empty"] = ("Empty Entity", MaterialIconKind.DotsGrid),
+            ["emptyTransform"] = ("Empty Transform", MaterialIconKind.Axis),
+            ["camera"] = ("Camera", MaterialIconKind.Camera),
+            ["environment"] = ("Environment", MaterialIconKind.Grass),
+            ["directionalLight"] = ("Directional Light", MaterialIconKind.WeatherSunny),
+            ["pointLight"] = ("Point Light", MaterialIconKind.Lightbulb),
+            ["sphere"] = ("Sphere", MaterialIconKind.Circle),
+            ["box"] = ("Box", MaterialIconKind.Square),
+            ["torus"] = ("Donut", MaterialIconKind.CircleDouble),
+            ["pyramid"] = ("Pyramid", MaterialIconKind.Pyramid),
+            ["plane"] = ("Plane", MaterialIconKind.SquareOutline),
+            ["cylinder"] = ("Cylinder", MaterialIconKind.Cylinder),
+            ["capsule"] = ("Capsule", MaterialIconKind.Capsule),
+            ["cone"] = ("Cone", MaterialIconKind.Cone),
+            ["terrain"] = ("Terrain", MaterialIconKind.Terrain),
+        };
+
+        foreach (var type in entityTypes)
+        {
+            MenuItem entityItem = new MenuItem
+            {
+                Header = type.Value.DisplayName,
+                Icon = new MaterialIcon { Kind = type.Value.Icon, Width = 16, Height = 16 },
+                Foreground = Brushes.White,
+            };
+            entityItem.Click += (s, e) => EditorUI.CreateEntityStatic(type.Key);
+            backgroundContextMenu.Items.Add(entityItem);
+        }
+
+        scrollViewer.ContextMenu = backgroundContextMenu;
+    }
+
+    /// <summary>
+    /// Refreshes the entity list.
+    /// </summary>
+    private void RefreshEntityList()
+    {
+        if (WorldManager.CurrentWorld != null)
+        {
+            // Clear and reload all entities
+            entityControls.Clear();
+            entitiesPanel.Children.Clear();
+            curEntities.Clear();
+            UpdateListEntries();
+        }
     }
 
     private void OnSearchTextChanged(object? sender, TextChangedEventArgs e)

@@ -13,6 +13,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using DivisionEngine.Editor.Tasks;
 using DivisionEngine.Editor.ViewModels;
+using DivisionEngine.MathLib;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
@@ -107,12 +108,17 @@ namespace DivisionEngine.Editor
         /// <returns>Generated tab context menu</returns>
         private ContextMenu CreateTabContextMenu(string panelType, EditorWindowViewModel viewModel)
         {
-            ContextMenu contextMenu = new ContextMenu();
+            ContextMenu contextMenu = new ContextMenu
+            {
+                Background = EditorColor.FromRGB(68, 68, 68),
+                BorderBrush = EditorColor.FromRGB(128, 128, 128),
+            };
             if (DataContext is MainWindowViewModel mainViewModel)
             {
                 MenuItem closeMenuItem = new MenuItem
                 {
                     Header = "Close",
+                    Foreground = EditorColor.FromColor(ColorPalette.White),
                     Command = mainViewModel.CloseTabCommand,
                     CommandParameter = viewModel
                 };

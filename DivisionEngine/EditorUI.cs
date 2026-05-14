@@ -95,5 +95,42 @@ namespace DivisionEngine.Editor
             string format = $"{{0:F{decimalPlaces}}} {{1}}";
             return string.Format(format, size, sizeSuffixes[unitIndex]);
         }
+
+        /// <summary>
+        /// Static method to create entities from context menu.
+        /// </summary>
+        /// <param name="entityType">Entity type ID</param>
+        public static void CreateEntityStatic(string entityType)
+        {
+            try
+            {
+                uint entityId = entityType.ToLower() switch
+                {
+                    "empty" => DefaultEntities.Empty(),
+                    "emptytransform" => DefaultEntities.EmptyTransform(),
+                    "camera" => DefaultEntities.Camera(),
+                    "environment" => DefaultEntities.Environment(),
+                    "directionallight" => DefaultEntities.DirectionalLight(),
+                    "pointlight" => DefaultEntities.PointLight(),
+                    "sphere" => DefaultEntities.SDFSphere(),
+                    "box" => DefaultEntities.SDFBox(),
+                    "roundedbox" => DefaultEntities.SDFRoundedBox(),
+                    "torus" => DefaultEntities.SDFTorus(),
+                    "pyramid" => DefaultEntities.SDFPyramid(),
+                    "plane" => DefaultEntities.SDFPlane(),
+                    "cylinder" => DefaultEntities.SDFCylinder(),
+                    "capsule" => DefaultEntities.SDFCapsule(),
+                    "cone" => DefaultEntities.SDFCone(),
+                    "terrain" => DefaultEntities.Terrain(),
+                    _ => DefaultEntities.EmptyTransform()
+                };
+                PropertiesWindow.LoadEntityComponents(entityId); // Select entity when created
+                Debug.Info($"Created {entityType} entity with ID: {entityId}");
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Failed to create entity", ex);
+            }
+        }
     }
 }

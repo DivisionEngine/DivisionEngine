@@ -518,38 +518,7 @@ namespace DivisionEngine.Editor.ViewModels
         /// </summary>
         /// <param name="entityType">Entity type to add (as camel case string key)</param>
         [RelayCommand]
-        private static void CreateEntity(string entityType)
-        {
-            try
-            {
-                uint entityId = entityType switch
-                {
-                    "empty" => DefaultEntities.Empty(),
-                    "emptyTransform" => DefaultEntities.EmptyTransform(),
-                    "camera" => DefaultEntities.Camera(),
-                    "environment" => DefaultEntities.Environment(),
-                    "directionalLight" => DefaultEntities.DirectionalLight(),
-                    "pointLight" => DefaultEntities.PointLight(),
-                    "sphere" => DefaultEntities.SDFSphere(),
-                    "box" => DefaultEntities.SDFBox(),
-                    "roundedBox" => DefaultEntities.SDFRoundedBox(),
-                    "torus" => DefaultEntities.SDFTorus(),
-                    "pyramid" => DefaultEntities.SDFPyramid(),
-                    "plane" => DefaultEntities.SDFPlane(),
-                    "cylinder" => DefaultEntities.SDFCylinder(),
-                    "capsule" => DefaultEntities.SDFCapsule(),
-                    "cone" => DefaultEntities.SDFCone(),
-                    "terrain" => DefaultEntities.Terrain(),
-                    _ => DefaultEntities.EmptyTransform()
-                };
-                PropertiesWindow.LoadEntityComponents(entityId); // Select entity when created
-                Debug.Info($"Created {entityType} entity with ID: {entityId}");
-            }
-            catch (Exception ex)
-            {
-                Debug.Error($"Failed to create entity", ex);
-            }
-        }
+        private static void CreateEntity(string entityType) => EditorUI.CreateEntityStatic(entityType);
 
         /// <summary>
         /// Adds a new window to a tab list on the main window.

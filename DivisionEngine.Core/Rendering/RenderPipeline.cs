@@ -628,7 +628,7 @@ namespace DivisionEngine.Rendering
             sdfObjBuffer?.Dispose();
             lightsBuffer?.Dispose();
             kernelBuffer?.Dispose();
-            inputContext?.Dispose();
+            inputContext?.Dispose(); // Rare null reference error here
 
             renderTex = null;
             denoisedTex = null;

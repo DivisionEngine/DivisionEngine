@@ -803,14 +803,27 @@ public partial class AssetsWindow : EditorWindow
         {
             Width = 80,
             Height = 85,
-            Background = EditorColor.FromRGB(24, 24, 24),
-            BorderThickness = new Thickness(1),
-            BorderBrush = EditorColor.FromRGB(68, 68, 68),
+            BorderThickness = new Thickness(0, 0, 1, 1),
+            BorderBrush = EditorColor.FromRGB(10, 10, 10),
+            Background = EditorColor.FromRGB(20, 20, 20),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(5),
             Padding = new Thickness(5),
             Cursor = new Cursor(StandardCursorType.Hand),
         };
+        folderBorder.PointerEntered += (_, _) =>
+        {
+            folderBorder.BorderThickness = new Thickness(1, 0, 2, 2);
+            folderBorder.BorderBrush = EditorColor.FromRGB(12, 12, 12);
+            folderBorder.Background = Background = EditorColor.FromRGB(24, 24, 24);
+        };
+        folderBorder.PointerExited += (_, _) =>
+        {
+            folderBorder.BorderThickness = new Thickness(0, 0, 1, 1);
+            folderBorder.BorderBrush = EditorColor.FromRGB(10, 10, 10);
+            folderBorder.Background = Background = EditorColor.FromRGB(20, 20, 20);
+        };
+
         StackPanel folderStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
@@ -844,12 +857,6 @@ public partial class AssetsWindow : EditorWindow
         folderStack.Children.Add(folderIcon);
         folderStack.Children.Add(folderNameText);
         folderBorder.Child = folderStack;
-
-        // Hover effect
-        folderBorder.PointerEntered += (s, e) => { folderBorder.Background = EditorColor.FromRGB(17, 17, 17); };
-        folderBorder.PointerExited += (s, e) => { folderBorder.Background = EditorColor.FromRGB(24, 24, 24); };
-
-        // Add double-click to open folder
         folderBorder.DoubleTapped += (s, e) => Dispatcher.UIThread.Post(() => LoadAssets(folder.FullName));
 
         // Add context menu
@@ -883,14 +890,27 @@ public partial class AssetsWindow : EditorWindow
         {
             Width = 80,
             Height = 85,
-            Background = EditorColor.FromRGB(24, 24, 24),
-            BorderThickness = new Thickness(1),
-            BorderBrush = EditorColor.FromRGB(68, 68, 68),
+            BorderThickness = new Thickness(0, 0, 1, 1),
+            BorderBrush = EditorColor.FromRGB(20, 10, 10),
+            Background = EditorColor.FromRGB(30, 20, 20),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(5),
             Padding = new Thickness(5),
             Cursor = new Cursor(StandardCursorType.Hand),
         };
+        fileBorder.PointerEntered += (_, _) =>
+        {
+            fileBorder.BorderThickness = new Thickness(1, 0, 2, 2);
+            fileBorder.BorderBrush = EditorColor.FromRGB(24, 14, 14);
+            fileBorder.Background = Background = EditorColor.FromRGB(36, 26, 26);
+        };
+        fileBorder.PointerExited += (_, _) =>
+        {
+            fileBorder.BorderThickness = new Thickness(0, 0, 1, 1);
+            fileBorder.BorderBrush = EditorColor.FromRGB(20, 10, 10);
+            fileBorder.Background = Background = EditorColor.FromRGB(30, 20, 20);
+        };
+
         StackPanel fileStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
@@ -929,10 +949,6 @@ public partial class AssetsWindow : EditorWindow
         fileStack.Children.Add(fileNameText);
         fileStack.Children.Add(extensionText);
         fileBorder.Child = fileStack;
-
-        // File tile handlers
-        fileBorder.PointerEntered += (s, e) => { fileBorder.Background = EditorColor.FromRGB(17, 17, 17); };
-        fileBorder.PointerExited += (s, e) => { fileBorder.Background = EditorColor.FromRGB(24, 24, 24); };
         fileBorder.DoubleTapped += (s, e) => EditorUI.OpenFile(file);
 
         // Add context menu
@@ -1174,14 +1190,27 @@ public partial class AssetsWindow : EditorWindow
         {
             Width = 80,
             Height = 85,
-            Background = EditorColor.FromRGB(17, 17, 17),
-            BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(0, 0, 1, 1),
             BorderBrush = EditorColor.FromRGB(10, 10, 10),
+            Background = EditorColor.FromRGB(20, 20, 20),
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(5),
             Padding = new Thickness(5),
             Cursor = new Cursor(StandardCursorType.Hand),
         };
+        assetBorder.PointerEntered += (_, _) =>
+        {
+            assetBorder.BorderThickness = new Thickness(1, 0, 2, 2);
+            assetBorder.BorderBrush = EditorColor.FromRGB(12, 12, 12);
+            assetBorder.Background = Background = EditorColor.FromRGB(24, 24, 24);
+        };
+        assetBorder.PointerExited += (_, _) =>
+        {
+            assetBorder.BorderThickness = new Thickness(0, 0, 1, 1);
+            assetBorder.BorderBrush = EditorColor.FromRGB(10, 10, 10);
+            assetBorder.Background = Background = EditorColor.FromRGB(20, 20, 20);
+        };
+
         StackPanel assetStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
@@ -1215,11 +1244,7 @@ public partial class AssetsWindow : EditorWindow
         assetStack.Children.Add(typeText);
         assetBorder.Child = assetStack;
 
-        // Hover effect
-        assetBorder.PointerEntered += (s, e) => { assetBorder.Background = EditorColor.FromRGB(24, 24, 24); };
-        assetBorder.PointerExited += (s, e) => { assetBorder.Background = EditorColor.FromRGB(17, 17, 17); };
-
-        // Double-click to show info (placeholder)
+        // TODO: Replace this placeholder function
         assetBorder.DoubleTapped += (s, e) =>
         {
             Debug.Info($"Asset: {asset.FileName} | Type: {asset.Type} | GUID: {asset.ID}");
