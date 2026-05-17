@@ -37,7 +37,7 @@ namespace DivisionEngine.Editor.Systems
             }
         }
 
-        public override void Unload()
+        public override void AppExit()
         {
             if (EditorSettings.Instance.AutoSave && ProjectManager.IsCurrentLoaded && !EngineCore.IsInPlayMode)
                 ProjectManager.SaveCurrentProject();

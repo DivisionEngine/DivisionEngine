@@ -16,7 +16,7 @@ namespace DivisionEngine.Editor.Systems
     /// </summary>
     internal class EditorControlsSystem : SystemBase
     {
-        public override void Update()
+        public override void EditorUpdate()
         {
             if (InputSystem.IsPressed(KeyCode.Delete) && W.EntityExists(Selection.Entity))
             {

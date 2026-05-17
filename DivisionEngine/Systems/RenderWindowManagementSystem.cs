@@ -61,7 +61,7 @@ namespace DivisionEngine.Editor.Systems
             };
         }
 
-        public override void FixedUpdate()
+        public override void EditorUpdate()
         {
             if (initializeTimer > 0) initializeTimer--;
         }

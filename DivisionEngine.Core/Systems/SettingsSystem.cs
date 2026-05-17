@@ -20,13 +20,13 @@ namespace DivisionEngine.Systems
 
         public static Action? ApplySettings;
 
-        public override void Awake()
+        public override void AppStart()
         {
             // Ensure engine settings are loaded
             _ = EngineSettings.Instance;
         }
 
-        public override void Update()
+        public override void EditorUpdate()
         {
             if (!hasChanges) return;
 
@@ -42,7 +42,7 @@ namespace DivisionEngine.Systems
             ApplySettings?.Invoke();
         }
 
-        public override void Unload() => SettingsManager.SaveAll();
+        public override void AppExit() => SettingsManager.SaveAll();
 
         /// <summary>
         /// Call this whenever a setting changes.

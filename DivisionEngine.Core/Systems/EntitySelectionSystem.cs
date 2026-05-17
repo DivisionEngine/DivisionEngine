@@ -15,7 +15,6 @@ namespace DivisionEngine.Systems
     /// </summary>
     public class EntitySelectionSystem : SystemBase
     {
-
         /// <summary>
         /// Can perform entity selection.
         /// </summary>
@@ -33,7 +32,7 @@ namespace DivisionEngine.Systems
 
         private bool selectEnabled = false;
 
-        public override void Update()
+        public override void EditorUpdate()
         {
             if (!InputSystem.IsMousePressed(MouseCode.Left)) selectEnabled = true;
             else if (CanSelect && selectEnabled && InputSystem.IsMousePressed(MouseCode.Left) &&
@@ -53,6 +52,5 @@ namespace DivisionEngine.Systems
                 selectEnabled = false;
             }
         }
-
     }
 }
