@@ -43,7 +43,7 @@
       <TextBlock Text="Division Engine" FontWeight="Bold" FontSize="16" Margin="5" VerticalAlignment="Center"/>
         <Menu Foreground="#ccc">
             <!--File / Edit Menu-->
-        <MenuItem Header="File" Foreground="#ccc">
+        <MenuItem x:Name="FileMenu" Header="File" Foreground="#ccc">
             <MenuItem Header="Open" Command="{Binding OpenProjectCommand}" Foreground="#ccc"/>
 
             <!-- Recent Projects Submenu -->

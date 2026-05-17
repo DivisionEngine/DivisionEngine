@@ -95,6 +95,8 @@ namespace DivisionEngine.Editor
         {
             if (EngineCore.IsInPlayMode)
             {
+                FileMenu.IsEnabled = false;
+
                 if (EngineCore.IsPaused)
                 {
                     // Paused
@@ -106,8 +108,8 @@ namespace DivisionEngine.Editor
                     GameModeText.Foreground = EditorColor.FromRGB(255, 183, 77);
                     GameModeIndicator.Background = EditorColor.FromRGB(50, 40, 20);
 
-                    if (AdvanceFrameButton != null) AdvanceFrameButton.IsEnabled = true;
-                    if (PauseButton != null) PauseButton.IsEnabled = true;
+                    AdvanceFrameButton.IsEnabled = true;
+                    PauseButton.IsEnabled = true;
                 }
                 else
                 {
@@ -120,8 +122,8 @@ namespace DivisionEngine.Editor
                     GameModeText.Foreground = EditorColor.FromRGB(139, 195, 74);
                     GameModeIndicator.Background = EditorColor.FromRGB(30, 50, 20);
 
-                    if (AdvanceFrameButton != null) AdvanceFrameButton.IsEnabled = false;
-                    if (PauseButton != null) PauseButton.IsEnabled = true;
+                    AdvanceFrameButton.IsEnabled = false;
+                    PauseButton.IsEnabled = true;
                 }
             }
             else
@@ -135,8 +137,10 @@ namespace DivisionEngine.Editor
                 GameModeText.Foreground = EditorColor.FromRGB(136, 136, 136);
                 GameModeIndicator.Background = EditorColor.FromRGB(40, 40, 40);
 
-                if (AdvanceFrameButton != null) AdvanceFrameButton.IsEnabled = false;
-                if (PauseButton != null) PauseButton.IsEnabled = false;
+                AdvanceFrameButton.IsEnabled = false;
+                PauseButton.IsEnabled = false;
+
+                FileMenu.IsEnabled = true;
             }
         }
 
