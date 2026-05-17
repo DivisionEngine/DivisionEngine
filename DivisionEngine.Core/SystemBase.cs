@@ -13,6 +13,11 @@ namespace DivisionEngine
     public abstract class SystemBase
     {
         /// <summary>
+        /// Called once when the editor or player application is launched.
+        /// </summary>
+        public virtual void AppStart() { }
+
+        /// <summary>
         /// Called once when the world is run.
         /// </summary>
         public virtual void Awake() { }
@@ -23,6 +28,11 @@ namespace DivisionEngine
         public virtual void Update() { }
 
         /// <summary>
+        /// Called once every frame even if not in play mode (only in the editor).
+        /// </summary>
+        public virtual void EditorUpdate() { }
+
+        /// <summary>
         /// Called once every frame after Update loop has completed.
         /// </summary>
         public virtual void FixedUpdate() { }
@@ -31,6 +41,11 @@ namespace DivisionEngine
         /// Called once when the world is stopped or unloaded.
         /// </summary>
         public virtual void Unload() { }
+
+        /// <summary>
+        /// Called once when the editor or player application is about to exit.
+        /// </summary>
+        public virtual void AppExit() { }
         
         /// <summary>
         /// Called before every render thread execution step.

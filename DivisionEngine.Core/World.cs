@@ -19,7 +19,7 @@ namespace DivisionEngine
         /// <summary>
         /// The name of this world.
         /// </summary>
-        public string Name { get; }
+        public string Name { get; set; }
 
         /// <summary>
         /// All entities in the world.
@@ -41,7 +41,9 @@ namespace DivisionEngine
         /// </summary>
         public List<SystemBase> systems;
 
-        private readonly List<SystemBase> awakeSystems, updateSystems, fixedUpdateSystems, unloadSystems, renderSystems;
+        private readonly List<SystemBase> appStartSystems, awakeSystems, 
+            updateSystems, editorUpdateSystems, fixedUpdateSystems,
+            unloadSystems, appExitSystems, renderSystems;
 
         /// <summary>
         /// Create a new world.
@@ -54,9 +56,12 @@ namespace DivisionEngine
             systems = [];
 
             awakeSystems = [];
+            appStartSystems = [];
             updateSystems = [];
+            editorUpdateSystems = [];
             fixedUpdateSystems = [];
             unloadSystems = [];
+            appExitSystems = [];
             renderSystems = [];
             NextEntityId = 0;
 
@@ -179,10 +184,13 @@ namespace DivisionEngine
         public void RegisterAllSystems()
         {
             systems.Clear();
+            appStartSystems.Clear();
             awakeSystems.Clear();
             updateSystems.Clear();
+            editorUpdateSystems.Clear();
             fixedUpdateSystems.Clear();
             unloadSystems.Clear();
+            appExitSystems.Clear();
             renderSystems.Clear();
 
             foreach (Assembly a in AppDomain.CurrentDomain.GetAssemblies())
@@ -191,10 +199,7 @@ namespace DivisionEngine
                 {
                     if (typeof(SystemBase).IsAssignableFrom(t) && !t.IsAbstract)
                     {
-                        if (Activator.CreateInstance(t) is SystemBase sys)
-                        {
-                            RegisterSystem(sys);
-                        }
+                        if (Activator.CreateInstance(t) is SystemBase sys) RegisterSystem(sys);
                         else throw new NotImplementedException($"System of type {t} is not implemented correctly!");
                     }
                 }
@@ -210,22 +215,31 @@ namespace DivisionEngine
             systems.Add(system);
 
             Type sysBaseType = typeof(SystemBase), sysType = system.GetType();
-            MethodInfo? awakeInfo = sysType.GetMethod("Awake"),
+            MethodInfo? appStartInfo = sysType.GetMethod("AppStart"),
+                awakeInfo = sysType.GetMethod("Awake"),
                 updateInfo = sysType.GetMethod("Update"),
+                editorUpdateInfo = sysType.GetMethod("EditorUpdate"),
                 fixedUpdateInfo = sysType.GetMethod("FixedUpdate"),
                 unloadInfo = sysType.GetMethod("Unload"),
+                appExitInfo = sysType.GetMethod("AppExit"),
                 renderInfo = sysType.GetMethod("Render");
 
-            if (awakeInfo != null && awakeInfo.DeclaringType != sysBaseType)
-                awakeSystems.Add(system);
-            if (updateInfo != null && updateInfo.DeclaringType != sysBaseType)
-                updateSystems.Add(system);
-            if (fixedUpdateInfo != null && fixedUpdateInfo.DeclaringType != sysBaseType)
-                fixedUpdateSystems.Add(system);
-            if (unloadInfo != null && unloadInfo.DeclaringType != sysBaseType)
-                unloadSystems.Add(system);
-            if (renderInfo != null && renderInfo.DeclaringType != sysBaseType)
-                renderSystems.Add(system);
+            if (appStartInfo != null && appStartInfo.DeclaringType != sysBaseType) appStartSystems.Add(system);
+            if (awakeInfo != null && awakeInfo.DeclaringType != sysBaseType) awakeSystems.Add(system);
+            if (updateInfo != null && updateInfo.DeclaringType != sysBaseType) updateSystems.Add(system);
+            if (editorUpdateInfo != null && editorUpdateInfo.DeclaringType != sysBaseType) editorUpdateSystems.Add(system);
+            if (fixedUpdateInfo != null && fixedUpdateInfo.DeclaringType != sysBaseType) fixedUpdateSystems.Add(system);
+            if (unloadInfo != null && unloadInfo.DeclaringType != sysBaseType) unloadSystems.Add(system);
+            if (appExitInfo != null && appExitInfo.DeclaringType != sysBaseType) appExitSystems.Add(system);
+            if (renderInfo != null && renderInfo.DeclaringType != sysBaseType) renderSystems.Add(system);
+        }
+
+        /// <summary>
+        /// Calls all systems that implement "AppStart".
+        /// </summary>
+        public void CallAppStart()
+        {
+            for (int i = 0; i < appStartSystems.Count; i++) appStartSystems[i].AppStart();
         }
 
         /// <summary>
@@ -233,8 +247,7 @@ namespace DivisionEngine
         /// </summary>
         public void CallAwake()
         {
-            for (int i = 0; i < awakeSystems.Count; i++)
-                awakeSystems[i].Awake();
+            for (int i = 0; i < awakeSystems.Count; i++) awakeSystems[i].Awake();
         }
 
         /// <summary>
@@ -242,8 +255,15 @@ namespace DivisionEngine
         /// </summary>
         public void CallUpdate()
         {
-            for (int i = 0; i < updateSystems.Count; i++)
-                updateSystems[i].Update();
+            for (int i = 0; i < updateSystems.Count; i++) updateSystems[i].Update();
+        }
+
+        /// <summary>
+        /// Calls all systems that implement "EditorUpdate".
+        /// </summary>
+        public void CallEditorUpdate()
+        {
+            for (int i = 0; i < editorUpdateSystems.Count; i++) editorUpdateSystems[i].EditorUpdate();
         }
 
         /// <summary>
@@ -251,17 +271,23 @@ namespace DivisionEngine
         /// </summary>
         public void CallFixedUpdate()
         {
-            for (int i = 0; i < fixedUpdateSystems.Count; i++)
-                fixedUpdateSystems[i].FixedUpdate();
+            for (int i = 0; i < fixedUpdateSystems.Count; i++) fixedUpdateSystems[i].FixedUpdate();
         }
 
         /// <summary>
-        /// Calls all systems that implement "FixedUpdate".
+        /// Calls all systems that implement "Unload".
         /// </summary>
         public void CallUnload()
         {
-            for (int i = 0; i < unloadSystems.Count; i++)
-                unloadSystems[i].Unload();
+            for (int i = 0; i < unloadSystems.Count; i++) unloadSystems[i].Unload();
+        }
+
+        /// <summary>
+        /// Calls all systems that implement "AppExit".
+        /// </summary>
+        public void CallAppExit()
+        {
+            for (int i = 0; i < appExitSystems.Count; i++) appExitSystems[i].AppExit();
         }
 
         /// <summary>
@@ -269,8 +295,7 @@ namespace DivisionEngine
         /// </summary>
         public void CallRender()
         {
-            for (int i = 0; i < renderSystems.Count; i++)
-                renderSystems[i].Render();
+            for (int i = 0; i < renderSystems.Count; i++) renderSystems[i].Render();
         }
 
         #endregion
@@ -545,6 +570,97 @@ namespace DivisionEngine
         }
 
         private Dictionary<uint, IComponent> GetComponentStore(Type t) => components.GetValueOrDefault(t, []);
+
+        #endregion
+        #region cloning
+
+        /// <summary>
+        /// Creates a deep copy of this world.
+        /// </summary>
+        /// <returns>A new world with cloned entities and components</returns>
+        public World Clone()
+        {
+            World newWorld = new World($"{Name}_Copy")
+            {
+                NextEntityId = 0
+            };
+
+            // Create a mapping from old entity IDs to new entity IDs
+            Dictionary<uint, uint> entityIdMap = [];
+
+            // Create all entities in the new world
+            foreach (uint oldEntityId in entities)
+            {
+                uint newEntityId = newWorld.CreateEntity();
+                entityIdMap[oldEntityId] = newEntityId;
+                
+                if (HasComponent<Name>(oldEntityId)) // Copy name component if it exists
+                {
+                    Name oldName = GetComponent<Name>(oldEntityId)!;
+                    newWorld.AddComponent(newEntityId, new Name(oldName.name ?? string.Empty));
+                }
+            }
+
+            // Copy all components (except Name, already handled)
+            foreach (var componentType in components.Keys)
+            {
+                if (componentType == typeof(Name)) continue;
+
+                foreach (var kvp in components[componentType])
+                {
+                    uint oldEntityId = kvp.Key;
+                    IComponent oldComponent = kvp.Value;
+
+                    if (entityIdMap.TryGetValue(oldEntityId, out uint newEntityId))
+                    {
+                        IComponent clonedComponent = oldComponent.Clone();
+                        newWorld.AddComponent(newEntityId, clonedComponent);
+                    }
+                }
+            }
+
+            // Note: systems are automatically registered and do not need to be cloned
+            return newWorld;
+        }
+
+        /// <summary>
+        /// Restores this world's state from another world (preserving entity IDs).
+        /// </summary>
+        /// <param name="sourceWorld">The source world to restore from</param>
+        public void RestoreFrom(World sourceWorld)
+        {
+            // Clear current world state
+            entities.Clear();
+            components.Clear();
+            NextEntityId = sourceWorld.NextEntityId;
+
+            // Copy all entities
+            foreach (uint entityId in sourceWorld.entities)
+            {
+                entities.Add(entityId);
+
+                // Copy name component if it exists
+                if (sourceWorld.HasComponent<Name>(entityId))
+                {
+                    Name sourceName = sourceWorld.GetComponent<Name>(entityId)!;
+                    AddComponent(entityId, new Name(sourceName.name ?? string.Empty));
+                }
+            }
+
+            // Copy all other components
+            foreach (var componentType in sourceWorld.components.Keys)
+            {
+                if (componentType == typeof(Name)) continue;
+
+                foreach (var kvp in sourceWorld.components[componentType])
+                {
+                    uint entityId = kvp.Key;
+                    IComponent sourceComponent = kvp.Value;
+                    IComponent clonedComponent = sourceComponent.Clone();
+                    AddComponent(entityId, clonedComponent);
+                }
+            }
+        }
 
         #endregion
     }

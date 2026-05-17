@@ -6,6 +6,7 @@
 // project root for full license terms.
 //
 using DivisionEngine.Input;
+using DivisionEngine.Projects;
 using DivisionEngine.Rendering;
 using DivisionEngine.Settings;
 using Silk.NET.Input;
@@ -37,8 +38,8 @@ public class GameStartup
     {
         UserInput = new InputSystem();
 
-        // Replace with project path from startup args eventually.
-        LoadProjectOrDefaultWorld(string.Empty);
+        string projectPath = ParseCommandLineArgs(args); // Parse command line args
+        LoadProjectOrDefaultWorld(projectPath);
 
         // Run engine loop
         engineCancellationTokenSource = new CancellationTokenSource();
@@ -48,6 +49,7 @@ public class GameStartup
         Renderer = new RenderPipeline();
         Renderer.InputContextCreated += SetupInputHandlers; // Subscribe input handling at correct time!
         Renderer.Close += EngineCore.Stop; // Stop engine loop
+        Renderer.Close += () => WorldManager.CurrentWorld?.CallAppExit(); // Invoke application exit callback
 
         Renderer.BindCurrentWorld(); // Bind loaded project
         Renderer.Run(DefaultRequestedFPS, false);
@@ -56,6 +58,32 @@ public class GameStartup
         engineCancellationTokenSource.Cancel();
         engineCoreTask?.Wait(1000);
         engineCancellationTokenSource.Dispose();
+    }
+
+    /// <summary>
+    /// Parses command line arguments to extract project path.
+    /// </summary>
+    /// <param name="args">Command line arguments</param>
+    /// <returns>Project path if found, empty string otherwise</returns>
+    private static string ParseCommandLineArgs(string[] args)
+    {
+        // Supported project loading formats:
+        // --project "C:\MyGame"
+        // -p "C:\MyGame"  
+        // "C:\MyGame" (just the path as first argument)
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            Debug.Info($"CMD line arg {i}: \"{args[i]}\"");
+            string arg = args[i].ToLower();
+            if ((arg == "--project" || arg == "-p") && i + 1 < args.Length)
+                return args[i + 1];
+            else if (i == 0 && Directory.Exists(args[i])) // First argument is a directory path
+                return args[i];
+            else if (i == 0 && File.Exists(args[i]) && args[i].EndsWith(".divp")) // First argument is a .divp file, get its directory
+                return Path.GetDirectoryName(args[i])!;
+        }
+        return string.Empty;
     }
 
     /// <summary>
@@ -84,18 +112,18 @@ public class GameStartup
     /// Loads the project path provided or a default world if the path is empty into the current world.
     /// </summary>
     /// <param name="projectPath">Path to project</param>
-    /// <returns>The world loaded into the current world</returns>
-    private static World LoadProjectOrDefaultWorld(string projectPath)
+    private static void LoadProjectOrDefaultWorld(string projectPath)
     {
-        if (string.IsNullOrEmpty(projectPath))
-        {
-            return WorldManager.CreateDefaultWorld(true);
-        }
+        if (string.IsNullOrEmpty(projectPath)) WorldManager.CreateDefaultWorld(true);
         else
         {
-            // Implement project loading here, for now fallback to default world
-            return WorldManager.CreateDefaultWorld(true);
+            bool loadedProject = ProjectManager.LoadProject(projectPath);
+            if (!loadedProject) WorldManager.CreateDefaultWorld(true);
         }
+        WorldManager.CurrentWorld?.CallAppStart(); // Invoke application start callback
+
+        // Enter play mode (for consistent state management even though this isnt the editor)
+        EngineCore.EnterPlayMode();
     }
 
     /// <summary>

@@ -121,6 +121,7 @@ namespace DivisionEngine.Editor
 
                 // Startup editor
                 WorldManager.CreateDefaultWorld(true);
+                WorldManager.CurrentWorld?.CallAppStart(); // Invoke application start callback
                 StartEditorEngineLoop();
                 UserInput = new InputSystem();
                 _ = SetEditorRenderingAsync(true); // Start the SDFRenderer in a separate thread
@@ -130,6 +131,8 @@ namespace DivisionEngine.Editor
                 desktop.Exit += (s, e) =>
                 {
                     Debug.Info($"Editor application exit with code: {e.ApplicationExitCode}");
+
+                    WorldManager.CurrentWorld?.CallAppExit(); // Invoke application exit callback
                     SettingsManager.SaveSettings(settings); // Save editor settings on editor close
                     Renderer?.RendererWindow?.Close();
 
@@ -163,7 +166,11 @@ namespace DivisionEngine.Editor
         /// </summary>
         /// <param name="sender">Sender obj</param>
         /// <param name="e">Event args</param>
-        private void EngineTimer_Tick(object? sender, EventArgs e) => EngineCore.RunFrame();
+        private void EngineTimer_Tick(object? sender, EventArgs e)
+        {
+            WorldManager.CurrentWorld?.CallEditorUpdate(); // Only called here
+            if (EngineCore.IsRunning && !EngineCore.IsPaused) EngineCore.RunFrame();
+        }
 
         /// <summary>
         /// Sets up input handling for the Division Engine editor.

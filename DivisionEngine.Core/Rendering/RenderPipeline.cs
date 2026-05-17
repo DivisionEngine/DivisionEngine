@@ -309,7 +309,8 @@ namespace DivisionEngine.Rendering
                 return;
             }
 
-            boundWorld?.CallRender();
+            if (boundWorld == null) return;
+            boundWorld.CallRender();
             int texWidth = 0, texHeight = 0;
             IWindow? window;
             lock (SyncLock)

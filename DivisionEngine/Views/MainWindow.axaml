@@ -41,14 +41,14 @@
     <!--Main Menu-->
     <StackPanel DockPanel.Dock="Top" Background="#444" Orientation="Horizontal">
       <TextBlock Text="Division Engine" FontWeight="Bold" FontSize="16" Margin="5" VerticalAlignment="Center"/>
-      <Menu Foreground="#ccc">
-          <!--File / Edit Menu-->
+        <Menu Foreground="#ccc">
+            <!--File / Edit Menu-->
         <MenuItem Header="File" Foreground="#ccc">
             <MenuItem Header="Open" Command="{Binding OpenProjectCommand}" Foreground="#ccc"/>
 
             <!-- Recent Projects Submenu -->
             <MenuItem Header="Recent Projects" Foreground="#ccc" IsEnabled="{Binding HasRecentProjects}"
-                      ItemsSource="{Binding RecentProjectMenuItems}">
+                        ItemsSource="{Binding RecentProjectMenuItems}">
                 <MenuItem.HeaderTemplate>
                     <DataTemplate>
                         <TextBlock Text="Recent Projects"/>
@@ -66,7 +66,7 @@
             <MenuItem Header="Undo" Command="{Binding UndoCommand}" Foreground="#ccc"/>
             <MenuItem Header="Redo" Command="{Binding RedoCommand}" Foreground="#ccc"/>
         </MenuItem>
-          <!--Add Entity Menu-->
+            <!--Add Entity Menu-->
         <MenuItem Header="Add" Foreground="#ccc">
             <MenuItem Header="Empty Entity" Command="{Binding CreateEntityCommand}" CommandParameter="empty"/>
             <MenuItem Header="Empty Transform" Command="{Binding CreateEntityCommand}" CommandParameter="emptyTransform"/>
@@ -89,13 +89,51 @@
             <Separator/>
             <MenuItem Header="Terrain" Command="{Binding CreateEntityCommand}" CommandParameter="terrain"/>
         </MenuItem>
-          <!--Other Menus-->
+            <!--Other Menus-->
         <MenuItem Header="Help" Foreground="#ccc">
             <MenuItem Header="About" Command="{Binding AboutCommand}" Foreground="#ccc"/>
             <MenuItem Header="Roadmap" Command="{Binding RoadmapCommand}" Foreground="#ccc"/>
             <MenuItem Header="Forum" Command="{Binding ForumCommand}" Foreground="#ccc"/>
         </MenuItem>
-      </Menu>
+        </Menu>
+    
+        <!-- Vertical Separator Line -->
+        <Rectangle Width="2" Height="24" Fill="#666" Margin="10,0" VerticalAlignment="Center"/>
+
+        <!-- Play Controls Toolbar -->
+        <Border Height="34">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
+                <!-- Play/Stop Button -->
+                <Button x:Name="PlayButton" Width="32" Height="28" Margin="2,0" Padding="0"
+                        Background="#222" BorderThickness="0" Cursor="Hand">
+                    <Button.Content>
+                        <icons:MaterialIcon x:Name="PlayIcon" Kind="Play" Width="16" Height="16" Foreground="#8f8"/>
+                    </Button.Content>
+                </Button>
+            
+                <!-- Pause/Resume Button -->
+                <Button x:Name="PauseButton" Width="32" Height="28" Margin="2,0" Padding="0"
+                        Background="#222" BorderThickness="0" Cursor="Hand">
+                    <Button.Content>
+                        <icons:MaterialIcon x:Name="PauseIcon" Kind="Pause" Width="16" Height="16" Foreground="#fb2"/>
+                    </Button.Content>
+                </Button>
+            
+                <!-- Advance Frame Button (only enabled when paused) -->
+                <Button x:Name="AdvanceFrameButton" Width="32" Height="28" Margin="2,0" Padding="0"
+                        Background="#222" BorderThickness="0" Cursor="Hand" IsEnabled="False">
+                    <Button.Content>
+                        <icons:MaterialIcon Kind="StepForward" Width="16" Height="16" Foreground="#7f2"/>
+                    </Button.Content>
+                </Button>
+            
+                <!-- Game Mode Indicator -->
+                <Border x:Name="GameModeIndicator" CornerRadius="4" Padding="8,4" Margin="12,0,0,0">
+                    <TextBlock x:Name="GameModeText" Text="Editing" FontSize="11" FontWeight="Bold" 
+                               Foreground="#888" VerticalAlignment="Center"/>
+                </Border>
+            </StackPanel>
+        </Border>
     </StackPanel>
 
    <!--Bottom Utility Bar-->
@@ -139,21 +177,7 @@
               </TabControl.ItemTemplate>
             </TabControl>
             <Button x:Name="LeftAddButton" Content="+" FontSize="14" Width="18" Height="18"
-                    Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
-              <!--Button.Flyout>
-                <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
-                  <StackPanel>
-                    <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,left" HorizontalAlignment="Stretch"/>
-                    <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,left" HorizontalAlignment="Stretch"/>
-                    <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,left" HorizontalAlignment="Stretch"/>
-                    <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,left" HorizontalAlignment="Stretch"/>
-                    <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,left" HorizontalAlignment="Stretch"/>
-                    <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,left" HorizontalAlignment="Stretch"/>
-                    <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,left" HorizontalAlignment="Stretch"/>
-                  </StackPanel>
-                </Flyout>
-              </Button.Flyout-->
-            </Button>
+                    Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
           </Grid>
           <GridSplitter Grid.Column="1" ResizeDirection="Auto"/>
 
@@ -172,21 +196,7 @@
             </TabControl>
 
             <Button x:Name="CenterAddButton" Content="+" FontSize="14" Width="18" Height="18"
-                    Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
-              <!--Button.Flyout>
-                <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
-                  <StackPanel>
-                    <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,center" HorizontalAlignment="Stretch"/>
-                    <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,center" HorizontalAlignment="Stretch"/>
-                    <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,center" HorizontalAlignment="Stretch"/>
-                    <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,center" HorizontalAlignment="Stretch"/>
-                    <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,center" HorizontalAlignment="Stretch"/>
-                    <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,center" HorizontalAlignment="Stretch"/>
-                    <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,center" HorizontalAlignment="Stretch"/>
-                  </StackPanel>
-                </Flyout>
-              </Button.Flyout-->
-            </Button>
+                    Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
           </Grid>
         </Grid>
         
@@ -207,21 +217,7 @@
           </TabControl>
 
           <Button x:Name="BottomAddButton" Content="+" FontSize="14" Width="18" Height="18"
-                    Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
-            <!--Button.Flyout>
-              <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
-                <StackPanel>
-                  <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,bottom" HorizontalAlignment="Stretch"/>
-                  <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,bottom" HorizontalAlignment="Stretch"/>
-                  <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,bottom" HorizontalAlignment="Stretch"/>
-                  <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,bottom" HorizontalAlignment="Stretch"/>
-                  <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,bottom" HorizontalAlignment="Stretch"/>
-                  <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,bottom" HorizontalAlignment="Stretch"/>
-                  <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,bottom" HorizontalAlignment="Stretch"/>
-                </StackPanel>
-              </Flyout>
-            </Button.Flyout-->
-          </Button>
+                    Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
         </Grid>
       </Grid>
 
@@ -242,21 +238,7 @@
         </TabControl>
 
         <Button x:Name="RightAddButton" Content="+" FontSize="14" Width="18" Height="18"
-                    Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
-          <!--Button.Flyout>
-            <Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway">
-              <StackPanel>
-                <Button Content="World" Command="{Binding AddWindowToTabCommand}" CommandParameter="World,right" HorizontalAlignment="Stretch"/>
-                <Button Content="Environment" Command="{Binding AddWindowToTabCommand}" CommandParameter="Environment,right" HorizontalAlignment="Stretch"/>
-                <Button Content="Assets" Command="{Binding AddWindowToTabCommand}" CommandParameter="Assets,right" HorizontalAlignment="Stretch"/>
-                <Button Content="Console" Command="{Binding AddWindowToTabCommand}" CommandParameter="Console,right" HorizontalAlignment="Stretch"/>
-                <Button Content="Properties" Command="{Binding AddWindowToTabCommand}" CommandParameter="Properties,right" HorizontalAlignment="Stretch"/>
-                <Button Content="Settings" Command="{Binding AddWindowToTabCommand}" CommandParameter="Settings,right" HorizontalAlignment="Stretch"/>
-                <Button Content="Developer" Command="{Binding AddWindowToTabCommand}" CommandParameter="Developer,right" HorizontalAlignment="Stretch"/>
-              </StackPanel>
-            </Flyout>
-          </Button.Flyout-->
-        </Button>
+                    Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
       </Grid>
     </Grid>
   </DockPanel>

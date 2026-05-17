@@ -54,7 +54,119 @@ namespace DivisionEngine.Editor
 #endif
             AttachContextMenus();
             SetupUniversalProgressBar(); // Build editor task system UI
-            SetupAddButtons(); // Add this line
+            SetupAddButtons();
+            SetupPlayControls();
+            SubscribeToEngineEvents();
+            UpdatePlayControlsUI();
+        }
+
+        /// <summary>
+        /// Sets up the play controls toolbar.
+        /// </summary>
+        private void SetupPlayControls()
+        {
+            if (PlayButton != null) PlayButton.Click += PlayButton_Click;
+            if (PauseButton != null)
+            {
+                PauseButton.Click += PauseButton_Click;
+                PauseButton.Click += (_, _) => UpdatePlayControlsUI();
+            }
+            if (AdvanceFrameButton != null) AdvanceFrameButton.Click += AdvanceFrameButton_Click;
+        }
+
+        /// <summary>
+        /// Subscribes to engine core events.
+        /// </summary>
+        private void SubscribeToEngineEvents()
+        {
+            EngineCore.PlayModeChanged += OnPlayModeChanged;
+        }
+
+        /// <summary>
+        /// Called when play mode changes.
+        /// </summary>
+        /// <param name="inPlayMode">Is the engine in play mode or no</param>
+        private void OnPlayModeChanged(bool inPlayMode) => Avalonia.Threading.Dispatcher.UIThread.Post(UpdatePlayControlsUI);
+
+        /// <summary>
+        /// Updates the play controls UI based on current engine state.
+        /// </summary>
+        private void UpdatePlayControlsUI()
+        {
+            if (EngineCore.IsInPlayMode)
+            {
+                if (EngineCore.IsPaused)
+                {
+                    // Paused
+                    PlayIcon.Kind = MaterialIconKind.Stop;
+                    PauseIcon.Kind = MaterialIconKind.Play;
+                    PlayIcon.Foreground = EditorColor.FromColor(ColorPalette.TomatoRed);
+                    PauseIcon.Foreground = EditorColor.FromColor(ColorPalette.Azure);
+                    GameModeText.Text = "Paused";
+                    GameModeText.Foreground = EditorColor.FromRGB(255, 183, 77);
+                    GameModeIndicator.Background = EditorColor.FromRGB(50, 40, 20);
+
+                    if (AdvanceFrameButton != null) AdvanceFrameButton.IsEnabled = true;
+                    if (PauseButton != null) PauseButton.IsEnabled = true;
+                }
+                else
+                {
+                    // Playing
+                    PlayIcon.Kind = MaterialIconKind.Stop;
+                    PauseIcon.Kind = MaterialIconKind.Pause;
+                    PlayIcon.Foreground = EditorColor.FromColor(ColorPalette.TomatoRed);
+                    PauseIcon.Foreground = EditorColor.FromColor(ColorPalette.Orange);
+                    GameModeText.Text = "Playing";
+                    GameModeText.Foreground = EditorColor.FromRGB(139, 195, 74);
+                    GameModeIndicator.Background = EditorColor.FromRGB(30, 50, 20);
+
+                    if (AdvanceFrameButton != null) AdvanceFrameButton.IsEnabled = false;
+                    if (PauseButton != null) PauseButton.IsEnabled = true;
+                }
+            }
+            else
+            {
+                // Editing
+                PlayIcon.Kind = MaterialIconKind.Play;
+                PauseIcon.Kind = MaterialIconKind.Pause;
+                PlayIcon.Foreground = EditorColor.FromColor(ColorPalette.Lime);
+                PauseIcon.Foreground = EditorColor.FromColor(ColorPalette.Orange);
+                GameModeText.Text = "Editing";
+                GameModeText.Foreground = EditorColor.FromRGB(136, 136, 136);
+                GameModeIndicator.Background = EditorColor.FromRGB(40, 40, 40);
+
+                if (AdvanceFrameButton != null) AdvanceFrameButton.IsEnabled = false;
+                if (PauseButton != null) PauseButton.IsEnabled = false;
+            }
+        }
+
+        /// <summary>
+        /// Play button click handler.
+        /// </summary>
+        private void PlayButton_Click(object? sender, RoutedEventArgs e)
+        {
+            if (EngineCore.IsInPlayMode) EngineCore.ExitPlayMode();
+            else EngineCore.EnterPlayMode();
+        }
+
+        /// <summary>
+        /// Pause button click handler.
+        /// </summary>
+        private void PauseButton_Click(object? sender, RoutedEventArgs e)
+        {
+            if (EngineCore.IsInPlayMode)
+            {
+                if (EngineCore.IsPaused) EngineCore.Resume();
+                else EngineCore.Pause();
+            }
+        }
+
+        /// <summary>
+        /// Advance frame button click handler.
+        /// </summary>
+        private void AdvanceFrameButton_Click(object? sender, RoutedEventArgs e)
+        {
+            if (EngineCore.IsInPlayMode && EngineCore.IsPaused) EngineCore.RunFrame();
         }
 
         /// <summary>

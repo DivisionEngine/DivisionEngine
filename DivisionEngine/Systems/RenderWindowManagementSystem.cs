@@ -35,7 +35,7 @@ namespace DivisionEngine.Editor.Systems
         /// </summary>
         public static bool RendererFocused { get; set; }
 
-        public override void Awake()
+        public override void AppStart()
         {
             prevWidth = 0;
             prevHeight = 0;

@@ -11,6 +11,7 @@ using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
 using DivisionEngine.MathLib;
+using DivisionEngine.Rendering;
 using Environment = DivisionEngine.Components.Environment;
 using Random = DivisionEngine.MathLib.Random;
 
@@ -129,7 +130,6 @@ namespace DivisionEngine
             {
                 EngineCore.Stop();
                 CurrentWorld = newDefaultWorld;
-                EngineCore.Start();
             }
             return newDefaultWorld;
         }
@@ -173,7 +173,6 @@ namespace DivisionEngine
             {
                 EngineCore.Stop();
                 CurrentWorld = world;
-                EngineCore.Start();
                 return true;
             }
             return false;
@@ -189,5 +188,31 @@ namespace DivisionEngine
             if (CurrentWorld == worlds[name]) return false;
             return worlds.Remove(name);
         }
+
+        #region play_mode_specific
+
+        /// <summary>
+        /// Restores the current world from a backup without changing world instance.
+        /// </summary>
+        /// <param name="backupWorld">The backup world to restore from</param>
+        public static void RestoreWorldState(World backupWorld)
+        {
+            if (CurrentWorld == null) return;
+
+            bool wasRunning = EngineCore.IsRunning;
+            if (wasRunning) EngineCore.Stop();
+
+            // Restore state into existing world
+            CurrentWorld.RestoreFrom(backupWorld);
+
+            // Rebind renderer
+            RenderPipeline.Instance?.BindCurrentWorld();
+
+            if (wasRunning) EngineCore.Start();
+
+            Debug.Info($"Restored world state from: {backupWorld.Name}");
+        }
+
+        #endregion
     }
 }

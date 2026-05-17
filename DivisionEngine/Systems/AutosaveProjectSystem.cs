@@ -17,20 +17,21 @@ namespace DivisionEngine.Editor.Systems
     {
         private int saveProjectTimer;
 
-        public override void Awake()
+        public override void AppStart()
         {
             // Default save timer
             // 60 fps = save every 2 seconds, 30 fps = save every 4 seconds, etc.
             saveProjectTimer = 120;
         }
 
-        public override void Update()
+        public override void EditorUpdate()
         {
-            if (EditorSettings.Instance.AutoSave && ProjectManager.IsCurrentLoaded)
+            if (EditorSettings.Instance.AutoSave && ProjectManager.IsCurrentLoaded && !EngineCore.IsInPlayMode)
             {
                 saveProjectTimer--;
                 if (saveProjectTimer < 1)
                 {
+                    Debug.Log($"Autosaved");
                     ProjectManager.SaveCurrentProject();
                     saveProjectTimer = EditorSettings.Instance.AutoSaveInterval;
                 }
@@ -39,7 +40,7 @@ namespace DivisionEngine.Editor.Systems
 
         public override void Unload()
         {
-            if (EditorSettings.Instance.AutoSave && ProjectManager.IsCurrentLoaded)
+            if (EditorSettings.Instance.AutoSave && ProjectManager.IsCurrentLoaded && !EngineCore.IsInPlayMode)
                 ProjectManager.SaveCurrentProject();
         }
     }
