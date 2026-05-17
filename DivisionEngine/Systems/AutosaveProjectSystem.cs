@@ -31,7 +31,6 @@ namespace DivisionEngine.Editor.Systems
                 saveProjectTimer--;
                 if (saveProjectTimer < 1)
                 {
-                    Debug.Log($"Autosaved");
                     ProjectManager.SaveCurrentProject();
                     saveProjectTimer = EditorSettings.Instance.AutoSaveInterval;
                 }
