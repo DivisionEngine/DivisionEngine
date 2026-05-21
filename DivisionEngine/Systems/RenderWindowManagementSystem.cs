@@ -6,6 +6,7 @@
 // project root for full license terms.
 //
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using DivisionEngine.Rendering;
 using DivisionEngine.Systems;
@@ -24,6 +25,7 @@ namespace DivisionEngine.Editor.Systems
         private int forceGrabWindowTimer;
         private int initializeTimer;
         private bool updatingFocus;
+        private double lastDpiScale = 1;
 
         /// <summary>
         /// Editor window is in focus.
@@ -59,6 +61,16 @@ namespace DivisionEngine.Editor.Systems
                 Selection.Clear();
                 PropertiesWindow.LoadWorldData(WorldManager.CurrentWorld);
             };
+        }
+
+        /// <summary>
+        /// Gets the current DPI scaling factor from the TopLevel.
+        /// </summary>
+        private double GetCurrentDpiScale(EnvironmentWindow win)
+        {
+            if (win.renderVisualizerFrame == null) return 1.0;
+            TopLevel? topLevel = TopLevel.GetTopLevel(win.renderVisualizerFrame);
+            return topLevel?.RenderScaling ?? 1.0;
         }
 
         public override void EditorUpdate()
@@ -132,24 +144,40 @@ namespace DivisionEngine.Editor.Systems
                         win.renderVisualizerFrame.Bounds.Width <= 0 || win.renderVisualizerFrame.Bounds.Height <= 0)
                         return;
 
-                    PixelPoint screenPoint = win.renderVisualizerFrame.PointToScreen(new Point(0, 0));
-                    Size size = win.renderVisualizerFrame.Bounds.Size;
+                    // Get DPI scaling
+                    double dpiScale = GetCurrentDpiScale(win);
 
-                    // Check if frame changed shape
-                    if (!forceGrab && size.Width == prevWidth && size.Height == prevHeight
-                        && prevX == screenPoint.X && prevY == screenPoint.Y) return;
+                    // PointToScreen already returns physical pixels! Don't multiply again.
+                    PixelPoint screenPointPhysical = win.renderVisualizerFrame.PointToScreen(new Point(0, 0));
+                    Size sizeDPI = win.renderVisualizerFrame.Bounds.Size;
 
-                    // Update bounds
-                    prevWidth = size.Width;
-                    prevHeight = size.Height;
-                    prevX = screenPoint.X;
-                    prevY = screenPoint.Y;
+                    // Only convert the size from DPI to physical pixels
+                    int physicalWidth = (int)(sizeDPI.Width * dpiScale);
+                    int physicalHeight = (int)(sizeDPI.Height * dpiScale);
 
-                    App.Renderer.RendererWindow.Position = new Silk.NET.Maths.Vector2D<int>(screenPoint.X, screenPoint.Y);
-                    App.Renderer.RendererWindow.Size = new Silk.NET.Maths.Vector2D<int>((int)size.Width, (int)size.Height);
+                    // Update RenderPipeline's DPI scale for input handling
+                    if (App.Renderer != null && Math.Abs(dpiScale - lastDpiScale) > 0.01)
+                    {
+                        App.Renderer.UpdateDpiScale((float)dpiScale);
+                        lastDpiScale = dpiScale;
+                    }
 
-                    // Update window text
-                    win.widthHeightText.Text = $"(Width {(int)size.Width}px,  Height {(int)size.Height}px,  FPS {TimeSystem.FPS})";
+                    // Check if frame changed shape using physical coordinates
+                    if (!forceGrab && physicalWidth == prevWidth && physicalHeight == prevHeight
+                        && screenPointPhysical.X == prevX && screenPointPhysical.Y == prevY) return;
+
+                    // Update bounds with physical pixels
+                    prevWidth = physicalWidth;
+                    prevHeight = physicalHeight;
+                    prevX = screenPointPhysical.X;
+                    prevY = screenPointPhysical.Y;
+
+                    // Apply physical pixel coordinates to Silk.NET window
+                    App.Renderer!.RendererWindow.Position = new Silk.NET.Maths.Vector2D<int>(screenPointPhysical.X, screenPointPhysical.Y);
+                    App.Renderer.RendererWindow.Size = new Silk.NET.Maths.Vector2D<int>(physicalWidth, physicalHeight);
+
+                    // Update window text (show DPI size for reference)
+                    win.widthHeightText.Text = $"(Width {(int)sizeDPI.Width}px,  Height {(int)sizeDPI.Height}px,  FPS {TimeSystem.FPS})";
                 }
                 else if (App.RendererVisible) SetVisible(false);
             }

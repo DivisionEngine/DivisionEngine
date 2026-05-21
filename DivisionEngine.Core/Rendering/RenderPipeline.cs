@@ -52,6 +52,7 @@ namespace DivisionEngine.Rendering
         private GraphicsDevice? device; // Graphics device for ComputeSharp operations
         private uint glTexture, glShaderProgram;
         private static bool deviceLost;
+        private float currentDpiScale = 1f;
 
         // Rendering variables
 
@@ -149,6 +150,14 @@ namespace DivisionEngine.Rendering
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Updates the DPI scaling factor for input coordinate conversion.
+        /// </summary>
+        public void UpdateDpiScale(float scale)
+        {
+            currentDpiScale = scale;
         }
 
         /// <summary>
