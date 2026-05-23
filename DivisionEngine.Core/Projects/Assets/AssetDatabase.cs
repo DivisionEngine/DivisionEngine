@@ -100,7 +100,7 @@ namespace DivisionEngine.Projects.Assets
         {
             if (folderPath?.EndsWith(".divmeta") == true) return; // Skip .divmeta files
             pendingFolderToRefresh = folderPath;
-            debounceTimer?.Change(500, Timeout.Infinite); // Debounce timer set at 500ms
+            debounceTimer?.Change(50, Timeout.Infinite); // Debounce timer set at 50ms
         }
 
         private static void RefreshScheduledFolder(object? state)
@@ -357,7 +357,6 @@ namespace DivisionEngine.Projects.Assets
             return asset != null ? Path.Combine(ProjectPath, asset.RelativePath) : null;
         }
 
-        // Optional: Import, Delete, Rename (can be added later)
-
+        // Future items: Import, Delete, Rename (might be added later)
     }
 }

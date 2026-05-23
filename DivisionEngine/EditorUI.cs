@@ -6,7 +6,11 @@
 // project root for full license terms.
 //
 using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 using DivisionEngine.Editor.ViewModels;
+using Material.Icons;
+using Material.Icons.Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -99,7 +103,7 @@ namespace DivisionEngine.Editor
         /// <summary>
         /// Static method to create entities from context menu.
         /// </summary>
-        /// <param name="entityType">Entity type ID</param>
+        /// <param name="entityType">Entity type ID (i.e. empty, roundedBox, Cone, TERRAIN)</param>
         public static void CreateEntityStatic(string entityType)
         {
             try
@@ -131,6 +135,36 @@ namespace DivisionEngine.Editor
             {
                 Debug.Error($"Failed to create entity", ex);
             }
+        }
+
+        public static MenuItem CreateContextMenuItem(string text, MaterialIconKind icon, Action action, IBrush? foreground = null)
+        {
+            MenuItem menuItem = new MenuItem
+            {
+                Header = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    Children =
+                    {
+                        new MaterialIcon
+                        {
+                            Kind = icon,
+                            Width = 16,
+                            Height = 16,
+                            Foreground = foreground ?? Brushes.White,
+                        },
+                        new TextBlock
+                        {
+                            Text = text,
+                            Foreground = foreground ?? Brushes.White,
+                        }
+                    }
+                },
+                Foreground = foreground ?? Brushes.White,
+            };
+            menuItem.Click += (s, e) => action();
+            return menuItem;
         }
     }
 }
