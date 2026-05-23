@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Math = DivisionEngine.MathLib.Math;
 using Path = System.IO.Path;
@@ -63,10 +64,12 @@ public partial class AssetsWindow : EditorWindow
     private readonly TextBlock itemCountText;
     private readonly Button upDirButton;
     private readonly Button viewButton;
+    private readonly ComboBox filterDropdown;
     private readonly MaterialIcon viewButtonIcon;
 
     // Data vars
     private string currentPath;
+    private AssetType currentFilter = AssetType.None;
     private static bool subscribedProjectEvents = false; // Track if subscribed to events
     private bool subscribedToFolderEvents = false; // Track if subscribed to asset folder events
 
@@ -218,11 +221,40 @@ public partial class AssetsWindow : EditorWindow
             Padding = new Thickness(3, 1, 3, 1),
             VerticalAlignment = VerticalAlignment.Center,
         };
+
+        // Filter dropdown
+        filterDropdown = new ComboBox
+        {
+            MinWidth = 80,
+            Margin = new Thickness(2, 2, 2, 2),
+            Foreground = Brushes.White,
+            Background = EditorColor.FromRGB(17, 17, 17),
+            BorderThickness = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        filterDropdown.Items.Add(new ComboBoxItem { Content = "All Assets", Tag = AssetType.None });
+        filterDropdown.Items.Add(new ComboBoxItem { Content = "Textures", Tag = AssetType.Texture });
+        filterDropdown.Items.Add(new ComboBoxItem { Content = "Models/SDF", Tag = AssetType.SDF });
+        filterDropdown.Items.Add(new ComboBoxItem { Content = "Materials", Tag = AssetType.Material });
+        filterDropdown.Items.Add(new ComboBoxItem { Content = "Scripts", Tag = AssetType.Script });
+        filterDropdown.Items.Add(new ComboBoxItem { Content = "Audio", Tag = AssetType.Audio });
+        filterDropdown.Items.Add(new ComboBoxItem { Content = "Fonts", Tag = AssetType.Font });
+        filterDropdown.SelectionChanged += (s, e) =>
+        {
+            if (s is ComboBox combo && combo.SelectedItem is ComboBoxItem item)
+            {
+                currentFilter = (AssetType)item.Tag!;
+                LoadAssets(currentPath ?? string.Empty); // Reload with new filter
+            }
+        };
+        filterDropdown.SelectedIndex = 0; // Default to "All Assets"
+
         directoryField.TextChanged += DirectoryField_TextChanged;
         upDirButton.Click += (s, e) => NavigateUpOneLevel();
         viewButton.Click += (s, e) => ToggleViewState();
         header.Children.Add(upDirButton);
         header.Children.Add(viewButton);
+        header.Children.Add(filterDropdown);
         header.Children.Add(directoryField);
         header.Children.Add(itemCountText);
 
@@ -238,7 +270,7 @@ public partial class AssetsWindow : EditorWindow
             {
                 new RowDefinition(32, GridUnitType.Pixel), // Header
                 new RowDefinition(1, GridUnitType.Pixel),  // Separator
-                new RowDefinition(1, GridUnitType.Star),   // Scrollable area (takes remaining space)
+                new RowDefinition(1, GridUnitType.Star),   // Scrollable area
             }
         };
         Grid.SetRow(header, 0);
@@ -280,24 +312,29 @@ public partial class AssetsWindow : EditorWindow
         {
             CreateNewAsset(true);
         }));
-        backgroundContextMenu.Items.Add(EditorUI.CreateContextMenuItem("New C# Script", MaterialIconKind.CodeBraces, () =>
+        backgroundContextMenu.Items.Add(EditorUI.CreateContextMenuItem("New Component", MaterialIconKind.CodeBraces, () =>
         {
             CreateNewAsset(false, "cs",
                 "using DivisionEngine;\n" +
                 "using DivisionEngine.Components;\n" +
+                "using DivisionEngine.Components.FieldAttributes;\n" +
+                "using DivisionEngine.MathLib;\n" +
                 "\n" +
-                "public class NewScript : ScriptComponent\n" +
+                "public class NewComponent : IComponent\n" +
                 "{\n" +
-                "    public override void OnStart()\n" +
-                "    {\n" +
-                "        // Initialization code here\n" +
-                "    }\n" +
-                "\n" +
-                "    public override void OnUpdate(float deltaTime)\n" +
-                "    {\n" +
-                "        // Update code here\n" +
-                "    }\n" +
-                "}");
+                "   [Range(0f, 1f)] private float demoValue;\n" +
+                "   \n" +
+                "   public NewComponent()\n" +
+                "   {\n" +
+                "       demoValue = 1f;\n" +
+                "   }\n" +
+                "   \n" +
+                "   public IComponent Clone() => new NewComponent\n" +
+                "   {\n" +
+                "       demoValue = demoValue,\n" +
+                "   };\n" +
+                "}\n"
+            );
         }));
         backgroundContextMenu.Items.Add(EditorUI.CreateContextMenuItem("New Text File", MaterialIconKind.FileDocument, () =>
         {
@@ -383,7 +420,6 @@ public partial class AssetsWindow : EditorWindow
 
         // Handle name submission
         bool completed = false;
-
         void CompleteCreation(bool cancel)
         {
             if (completed) return;
@@ -629,6 +665,11 @@ public partial class AssetsWindow : EditorWindow
 
         // Get assets from database, using relativePath
         List<AssetMetadata> assets = [.. AssetDatabase.GetAssetsInFolder(relativePath)];
+
+        // Apply filter if not showing all
+        if (currentFilter != AssetType.None)
+            assets = [.. assets.Where(a => a.Type == currentFilter)];
+
         int totalAssets = folders.Length + assets.Count;
 
         // Load correct view
@@ -658,7 +699,7 @@ public partial class AssetsWindow : EditorWindow
     }
 
     /// <summary>
-    /// Original file system loading (for when no project is loaded)
+    /// Original file system loading (for when no project is loaded).
     /// </summary>
     private void LoadAssetsUsingFileSystem(string path)
     {
@@ -717,8 +758,7 @@ public partial class AssetsWindow : EditorWindow
             foreach (DirectoryInfo folder in folders) CreateFolderTile(folder);
             foreach (FileInfo file in files) CreateFileTile(file);
 
-            // Update columns after adding items
-            UpdateTileColumns();
+            UpdateTileColumns(); // Update columns after adding items
         }
         else
         {
@@ -757,30 +797,8 @@ public partial class AssetsWindow : EditorWindow
     /// <param name="folder">Folder to add to tiles panel</param>
     private void CreateFolderTile(DirectoryInfo folder)
     {
-        Border folderBorder = new Border
-        {
-            Width = 80,
-            Height = 85,
-            BorderThickness = new Thickness(0, 0, 1, 1),
-            BorderBrush = EditorColor.FromRGB(10, 10, 10),
-            Background = EditorColor.FromRGB(20, 20, 20),
-            CornerRadius = new CornerRadius(4),
-            Margin = new Thickness(5),
-            Padding = new Thickness(5),
-            Cursor = new Cursor(StandardCursorType.Hand),
-        };
-        folderBorder.PointerEntered += (_, _) =>
-        {
-            folderBorder.BorderThickness = new Thickness(1, 0, 2, 2);
-            folderBorder.BorderBrush = EditorColor.FromRGB(12, 12, 12);
-            folderBorder.Background = Background = EditorColor.FromRGB(24, 24, 24);
-        };
-        folderBorder.PointerExited += (_, _) =>
-        {
-            folderBorder.BorderThickness = new Thickness(0, 0, 1, 1);
-            folderBorder.BorderBrush = EditorColor.FromRGB(10, 10, 10);
-            folderBorder.Background = Background = EditorColor.FromRGB(20, 20, 20);
-        };
+        Border folderBorder = CreateTileBorder();
+        SetupTileHoverEffects(folderBorder);
 
         StackPanel folderStack = new StackPanel
         {
@@ -853,30 +871,8 @@ public partial class AssetsWindow : EditorWindow
     /// <param name="file">File to add to tiles panel</param>
     private void CreateFileTile(FileInfo file)
     {
-        Border fileBorder = new Border
-        {
-            Width = 80,
-            Height = 85,
-            BorderThickness = new Thickness(0, 0, 1, 1),
-            BorderBrush = EditorColor.FromRGB(20, 10, 10),
-            Background = EditorColor.FromRGB(30, 20, 20),
-            CornerRadius = new CornerRadius(4),
-            Margin = new Thickness(5),
-            Padding = new Thickness(5),
-            Cursor = new Cursor(StandardCursorType.Hand),
-        };
-        fileBorder.PointerEntered += (_, _) =>
-        {
-            fileBorder.BorderThickness = new Thickness(1, 0, 2, 2);
-            fileBorder.BorderBrush = EditorColor.FromRGB(24, 14, 14);
-            fileBorder.Background = Background = EditorColor.FromRGB(36, 26, 26);
-        };
-        fileBorder.PointerExited += (_, _) =>
-        {
-            fileBorder.BorderThickness = new Thickness(0, 0, 1, 1);
-            fileBorder.BorderBrush = EditorColor.FromRGB(20, 10, 10);
-            fileBorder.Background = Background = EditorColor.FromRGB(30, 20, 20);
-        };
+        Border fileBorder = CreateTileBorder();
+        SetupTileHoverEffects(fileBorder);
 
         StackPanel fileStack = new StackPanel
         {
@@ -961,30 +957,8 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     private void CreateAssetTile(AssetMetadata asset)
     {
-        Border assetBorder = new Border
-        {
-            Width = 80,
-            Height = 85,
-            BorderThickness = new Thickness(0, 0, 1, 1),
-            BorderBrush = EditorColor.FromRGB(10, 10, 10),
-            Background = EditorColor.FromRGB(20, 20, 20),
-            CornerRadius = new CornerRadius(4),
-            Margin = new Thickness(5),
-            Padding = new Thickness(5),
-            Cursor = new Cursor(StandardCursorType.Hand),
-        };
-        assetBorder.PointerEntered += (_, _) =>
-        {
-            assetBorder.BorderThickness = new Thickness(1, 0, 2, 2);
-            assetBorder.BorderBrush = EditorColor.FromRGB(12, 12, 12);
-            assetBorder.Background = Background = EditorColor.FromRGB(24, 24, 24);
-        };
-        assetBorder.PointerExited += (_, _) =>
-        {
-            assetBorder.BorderThickness = new Thickness(0, 0, 1, 1);
-            assetBorder.BorderBrush = EditorColor.FromRGB(10, 10, 10);
-            assetBorder.Background = Background = EditorColor.FromRGB(20, 20, 20);
-        };
+        Border assetBorder = CreateTileBorder();
+        SetupTileHoverEffects(assetBorder);
 
         StackPanel assetStack = new StackPanel
         {
@@ -1094,6 +1068,35 @@ public partial class AssetsWindow : EditorWindow
 
         assetBorder.ContextMenu = contextMenu;
         assetsTileGrid.Children.Add(assetBorder);
+    }
+
+    private static Border CreateTileBorder(double width = 80, double height = 85) => new Border
+    {
+        Width = width,
+        Height = height,
+        BorderThickness = new Thickness(0, 0, 1, 1),
+        BorderBrush = EditorColor.FromRGB(10, 10, 10),
+        Background = EditorColor.FromRGB(20, 20, 20),
+        CornerRadius = new CornerRadius(4),
+        Margin = new Thickness(5),
+        Padding = new Thickness(5),
+        Cursor = new Cursor(StandardCursorType.Hand),
+    };
+
+    private static void SetupTileHoverEffects(Border border)
+    {
+        border.PointerEntered += (_, _) =>
+        {
+            border.BorderThickness = new Thickness(1, 0, 2, 2);
+            border.BorderBrush = EditorColor.FromRGB(12, 12, 12);
+            border.Background = EditorColor.FromRGB(24, 24, 24);
+        };
+        border.PointerExited += (_, _) =>
+        {
+            border.BorderThickness = new Thickness(0, 0, 1, 1);
+            border.BorderBrush = EditorColor.FromRGB(10, 10, 10);
+            border.Background = EditorColor.FromRGB(20, 20, 20);
+        };
     }
 
     /// <summary>
