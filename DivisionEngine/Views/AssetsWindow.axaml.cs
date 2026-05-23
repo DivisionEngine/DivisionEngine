@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -327,7 +328,6 @@ public partial class AssetsWindow : EditorWindow
             Margin = new Thickness(5),
             Padding = new Thickness(5),
         };
-
         StackPanel itemStack = new StackPanel
         {
             Orientation = Orientation.Vertical,
@@ -435,7 +435,7 @@ public partial class AssetsWindow : EditorWindow
 
         nameBox.LostFocus += (s, e) =>
         {
-            // Small delay to allow Enter key to process first
+            // Small delay to allow "Enter" key to process first
             Dispatcher.UIThread.Post(() => CompleteCreation(true), DispatcherPriority.Background);
         };
 
@@ -450,12 +450,9 @@ public partial class AssetsWindow : EditorWindow
     {
         try
         {
-            await App.SetEditorRenderingAsync(false);
-
-            string newPath;
             if (isFolder)
             {
-                newPath = Path.Combine(currentPath, name);
+                string newPath = Path.Combine(currentPath, name);
                 Directory.CreateDirectory(newPath);
                 Debug.Info($"Created folder: {newPath}");
             }
@@ -463,33 +460,15 @@ public partial class AssetsWindow : EditorWindow
             {
                 string fileName = extension == "cs" ? name : $"{name}.{extension}";
                 if (!fileName.EndsWith($".{extension}")) fileName += $".{extension}";
-
-                newPath = Path.Combine(currentPath, fileName);
+                string newPath = Path.Combine(currentPath, fileName);
 
                 // Write content to file
                 await File.WriteAllTextAsync(newPath, defaultContent);
                 Debug.Info($"Created file: {newPath}");
             }
-
-            // Force refresh the AssetDatabase
-            Dispatcher.UIThread.Post(() =>
-            {
-                // Refresh the database
-                if (ProjectManager.IsCurrentLoaded)
-                {
-                    AssetDatabase.SaveAll();
-                    AssetDatabase.Initialize(); // Rescan all assets
-                }
-
-                // Refresh the current view
-                LoadAssets(currentPath);
-            });
-
-            await App.SetEditorRenderingAsync(true);
         }
         catch (Exception ex)
         {
-            await App.SetEditorRenderingAsync(true);
             Debug.Error($"Failed to create {(isFolder ? "folder" : "file")}: {name}", ex);
 
             // TODO: add notify in future
@@ -657,15 +636,11 @@ public partial class AssetsWindow : EditorWindow
         string relativePath = AssetDatabase.GetProjectRelativePath(path);
         if (relativePath == ".") relativePath = "";
 
-        //Debug.Info($"Loading assets from: {path}, relative path: '{relativePath}'");
-
         // Get folders from file system (always needed)
         DirectoryInfo[] folders = pathInfo.GetDirectories();
 
-        // Get assets from database - FIXED: Now using relativePath
+        // Get assets from database, using relativePath
         List<AssetMetadata> assets = [.. AssetDatabase.GetAssetsInFolder(relativePath)];
-        //Debug.Info($"Found {assets.Count} assets in folder '{relativePath}'");
-
         int totalAssets = folders.Length + assets.Count;
 
         // Load correct view
@@ -678,8 +653,7 @@ public partial class AssetsWindow : EditorWindow
             foreach (DirectoryInfo? folder in folders) CreateFolderTile(folder);
             foreach (AssetMetadata? asset in assets) CreateAssetTile(asset);
 
-            // Update columns after adding items
-            UpdateTileColumns();
+            UpdateTileColumns(); // Update columns after adding items
         }
         else
         {
@@ -1272,7 +1246,7 @@ public partial class AssetsWindow : EditorWindow
         }));
         contextMenu.Items.Add(CreateMenuItem("Copy GUID", MaterialIconKind.Identifier, async () =>
         {
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
             if (clipboard != null)
             {
                 DataTransfer clipboardData = new DataTransfer(); // New clipboard setup
@@ -1283,7 +1257,7 @@ public partial class AssetsWindow : EditorWindow
         }));
         contextMenu.Items.Add(CreateMenuItem("Copy Path", MaterialIconKind.ContentCopy, async () =>
         {
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
             if (clipboard != null)
             {
                 DataTransfer clipboardData = new DataTransfer();
@@ -1502,7 +1476,8 @@ public partial class AssetsWindow : EditorWindow
     {
         if (!subscribedToFolderEvents)
         {
-            ProjectManager.AssetFolderChanged += OnAssetFolderChanged;
+            Debug.Warning("Subscribed to asset folder change event");
+            AssetDatabase.FolderChanged += OnAssetFolderChanged;
             subscribedToFolderEvents = true;
         }
 
@@ -1529,7 +1504,8 @@ public partial class AssetsWindow : EditorWindow
     {
         if (subscribedToFolderEvents)
         {
-            ProjectManager.AssetFolderChanged -= OnAssetFolderChanged;
+            Debug.Warning("Unsubscribed from asset folder change event");
+            AssetDatabase.FolderChanged -= OnAssetFolderChanged;
             subscribedToFolderEvents = false;
         }
 
@@ -1546,11 +1522,14 @@ public partial class AssetsWindow : EditorWindow
     // Handle folder changes
     private void OnAssetFolderChanged(string folderPath)
     {
-        // Check if this folder is the one we're currently viewing
-        if (!string.IsNullOrEmpty(currentPath) && folderPath.StartsWith(currentPath))
+        // Check if this folder is viewing or a parent of it
+        if (!string.IsNullOrEmpty(currentPath) && (folderPath.StartsWith(currentPath) || currentPath.StartsWith(folderPath)))
         {
-            // Refresh the current view
-            Dispatcher.UIThread.Post(() => LoadAssets(currentPath));
+            Dispatcher.UIThread.Post(async () =>
+            {
+                //await Task.Delay(50); // Small delay to ensure all file operations are complete
+                LoadAssets(currentPath); // Force reload of the current path
+            }, DispatcherPriority.Background);
         }
     }
 }

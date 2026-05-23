@@ -201,13 +201,8 @@ namespace DivisionEngine
 
             bool wasRunning = EngineCore.IsRunning;
             if (wasRunning) EngineCore.Stop();
-
-            // Restore state into existing world
-            CurrentWorld.RestoreFrom(backupWorld);
-
-            // Rebind renderer
-            RenderPipeline.Instance?.BindCurrentWorld();
-
+            CurrentWorld.RestoreFrom(backupWorld); // Restore state into existing world
+            RenderPipeline.Instance?.BindCurrentWorld(); // Rebind renderer
             if (wasRunning) EngineCore.Start();
 
             Debug.Info($"Restored world state from: {backupWorld.Name}");

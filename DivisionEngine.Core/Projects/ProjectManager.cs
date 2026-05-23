@@ -41,9 +41,6 @@ namespace DivisionEngine.Projects
         public static event Action? ProjectClosing;
         public static event Action? ProjectClosed;
 
-        // Asset Events (forwarded from AssetDatabase for convenience)
-        public static event Action<string>? AssetFolderChanged;
-
         /// <summary>
         /// Searches project directory to find the project file (ex. NewProject.divp).
         /// </summary>
@@ -292,8 +289,8 @@ namespace DivisionEngine.Projects
         {
             // Initialize the asset database
             AssetDatabase.Initialize();
-            AssetDatabase.FolderChanged += (folder) => AssetFolderChanged?.Invoke(folder);
             AssetManager = new AssetManager(); // Create asset manager instance
+            AssetDatabase.StartFileWatcher(); // Make sure to start asset file watcher system as well
         }
 
         /// <summary>
@@ -304,6 +301,7 @@ namespace DivisionEngine.Projects
             Debug.Info($"Project Manager: Closing {CurrentProjectName}");
 
             ProjectClosing?.Invoke(); // Start closing notify
+            AssetDatabase.StopFileWatcher(); // Stop watching before saving
             AssetDatabase.SaveAll(); // Save all asset metadata before closing
             AssetManager?.UnloadAll(); // Unload all assets
 
@@ -312,8 +310,6 @@ namespace DivisionEngine.Projects
             CurrentProjectName = null;
             CurrentProjectPath = null;
 
-            // Clear forwarded events
-            AssetFolderChanged = null;
             ProjectClosed?.Invoke();
         }
     }

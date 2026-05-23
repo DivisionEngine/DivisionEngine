@@ -19,6 +19,11 @@ namespace DivisionEngine.Projects.Assets
         private static readonly JsonSerializerOptions jsonSerializerOptions =
             new JsonSerializerOptions { WriteIndented = true };
 
+        // File watching
+        private static FileSystemWatcher? watcher;
+        private static Timer? debounceTimer;
+        private static string? pendingFolderToRefresh;
+
         /// <summary>
         /// Contains all the folder metadatas.
         /// </summary>
@@ -68,6 +73,59 @@ namespace DivisionEngine.Projects.Assets
             foreach (string dir in directories) ProcessFolder(dir);
             Debug.Info($"Asset Database: Loaded {AllAssetsByID.Count} assets from {Folders.Count} folders");
         }
+
+        #region fileWatcher
+
+        public static void StartFileWatcher()
+        {
+            if (!Directory.Exists(AssetsPath)) return;
+
+            watcher = new FileSystemWatcher(AssetsPath)
+            {
+                IncludeSubdirectories = true,
+                EnableRaisingEvents = true
+            };
+
+            // Simple file changed event handler
+            watcher.Changed += (s, e) => ScheduleFolderRefresh(Path.GetDirectoryName(e.FullPath)!);
+            watcher.Created += (s, e) => ScheduleFolderRefresh(Path.GetDirectoryName(e.FullPath)!);
+            watcher.Deleted += (s, e) => ScheduleFolderRefresh(Path.GetDirectoryName(e.FullPath)!);
+            watcher.Renamed += (s, e) => ScheduleFolderRefresh(Path.GetDirectoryName(e.FullPath)!);
+
+            debounceTimer = new Timer(RefreshScheduledFolder, null, Timeout.Infinite, Timeout.Infinite);
+            Debug.Info($"Asset Database: file watcher started on: {AssetsPath}");
+        }
+
+        private static void ScheduleFolderRefresh(string folderPath)
+        {
+            if (folderPath?.EndsWith(".divmeta") == true) return; // Skip .divmeta files
+            pendingFolderToRefresh = folderPath;
+            debounceTimer?.Change(500, Timeout.Infinite); // Debounce timer set at 500ms
+        }
+
+        private static void RefreshScheduledFolder(object? state)
+        {
+            if (string.IsNullOrEmpty(pendingFolderToRefresh)) return;
+            RefreshFolder(pendingFolderToRefresh);
+            pendingFolderToRefresh = null;
+        }
+
+        public static void RefreshFolder(string folderPath)
+        {
+            if (!folderPath.StartsWith(AssetsPath)) return;
+            ProcessFolder(folderPath); // Only reprocess this specific folder
+            FolderChanged?.Invoke(folderPath); // Notify UI to update
+        }
+
+        public static void StopFileWatcher()
+        {
+            watcher?.Dispose();
+            watcher = null;
+            debounceTimer?.Dispose();
+            debounceTimer = null;
+        }
+
+        #endregion fileWatcher
 
         private static void ProcessFolder(string folderPath)
         {
