@@ -10,14 +10,39 @@ namespace DivisionEngine.Projects.Assets
     [AssetType(AssetType.Audio)]
     public class AudioAsset(AssetMetadata metadata) : Asset(metadata)
     {
-        public override Task<bool> LoadAsync()
+        private byte[]? audioData;
+
+        /// <summary>
+        /// Raw audio file data (WAV/MP3/OGG bytes).
+        /// </summary>
+        public byte[]? AudioData => audioData;
+
+        public override async Task<bool> LoadAsync()
         {
-            throw new NotImplementedException();
+            if (IsLoaded) return true;
+
+            try
+            {
+                string fullPath = Path.Combine(AssetDatabase.ProjectPath, RelativePath);
+                audioData = await File.ReadAllBytesAsync(fullPath);
+
+                IsLoaded = true;
+                Debug.Info($"Audio loaded: {Metadata.FileName} ({audioData.Length} bytes)");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Failed to load audio {Metadata.FileName}: {ex.Message}");
+                IsLoaded = false;
+                return false;
+            }
         }
 
         public override void Unload()
         {
-            throw new NotImplementedException();
+            audioData = null;
+            IsLoaded = false;
+            Debug.Info($"Audio unloaded: {Metadata.FileName}");
         }
     }
 }

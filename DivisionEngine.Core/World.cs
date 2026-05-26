@@ -298,6 +298,46 @@ namespace DivisionEngine
             for (int i = 0; i < renderSystems.Count; i++) renderSystems[i].Render();
         }
 
+        /// <summary>
+        /// Gets a system of the specified type from the world.
+        /// </summary>
+        /// <typeparam name="T">Type of system to retrieve</typeparam>
+        /// <returns>The system instance, or null if not found</returns>
+        public T? GetSystem<T>() where T : SystemBase
+        {
+            for (int i = 0; i < systems.Count; i++)
+                if (systems[i] is T system)
+                    return system;
+            return null;
+        }
+
+        /// <summary>
+        /// Gets a system of the specified type from the world.
+        /// </summary>
+        /// <param name="systemType">Type of system to retrieve</param>
+        /// <returns>The system instance, or null if not found</returns>
+        public SystemBase? GetSystem(Type systemType)
+        {
+            for (int i = 0; i < systems.Count; i++)
+                if (systems[i].GetType() == systemType)
+                    return systems[i];
+            return null;
+        }
+
+        /// <summary>
+        /// Checks if a system of the specified type exists in the world.
+        /// </summary>
+        /// <typeparam name="T">Type of system to check</typeparam>
+        /// <returns>True if the system exists</returns>
+        public bool HasSystem<T>() where T : SystemBase => GetSystem<T>() != null;
+
+        /// <summary>
+        /// Checks if a system of the specified type exists in the world.
+        /// </summary>
+        /// <param name="systemType">Type of system to check</param>
+        /// <returns>True if the system exists</returns>
+        public bool HasSystem(Type systemType) => GetSystem(systemType) != null;
+
         #endregion
         #region components
 

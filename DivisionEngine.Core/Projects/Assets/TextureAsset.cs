@@ -5,36 +5,44 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using SkiaSharp;
+
 namespace DivisionEngine.Projects.Assets
 {
     [AssetType(AssetType.Texture)]
     public class TextureAsset(AssetMetadata metadata) : Asset(metadata)
     {
-        // Texture-specific properties
-        public int Width { get; private set; }
-        public int Height { get; private set; }
-        public int MipLevels { get; private set; }
+        private byte[]? imageData;
+        private int width;
+        private int height;
 
-        // Runtime texture handle (would be whatever your renderer uses)
-        private object? _textureHandle;
+        /// <summary>
+        /// Raw image data (BGRA bytes).
+        /// </summary>
+        public byte[]? ImageData => imageData;
+
+        public int Width => width;
+        public int Height => height;
 
         public override async Task<bool> LoadAsync()
         {
+            if (IsLoaded) return true;
+
             try
             {
-                // Simulate loading (replace with actual texture loading)
-                await Task.Delay(100);
+                string fullPath = Path.Combine(AssetDatabase.ProjectPath, RelativePath);
 
-                // For demo purposes, set some fake dimensions
-                Width = 512;
-                Height = 512;
-                MipLevels = 1;
+                // Just load and decode to get dimensions, but store raw bytes
+                using FileStream stream = File.OpenRead(fullPath);
+                using SKBitmap bitmap = SKBitmap.Decode(stream) ?? throw new InvalidOperationException($"Failed to decode image: {Metadata.FileName}");
+                width = bitmap.Width;
+                height = bitmap.Height;
 
-                // In reality, you'd load the texture data here
-                // _textureHandle = await LoadTextureFromFile(GetFullPath());
+                // Reload to get raw bytes (or you could use the bitmap's bytes)
+                imageData = await File.ReadAllBytesAsync(fullPath);
 
                 IsLoaded = true;
-                Debug.Info($"Texture loaded: {Metadata.FileName} ({Width}x{Height})");
+                Debug.Info($"Texture loaded: {Metadata.FileName} ({width}x{height}, {imageData.Length} bytes)");
                 return true;
             }
             catch (Exception ex)
@@ -47,22 +55,11 @@ namespace DivisionEngine.Projects.Assets
 
         public override void Unload()
         {
-            if (!IsLoaded) return;
-
-            // Unload texture (dispose handle, etc.)
-            // _textureHandle?.Dispose();
-            // _textureHandle = null;
-
+            imageData = null;
+            width = 0;
+            height = 0;
             IsLoaded = false;
             Debug.Info($"Texture unloaded: {Metadata.FileName}");
-        }
-
-        // Helper to get full path (you might want to inject AssetDatabase)
-        private string GetFullPath()
-        {
-            // This would need the assetsPath from somewhere
-            // For now, just return relative path
-            return Metadata.RelativePath;
         }
     }
 }

@@ -79,6 +79,34 @@ namespace DivisionEngine
         /// <exception cref="NotImplementedException">Throws an exception if a system is not implemented correctly</exception>
         public static void RegisterAllSystems() => WorldManager.CurrentWorld!.RegisterAllSystems();
 
+        /// <summary>
+        /// Gets a system of the specified type from the world.
+        /// </summary>
+        /// <typeparam name="T">Type of system to retrieve</typeparam>
+        /// <returns>The system instance, or null if not found</returns>
+        public static T? GetSystem<T>() where T : SystemBase => WorldManager.CurrentWorld!.GetSystem<T>();
+
+        /// <summary>
+        /// Gets a system of the specified type from the world.
+        /// </summary>
+        /// <param name="systemType">Type of system to retrieve</param>
+        /// <returns>The system instance, or null if not found</returns>
+        public static SystemBase? GetSystem(Type systemType) => WorldManager.CurrentWorld!.GetSystem(systemType);
+
+        /// <summary>
+        /// Checks if a system of the specified type exists in the world.
+        /// </summary>
+        /// <typeparam name="T">Type of system to check</typeparam>
+        /// <returns>True if the system exists</returns>
+        public static bool HasSystem<T>() where T : SystemBase => WorldManager.CurrentWorld!.HasSystem<T>();
+
+        /// <summary>
+        /// Checks if a system of the specified type exists in the world.
+        /// </summary>
+        /// <param name="systemType">Type of system to check</param>
+        /// <returns>True if the system exists</returns>
+        public static bool HasSystem(Type systemType) => WorldManager.CurrentWorld!.HasSystem(systemType);
+
         #endregion
         #region components
 

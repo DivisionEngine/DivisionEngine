@@ -49,7 +49,6 @@ namespace DivisionEngine.Rendering
 
         // OpenGL variables
         private GL? gl;
-        private GraphicsDevice? device; // Graphics device for ComputeSharp operations
         private uint glTexture, glShaderProgram;
         private static bool deviceLost;
         private float currentDpiScale = 1f;
@@ -65,6 +64,11 @@ namespace DivisionEngine.Rendering
         /// Reference to the renderer window handle.
         /// </summary>
         public IWindow? RendererWindow { get; private set; }
+
+        /// <summary>
+        /// Reference to the renderer's graphics device handle.
+        /// </summary>
+        public GraphicsDevice? Device { get; private set; }
 
         /// <summary>
         /// Whether the renderer is ready to process input or not.
@@ -99,6 +103,7 @@ namespace DivisionEngine.Rendering
         // Render texture storage
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadWriteTexture2D<float4>? depthNormalsTex;
+        private ReadOnlyTexture2D<float4>? testBackgroundTex;
         private ReadWriteBuffer<uint2>? objectIdBuffer;
 
         // Buffer storage
@@ -261,8 +266,8 @@ namespace DivisionEngine.Rendering
                 gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
 
                 // Load graphics device
-                device = GraphicsDevice.GetDefault();
-                device.DeviceLost += Device_DeviceLost;
+                Device = GraphicsDevice.GetDefault();
+                Device.DeviceLost += Device_DeviceLost;
 
                 Debug.Info("Renderer: Compiling OpenGL Shader Program");
                 glShaderProgram = CompileShaders();
@@ -298,7 +303,7 @@ namespace DivisionEngine.Rendering
             Debug.Error($"Renderer: Graphics Device Lost!\nCause: {e.Reason}");
             lock (SyncLock)
             {
-                device = null;
+                Device = null;
                 CleanupResources();
             }
         }
@@ -312,7 +317,7 @@ namespace DivisionEngine.Rendering
             DeltaTime = delta; // Track frame time
             Time += delta;
 
-            if (device == null || deviceLost)
+            if (Device == null || deviceLost)
             {
                 Debug.Warning("Renderer: Device lost, skipping rendering");
                 return;
@@ -365,7 +370,7 @@ namespace DivisionEngine.Rendering
                     if (renderTex == null || renderTex.Width != texWidth || renderTex.Height != texHeight || Pixels == null)
                     {
                         renderTex?.Dispose();
-                        renderTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        renderTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
                         Pixels = new float4[texWidth * texHeight];
                     }
 
@@ -373,14 +378,21 @@ namespace DivisionEngine.Rendering
                     if (denoisedTex == null || denoisedTex.Width != texWidth || denoisedTex.Height != texHeight)
                     {
                         denoisedTex?.Dispose();
-                        denoisedTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        denoisedTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                    }
+
+                    // Build test background texture
+                    if (testBackgroundTex == null)
+                    {
+                        testBackgroundTex?.Dispose();
+                        testBackgroundTex = Device!.AllocateReadOnlyTexture2D<float4>(texWidth, texHeight);
                     }
 
                     // Build depth and normal texture
                     if (depthNormalsTex == null || depthNormalsTex.Width != texWidth || depthNormalsTex.Height != texHeight || DepthNormalPixels == null)
                     {
                         depthNormalsTex?.Dispose();
-                        depthNormalsTex = device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        depthNormalsTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
                         DepthNormalPixels = new float4[texWidth * texHeight];
                     }
 
@@ -388,7 +400,7 @@ namespace DivisionEngine.Rendering
                     if (objectIdBuffer == null || objectIdBuffer.Length != (texWidth * texHeight) || ObjectIDs == null)
                     {
                         objectIdBuffer?.Dispose();
-                        objectIdBuffer = device!.AllocateReadWriteBuffer<uint2>(texWidth * texHeight);
+                        objectIdBuffer = Device!.AllocateReadWriteBuffer<uint2>(texWidth * texHeight);
                         ObjectIDs = new uint2[texWidth * texHeight];
                     }
 
@@ -396,16 +408,16 @@ namespace DivisionEngine.Rendering
                     if (kernelBuffer == null || ObjectIDs == null)
                     {
                         kernelBuffer?.Dispose();
-                        kernelBuffer = device!.AllocateReadOnlyBuffer([1.0f / 16.0f, 1.0f / 4.0f, 3.0f / 8.0f, 1.0f / 4.0f, 1.0f / 16.0f]);
+                        kernelBuffer = Device!.AllocateReadOnlyBuffer([1.0f / 16.0f, 1.0f / 4.0f, 3.0f / 8.0f, 1.0f / 4.0f, 1.0f / 16.0f]);
                     }
 
                     // Build and copy buffers
                     sdfObjBuffer?.Dispose();
-                    sdfObjBuffer = device?.AllocateReadOnlyBuffer(sdfObjDTO);
+                    sdfObjBuffer = Device?.AllocateReadOnlyBuffer(sdfObjDTO);
                     if (sdfObjBuffer == null) return;
 
                     lightsBuffer?.Dispose();
-                    lightsBuffer = device?.AllocateReadOnlyBuffer(sdfLightsDTO);
+                    lightsBuffer = Device?.AllocateReadOnlyBuffer(sdfLightsDTO);
                     if (lightsBuffer == null) return;
 
                     // Dispatch SDF compute shader
@@ -413,9 +425,10 @@ namespace DivisionEngine.Rendering
                     if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
                     
                     // Debugging handled in-shader now (again)
-                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, texWidth / (float)texHeight, TimeSystem.FrameCount, (int)debugMode, worldDTO,
-                        renderTex, depthNormalsTex, objectIdBuffer, sdfObjBuffer, lightsBuffer);
-                    device?.For(texWidth, texHeight, shader);
+                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, testBackgroundTex.Width, testBackgroundTex.Height,
+                        texWidth / (float)texHeight, TimeSystem.FrameCount, (int)debugMode, worldDTO,
+                        renderTex, depthNormalsTex, objectIdBuffer, sdfObjBuffer, lightsBuffer, testBackgroundTex);
+                    Device?.For(texWidth, texHeight, shader);
                 }
 
                 // Rendering pipeline
@@ -430,7 +443,7 @@ namespace DivisionEngine.Rendering
                         DivisionDenoiseShader denoiseShader = new DivisionDenoiseShader(
                             texWidth, texHeight, worldDTO.divisionThreshold, worldDTO.divisionDomain,
                             currentTexture, denoisedTex, depthNormalsTex, sdfObjBuffer, objectIdBuffer);
-                        device?.For(texWidth, texHeight, denoiseShader);
+                        Device?.For(texWidth, texHeight, denoiseShader);
                     }
                     currentTexture = denoisedTex;
                 }
@@ -450,7 +463,7 @@ namespace DivisionEngine.Rendering
                             ATrousDenoiseShader aTrousShader = new ATrousDenoiseShader(
                                 texWidth, texHeight, stepSize, ping, pong, depthNormalsTex,
                                 sdfObjBuffer, objectIdBuffer, kernelBuffer);
-                            device?.For(texWidth, texHeight, aTrousShader);
+                            Device?.For(texWidth, texHeight, aTrousShader);
                         }
 
                         // Swap buffers for next pass
@@ -473,7 +486,7 @@ namespace DivisionEngine.Rendering
                             FastDepthOfFieldShader dofShader = new FastDepthOfFieldShader(
                                 texWidth, texHeight, // Max blur radius
                                 source, target, depthNormalsTex, objectIdBuffer, sdfObjBuffer, worldDTO);
-                            device?.For(texWidth, texHeight, dofShader);
+                            Device?.For(texWidth, texHeight, dofShader);
                         }
                         currentTexture = target;
                     }
@@ -494,7 +507,7 @@ namespace DivisionEngine.Rendering
             catch (InvalidOperationException ex)
             {
                 Debug.Error($"Renderer: Invalid operation during ComputeSharp execution", ex);
-                device = GraphicsDevice.GetDefault();
+                Device = GraphicsDevice.GetDefault();
                 return;
             }
 

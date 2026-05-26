@@ -17,6 +17,8 @@ namespace DivisionEngine
     public readonly partial struct SDFShader3D(
         float width,
         float height,
+        float backgroundWidth,
+        float backgroundHeight,
         float aspect,
         int frameCount,
         int debugMode,
@@ -25,7 +27,8 @@ namespace DivisionEngine
         ReadWriteTexture2D<float4> depthNormals,
         ReadWriteBuffer<uint2> entityIdBuffer,
         ReadOnlyBuffer<SDFObjectDTO> sdfObjects,
-        ReadOnlyBuffer<SDFLightDTO> lights) : IComputeShader
+        ReadOnlyBuffer<SDFLightDTO> lights,
+        ReadOnlyTexture2D<float4> inputTestTexture) : IComputeShader
     {
         // Main constants
         const float EPSILON = 0.0001f;
@@ -760,7 +763,8 @@ namespace DivisionEngine
             return true;
         }
 
-        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 normal, SDFObjectDTO startMat, out int steps)
+        private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 backgroundCol,
+            float3 normal, SDFObjectDTO startMat, out int steps)
         {
             float3 totalTransmittance = float3.One; // Start with full transmittance
             float3 accumulatedColor = float3.Zero;
@@ -829,7 +833,7 @@ namespace DivisionEngine
                         float3 segmentTransmittance = Hlsl.Exp(absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
                         totalTransmittance *= segmentTransmittance;
 
-                        float3 bgColor = TraceRefractionExitRay(p, refractDir, ambientBase, out _, out _, out tracedSteps);
+                        float3 bgColor = TraceRefractionExitRay(p, refractDir, ambientBase, backgroundCol, out _, out _, out tracedSteps);
                         accumulatedColor = bgColor;
                         steps += tracedSteps;
                         break;
@@ -858,7 +862,7 @@ namespace DivisionEngine
                         }
                         else
                         {
-                            float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, ambientBase, out _, out _, out tracedSteps);
+                            float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, ambientBase, backgroundCol, out _, out _, out tracedSteps);
                             accumulatedColor = bgColor;
                             steps += tracedSteps;
                             break;
@@ -871,7 +875,7 @@ namespace DivisionEngine
             return accumulatedColor * totalTransmittance;
         }
 
-        private float3 TraceRefractionExitRay(float3 rayOrigin, float3 rayDir, float3 ambientBase,
+        private float3 TraceRefractionExitRay(float3 rayOrigin, float3 rayDir, float3 ambientBase, float3 backgroundCol,
             out float3 normal, out float totalDist, out int steps)
         {
             float3 finalColor = float3.Zero;
@@ -882,7 +886,7 @@ namespace DivisionEngine
             float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, worldData.farPlane, out int closestObjIndex, out totalDist, out steps);
             if (closestObjIndex == -1 || totalDist > worldData.farPlane)
             {
-                finalColor += worldData.backgroundColor.XYZ;
+                finalColor += backgroundCol;
                 return finalColor;
             }
 
@@ -979,7 +983,7 @@ namespace DivisionEngine
                     {
                         isRefractive = true;
                         fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, normal, entity, out tracedSteps);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, worldData.backgroundColor.RGB, normal, entity, out tracedSteps);
                         steps += tracedSteps;
                     }
                     firstHit = false;
@@ -1048,6 +1052,9 @@ namespace DivisionEngine
             float3 rayDir = float3.Zero;
             float accumulatedDistance = 0f;
             int steps = 0;
+
+            // Test background image
+            //float3 backgroundCol = inputTestTexture[new int2((int)(uv.X * backgroundWidth), (int)(uv.Y * backgroundHeight))].RGB;
 
             for (int sample = 0; sample < SAMPLES_PER_PIXEL; sample++)
             {
