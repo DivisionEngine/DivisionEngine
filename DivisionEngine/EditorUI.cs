@@ -5,10 +5,13 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using DivisionEngine.Editor.ViewModels;
+using DivisionEngine.MathLib;
+using DivisionEngine.Projects.Assets;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
@@ -165,6 +168,44 @@ namespace DivisionEngine.Editor
             };
             menuItem.Click += (s, e) => action();
             return menuItem;
+        }
+
+        /// <summary>
+        /// Creates an Avalonia MaterialIcon for an asset type.
+        /// </summary>
+        /// <param name="type">Asset type for icon</param>
+        /// <param name="size">Size of asset icon</param>
+        /// <returns>MaterialIcon asset icon object</returns>
+        public static MaterialIcon CreateAssetTypeIcon(AssetType type, double size)
+        {
+            MaterialIconKind iconKind = type switch
+            {
+                AssetType.Texture => MaterialIconKind.Image,
+                AssetType.SDF => MaterialIconKind.CubeOutline,
+                AssetType.Material => MaterialIconKind.Palette,
+                AssetType.Script => MaterialIconKind.CodeBraces,
+                AssetType.Audio => MaterialIconKind.Audio,
+                AssetType.Font => MaterialIconKind.FormatFont,
+                _ => MaterialIconKind.FileDocument,
+            };
+            float4 iconColor = type switch
+            {
+                AssetType.Texture => ColorPalette.SkyBlue,
+                AssetType.SDF => ColorPalette.LightSeaGreen,
+                AssetType.Material => ColorPalette.Orange,
+                AssetType.Script => ColorPalette.Khaki,
+                AssetType.Audio => ColorPalette.Coral,
+                AssetType.Font => ColorPalette.Khaki,
+                _ => ColorPalette.Gray,
+            };
+            return new MaterialIcon
+            {
+                Kind = iconKind,
+                Width = size,
+                Height = size,
+                Foreground = EditorColor.FromColor(iconColor),
+                Margin = new Thickness(0),
+            };
         }
     }
 }

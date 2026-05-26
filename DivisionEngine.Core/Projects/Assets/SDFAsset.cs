@@ -13,7 +13,7 @@ namespace DivisionEngine.Projects.Assets
         private byte[]? modelData;
 
         /// <summary>
-        /// Raw model file data (OBJ/FBX/GLTF bytes)
+        /// Raw model file data (OBJ/FBX/GLTF bytes).
         /// </summary>
         public byte[]? ModelData => modelData;
 

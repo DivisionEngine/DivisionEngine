@@ -144,8 +144,7 @@ public partial class PropertiesWindow : EditorWindow
         {
             Placement = PlacementMode.Top,
             ShowMode = FlyoutShowMode.Standard,
-            // Add padding adjustment
-            Content = CreateAddComponentMenu(),
+            Content = CreateAddComponentMenu(), // Add padding adjustment
         };
         addComponentButton.Click += (_, _) => addComponentFlyout.ShowAt(addComponentButton);
 
@@ -174,16 +173,14 @@ public partial class PropertiesWindow : EditorWindow
         this.FindControl<Border>("MainBorder")!.Child = mainGrid;
         currentWindows.Add(this);
 
-        if (W.EntityExists(LastSelected))
-            DisplayEntityComponents(LastSelected);
+        if (W.EntityExists(LastSelected)) DisplayEntityComponents(LastSelected);
         else CreateWorldEditor(WorldManager.CurrentWorld);
 
         Selection.OnSelectionChanged += OnSelectedObject; // Add window to selection system
     }
     private void OnSelectedObject(object? selection)
     {
-        if (Selection.SelectedType == SelectionType.Entity)
-            LoadEntityComponents((uint)selection!);
+        if (Selection.SelectedType == SelectionType.Entity) LoadEntityComponents((uint)selection!);
     }
 
     /// <summary>
@@ -253,8 +250,7 @@ public partial class PropertiesWindow : EditorWindow
             string searchableText = (compType.Name + " " + displayName).ToLowerInvariant();
 
             // Filter by search text
-            if (hasFilter && !searchableText.Contains(searchLower))
-                continue;
+            if (hasFilter && !searchableText.Contains(searchLower)) continue;
 
             Button compTypeButton = new Button
             {
@@ -313,8 +309,7 @@ public partial class PropertiesWindow : EditorWindow
         for (int i = 0; i < name.Length - 1; i++)
         {
             formatted += name[i];
-            if (char.IsLower(name[i]) && char.IsUpper(name[i + 1]))
-                formatted += ' ';
+            if (char.IsLower(name[i]) && char.IsUpper(name[i + 1])) formatted += ' ';
         }
         formatted += name[^1];
         return formatted.Replace("SDF", "SDF ");
@@ -328,20 +323,13 @@ public partial class PropertiesWindow : EditorWindow
             try
             {
                 IEnumerable<Type> types = assembly.GetTypes()
-                    .Where(t => typeof(IComponent).IsAssignableFrom(t) &&
-                               !t.IsAbstract &&
-                               !t.IsInterface &&
-                               t != typeof(IComponent));
+                    .Where(t => typeof(IComponent).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface && t != typeof(IComponent));
                 componentTypes.AddRange(types);
             }
             catch (ReflectionTypeLoadException ex)
             {
                 IEnumerable<Type> types = ex.Types // Get the types that were successfully loaded
-                    .Where(t => t != null &&
-                               typeof(IComponent).IsAssignableFrom(t) &&
-                               !t.IsAbstract &&
-                               !t.IsInterface &&
-                               t != typeof(IComponent))
+                    .Where(t => t != null && typeof(IComponent).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface && t != typeof(IComponent))
                     .Cast<Type>();
                 componentTypes.AddRange(types);
                 Debug.Warning($"Could not load some component types from {assembly.FullName}");
@@ -362,8 +350,7 @@ public partial class PropertiesWindow : EditorWindow
     {
         LastSelected = entityId;
         ValidatePropertiesWindows();
-        foreach (PropertiesWindow? window in currentWindows)
-            Dispatcher.UIThread.Post(() => window!.DisplayEntityComponents(entityId));
+        foreach (PropertiesWindow? window in currentWindows) Dispatcher.UIThread.Post(() => window!.DisplayEntityComponents(entityId));
     }
 
     /// <summary>
@@ -374,8 +361,7 @@ public partial class PropertiesWindow : EditorWindow
     {
         LastSelected = uint.MaxValue;
         ValidatePropertiesWindows();
-        foreach (PropertiesWindow? window in currentWindows)
-            Dispatcher.UIThread.Post(() => window!.CreateWorldEditor(world));
+        foreach (PropertiesWindow? window in currentWindows) Dispatcher.UIThread.Post(() => window!.CreateWorldEditor(world));
     }
 
     /// <summary>
@@ -385,8 +371,7 @@ public partial class PropertiesWindow : EditorWindow
     {
         foreach (PropertiesWindow? window in currentWindows.ToArray()) // Dont forget to create iterator copy
         {
-            if (window == null || !window.IsLoaded)
-                currentWindows.Remove(window);
+            if (window == null || !window.IsLoaded) currentWindows.Remove(window);
         }
     }
 
@@ -409,8 +394,7 @@ public partial class PropertiesWindow : EditorWindow
         curEntityId = entityId;
 
         List<IComponent> entityComps = W.GetAllComponents(entityId);
-        foreach (IComponent component in entityComps)
-            CreateComponentEditor(component.GetType(), component, entityId);
+        foreach (IComponent component in entityComps) CreateComponentEditor(component.GetType(), component, entityId);
         return true;
     }
 
@@ -670,13 +654,7 @@ public partial class PropertiesWindow : EditorWindow
                 floatControl.Children.Add(floatBox);
                 editorControl = floatControl;
             }
-            else
-            {
-                editorControl = CreateFloatNumericBox(value, (f) =>
-                {
-                    field.SetValue(component, f);
-                }, true);
-            }
+            else editorControl = CreateFloatNumericBox(value, (f) => field.SetValue(component, f), true);
         }
         else if (fieldValue != null && fieldType == typeof(int))
         {
@@ -698,13 +676,7 @@ public partial class PropertiesWindow : EditorWindow
                 intControl.Children.Add(intBox);
                 editorControl = intControl;
             }
-            else
-            {
-                editorControl = CreateIntegerNumericBox(value, (f) =>
-                {
-                    field.SetValue(component, f);
-                }, true);
-            }
+            else editorControl = CreateIntegerNumericBox(value, (f) => field.SetValue(component, f), true);
         }
         else if (fieldValue != null && fieldType == typeof(string))
         {
@@ -733,16 +705,12 @@ public partial class PropertiesWindow : EditorWindow
             {
                 IsChecked = value,
                 IsDefault = false,
-                //Background = new SolidColorBrush(Color.FromRgb(17, 17, 17)),
                 BorderThickness = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,
             };
-
-            checkBox.IsCheckedChanged += (s, e) =>
-            {
-                field.SetValue(component, checkBox.IsChecked);
-            };
+            
+            checkBox.IsCheckedChanged += (s, e) => field.SetValue(component, checkBox.IsChecked);
             editorControl = checkBox;
         }
         else if (fieldValue != null && fieldType == typeof(float2))
@@ -820,12 +788,10 @@ public partial class PropertiesWindow : EditorWindow
         }
         else if (fieldValue != null && fieldType == typeof(float4))
         {
-            ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>();
+            ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>(); // This section tests for color or rotation editors
             RotationAttribute? rotAttr = field.GetCustomAttribute<RotationAttribute>();
-            if (colorAttr != null) // Check if this float4 is a color
-                editorControl = CreateColorFieldEditor(field, component, colorAttr);
-            else if (rotAttr != null) // Check if this float4 is a quaternion rotation
-                editorControl = CreateRotationFieldEditor(field, component, rotAttr);
+            if (colorAttr != null) editorControl = CreateColorFieldEditor(field, component, colorAttr);
+            else if (rotAttr != null) editorControl = CreateRotationFieldEditor(field, component, rotAttr);
             else
             {
                 float4 value = (float4)fieldValue;
@@ -895,10 +861,7 @@ public partial class PropertiesWindow : EditorWindow
                 VerticalContentAlignment = VerticalAlignment.Center,
             };
 
-            dateTimePicker.SelectedDateChanged += (s, e) =>
-            {
-                field.SetValue(component, dateTimePicker.SelectedDate);
-            };
+            dateTimePicker.SelectedDateChanged += (s, e) => field.SetValue(component, dateTimePicker.SelectedDate);
             editorControl = dateTimePicker;
         }
         else if (fieldValue != null && fieldType == typeof(float4x4))
@@ -975,8 +938,7 @@ public partial class PropertiesWindow : EditorWindow
                 Value = enumValue,
                 DisplayName = displayName,
             });
-            if (currentValue != null && enumValue.Equals(currentValue))
-                selectedIndex = index;
+            if (currentValue != null && enumValue.Equals(currentValue)) selectedIndex = index;
             index++;
         }
         enumComboBox.ItemsSource = items;
@@ -1052,8 +1014,7 @@ public partial class PropertiesWindow : EditorWindow
 
         for (int i = 1; i < enumName.Length; i++)
         {
-            if ((char.IsUpper(enumName[i]) || char.IsDigit(enumName[i])) && !char.IsUpper(enumName[i - 1]))
-                result.Append(' ');
+            if ((char.IsUpper(enumName[i]) || char.IsDigit(enumName[i])) && !char.IsUpper(enumName[i - 1])) result.Append(' ');
             result.Append(enumName[i]);
         }
         return result.ToString();
@@ -1340,10 +1301,7 @@ public partial class PropertiesWindow : EditorWindow
         };
         numericBox.ValueChanged += (s, e) =>
         {
-            try
-            {
-                onValueChanged((float)(double)numericBox.Value);
-            }
+            try { onValueChanged((float)(double)numericBox.Value); }
             catch (Exception ex) { Debug.Error("Numeric Box Error", ex); }
         };
         return numericBox;
@@ -1533,13 +1491,7 @@ public partial class PropertiesWindow : EditorWindow
             FontSize = 12,
             Foreground = EditorColor.FromRGB(200, 200, 200),
         };
-        buttonContentPanel.Children.Add(new MaterialIcon
-        {
-            Kind = GetAssetIcon(expectedType),
-            Foreground = EditorColor.FromColor(GetAssetColor(expectedType)),
-            Width = 12,
-            Height = 12,
-        });
+        buttonContentPanel.Children.Add(EditorUI.CreateAssetTypeIcon(expectedType, 12));
         buttonContentPanel.Children.Add(assetRefButtonText);
         Button assetRefButton = new Button
         {
@@ -1647,28 +1599,6 @@ public partial class PropertiesWindow : EditorWindow
             field.SetValue(component, newValue);
         }
     }
-
-    private static MaterialIconKind GetAssetIcon(AssetType type) => type switch
-    {
-        AssetType.Texture => MaterialIconKind.Image,
-        AssetType.Script => MaterialIconKind.Code,
-        AssetType.SDF => MaterialIconKind.VectorUnion,
-        AssetType.Material => MaterialIconKind.Style,
-        AssetType.Audio => MaterialIconKind.Music,
-        AssetType.Font => MaterialIconKind.FormatLetterCase,
-        _ => MaterialIconKind.Box,
-    };
-
-    private static float4 GetAssetColor(AssetType type) => type switch
-    {
-        AssetType.Texture => ColorPalette.SkyBlue,
-        AssetType.Script => ColorPalette.Lime,
-        AssetType.SDF => ColorPalette.LightSeaGreen,
-        AssetType.Material => ColorPalette.Salmon,
-        AssetType.Audio => ColorPalette.LightCoral,
-        AssetType.Font => ColorPalette.Khaki,
-        _ => ColorPalette.Gray,
-    };
 
     #endregion AssetReferences
 

@@ -24,7 +24,7 @@ namespace DivisionEngine.Rendering.Denoising
         float reconstructionRadius,
         ReadWriteTexture2D<float4> inputTexture,
         ReadWriteTexture2D<float4> outputTexture,
-        ReadWriteTexture2D<int> bounceCountTexture, // NEW: Stores bounce counts per pixel
+        ReadWriteTexture2D<int> bounceCountTexture,
         ReadWriteTexture2D<float4> depthNormals) : IComputeShader
     {
         // First, we need to modify the rendering shader to output bounce counts

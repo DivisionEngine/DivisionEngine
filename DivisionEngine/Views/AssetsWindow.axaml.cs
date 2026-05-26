@@ -967,7 +967,7 @@ public partial class AssetsWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        MaterialIcon assetIcon = CreateAssetTypeIcon(asset.Type, 48); // Asset icon based on type
+        MaterialIcon assetIcon = EditorUI.CreateAssetTypeIcon(asset.Type, 48); // Asset icon based on type
         string assetName = Path.GetFileNameWithoutExtension(asset.FileName); // Asset name (truncated if too long)
         if (assetName.Length > 12) assetName = string.Concat(assetName.AsSpan(0, 10), "..");
         TextBlock assetNameText = new TextBlock
@@ -1231,7 +1231,7 @@ public partial class AssetsWindow : EditorWindow
     private void CreateAssetListItem(AssetMetadata asset)
     {
         // Asset icon based on type
-        MaterialIcon assetIcon = CreateAssetTypeIcon(asset.Type, 22);
+        MaterialIcon assetIcon = EditorUI.CreateAssetTypeIcon(asset.Type, 22);
         assetIcon.VerticalAlignment = VerticalAlignment.Center;
         assetIcon.Padding = new Thickness(8, 2, 0, 2);
 
@@ -1499,41 +1499,6 @@ public partial class AssetsWindow : EditorWindow
             }
         };
         nameBox.LostFocus += (s, e) => Dispatcher.UIThread.Post(() => CompleteRename(true), DispatcherPriority.Background);
-    }
-
-    /// <summary>
-    /// Creates an icon for an asset type.
-    /// </summary>
-    private static MaterialIcon CreateAssetTypeIcon(AssetType type, double size)
-    {
-        MaterialIconKind iconKind = type switch
-        {
-            AssetType.Texture => MaterialIconKind.Image,
-            AssetType.SDF => MaterialIconKind.CubeOutline,
-            AssetType.Material => MaterialIconKind.Palette,
-            AssetType.Script => MaterialIconKind.CodeBraces,
-            AssetType.Audio => MaterialIconKind.Audio,
-            AssetType.Font => MaterialIconKind.FormatFont,
-            _ => MaterialIconKind.FileDocument,
-        };
-        float4 iconColor = type switch
-        {
-            AssetType.Texture => ColorPalette.SkyBlue,
-            AssetType.SDF => ColorPalette.LightSeaGreen,
-            AssetType.Material => ColorPalette.Orange,
-            AssetType.Script => ColorPalette.Khaki,
-            AssetType.Audio => ColorPalette.Coral,
-            AssetType.Font => ColorPalette.Khaki,
-            _ => ColorPalette.Gray,
-        };
-        return new MaterialIcon
-        {
-            Kind = iconKind,
-            Width = size,
-            Height = size,
-            Foreground = EditorColor.FromColor(iconColor),
-            Margin = new Thickness(0, 0, 0, 5),
-        };
     }
 
     /// <summary>
