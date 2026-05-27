@@ -26,6 +26,11 @@ namespace DivisionEngine.Projects
         public static string? CurrentProjectPath { get; private set; } = null;
 
         /// <summary>
+        /// Current loaded project data (settings, layout, etc.)
+        /// </summary>
+        public static DivisionProject? CurrentProjectData { get; private set; } = null;
+
+        /// <summary>
         /// If a project is currently loaded.
         /// </summary>
         public static bool IsCurrentLoaded =>
@@ -114,19 +119,16 @@ namespace DivisionEngine.Projects
                 InitializeAssetSystem();
 
                 // Load project file
-                DivisionProject? tempProjectData = null;
+                CurrentProjectData = null;
                 foreach (string projPath in Directory.EnumerateFiles(projDir, "*.divp", SearchOption.TopDirectoryOnly))
                 {
                     string projJson = File.ReadAllText(projPath);
-                    if (!string.IsNullOrEmpty(projJson))
-                        tempProjectData = Deserialize.Default<DivisionProject>(projJson);
+                    if (!string.IsNullOrEmpty(projJson)) CurrentProjectData = Deserialize.Default<DivisionProject>(projJson);
                     break; // Break after first project file
                 }
-                if (tempProjectData != null)
-                {
-                    Debug.Info("Project Manager: Loaded project settings.");
-                    LoadProjectData(tempProjectData);
-                }
+
+                if (CurrentProjectData != null) Debug.Info("Project Manager: Loaded project settings.");
+                else CurrentProjectData = new DivisionProject(CurrentProjectName!); // Create new project data if none exists
 
                 // Load world data file
                 WorldData? tempWorldData = null;
@@ -150,15 +152,6 @@ namespace DivisionEngine.Projects
                 return true;
             }
             return false;
-        }
-
-        /// <summary>
-        /// Loads a DivsionProject object into the current project.
-        /// </summary>
-        /// <param name="projectData">Project settings to parse and load</param>
-        private static void LoadProjectData(DivisionProject projectData)
-        {
-            // Project settings can be loaded here eventually.
         }
 
         /// <summary>
@@ -213,6 +206,7 @@ namespace DivisionEngine.Projects
             {
                 CurrentProjectName = projName;
                 CurrentProjectPath = projDir;
+                CurrentProjectData = new DivisionProject(projName);
                 return SaveProject(projName, projDir);
             }
             return false;
@@ -224,8 +218,7 @@ namespace DivisionEngine.Projects
         /// <returns>If a project is loaded</returns>
         public static bool SaveCurrentProject()
         {
-            if (IsCurrentLoaded)
-                return SaveProject(CurrentProjectName!, CurrentProjectPath!);
+            if (IsCurrentLoaded) return SaveProject(CurrentProjectName!, CurrentProjectPath!);
             return false;
         }
 
@@ -240,11 +233,18 @@ namespace DivisionEngine.Projects
                     Debug.Error($"Project Failed Validation! | Path: {projDir}");
                     return false;
                 }
-                 
+
+                // Update project data before saving
+                if (CurrentProjectData != null)
+                {
+                    CurrentProjectData.Name = projName;
+                    CurrentProjectData.LastSaved = DateTime.Now;
+                }
+                else CurrentProjectData = new DivisionProject(projName);
+
                 WorldData worldData = WorldData.Current; // Serialize world
                 string serializedWorld = Serialize.Default(worldData);
-                DivisionProject projectData = new DivisionProject(projName); // Create project data
-                string serializedProjectData = Serialize.Default(projectData);
+                string serializedProjectData = Serialize.Default(CurrentProjectData);
 
                 File.WriteAllText(GetProjectPath(projDir, projName), serializedProjectData); // Write project file
                 File.WriteAllText(GetWorldPath(projDir, worldData), serializedWorld); // Write single world file
@@ -309,6 +309,7 @@ namespace DivisionEngine.Projects
             AssetManager = null;
             CurrentProjectName = null;
             CurrentProjectPath = null;
+            CurrentProjectData = null;
 
             ProjectClosed?.Invoke();
         }

@@ -160,11 +160,11 @@
     </Grid>
 
     <!--Basic Grid Layout-->
-    <Grid ColumnDefinitions="*, 2, 300">
-      <Grid Grid.Column="0" RowDefinitions="*, 2, 250">
-        <Grid Grid.Row="0" ColumnDefinitions="200, 2, *">
+    <Grid x:Name="MainGrid" ColumnDefinitions="*, 2, 300">
+      <Grid Grid.Column="0" x:Name="LeftCenterBottomGrid" RowDefinitions="*, 2, 250">
+        <Grid Grid.Row="0" x:Name="LeftCenterGrid" ColumnDefinitions="200, 2, *">
           <!--Left Tabs-->
-          <Grid Grid.Column="0">
+          <Grid Grid.Column="0" x:Name="LeftPanelGrid">
             <TabControl x:Name="leftTabs" ItemsSource="{Binding LeftTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                         SelectedItem="{Binding SelectedLeftTab, Mode=TwoWay}">
               <TabControl.ItemTemplate>
@@ -179,10 +179,11 @@
             <Button x:Name="LeftAddButton" Content="+" FontSize="14" Width="18" Height="18"
                     Margin="6,6,6,6" Padding="3,-2,0,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
           </Grid>
-          <GridSplitter Grid.Column="1" ResizeDirection="Auto"/>
+
+          <GridSplitter Grid.Column="1" x:Name="LeftCenterSplitter" ResizeDirection="Auto"/>
 
           <!--Center Tabs-->
-          <Grid Grid.Column="2">
+          <Grid Grid.Column="2" x:Name="CenterPanelGrid">
             <TabControl x:Name="centerTabs" ItemsSource="{Binding CenterTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                         SelectedItem="{Binding SelectedCenterTab, Mode=TwoWay}">
               <TabControl.ItemTemplate>
@@ -200,10 +201,10 @@
           </Grid>
         </Grid>
         
-        <GridSplitter Grid.Row="1" ResizeDirection="Auto"/>
+        <GridSplitter Grid.Row="1" x:Name="CenterBottomSplitter" ResizeDirection="Auto"/>
         
         <!--Bottom Tabs-->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="2" x:Name="BottomPanelGrid">
           <TabControl x:Name="bottomTabs" ItemsSource="{Binding BottomTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                       SelectedItem="{Binding SelectedBottomTab, Mode=TwoWay}">
             <TabControl.ItemTemplate>
@@ -221,10 +222,10 @@
         </Grid>
       </Grid>
 
-      <GridSplitter Grid.Column="1" ResizeDirection="Auto"/>
+      <GridSplitter Grid.Column="1" x:Name="CenterRightSplitter" ResizeDirection="Auto"/>
 
       <!--Right Tabs-->
-      <Grid Grid.Column="2">
+      <Grid Grid.Column="2" x:Name="RightPanelGrid">
         <TabControl x:Name="rightTabs" ItemsSource="{Binding RightTabs}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                     SelectedItem="{Binding SelectedRightTab, Mode=TwoWay}">
             <TabControl.ItemTemplate>

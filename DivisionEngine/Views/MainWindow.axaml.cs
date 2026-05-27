@@ -11,14 +11,18 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using DivisionEngine.Editor.Tasks;
 using DivisionEngine.Editor.ViewModels;
 using DivisionEngine.MathLib;
+using DivisionEngine.Projects;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace DivisionEngine.Editor
 {
@@ -58,6 +62,155 @@ namespace DivisionEngine.Editor
             SetupPlayControls();
             SubscribeToEngineEvents();
             UpdatePlayControlsUI();
+            SubscribeToProjectEvents();
+        }
+
+        private void SubscribeToProjectEvents()
+        {
+            ProjectManager.ProjectLoaded += OnProjectLoaded;
+            ProjectManager.ProjectClosing += OnProjectClosing;
+        }
+
+        private void OnProjectLoaded()
+        {
+            Dispatcher.UIThread.Post(async () => await LoadEditorLayoutFromProjectAsync());
+        }
+
+        private void OnProjectClosing()
+        {
+            SaveEditorLayoutToProject();
+            ProjectManager.SaveCurrentProject();
+        }
+
+        /// <summary>
+        /// Saves the current editor layout to the loaded project data.
+        /// </summary>
+        public void SaveEditorLayoutToProject()
+        {
+            if (DataContext is not MainWindowViewModel vm || ProjectManager.CurrentProjectData == null) return;
+
+            try
+            {
+                EditorLayoutData layout = ProjectManager.CurrentProjectData.EditorLayout;
+
+                // Save panel sizes
+                layout.LeftPanelWidth = GetColumnWidth(LeftPanelGrid);
+                layout.RightPanelWidth = GetColumnWidth(RightPanelGrid);
+                layout.BottomPanelHeight = GetRowHeight(BottomPanelGrid);
+
+                // Save selected tabs
+                layout.SelectedLeftTab = vm.SelectedLeftTab?.GetType().Name.Replace("ViewModel", "") ?? "";
+                layout.SelectedRightTab = vm.SelectedRightTab?.GetType().Name.Replace("ViewModel", "") ?? "";
+                layout.SelectedCenterTab = vm.SelectedCenterTab?.GetType().Name.Replace("ViewModel", "") ?? "";
+                layout.SelectedBottomTab = vm.SelectedBottomTab?.GetType().Name.Replace("ViewModel", "") ?? "";
+
+                // Save open tabs as comma-separated strings
+                layout.LeftTabs = string.Join(",", vm.LeftTabs.Select(t => t.GetType().Name.Replace("ViewModel", "")));
+                layout.RightTabs = string.Join(",", vm.RightTabs.Select(t => t.GetType().Name.Replace("ViewModel", "")));
+                layout.CenterTabs = string.Join(",", vm.CenterTabs.Select(t => t.GetType().Name.Replace("ViewModel", "")));
+                layout.BottomTabs = string.Join(",", vm.BottomTabs.Select(t => t.GetType().Name.Replace("ViewModel", "")));
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Failed to save editor layout: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Loads the editor layout from the loaded project data.
+        /// </summary>
+        public async Task LoadEditorLayoutFromProjectAsync()
+        {
+            if (DataContext is not MainWindowViewModel vm || ProjectManager.CurrentProjectData == null) return;
+
+            try
+            {
+                EditorLayoutData layout = ProjectManager.CurrentProjectData.EditorLayout;
+
+                // Clear existing tabs
+                vm?.LeftTabs.Clear();
+                vm?.RightTabs.Clear();
+                vm?.CenterTabs.Clear();
+                vm?.BottomTabs.Clear();
+
+                // Parse comma-separated strings and restore tabs
+                RestoreTabsFromString(vm!, layout.LeftTabs, "left");
+                RestoreTabsFromString(vm!, layout.RightTabs, "right");
+                RestoreTabsFromString(vm!, layout.CenterTabs, "center");
+                RestoreTabsFromString(vm!, layout.BottomTabs, "bottom");
+
+                // Restore selected tabs
+                vm!.SelectedLeftTab = FindTabByTypeName(vm.LeftTabs, layout.SelectedLeftTab);
+                vm.SelectedRightTab = FindTabByTypeName(vm.RightTabs, layout.SelectedRightTab);
+                vm.SelectedCenterTab = FindTabByTypeName(vm.CenterTabs, layout.SelectedCenterTab);
+                vm.SelectedBottomTab = FindTabByTypeName(vm.BottomTabs, layout.SelectedBottomTab);
+
+                // Restore panel sizes
+                SetColumnWidth(LeftPanelGrid, layout.LeftPanelWidth);
+                SetColumnWidth(RightPanelGrid, layout.RightPanelWidth);
+                SetRowHeight(BottomPanelGrid, layout.BottomPanelHeight);
+
+                //await Task.Delay(50);
+                await App.SetEditorRenderingAsync(true);
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Failed to load editor layout: {ex.Message}");
+            }
+        }
+
+        private static void RestoreTabsFromString(MainWindowViewModel vm, string tabNames, string panel)
+        {
+            if (string.IsNullOrWhiteSpace(tabNames)) return;
+            foreach (string typeName in tabNames.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                EditorWindowViewModel? viewModel = CreateViewModelFromTypeName(typeName.Trim());
+                vm.AddWindowToPanel(viewModel!, panel);
+            }
+        }
+
+        private static EditorWindowViewModel? CreateViewModelFromTypeName(string typeName)
+        {
+            string fullTypeName = $"DivisionEngine.Editor.ViewModels.{typeName}ViewModel";
+            Type? type = Type.GetType(fullTypeName);
+            if (type != null && Activator.CreateInstance(type) is EditorWindowViewModel editorVM) return editorVM;
+            return null;
+        }
+
+        private static EditorWindowViewModel? FindTabByTypeName(ObservableCollection<EditorWindowViewModel> tabs, string typeName) =>
+            tabs.FirstOrDefault(t => t.GetType().Name.Replace("ViewModel", "") == typeName);
+
+        private static double GetColumnWidth(Grid grid)
+        {
+            if (grid.Parent is Grid parent && Grid.GetColumn(grid) >= 0)
+            {
+                ColumnDefinition colDef = parent.ColumnDefinitions[Grid.GetColumn(grid)];
+                if (colDef.Width.IsAbsolute) return colDef.Width.Value;
+                else if (colDef.Width.IsStar) return colDef.Width.Value;
+            }
+            return 200; // Default
+        }
+
+        private static double GetRowHeight(Grid grid)
+        {
+            if (grid.Parent is Grid parent && Grid.GetRow(grid) >= 0)
+            {
+                RowDefinition rowDef = parent.RowDefinitions[Grid.GetRow(grid)];
+                if (rowDef.Height.IsAbsolute) return rowDef.Height.Value;
+            }
+            return 250; // Default
+        }
+
+        private static void SetColumnWidth(Grid grid, double width)
+        {
+            if (grid.Parent is Grid parent && Grid.GetColumn(grid) >= 0)
+                parent.ColumnDefinitions[Grid.GetColumn(grid)].Width = new GridLength(width);
+        }
+
+        private static void SetRowHeight(Grid grid, double height)
+        {
+            if (grid.Parent is Grid parent && Grid.GetRow(grid) >= 0)
+                parent.RowDefinitions[Grid.GetRow(grid)].Height = new GridLength(height);
         }
 
         /// <summary>
