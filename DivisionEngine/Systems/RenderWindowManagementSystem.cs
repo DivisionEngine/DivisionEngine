@@ -11,7 +11,6 @@ using Avalonia.Threading;
 using DivisionEngine.Rendering;
 using DivisionEngine.Systems;
 using System;
-using System.Threading.Tasks;
 
 namespace DivisionEngine.Editor.Systems
 {
@@ -24,7 +23,6 @@ namespace DivisionEngine.Editor.Systems
         private int prevX, prevY;
         private int forceGrabWindowTimer;
         private int initializeTimer;
-        private bool updatingFocus;
         private double lastDpiScale = 1;
 
         /// <summary>
@@ -49,9 +47,7 @@ namespace DivisionEngine.Editor.Systems
             EditorFocused = false;
             RendererFocused = true;
             RenderPipeline.RenderWindowFocusd += (f) => RendererFocused = f;
-            RenderPipeline.RenderWindowFocusd += async (_) => await FocusUpdate();
             App.AppFocused += (f) => EditorFocused = f;
-            App.AppFocused += async (_) => await FocusUpdate();
 
             // Make sure object selection is enabled and getting called
             EntitySelectionSystem.CanSelect = true;
@@ -66,7 +62,7 @@ namespace DivisionEngine.Editor.Systems
         /// <summary>
         /// Gets the current DPI scaling factor from the TopLevel.
         /// </summary>
-        private double GetCurrentDpiScale(EnvironmentWindow win)
+        private static double GetCurrentDpiScale(EnvironmentWindow win)
         {
             if (win.renderVisualizerFrame == null) return 1.0;
             TopLevel? topLevel = TopLevel.GetTopLevel(win.renderVisualizerFrame);
@@ -76,37 +72,7 @@ namespace DivisionEngine.Editor.Systems
         public override void EditorUpdate()
         {
             if (initializeTimer > 0) initializeTimer--;
-        }
 
-        public async Task FocusUpdate()
-        {
-            if (updatingFocus) return;
-            updatingFocus = true;
-            await Task.Delay(300); // Wait to see if other window is immediately focused
-
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (initializeTimer == 0 && !EditorFocused && !RendererFocused && App.RendererVisible)
-                {
-                    _ = App.SetEditorRenderingAsync(false);
-                    Debug.Log("Set rendering false");
-                }
-                else if ((EditorFocused || RendererFocused) && !App.RendererVisible)
-                {
-                    EnvironmentWindow? win = EnvironmentWindow.GetFirstActiveWindow();
-                    if (win != null && win.IsLoaded)
-                    {
-                        initializeTimer = 60;
-                        _ = App.SetEditorRenderingAsync(true);
-                        Debug.Log("Set rendering true");
-                    }
-                }
-            });
-            updatingFocus = false;
-        }
-
-        public override void Render()
-        {
             bool forceGrab = false;
             forceGrabWindowTimer++; // Force window grab every 20 rendered frames.
             if (forceGrabWindowTimer > 20)
@@ -118,25 +84,29 @@ namespace DivisionEngine.Editor.Systems
         }
 
         /// <summary>
-        /// Sets whether the Silk.NET physical render window is enabled.
-        /// </summary>
-        /// <param name="visible">Whether the OpenGL renderer is visible</param>
-        public static void SetVisible(bool visible)
-        {
-            if (visible != App.RendererVisible)
-                _ = App.SetEditorRenderingAsync(visible);
-        }
-
-        /// <summary>
         /// Updates the render position, size, and visibility.
         /// </summary>
         private void UpdateRenderer(bool forceGrab)
         {
             try
             {
-                if (App.Renderer == null || App.Renderer.RendererWindow == null) return;
-
+                // Updates renderer focus state
                 EnvironmentWindow? win = EnvironmentWindow.GetFirstActiveWindow();
+                if (initializeTimer == 0 && !EditorFocused && !RendererFocused && App.RendererVisible)
+                {
+                    _ = App.SetEditorRenderingAsync(false);
+                    Debug.Log("Set rendering false");
+                }
+                else if ((EditorFocused || RendererFocused) && !App.RendererVisible)
+                {
+                    if (win != null && win.IsLoaded)
+                    {
+                        initializeTimer = 60;
+                        _ = App.SetEditorRenderingAsync(true);
+                        Debug.Log("Set rendering true");
+                    }
+                }
+
                 if (win != null && win.IsLoaded && App.RendererVisible)
                 {
                     // Check frame is active
@@ -144,10 +114,8 @@ namespace DivisionEngine.Editor.Systems
                         win.renderVisualizerFrame.Bounds.Width <= 0 || win.renderVisualizerFrame.Bounds.Height <= 0)
                         return;
 
-                    // Get DPI scaling
-                    double dpiScale = GetCurrentDpiScale(win);
-
                     // PointToScreen already returns physical pixels! Don't multiply again.
+                    double dpiScale = GetCurrentDpiScale(win);
                     PixelPoint screenPointPhysical = win.renderVisualizerFrame.PointToScreen(new Point(0, 0));
                     Size sizeDPI = win.renderVisualizerFrame.Bounds.Size;
 
@@ -179,7 +147,7 @@ namespace DivisionEngine.Editor.Systems
                     // Update window text (show DPI size for reference)
                     win.widthHeightText.Text = $"(Width {(int)sizeDPI.Width}px,  Height {(int)sizeDPI.Height}px,  FPS {TimeSystem.FPS})";
                 }
-                else if (App.RendererVisible) SetVisible(false);
+                else if (App.RendererVisible) _ = App.SetEditorRenderingAsync(false);
             }
             catch (Exception ex)
             {

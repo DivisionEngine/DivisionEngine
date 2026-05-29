@@ -121,7 +121,7 @@ public partial class EnvironmentWindow : EditorWindow
         mainPanel.Children.Add(renderVisualizerFrame);
 
         // Re-enable render window if just focused
-        if (!App.RendererVisible) RenderWindowManagementSystem.SetVisible(true);
+        if (!App.RendererVisible) _ = App.SetEditorRenderingAsync(true);
 
         this.FindControl<Border>("MainBorder")!.Child = mainPanel;
         currentWindows.Add(this);

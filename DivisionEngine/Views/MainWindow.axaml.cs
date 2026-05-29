@@ -53,9 +53,6 @@ namespace DivisionEngine.Editor
         {
             InitializeComponent(); // Initialize the main window components
             if (DataContext is MainWindowViewModel vm) vm.RequestClose = Close;
-#if DEBUG
-            this.AttachDevTools(); // Enable developer tools in debug mode
-#endif
             AttachContextMenus();
             SetupUniversalProgressBar(); // Build editor task system UI
             SetupAddButtons();
@@ -81,6 +78,8 @@ namespace DivisionEngine.Editor
             SaveEditorLayoutToProject();
             ProjectManager.SaveCurrentProject();
         }
+
+        #region layouts
 
         /// <summary>
         /// Saves the current editor layout to the loaded project data.
@@ -212,6 +211,8 @@ namespace DivisionEngine.Editor
             if (grid.Parent is Grid parent && Grid.GetRow(grid) >= 0)
                 parent.RowDefinitions[Grid.GetRow(grid)].Height = new GridLength(height);
         }
+
+        #endregion layouts
 
         /// <summary>
         /// Sets up the play controls toolbar.

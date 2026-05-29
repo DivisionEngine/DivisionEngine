@@ -10,6 +10,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using DivisionEngine.Editor.Settings;
+using DivisionEngine.Editor.Systems;
 using DivisionEngine.Editor.ViewModels;
 using DivisionEngine.Input;
 using DivisionEngine.Projects;
@@ -62,6 +63,46 @@ namespace DivisionEngine.Editor
         /// </summary>
         public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
+        // Old way of engaging and disengaging the renderer at runtime
+        //public static async Task SetEditorRenderingAsync(bool rendering)
+        //{
+        //    if (rendering && !RendererVisible)
+        //    {
+        //        RendererVisible = true;
+        //        if (Renderer != null && Renderer.RendererWindow != null) Renderer.Stop();
+        //        Renderer = new RenderPipeline();
+        //        Renderer.BindCurrentWorld();
+
+        //        // Subscribe to input context creation before starting the renderer
+        //        Renderer.InputContextCreated += SetupInputHandlers;
+
+        //        _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
+        //        Renderer.Close += () =>
+        //        {
+        //            EngineCore.Stop(); // Stop engine loop
+        //            Dispatcher.UIThread.Post(() =>
+        //            {
+        //                if (Current!.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        //                    desktop.Shutdown();
+        //                Environment.Exit(0);
+        //            });
+        //        };
+
+        //        // Wait for renderer to be ready
+        //        // while (Renderer == null || !Renderer.InputReady) await Task.Delay(1);
+        //        EnvironmentWindow.SyncToolValuesToRenderer(); // Update environment window tools
+        //    }
+        //    else
+        //    {
+        //        RendererVisible = false;
+        //        if (Renderer != null)
+        //        {
+        //            Renderer!.Stop();
+        //            Renderer = null;
+        //        }
+        //    }
+        //}
+
         /// <summary>
         /// Sets whether the editor renders using a render pipeline.
         /// </summary>
@@ -70,39 +111,58 @@ namespace DivisionEngine.Editor
         {
             if (rendering && !RendererVisible)
             {
-                RendererVisible = true;
-                if (Renderer != null && Renderer.RendererWindow != null) Renderer.Stop();
-                Renderer = new RenderPipeline();
-                Renderer.BindCurrentWorld();
-
-                // Subscribe to input context creation before starting the renderer
-                Renderer.InputContextCreated += SetupInputHandlers;
-
-                _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
-                Renderer.Close += () =>
-                {
-                    EngineCore.Stop(); // Stop engine loop
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        if (Current!.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-                            desktop.Shutdown();
-                        Environment.Exit(0);
-                    });
-                };
-
-                // Wait for renderer to be ready
-                // while (Renderer == null || !Renderer.InputReady) await Task.Delay(1);
-                EnvironmentWindow.SyncToolValuesToRenderer(); // Update environment window tools
+                if (Renderer == null) StartRenderer(); // If renderer doesn't exist yet, create it
+                else ShowRenderer();
             }
-            else
+            else if (!rendering && RendererVisible) HideRenderer(); // Just hide the renderer, don't destroy it
+        }
+
+        /// <summary>
+        /// Starts the renderer if not already running.
+        /// </summary>
+        public static void StartRenderer()
+        {
+            if (Renderer != null) return;
+
+            Renderer = new RenderPipeline();
+            Renderer.BindCurrentWorld();
+            Renderer.InputContextCreated += SetupInputHandlers;
+
+            _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
+            Renderer.Close += () =>
             {
-                RendererVisible = false;
-                if (Renderer != null)
+                EngineCore.Stop();
+                Dispatcher.UIThread.Post(() =>
                 {
-                    Renderer!.Stop();
-                    Renderer = null;
-                }
-            }
+                    if (Current!.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                        desktop.Shutdown();
+                    Environment.Exit(0);
+                });
+            };
+
+            RendererVisible = true;
+            EnvironmentWindow.SyncToolValuesToRenderer();
+        }
+
+        /// <summary>
+        /// Hides the renderer (moves it far off screen).
+        /// </summary>
+        public static void HideRenderer()
+        {
+            if (!RendererVisible || Renderer?.RendererWindow == null) return;
+            RendererVisible = false;
+
+            // Move off-screen to hide
+            Renderer.RendererWindow.Position = new Vector2D<int>(-10000, -10000);
+        }
+
+        /// <summary>
+        /// Shows the renderer (brings it back on screen).
+        /// </summary>
+        public static void ShowRenderer()
+        {
+            if (RendererVisible || Renderer?.RendererWindow == null) return;
+            RendererVisible = true;
         }
 
         /// <summary>

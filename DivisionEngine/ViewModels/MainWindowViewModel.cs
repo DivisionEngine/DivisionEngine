@@ -542,7 +542,7 @@ namespace DivisionEngine.Editor.ViewModels
             };
 
             if (args[0] == "Environment" && !App.RendererVisible) // Re-enable render window if disabled.
-                RenderWindowManagementSystem.SetVisible(true);
+                _ = App.SetEditorRenderingAsync(true);
 
             if (vm == null)
             {
@@ -578,7 +578,7 @@ namespace DivisionEngine.Editor.ViewModels
         {
             // Re-enable renderer if needed (special case for Environment window)
             if (viewModel is EnvironmentWindowViewModel && !App.RendererVisible)
-                RenderWindowManagementSystem.SetVisible(true);
+                _ = App.SetEditorRenderingAsync(true);
 
             switch (panelType)
             {
@@ -628,6 +628,145 @@ namespace DivisionEngine.Editor.ViewModels
             {
                 if (CenterTabs.Count > 0) SelectedCenterTab = CenterTabs[^1];
                 else SelectedCenterTab = null;
+            }
+        }
+
+        [RelayCommand]
+        private async Task ApplyDefaultLayout()
+        {
+            EditorLayoutData layout = new EditorLayoutData
+            {
+                LeftPanelWidth = 200,
+                RightPanelWidth = 300,
+                BottomPanelHeight = 250,
+                LeftTabs = "WorldWindow",
+                RightTabs = "PropertiesWindow,SettingsWindow",
+                CenterTabs = "EnvironmentWindow",
+                BottomTabs = "AssetsWindow,ConsoleWindow,DeveloperWindow",
+                SelectedLeftTab = "WorldWindow",
+                SelectedRightTab = "PropertiesWindow",
+                SelectedCenterTab = "EnvironmentWindow",
+                SelectedBottomTab = "AssetsWindow"
+            };
+            await ApplyLayout(layout);
+        }
+
+        [RelayCommand]
+        private async Task ApplyFocusEditorLayout()
+        {
+            // Focus on code/script editing
+            EditorLayoutData layout = new EditorLayoutData
+            {
+                LeftPanelWidth = 250,
+                RightPanelWidth = 350,
+                BottomPanelHeight = 200,
+                LeftTabs = "WorldWindow,AssetsWindow",
+                RightTabs = "PropertiesWindow",
+                CenterTabs = "EnvironmentWindow",
+                BottomTabs = "ConsoleWindow,DeveloperWindow",
+                SelectedLeftTab = "AssetsWindow",
+                SelectedRightTab = "PropertiesWindow",
+                SelectedCenterTab = "EnvironmentWindow",
+                SelectedBottomTab = "ConsoleWindow"
+            };
+            await ApplyLayout(layout);
+        }
+
+        [RelayCommand]
+        private async Task ApplyFocusAssetsLayout()
+        {
+            // Focus on asset browsing and management
+            EditorLayoutData layout = new EditorLayoutData
+            {
+                LeftPanelWidth = 150,
+                RightPanelWidth = 400,
+                BottomPanelHeight = 200,
+                LeftTabs = "WorldWindow",
+                RightTabs = "PropertiesWindow",
+                CenterTabs = "AssetsWindow",
+                BottomTabs = "ConsoleWindow,DeveloperWindow",
+                SelectedLeftTab = "WorldWindow",
+                SelectedRightTab = "PropertiesWindow",
+                SelectedCenterTab = "AssetsWindow",
+                SelectedBottomTab = "ConsoleWindow"
+            };
+            await ApplyLayout(layout);
+        }
+
+        [RelayCommand]
+        private async Task ApplyWideViewportLayout()
+        {
+            // Maximize the viewport for scene editing
+            EditorLayoutData layout = new EditorLayoutData
+            {
+                LeftPanelWidth = 180,
+                RightPanelWidth = 250,
+                BottomPanelHeight = 180,
+                LeftTabs = "WorldWindow",
+                RightTabs = "PropertiesWindow,SettingsWindow",
+                CenterTabs = "EnvironmentWindow",
+                BottomTabs = "AssetsWindow,ConsoleWindow",
+                SelectedLeftTab = "WorldWindow",
+                SelectedRightTab = "PropertiesWindow",
+                SelectedCenterTab = "EnvironmentWindow",
+                SelectedBottomTab = "AssetsWindow"
+            };
+            await ApplyLayout(layout);
+        }
+
+        [RelayCommand]
+        private async Task ApplyMinimalLayout()
+        {
+            // Minimal UI for pure viewing
+            EditorLayoutData layout = new EditorLayoutData
+            {
+                LeftPanelWidth = 0,
+                RightPanelWidth = 0,
+                BottomPanelHeight = 0,
+                LeftTabs = "",
+                RightTabs = "",
+                CenterTabs = "EnvironmentWindow",
+                BottomTabs = "",
+                SelectedLeftTab = "",
+                SelectedRightTab = "",
+                SelectedCenterTab = "EnvironmentWindow",
+                SelectedBottomTab = ""
+            };
+            await ApplyLayout(layout);
+        }
+
+        [RelayCommand]
+        private async Task ApplyDebugLayout()
+        {
+            // Layout optimized for debugging (console and developer tools visible)
+            EditorLayoutData layout = new EditorLayoutData
+            {
+                LeftPanelWidth = 200,
+                RightPanelWidth = 350,
+                BottomPanelHeight = 300,
+                LeftTabs = "WorldWindow",
+                RightTabs = "PropertiesWindow",
+                CenterTabs = "EnvironmentWindow",
+                BottomTabs = "ConsoleWindow,DeveloperWindow,AssetsWindow",
+                SelectedLeftTab = "WorldWindow",
+                SelectedRightTab = "PropertiesWindow",
+                SelectedCenterTab = "EnvironmentWindow",
+                SelectedBottomTab = "ConsoleWindow"
+            };
+            await ApplyLayout(layout);
+        }
+
+        /// <summary>
+        /// Update the project's layout data.
+        /// </summary>
+        /// <param name="layout">New layout to switch to</param>
+        /// <returns>Async layout change operation task</returns>
+        private async Task ApplyLayout(EditorLayoutData layout)
+        {
+            if (ProjectManager.CurrentProjectData != null)
+            {
+                ProjectManager.CurrentProjectData.EditorLayout = layout;
+                if (mainWindow is MainWindow window) await window.LoadEditorLayoutFromProjectAsync();
             }
         }
     }

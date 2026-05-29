@@ -89,6 +89,17 @@
             <Separator/>
             <MenuItem Header="Terrain" Command="{Binding CreateEntityCommand}" CommandParameter="terrain"/>
         </MenuItem>
+            <!--Layouts Menu-->
+        <MenuItem Header="Layouts" Foreground="#ccc">
+            <MenuItem Header="Default" Command="{Binding ApplyDefaultLayoutCommand}" Foreground="#ccc"/>
+            <Separator/>
+            <MenuItem Header="Focus Editor" Command="{Binding ApplyFocusEditorLayoutCommand}" Foreground="#ccc"/>
+            <MenuItem Header="Focus Assets" Command="{Binding ApplyFocusAssetsLayoutCommand}" Foreground="#ccc"/>
+            <MenuItem Header="Wide Viewport" Command="{Binding ApplyWideViewportLayoutCommand}" Foreground="#ccc"/>
+            <Separator/>
+            <MenuItem Header="Minimal" Command="{Binding ApplyMinimalLayoutCommand}" Foreground="#ccc"/>
+            <MenuItem Header="Debug" Command="{Binding ApplyDebugLayoutCommand}" Foreground="#ccc"/>
+        </MenuItem>
             <!--Other Menus-->
         <MenuItem Header="Help" Foreground="#ccc">
             <MenuItem Header="About" Command="{Binding AboutCommand}" Foreground="#ccc"/>
