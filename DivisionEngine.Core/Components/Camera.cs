@@ -36,7 +36,15 @@ namespace DivisionEngine.Components
             divisionDenoiseThreshold = 0.24f;
             divisionDenoiseDomain = 2;
             aTrousStepCount = 2;
+
+            isActive = true; // Default to active
         }
+
+        /// <summary>
+        /// Whether this camera is currently active for rendering.
+        /// </summary>
+        [Tooltip("Whether this camera is currently active for rendering")]
+        public bool isActive;
 
         // Camera vars
         [Tooltip("The viewing angle of the camera")]
@@ -74,6 +82,8 @@ namespace DivisionEngine.Components
 
         public IComponent Clone() => new Camera
         {
+            isActive = isActive,
+
             fieldOfView = fieldOfView,
             nearClip = nearClip,
             farClip = farClip,

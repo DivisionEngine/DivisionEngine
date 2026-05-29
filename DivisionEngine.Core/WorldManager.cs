@@ -189,7 +189,7 @@ namespace DivisionEngine
             return worlds.Remove(name);
         }
 
-        #region play_mode_specific
+        #region playModeSpecific
 
         /// <summary>
         /// Restores the current world from a backup without changing world instance.
@@ -208,6 +208,6 @@ namespace DivisionEngine
             Debug.Info($"Restored world state from: {backupWorld.Name}");
         }
 
-        #endregion
+        #endregion playModeSpecific
     }
 }

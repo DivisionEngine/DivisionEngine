@@ -1,0 +1,35 @@
+﻿//
+// Copyright (c) 2025-2026 Rex Woodfield and Division Engine contributors
+//
+// This file is part of Division Engine and is subject to the terms
+// of the Division Engine License. See the LICENSE.txt file in the
+// project root for full license terms.
+//
+namespace DivisionEngine.Components
+{
+    /// <summary>
+    /// Component that manages the invisible editor camera settings.
+    /// </summary>
+    public class EditorCamera : IComponent
+    {
+        public const uint EditorCameraId = 999999999; // High ID that won't conflict
+
+        public EditorCamera()
+        {
+            movementSpeed = 10f;
+            mouseSensitivity = 2f;
+            sprintMultiplier = 2f;
+        }
+
+        public float movementSpeed;
+        public float mouseSensitivity;
+        public float sprintMultiplier;
+
+        public IComponent Clone() => new EditorCamera
+        {
+            movementSpeed = movementSpeed,
+            mouseSensitivity = mouseSensitivity,
+            sprintMultiplier = sprintMultiplier,
+        };
+    }
+}

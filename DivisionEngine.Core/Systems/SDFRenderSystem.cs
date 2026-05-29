@@ -57,6 +57,8 @@ namespace DivisionEngine.Systems
             // Gather camera data
             foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
             {
+                if (!camera.isActive) continue; // Skip inactive cameras
+
                 // Camera transform
                 worldData.cameraOrigin = transform.position;
                 worldData.camForward = transform.Forward;
@@ -84,7 +86,7 @@ namespace DivisionEngine.Systems
                 worldData.divisionThreshold = camera.divisionDenoiseThreshold;
                 worldData.divisionDomain = camera.divisionDenoiseDomain;
                 worldData.aTrousStepCount = camera.aTrousStepCount;
-                break; // Use first camera
+                break; // Use first active camera
             }
 
             // Gather fog data

@@ -7,6 +7,7 @@
 //
 using DivisionEngine.Components;
 using DivisionEngine.Serialization;
+using DivisionEngine.Systems;
 using System.Reflection;
 
 namespace DivisionEngine
@@ -620,6 +621,9 @@ namespace DivisionEngine
         /// <returns>A new world with cloned entities and components</returns>
         public World Clone()
         {
+            // Make sure editor camera is not cloned
+            if (EntityExists(EditorCamera.EditorCameraId)) DestroyEntity(EditorCamera.EditorCameraId);
+
             World newWorld = new World($"{Name}_Copy")
             {
                 NextEntityId = 0
@@ -669,6 +673,9 @@ namespace DivisionEngine
         /// <param name="sourceWorld">The source world to restore from</param>
         public void RestoreFrom(World sourceWorld)
         {
+            // Delete editor camera before restoring
+            if (EntityExists(EditorCamera.EditorCameraId)) DestroyEntity(EditorCamera.EditorCameraId);
+
             // Clear current world state
             entities.Clear();
             components.Clear();

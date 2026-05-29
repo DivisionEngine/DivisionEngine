@@ -14,7 +14,7 @@ using DivisionEngine.Settings;
 namespace DivisionEngine.Systems
 {
     /// <summary>
-    /// Handles basic 3D player movement and controls
+    /// Handles basic 3D player movement and controls.
     /// </summary>
     public class PlayerSystem : SystemBase
     {
@@ -33,14 +33,11 @@ namespace DivisionEngine.Systems
             if (WindowFocused)
             {
                 foreach (var (_, transform, player) in W.QueryData<Transform, Player>())
-                    HandlePlayerInput(transform, player);
+                {
+                    HandleKeyboardMovement(transform, player);
+                    HandleMouseLook(transform, player);
+                }
             }
-        }
-
-        private static void HandlePlayerInput(Transform transform, Player player)
-        {
-            HandleKeyboardMovement(transform, player);
-            HandleMouseLook(transform, player);
         }
 
         private static void HandleKeyboardMovement(Transform transform, Player player)

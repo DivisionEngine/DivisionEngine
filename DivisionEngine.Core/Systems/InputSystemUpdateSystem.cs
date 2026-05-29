@@ -10,13 +10,20 @@ using DivisionEngine.Input;
 namespace DivisionEngine.Systems
 {
     /// <summary>
-    /// Updates the input system from the current ECS world on the fixed update loop.
+    /// Updates the input system from the current ECS world on the fixed update loop (or on editor update loop based on circumstance).
     /// </summary>
     internal class InputSystemUpdateSystem : SystemBase
     {
         public override void FixedUpdate()
         {
-            InputSystem.Instance!.OnFixedUpdate();
+            if (EngineCore.IsInPlayMode)
+                InputSystem.Instance!.InvokeInputUpdate();
+        }
+
+        public override void EditorUpdate()
+        {
+            if (!EngineCore.IsInPlayMode)
+                InputSystem.Instance!.InvokeInputUpdate();
         }
     }
 }

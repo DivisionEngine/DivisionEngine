@@ -180,9 +180,9 @@ namespace DivisionEngine.Input
         }
 
         /// <summary>
-        /// Update this on the fixed update loop from the current world.
+        /// Updates on the fixed update loop from the current world (or on editor update loop).
         /// </summary>
-        public void OnFixedUpdate()
+        public void InvokeInputUpdate()
         {
             if (mouseDelta.X != 0 || mouseDelta.Y != 0) mouseDelta = float2.Zero;
             if (mouseUVDelta.X != 0 || mouseUVDelta.Y != 0) mouseUVDelta = float2.Zero;

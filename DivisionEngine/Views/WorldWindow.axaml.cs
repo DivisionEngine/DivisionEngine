@@ -12,6 +12,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components;
+using DivisionEngine.Editor.Systems;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
@@ -211,8 +212,7 @@ public partial class WorldWindow : EditorWindow
         {
             if (!isRenaming) return;
             string? newName = renameTextBox.Text?.Trim();
-            if (string.IsNullOrWhiteSpace(newName))
-                newName = $"Entity_{entityId}";
+            if (string.IsNullOrWhiteSpace(newName)) newName = $"Entity_{entityId}";
 
             // Update the entity name in the world
             if (WorldManager.CurrentWorld != null)
@@ -255,9 +255,7 @@ public partial class WorldWindow : EditorWindow
             if (world != null && world.HasComponent<Name>(entityId))
             {
                 Name nameComp = world.GetComponent<Name>(entityId)!;
-                displayName = string.IsNullOrWhiteSpace(nameComp.name)
-                    ? $"Entity_{entityId}"
-                    : nameComp.name;
+                displayName = string.IsNullOrWhiteSpace(nameComp.name) ? $"Entity_{entityId}" : nameComp.name;
             }
             else displayName = $"Entity_{entityId}";
             nameText.Text = displayName;
@@ -502,7 +500,8 @@ public partial class WorldWindow : EditorWindow
     private void UpdateListEntries()
     {
         if (WorldManager.CurrentWorld == null) return;
-        HashSet<uint> newEntities = WorldManager.CurrentWorld.entities;
+        HashSet<uint> newEntities = [.. WorldManager.CurrentWorld.entities
+            .Where(id => id != EditorCamera.EditorCameraId)];
 
         foreach (uint entityId in curEntities.ToList()) // Remove entities that no longer exist
         {
@@ -515,6 +514,7 @@ public partial class WorldWindow : EditorWindow
                 }
             }
         }
+
         foreach (uint entityId in newEntities) // Add new entities
         {
             if (!curEntities.Contains(entityId))

@@ -95,7 +95,6 @@ namespace DivisionEngine.Editor.Systems
                 if (initializeTimer == 0 && !EditorFocused && !RendererFocused && App.RendererVisible)
                 {
                     _ = App.SetEditorRenderingAsync(false);
-                    Debug.Log("Set rendering false");
                 }
                 else if ((EditorFocused || RendererFocused) && !App.RendererVisible)
                 {
@@ -103,7 +102,6 @@ namespace DivisionEngine.Editor.Systems
                     {
                         initializeTimer = 60;
                         _ = App.SetEditorRenderingAsync(true);
-                        Debug.Log("Set rendering true");
                     }
                 }
 
