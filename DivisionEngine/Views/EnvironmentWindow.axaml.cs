@@ -9,7 +9,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using DivisionEngine.Editor.Systems;
 using DivisionEngine.Rendering;
 using DivisionEngine.Systems;
 using System.Collections.Generic;

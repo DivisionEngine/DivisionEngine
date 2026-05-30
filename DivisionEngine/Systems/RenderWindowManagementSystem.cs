@@ -11,6 +11,7 @@ using Avalonia.Threading;
 using DivisionEngine.Rendering;
 using DivisionEngine.Systems;
 using System;
+using System.Threading.Tasks;
 
 namespace DivisionEngine.Editor.Systems
 {
@@ -23,7 +24,8 @@ namespace DivisionEngine.Editor.Systems
         private int prevX, prevY;
         private int forceGrabWindowTimer;
         private int initializeTimer;
-        private double lastDpiScale = 1;
+        private double lastDpiScale;
+        private bool focusUpdating;
 
         /// <summary>
         /// Editor window is in focus.
@@ -43,6 +45,8 @@ namespace DivisionEngine.Editor.Systems
             prevY = 0;
             forceGrabWindowTimer = 0;
             initializeTimer = 60;
+            lastDpiScale = 1;
+            focusUpdating = false;
 
             EditorFocused = false;
             RendererFocused = true;
@@ -84,6 +88,27 @@ namespace DivisionEngine.Editor.Systems
         }
 
         /// <summary>
+        /// Adds a delay to the focus update to prevent render windows spontanousely combusting.
+        /// </summary>
+        private async void OnFocusUpdateRequest()
+        {
+            if (focusUpdating) return;
+            focusUpdating = true;
+            await Task.Delay(100);
+
+            EnvironmentWindow? win = EnvironmentWindow.GetFirstActiveWindow();
+            if (initializeTimer == 0 && !EditorFocused && !RendererFocused && App.RendererVisible)
+                _ = App.SetEditorRenderingAsync(false);
+            else if ((EditorFocused || RendererFocused) && !App.RendererVisible && win != null && win.IsLoaded)
+            {
+                initializeTimer = 60;
+                _ = App.SetEditorRenderingAsync(true);
+            }
+
+            focusUpdating = false;
+        }
+
+        /// <summary>
         /// Updates the render position, size, and visibility.
         /// </summary>
         private void UpdateRenderer(bool forceGrab)
@@ -93,17 +118,9 @@ namespace DivisionEngine.Editor.Systems
                 // Updates renderer focus state
                 EnvironmentWindow? win = EnvironmentWindow.GetFirstActiveWindow();
                 if (initializeTimer == 0 && !EditorFocused && !RendererFocused && App.RendererVisible)
-                {
-                    _ = App.SetEditorRenderingAsync(false);
-                }
-                else if ((EditorFocused || RendererFocused) && !App.RendererVisible)
-                {
-                    if (win != null && win.IsLoaded)
-                    {
-                        initializeTimer = 60;
-                        _ = App.SetEditorRenderingAsync(true);
-                    }
-                }
+                    OnFocusUpdateRequest();
+                else if ((EditorFocused || RendererFocused) && !App.RendererVisible && win != null && win.IsLoaded)
+                    OnFocusUpdateRequest();
 
                 if (win != null && win.IsLoaded && App.RendererVisible)
                 {

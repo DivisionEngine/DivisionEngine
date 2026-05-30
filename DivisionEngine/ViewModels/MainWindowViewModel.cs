@@ -12,7 +12,6 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
 using DivisionEngine.Editor.Settings;
-using DivisionEngine.Editor.Systems;
 using DivisionEngine.Editor.Tasks;
 using DivisionEngine.Projects;
 using DivisionEngine.Settings;
@@ -427,12 +426,8 @@ namespace DivisionEngine.Editor.ViewModels
                 // Check if folder already exists
                 if (Directory.Exists(projectPath) && Directory.GetFiles(projectPath, "*.divp").Length > 0)
                 {
-                    ConfirmationDialog confirmDialog = new ConfirmationDialog
-                    {
-                        Title = "Project Exists",
-                        Message = $"A project named '{projectName}' already exists at this location. Overwrite?"
-                    };
-
+                    ConfirmationDialog confirmDialog = new ConfirmationDialog("Project Exists",
+                        $"A project named '{projectName}' already exists at this location. Overwrite?");
                     bool overwrite = await confirmDialog.ShowDialog<bool>(mainWindow);
                     EditorTaskManager.Update(t.Id, 1f);
                     if (!overwrite)

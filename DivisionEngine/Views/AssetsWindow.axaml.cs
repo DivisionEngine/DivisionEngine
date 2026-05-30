@@ -18,6 +18,7 @@ using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using Material.Icons;
 using Material.Icons.Avalonia;
+using Silk.NET.Vulkan;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -520,6 +521,8 @@ public partial class AssetsWindow : EditorWindow
             listNamePanel.Children.Clear();
             listSizePanel.Children.Clear();
 
+            Debug.Info($"Directory field updating assets path to: {currentPath}");
+
             // Dispatch asset loading
             Dispatcher.UIThread.Post(() => LoadAssetsAtPathNew(newPath));
         }
@@ -530,6 +533,7 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     public static void LoadAssetsForCurrentProject()
     {
+        Debug.Log($"Loading assets at cur proj: {ProjectManager.CurrentProjectPath}");
         ValidateWindows();
         foreach (AssetsWindow? window in currentWindows) window!.Setup(ProjectManager.CurrentProjectPath);
     }
@@ -539,6 +543,7 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     public static void LoadAssets(string path)
     {
+        Debug.Log($"Loading assets at folder: {path}");
         ValidateWindows();
         foreach (AssetsWindow? window in currentWindows) window!.Setup(path);
     }
@@ -621,8 +626,6 @@ public partial class AssetsWindow : EditorWindow
         {
             // Loads assets using the database if path is in assets folder.
             string assetsRoot = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
-            Debug.Log($"Proj manager assets root: {assetsRoot}");
-
             assetsListPanel.Children.Clear();
             assetsTileGrid.Children.Clear();
             if (path.StartsWith(assetsRoot)) LoadAssetsUsingDatabase(path);
@@ -848,11 +851,11 @@ public partial class AssetsWindow : EditorWindow
             ShowInPlaceRename(folderBorder, folderNameWithoutExt, folder.FullName, true);
         }));
         contextMenu.Items.Add(new Separator());
-        contextMenu.Items.Add(EditorUI.CreateContextMenuItem("Delete", MaterialIconKind.Delete, () =>
+        contextMenu.Items.Add(EditorUI.CreateContextMenuItem("Delete", MaterialIconKind.Delete, async () =>
         {
             try
             {
-                Directory.Delete(folder.FullName, true);
+                if (await ConfirmDeletion(folder.Name, "Folder", true)) Directory.Delete(folder.FullName, true);
                 Debug.Info($"Deleted folder: {folder.Name}");
             }
             catch (Exception ex)
@@ -935,11 +938,11 @@ public partial class AssetsWindow : EditorWindow
             Debug.Info($"Copying path: {file.FullName}");
         }));
         contextMenu.Items.Add(new Separator());
-        contextMenu.Items.Add(EditorUI.CreateContextMenuItem("Delete", MaterialIconKind.Delete, () =>
+        contextMenu.Items.Add(EditorUI.CreateContextMenuItem("Delete", MaterialIconKind.Delete, async () =>
         {
             try
             {
-                File.Delete(file.FullName);
+                if (await ConfirmDeletion(file.Name, "File")) File.Delete(file.FullName);
                 Debug.Info($"Deleted file: {file.Name}");
             }
             catch (Exception ex)
@@ -1051,13 +1054,13 @@ public partial class AssetsWindow : EditorWindow
             ShowInPlaceRename(assetBorder, fileNameWithoutExt, fullPath, false, extension);
         }));
         contextMenu.Items.Add(new Separator());
-        contextMenu.Items.Add(EditorUI.CreateContextMenuItem("Delete", MaterialIconKind.Delete, () =>
+        contextMenu.Items.Add(EditorUI.CreateContextMenuItem("Delete", MaterialIconKind.Delete, async () =>
         {
             if (!fileExists) return;
 
             try
             {
-                File.Delete(fullPath);
+                if (await ConfirmDeletion(asset.FileName, "Asset")) File.Delete(fullPath);
                 Debug.Info($"Deleted asset: {asset.FileName}");
             }
             catch (Exception ex)
@@ -1097,6 +1100,22 @@ public partial class AssetsWindow : EditorWindow
             border.BorderBrush = EditorColor.FromRGB(10, 10, 10);
             border.Background = EditorColor.FromRGB(20, 20, 20);
         };
+    }
+
+    /// <summary>
+    /// Shows a confirmation dialog for deletion.
+    /// </summary>
+    /// <param name="itemName">Name of the item being deleted</param>
+    /// <param name="itemType">Type of item (file, folder, asset)</param>
+    /// <param name="isFolder">Whether this is a folder deletion</param>
+    /// <returns>True if user confirmed deletion</returns>
+    private static async Task<bool> ConfirmDeletion(string itemName, string itemType, bool isFolder = false)
+    {
+        string message = isFolder
+            ? $"Are you sure you want to delete '{itemName}' and ALL its contents?\n\nThis action cannot be undone."
+            : $"Are you sure you want to delete '{itemName}'?\n\nThis action cannot be undone.";
+        ConfirmationDialog confirmDialog = new ConfirmationDialog($"Delete {itemType}", message);
+        return await confirmDialog.ShowDialog<bool>(App.MainWindow!);
     }
 
     /// <summary>
@@ -1637,6 +1656,7 @@ public partial class AssetsWindow : EditorWindow
         {
             Dispatcher.UIThread.Post(async () =>
             {
+                Debug.Log($"Current Path: {currentPath} | Folder Path: {folderPath}");
                 LoadAssets(currentPath); // Force reload of the current path
             }, DispatcherPriority.Background);
         }

@@ -6,11 +6,11 @@
 // project root for full license terms.
 //
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using DivisionEngine.Editor.Settings;
-using DivisionEngine.Editor.Systems;
 using DivisionEngine.Editor.ViewModels;
 using DivisionEngine.Input;
 using DivisionEngine.Projects;
@@ -39,6 +39,11 @@ namespace DivisionEngine.Editor
         public static InputSystem? UserInput { get; private set; }
 
         /// <summary>
+        /// Current input system for the Division editor.
+        /// </summary>
+        public static Window? MainWindow { get; private set; }
+
+        /// <summary>
         /// Whether the engine is currently rendering to a target window.
         /// </summary>
         public static bool RendererVisible { get; private set; }
@@ -62,46 +67,6 @@ namespace DivisionEngine.Editor
         /// Initializes the Avalonia UI base app.
         /// </summary>
         public override void Initialize() => AvaloniaXamlLoader.Load(this);
-
-        // Old way of engaging and disengaging the renderer at runtime
-        //public static async Task SetEditorRenderingAsync(bool rendering)
-        //{
-        //    if (rendering && !RendererVisible)
-        //    {
-        //        RendererVisible = true;
-        //        if (Renderer != null && Renderer.RendererWindow != null) Renderer.Stop();
-        //        Renderer = new RenderPipeline();
-        //        Renderer.BindCurrentWorld();
-
-        //        // Subscribe to input context creation before starting the renderer
-        //        Renderer.InputContextCreated += SetupInputHandlers;
-
-        //        _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
-        //        Renderer.Close += () =>
-        //        {
-        //            EngineCore.Stop(); // Stop engine loop
-        //            Dispatcher.UIThread.Post(() =>
-        //            {
-        //                if (Current!.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        //                    desktop.Shutdown();
-        //                Environment.Exit(0);
-        //            });
-        //        };
-
-        //        // Wait for renderer to be ready
-        //        // while (Renderer == null || !Renderer.InputReady) await Task.Delay(1);
-        //        EnvironmentWindow.SyncToolValuesToRenderer(); // Update environment window tools
-        //    }
-        //    else
-        //    {
-        //        RendererVisible = false;
-        //        if (Renderer != null)
-        //        {
-        //            Renderer!.Stop();
-        //            Renderer = null;
-        //        }
-        //    }
-        //}
 
         /// <summary>
         /// Sets whether the editor renders using a render pipeline.
@@ -152,7 +117,7 @@ namespace DivisionEngine.Editor
             if (!RendererVisible || Renderer?.RendererWindow == null) return;
             RendererVisible = false;
 
-            // Move off-screen to hide
+            // Move off screen to hide
             Renderer.RendererWindow.Position = new Vector2D<int>(-10000, -10000);
         }
 
@@ -178,6 +143,7 @@ namespace DivisionEngine.Editor
                 desktop.MainWindow = new MainWindow();
                 MainWindowViewModel vm = new MainWindowViewModel(desktop.MainWindow);
                 desktop.MainWindow.DataContext = vm;
+                MainWindow = desktop.MainWindow;
 
                 // Startup editor
                 WorldManager.CreateDefaultWorld(true);

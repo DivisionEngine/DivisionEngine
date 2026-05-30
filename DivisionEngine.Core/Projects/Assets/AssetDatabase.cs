@@ -113,6 +113,9 @@ namespace DivisionEngine.Projects.Assets
         public static void RefreshFolder(string folderPath)
         {
             if (!folderPath.StartsWith(AssetsPath)) return;
+
+            Debug.Info($"Asset Database: Refreshing folder: {folderPath}");
+
             ProcessFolder(folderPath); // Only reprocess this specific folder
             FolderChanged?.Invoke(folderPath); // Notify UI to update
         }

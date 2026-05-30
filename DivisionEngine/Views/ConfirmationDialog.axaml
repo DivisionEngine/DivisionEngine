@@ -9,11 +9,5 @@
         Title="Confirm"
         WindowStartupLocation="CenterOwner"
         Background="#111">
-  <StackPanel Margin="20" Spacing="10">
-        <TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-            <Button Content="No" Click="OnNoClicked" Width="80"/>
-            <Button Content="Yes" Click="OnYesClicked" Width="80"/>
-        </StackPanel>
-    </StackPanel>
+  <Border x:Name="MainBorder" Background="#111"/>
 </Window>

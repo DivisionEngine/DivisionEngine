@@ -12,7 +12,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components;
-using DivisionEngine.Editor.Systems;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
