@@ -408,6 +408,7 @@ public partial class WorldWindow : EditorWindow
             ["pointLight"] = ("Point Light", MaterialIconKind.Lightbulb),
             ["sphere"] = ("Sphere", MaterialIconKind.Circle),
             ["box"] = ("Box", MaterialIconKind.Square),
+            ["roundedBox"] = ("Rounded Box", MaterialIconKind.SquareRounded),
             ["torus"] = ("Donut", MaterialIconKind.CircleDouble),
             ["pyramid"] = ("Pyramid", MaterialIconKind.Pyramid),
             ["plane"] = ("Plane", MaterialIconKind.SquareOutline),
