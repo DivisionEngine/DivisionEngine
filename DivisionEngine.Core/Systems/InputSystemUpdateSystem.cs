@@ -14,6 +14,8 @@ namespace DivisionEngine.Systems
     /// </summary>
     internal class InputSystemUpdateSystem : SystemBase
     {
+        public override int Priority => 1000;
+
         public override void FixedUpdate()
         {
             if (EngineCore.IsInPlayMode)

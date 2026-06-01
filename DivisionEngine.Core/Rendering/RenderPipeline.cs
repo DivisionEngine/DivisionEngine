@@ -7,6 +7,7 @@
 //
 using ComputeSharp;
 using DivisionEngine.Components;
+using DivisionEngine.Input;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
 using DivisionEngine.Settings;
@@ -100,11 +101,17 @@ namespace DivisionEngine.Rendering
         /// </summary>
         public uint2[]? ObjectIDs { get; private set; }
 
+        /// <summary>
+        /// Buffer of all the editor handle IDs overlayed per pixel on screen.
+        /// </summary>
+        public uint[]? HandleIds { get; private set; }
+
         // Render texture storage
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadWriteTexture2D<float4>? depthNormalsTex;
         private ReadOnlyTexture2D<float4>? testBackgroundTex;
         private ReadWriteBuffer<uint2>? objectIdBuffer;
+        private ReadWriteBuffer<uint>? handleIdBuffer;
 
         // Buffer storage
         private ReadOnlyBuffer<SDFObjectDTO>? sdfObjBuffer;
@@ -130,6 +137,11 @@ namespace DivisionEngine.Rendering
         /// Time between frames.
         /// </summary>
         public static double DeltaTime { get; private set; }
+
+        // Handles
+        private float3? editorHandlePosition = null;
+        private float editorHandleScale = 1.0f;
+        private uint currentHoveredHandle = 0;
 
         // Denoising
         private ReadOnlyBuffer<float>? kernelBuffer; // Reconstruction kernel
@@ -164,6 +176,54 @@ namespace DivisionEngine.Rendering
         {
             currentDpiScale = scale;
         }
+
+        #region editorHandles
+
+        /// <summary>
+        /// Sets the position where editor handles should be rendered.
+        /// </summary>
+        public void ShowHandles(float3 position, float scale = 1.0f)
+        {
+            editorHandlePosition = position;
+            editorHandleScale = scale;
+        }
+
+        /// <summary>
+        /// Hides the editor handles.
+        /// </summary>
+        public void HideHandles()
+        {
+            editorHandlePosition = null;
+        }
+
+        public uint GetHandleAtPosition(int screenX, int screenY)
+        {
+            if (RendererWindow == null || HandleIds == null || screenX < 0 || screenY < 0 ||
+                screenX >= RendererWindow?.Size.X || screenY >= RendererWindow?.Size.Y)
+                return 0;
+
+            int width = RendererWindow!.Size.X;
+            return HandleIds[screenX + (RendererWindow.Size.Y - screenY) * width];
+        }
+
+        public void UpdateHoveredHandle(int mouseX, int mouseY)
+        {
+            if (HandleIds == null || RendererWindow == null) return;
+
+            int width = RendererWindow.Size.X;
+            int height = RendererWindow.Size.Y;
+
+            if (mouseX >= 0 && mouseX < width && mouseY >= 0 && mouseY < height)
+            {
+                currentHoveredHandle = HandleIds[mouseX + (height - 1 - mouseY) * width];
+            }
+            else
+            {
+                currentHoveredHandle = 0;
+            }
+        }
+
+        #endregion editorHandles
 
         /// <summary>
         /// Initializes and runs the render window.
@@ -404,6 +464,14 @@ namespace DivisionEngine.Rendering
                         ObjectIDs = new uint2[texWidth * texHeight];
                     }
 
+                    // Build handle ID buffer
+                    if (handleIdBuffer == null || handleIdBuffer.Length != (texWidth * texHeight) || HandleIds == null)
+                    {
+                        handleIdBuffer?.Dispose();
+                        handleIdBuffer = Device!.AllocateReadWriteBuffer<uint>(texWidth * texHeight);
+                        HandleIds = new uint[texWidth * texHeight];
+                    }
+
                     // Build kernel buffer
                     if (kernelBuffer == null || ObjectIDs == null)
                     {
@@ -493,9 +561,32 @@ namespace DivisionEngine.Rendering
                     break; // Use first camera
                 }
 
+                // Editor handles
+                if (editorHandlePosition.HasValue)
+                {
+                    lock (SyncLock)
+                    {
+                        EditorHandleShader handleShader = new EditorHandleShader(
+                            texWidth, texHeight,
+                            texWidth / (float)texHeight, // aspect ratio
+                            worldDTO.camScreenDist,
+                            worldDTO.cameraOrigin,
+                            worldDTO.camForward,
+                            worldDTO.camRight,
+                            worldDTO.camUp,
+                            currentTexture!,
+                            handleIdBuffer,
+                            editorHandlePosition.Value,
+                            editorHandleScale,
+                            currentHoveredHandle);
+                        Device?.For(texWidth, texHeight, handleShader);
+                    }
+                }
+
                 // Copy final result for OpenGL display
                 depthNormalsTex?.CopyTo(DepthNormalPixels!);
                 objectIdBuffer?.CopyTo(ObjectIDs!);
+                handleIdBuffer?.CopyTo(HandleIds!);
                 currentTexture?.CopyTo(Pixels!);
             }
             catch (ObjectDisposedException ex)

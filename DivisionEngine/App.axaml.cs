@@ -147,7 +147,7 @@ namespace DivisionEngine.Editor
 
                 // Startup editor
                 WorldManager.CreateDefaultWorld(true);
-                WorldManager.CurrentWorld?.CallAppStart(); // Invoke application start callback
+                WorldManager.CurrentWorld?.CallAppStart();
                 StartEditorEngineLoop();
                 UserInput = new InputSystem();
                 _ = SetEditorRenderingAsync(true); // Start the SDFRenderer in a separate thread

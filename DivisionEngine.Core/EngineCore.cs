@@ -33,7 +33,7 @@ namespace DivisionEngine
         private static World? savedWorld;
 
         /// <summary>
-        /// Event fired when play mode changes.
+        /// Event fired when play mode changes, true if in play mode, false if not.
         /// </summary>
         public static event Action<bool>? PlayModeChanged;
 

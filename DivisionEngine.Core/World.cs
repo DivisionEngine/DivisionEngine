@@ -214,6 +214,7 @@ namespace DivisionEngine
         {
             systems.Add(system);
 
+            int priority = system.Priority;
             Type sysBaseType = typeof(SystemBase), sysType = system.GetType();
             MethodInfo? appStartInfo = sysType.GetMethod("AppStart"),
                 awakeInfo = sysType.GetMethod("Awake"),
@@ -224,14 +225,27 @@ namespace DivisionEngine
                 appExitInfo = sysType.GetMethod("AppExit"),
                 renderInfo = sysType.GetMethod("Render");
 
-            if (appStartInfo != null && appStartInfo.DeclaringType != sysBaseType) appStartSystems.Add(system);
-            if (awakeInfo != null && awakeInfo.DeclaringType != sysBaseType) awakeSystems.Add(system);
-            if (updateInfo != null && updateInfo.DeclaringType != sysBaseType) updateSystems.Add(system);
-            if (editorUpdateInfo != null && editorUpdateInfo.DeclaringType != sysBaseType) editorUpdateSystems.Add(system);
-            if (fixedUpdateInfo != null && fixedUpdateInfo.DeclaringType != sysBaseType) fixedUpdateSystems.Add(system);
-            if (unloadInfo != null && unloadInfo.DeclaringType != sysBaseType) unloadSystems.Add(system);
-            if (appExitInfo != null && appExitInfo.DeclaringType != sysBaseType) appExitSystems.Add(system);
-            if (renderInfo != null && renderInfo.DeclaringType != sysBaseType) renderSystems.Add(system);
+            if (appStartInfo != null && appStartInfo.DeclaringType != sysBaseType) AddWithPriority(appStartSystems, system, priority);
+            if (awakeInfo != null && awakeInfo.DeclaringType != sysBaseType) AddWithPriority(awakeSystems, system, priority);
+            if (updateInfo != null && updateInfo.DeclaringType != sysBaseType) AddWithPriority(updateSystems, system, priority);
+            if (editorUpdateInfo != null && editorUpdateInfo.DeclaringType != sysBaseType) AddWithPriority(editorUpdateSystems, system, priority);
+            if (fixedUpdateInfo != null && fixedUpdateInfo.DeclaringType != sysBaseType) AddWithPriority(fixedUpdateSystems, system, priority);
+            if (unloadInfo != null && unloadInfo.DeclaringType != sysBaseType) AddWithPriority(unloadSystems, system, priority);
+            if (appExitInfo != null && appExitInfo.DeclaringType != sysBaseType) AddWithPriority(appExitSystems, system, priority);
+            if (renderInfo != null && renderInfo.DeclaringType != sysBaseType) AddWithPriority(renderSystems, system, priority);
+        }
+
+        private static void AddWithPriority(List<SystemBase> list, SystemBase system, int priority)
+        {
+            // Find the correct position to insert based on priority
+            int index = 0;
+            while (index < list.Count && list[index].Priority < priority) index++;
+
+            if (index < list.Count && list[index].Priority == priority)
+            {   // Same priority, add at the end of that priority group
+                while (index < list.Count && list[index].Priority == priority) index++;
+            }
+            list.Insert(index, system);
         }
 
         /// <summary>

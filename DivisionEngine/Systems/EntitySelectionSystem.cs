@@ -5,10 +5,13 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using DivisionEngine.Components;
+using DivisionEngine.Editor.Settings;
 using DivisionEngine.Input;
 using DivisionEngine.Rendering;
+using System;
 
-namespace DivisionEngine.Systems
+namespace DivisionEngine.Editor.Systems
 {
     /// <summary>
     /// Selects entities in the world when clicked.
@@ -44,11 +47,32 @@ namespace DivisionEngine.Systems
                     height = RenderPipeline.Instance.RendererWindow.Size.Y,
                     pixelX = (int)InputSystem.MousePosition.X,
                     pixelY = (int)InputSystem.MousePosition.Y;
-                uint entitySelected = RenderPipeline.Instance.ObjectIDs[pixelX + (height - pixelY) * width].Y;
 
-                // Check if entity is valid
-                if (entitySelected != uint.MaxValue) OnEntitySelected?.Invoke(entitySelected);
-                else OnNoEntityFound?.Invoke();
+                // Check if clicking on a handle
+                uint handleAtClick = RenderPipeline.Instance.GetHandleAtPosition(pixelX, pixelY);
+                if (handleAtClick > 0)
+                {
+                    Debug.Info($"EntitySelectionSystem: Click on handle {handleAtClick}, blocking selection");
+                    selectEnabled = false;
+                    return;
+                }
+
+                // Only proceed with entity selection if NOT clicking on a handle
+                uint entitySelected = RenderPipeline.Instance.ObjectIDs[pixelX + (height - pixelY) * width].Y;
+                if (entitySelected != uint.MaxValue)
+                {
+                    if (W.HasComponent<Transform>(entitySelected))
+                    {
+                        Transform? transform = W.GetComponent<Transform>(entitySelected);
+                        RenderPipeline.Instance?.ShowHandles(transform!.position, EditorSettings.Instance!.EditorHandleScale);
+                    }
+                    OnEntitySelected?.Invoke(entitySelected);
+                }
+                else
+                {
+                    RenderPipeline.Instance?.HideHandles();
+                    OnNoEntityFound?.Invoke();
+                }
                 selectEnabled = false;
             }
         }

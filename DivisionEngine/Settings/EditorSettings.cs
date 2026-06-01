@@ -111,6 +111,13 @@ namespace DivisionEngine.Editor.Settings
         //    set => Set(nameof(ShowGridLines), value);
         //}
 
+        [JsonIgnore]
+        public float EditorHandleScale
+        {
+            get => Get(nameof(EditorHandleScale), 3.0f);
+            set => Set(nameof(EditorHandleScale), value);
+        }
+
         //[JsonIgnore]
         //public string Theme
         //{

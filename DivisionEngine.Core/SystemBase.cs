@@ -13,6 +13,12 @@ namespace DivisionEngine
     public abstract class SystemBase
     {
         /// <summary>
+        /// Priority of this system (lower number = executed first).
+        /// Default is 0.
+        /// </summary>
+        public virtual int Priority => 0;
+
+        /// <summary>
         /// Called once when the editor or player application is launched.
         /// </summary>
         public virtual void AppStart() { }
