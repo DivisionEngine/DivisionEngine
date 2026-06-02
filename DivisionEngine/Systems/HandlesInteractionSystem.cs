@@ -106,6 +106,22 @@ namespace DivisionEngine.Editor.Systems
                     return;
                 }
 
+                // Check for icon clicks first
+                //uint clickedIconId = RenderPipeline.Instance.GetIconAtPosition(pixelX, pixelY);
+                //if (clickedIconId != 0)
+                //{
+                //    Selection.SelectEntity(clickedIconId);
+                //    return;
+                //}
+
+                // Check for custom shape clicks
+                //uint clickedShapeId = RenderPipeline.Instance.GetCustomShapeAtPosition(pixelX, pixelY);
+                //if (clickedShapeId != 0 && customShapes.TryGetValue(clickedShapeId, out var shape) && shape.EntityId.HasValue)
+                //{
+                //    Selection.SelectEntity(shape.EntityId.Value);
+                //    return;
+                //}
+
                 // Translation handles (1-3)
                 if (handleId >= 1 && handleId <= 3 && draggedEntity != uint.MaxValue)
                 {

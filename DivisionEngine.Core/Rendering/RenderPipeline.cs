@@ -105,6 +105,16 @@ namespace DivisionEngine.Rendering
         /// </summary>
         public uint[]? HandleIds { get; private set; }
 
+        /// <summary>
+        /// Buffer of all the icon IDs overlayed per pixel on screen.
+        /// </summary>
+        public uint[]? IconIds { get; private set; }
+
+        /// <summary>
+        /// Buffer of all the custom shape IDs overlayed per pixel on screen.
+        /// </summary>
+        public uint[]? CustomShapeIds { get; private set; }
+
         // Render texture storage
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadWriteTexture2D<float4>? depthNormalsTex;
@@ -132,6 +142,7 @@ namespace DivisionEngine.Rendering
         /// Time the renderer has elapsed.
         /// </summary>
         public static double Time { get; private set; }
+
         /// <summary>
         /// Time between frames.
         /// </summary>
@@ -145,6 +156,11 @@ namespace DivisionEngine.Rendering
         // Icons
         private Dictionary<uint, (float3 position, IconType iconType, float3 direction)> iconsToRender = [];
         private ReadWriteBuffer<uint>? iconIdBuffer;
+
+        // Custom Shapes
+        private Dictionary<uint, HandleShape> customShapes = new();
+        private ReadWriteBuffer<uint>? customShapeIdBuffer;
+        
 
         // Denoising
         private ReadOnlyBuffer<float>? kernelBuffer; // Reconstruction kernel
@@ -207,6 +223,28 @@ namespace DivisionEngine.Rendering
 
             int width = RendererWindow!.Size.X;
             return HandleIds[screenX + (RendererWindow.Size.Y - screenY) * width];
+        }
+
+        public uint GetIconAtPosition(int screenX, int screenY)
+        {
+            if (RendererWindow == null || iconIdBuffer == null || IconIds == null || screenX < 0 || screenY < 0 ||
+                screenX >= RendererWindow.Size.X || screenY >= RendererWindow.Size.Y)
+                return 0;
+
+            int width = RendererWindow.Size.X;
+            int height = RendererWindow.Size.Y;
+            return IconIds[screenX + (height - 1 - screenY) * width];
+        }
+
+        public uint GetCustomShapeAtPosition(int screenX, int screenY)
+        {
+            if (RendererWindow == null || customShapeIdBuffer == null || CustomShapeIds == null || screenX < 0 || screenY < 0 ||
+                screenX >= RendererWindow.Size.X || screenY >= RendererWindow.Size.Y)
+                return 0;
+
+            int width = RendererWindow.Size.X;
+            int height = RendererWindow.Size.Y;
+            return CustomShapeIds[screenX + (height - 1 - screenY) * width];
         }
 
         public void UpdateHoveredHandle(int mouseX, int mouseY)
@@ -494,11 +532,20 @@ namespace DivisionEngine.Rendering
                         HandleIds = new uint[texWidth * texHeight];
                     }
 
+                    // Build custom shape ID buffer
+                    if (customShapeIdBuffer == null || customShapeIdBuffer.Length != (texWidth * texHeight))
+                    {
+                        customShapeIdBuffer?.Dispose();
+                        customShapeIdBuffer = Device!.AllocateReadWriteBuffer<uint>(texWidth * texHeight);
+                        CustomShapeIds = new uint[texWidth * texHeight];
+                    }
+
                     // Build icon ID buffer
                     if (iconIdBuffer == null || iconIdBuffer.Length != (texWidth * texHeight))
                     {
                         iconIdBuffer?.Dispose();
                         iconIdBuffer = Device!.AllocateReadWriteBuffer<uint>(texWidth * texHeight);
+                        IconIds = new uint[texWidth * texHeight];
                     }
 
                     // Build kernel buffer
@@ -612,6 +659,30 @@ namespace DivisionEngine.Rendering
                     }
                 }
 
+                // Custom shapes (bounding boxes, etc.)
+                if (customShapes.Count > 0)
+                {
+                    lock (SyncLock)
+                    {
+                        foreach (var (shapeId, shape) in customShapes)
+                        {
+                            CustomShapeShader shapeShader = new CustomShapeShader(
+                                texWidth, texHeight,
+                                texWidth / (float)texHeight,
+                                worldDTO.camScreenDist,
+                                worldDTO.cameraOrigin,
+                                worldDTO.camForward,
+                                worldDTO.camRight,
+                                worldDTO.camUp,
+                                currentTexture!,
+                                customShapeIdBuffer,
+                                shape,
+                                shapeId);
+                            Device?.For(texWidth, texHeight, shapeShader);
+                        }
+                    }
+                }
+
                 // Editor Icons
                 if (iconsToRender.Count > 0)
                 {
@@ -642,6 +713,8 @@ namespace DivisionEngine.Rendering
                 depthNormalsTex?.CopyTo(DepthNormalPixels!);
                 objectIdBuffer?.CopyTo(ObjectIDs!);
                 handleIdBuffer?.CopyTo(HandleIds!);
+                iconIdBuffer?.CopyTo(IconIds!);
+                customShapeIdBuffer?.CopyTo(CustomShapeIds!);
                 currentTexture?.CopyTo(Pixels!);
             }
             catch (ObjectDisposedException ex)

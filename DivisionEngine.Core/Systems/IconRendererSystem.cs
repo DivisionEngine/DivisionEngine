@@ -15,11 +15,13 @@ namespace DivisionEngine.Systems
     /// </summary>
     public class IconRendererSystem : SystemBase
     {
-        private static Dictionary<uint, (float3 position, IconType iconType, float3 direction)> iconsToRender = new();
+        public static bool Enabled { get; set; } = true;
+
+        private static readonly Dictionary<uint, (float3 pos, IconType icon, float3 dir)> iconsToRender = [];
 
         public override void EditorUpdate()
         {
-            if (RenderPipeline.Instance == null || EngineCore.IsInPlayMode) return;
+            if (!Enabled || RenderPipeline.Instance == null || EngineCore.IsInPlayMode) return;
 
             iconsToRender.Clear();
 
@@ -35,9 +37,7 @@ namespace DivisionEngine.Systems
 
                     // Get direction for directional lights
                     if (W.HasComponent<Components.Lights.DirectionalLight>(entityId))
-                    {
-                        direction = transform.Forward; // The direction the light is pointing
-                    }
+                        direction = transform.Forward;
 
                     iconsToRender[entityId] = (transform.position, icon, direction);
                     RenderPipeline.Instance?.ShowIcon(transform.position, icon, direction, entityId);
@@ -46,6 +46,9 @@ namespace DivisionEngine.Systems
         }
     }
 
+    /// <summary>
+    /// Represents the available editor icon types that can be rendered.
+    /// </summary>
     public enum IconType : uint
     {
         None = 0,
@@ -54,27 +57,16 @@ namespace DivisionEngine.Systems
         PointLight = 102,
         SpotLight = 103,
         Environment = 104,
-        AudioSource = 104,
-        RigidBody = 105,
-        // Add more as needed
     }
 
     public static class IconDefinitions
     {
         public static IconType GetIconForEntity(uint entityId, World world)
         {
-            if (world.HasComponent<Camera>(entityId))
-                return IconType.Camera;
-
-            if (world.HasComponent<Components.Lights.DirectionalLight>(entityId))
-                return IconType.DirectionalLight;
-
-            if (world.HasComponent<Components.Lights.PointLight>(entityId))
-                return IconType.PointLight;
-
-            if (world.HasComponent<Components.Environment>(entityId))
-                return IconType.Environment;
-
+            if (world.HasComponent<Camera>(entityId)) return IconType.Camera;
+            if (world.HasComponent<Components.Lights.DirectionalLight>(entityId)) return IconType.DirectionalLight;
+            if (world.HasComponent<Components.Lights.PointLight>(entityId)) return IconType.PointLight;
+            if (world.HasComponent<Components.Environment>(entityId)) return IconType.Environment;
             return IconType.None;
         }
     }

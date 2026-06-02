@@ -7,6 +7,8 @@
 //
 using ComputeSharp;
 
+#pragma warning disable CA1416 // Validate platform compatibility
+
 namespace DivisionEngine.Rendering
 {
     [GeneratedComputeShaderDescriptor]
@@ -25,7 +27,7 @@ namespace DivisionEngine.Rendering
         float3 iconPosition,
         uint iconType,
         float3 lightDirection,  // New parameter for directional light direction
-        uint iconId) : IComputeShader
+        uint entityId) : IComputeShader
     {
         private float3 WorldToScreen(float3 worldPos)
         {
@@ -381,9 +383,11 @@ namespace DivisionEngine.Rendering
 
             if (isHit)
             {
-                iconIdBuffer[pixel.X + pixel.Y * (int)width] = iconId;
+                iconIdBuffer[pixel.X + pixel.Y * (int)width] = entityId;
                 renderTexture[pixel] = new float4(finalColor, 1.0f);
             }
         }
     }
 }
+
+#pragma warning restore CA1416 // Validate platform compatibility

@@ -25,6 +25,7 @@ public partial class EnvironmentWindow : EditorWindow
     private readonly DockPanel mainPanel;
     private readonly StackPanel headerPanel;
     private readonly ComboBox debugMode;
+    private CheckBox? iconsToggle;
 
     public readonly Panel renderVisualizerFrame;
     public readonly TextBlock widthHeightText;
@@ -69,6 +70,35 @@ public partial class EnvironmentWindow : EditorWindow
         };
         debugMode.SelectionChanged += (e, s) => UpdateRendererDebugMode();
 
+        Border iconsSeparator = new Border
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            Width = 1,
+            Height = 16,
+            Margin = new Thickness(4, 0),
+        };
+        TextBlock iconsText = new TextBlock
+        {
+            Text = "Show Icons",
+            FontSize = 12,
+            FontWeight = FontWeight.Regular,
+            Foreground = EditorColor.FromRGB(128, 128, 128),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(4, 2, 2, 2),
+        };
+
+        iconsToggle = new CheckBox
+        {
+            IsChecked = IconRendererSystem.Enabled,
+            Margin = new Thickness(2, 2, 8, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        iconsToggle.IsCheckedChanged += (e, s) =>
+        {
+            IconRendererSystem.Enabled = iconsToggle.IsChecked ?? true;
+            if (!IconRendererSystem.Enabled) RenderPipeline.Instance?.ClearIcons();
+        };
+
         int width = 0, height = 0;
         if (App.Renderer != null && App.Renderer.RendererWindow != null)
         {
@@ -89,9 +119,13 @@ public partial class EnvironmentWindow : EditorWindow
         // Add controls to header
         headerPanel.Children.Add(debugModeText);
         headerPanel.Children.Add(debugMode);
+        headerPanel.Children.Add(iconsSeparator);
+        headerPanel.Children.Add(iconsText);
+        headerPanel.Children.Add(iconsToggle);
         headerPanel.Children.Add(widthHeightText);
         DockPanel.SetDock(headerPanel, Dock.Top);
         mainPanel.Children.Add(headerPanel);
+
         Border separator = new Border
         {
             Background = EditorColor.FromRGB(68, 68, 68),
