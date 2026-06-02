@@ -253,7 +253,7 @@ namespace DivisionEngine.Rendering
             float2 center = centerScreen;
 
             // Sun (small circle in corner) - Yellow
-            float2 sunCenter = center + new float2(-10 * scale, -6 * scale);
+            float2 sunCenter = center + new float2(10 * scale, 6 * scale);
             float distSun = CircleSDF(uv, sunCenter, 3 * scale, 1.5f);
             if (distSun <= 1.5f)
             {
@@ -278,9 +278,9 @@ namespace DivisionEngine.Rendering
             }
 
             // Background mountain (larger, lighter)
-            float2 mountain1Peak = center + new float2(-6 * scale, 2 * scale);
-            float2 mountain1Left = center + new float2(-16 * scale, 10 * scale);
-            float2 mountain1Right = center + new float2(4 * scale, 10 * scale);
+            float2 mountain1Peak = center + new float2(-6 * scale, -2 * scale);
+            float2 mountain1Left = center + new float2(-16 * scale, -10 * scale);
+            float2 mountain1Right = center + new float2(4 * scale, -10 * scale);
 
             // Left edge of mountain 1
             float distM1Left = LineSDF(uv, mountain1Left, mountain1Peak, 1.5f);
@@ -307,9 +307,9 @@ namespace DivisionEngine.Rendering
             }
 
             // Foreground mountain (smaller, darker)
-            float2 mountain2Peak = center + new float2(8 * scale, 5 * scale);
-            float2 mountain2Left = center + new float2(-2 * scale, 10 * scale);
-            float2 mountain2Right = center + new float2(16 * scale, 10 * scale);
+            float2 mountain2Peak = center + new float2(8 * scale, -5 * scale);
+            float2 mountain2Left = center + new float2(-2 * scale, -10 * scale);
+            float2 mountain2Right = center + new float2(16 * scale, -10 * scale);
 
             // Left edge of mountain 2
             float distM2Left = LineSDF(uv, mountain2Left, mountain2Peak, 1.5f);
@@ -328,8 +328,8 @@ namespace DivisionEngine.Rendering
             }
 
             // Snow cap on main mountain
-            float2 snowLeft = mountain1Peak + new float2(-3 * scale, 1 * scale);
-            float2 snowRight = mountain1Peak + new float2(3 * scale, 1 * scale);
+            float2 snowLeft = mountain1Peak + new float2(-3 * scale, -1 * scale);
+            float2 snowRight = mountain1Peak + new float2(3 * scale, -1 * scale);
             float distSnow = LineSDF(uv, snowLeft, snowRight, 1.5f);
             if (distSnow <= 1.5f)
             {
@@ -355,7 +355,7 @@ namespace DivisionEngine.Rendering
             float3 centerScreen = WorldToScreen(iconPosition);
             if (centerScreen.Z < 0) return;
 
-            float scale = 2f; // Base scale for all icons
+            float scale = 1f; // Base scale for all icons
             float4 existingColor = renderTexture[pixel];
             float3 finalColor = existingColor.XYZ;
             bool isHit = false;
