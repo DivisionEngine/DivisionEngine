@@ -6,6 +6,7 @@
 // project root for full license terms.
 //
 using DivisionEngine.Components;
+using DivisionEngine.Projects;
 using DivisionEngine.Rendering;
 
 namespace DivisionEngine.Systems
@@ -19,18 +20,31 @@ namespace DivisionEngine.Systems
 
         private static readonly Dictionary<uint, (float3 pos, IconType icon, float3 dir)> iconsToRender = [];
 
+        public override void AppStart()
+        {
+            ProjectManager.ProjectLoaded += ProjectManager_ProjectLoaded;
+        }
+
+        private void ProjectManager_ProjectLoaded()
+        {
+            RenderPipeline.Instance?.ClearIcons();
+        }
+
         public override void EditorUpdate()
         {
-            if (!Enabled || RenderPipeline.Instance == null || EngineCore.IsInPlayMode) return;
-
             iconsToRender.Clear();
+            if (!Enabled || RenderPipeline.Instance == null || EngineCore.IsInPlayMode || WorldManager.CurrentWorld == null)
+            {
+                RenderPipeline.Instance?.ClearIcons();
+                return;
+            }
 
             foreach (var entityId in W.Query<Transform>())
             {
                 var transform = W.GetComponent<Transform>(entityId);
                 if (transform == null) continue;
 
-                IconType icon = IconDefinitions.GetIconForEntity(entityId, WorldManager.CurrentWorld!);
+                IconType icon = IconDefinitions.GetIconForEntity(entityId, WorldManager.CurrentWorld);
                 if (icon != IconType.None)
                 {
                     float3 direction = float3.Zero;
