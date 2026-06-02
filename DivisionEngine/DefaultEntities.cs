@@ -10,6 +10,7 @@ using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
+using Environment = DivisionEngine.Components.Environment;
 
 namespace DivisionEngine.Editor
 {
@@ -22,14 +23,18 @@ namespace DivisionEngine.Editor
         {
             if (WorldManager.CurrentWorld == null)
                 Debug.Warning("No world is currently loaded to add entities to");
-            return W.CreateEntity(name);
+            uint entity = W.CreateEntity(name);
+            Selection.SelectEntity(entity);
+            return entity;
         }
 
         public static uint EmptyTransform(string name = "New Entity")
         {
             if (WorldManager.CurrentWorld == null)
                 Debug.Warning("No world is currently loaded to add entities to");
-            return W.CreateTransformEntity(name);
+            uint entity = W.CreateTransformEntity(name);
+            Selection.SelectEntity(entity);
+            return entity;
         }
 
         public static uint Camera(string name = "New Camera", bool hasPlayerControls = true)
@@ -39,6 +44,7 @@ namespace DivisionEngine.Editor
             uint camera = W.CreateTransformEntity(name);
             W.AddComponent(camera, new Camera());
             if (hasPlayerControls) W.AddComponent(camera, new Player());
+            Selection.SelectEntity(camera);
             return camera;
         }
 
@@ -48,6 +54,7 @@ namespace DivisionEngine.Editor
                 Debug.Warning("No world is currently loaded to add entities to");
             uint environment = W.CreateEntity(name);
             W.AddComponent(environment, new Environment());
+            Selection.SelectEntity(environment);
             return environment;
         }
 
@@ -57,6 +64,7 @@ namespace DivisionEngine.Editor
                 Debug.Warning("No world is currently loaded to add entities to");
             uint directionalLight = W.CreateTransformEntity(name);
             W.AddComponent(directionalLight, new DirectionalLight());
+            Selection.SelectEntity(directionalLight);
             return directionalLight;
         }
 
@@ -66,6 +74,7 @@ namespace DivisionEngine.Editor
                 Debug.Warning("No world is currently loaded to add entities to");
             uint pointLight = W.CreateTransformEntity(name);
             W.AddComponent(pointLight, new PointLight());
+            Selection.SelectEntity(pointLight);
             return pointLight;
         }
 
@@ -77,8 +86,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFSphere());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
-            W.AddComponent(sdf, new Reflections());
-            W.AddComponent(sdf, new Refractions());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
 
@@ -90,8 +98,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFBox());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
-            W.AddComponent(sdf, new Reflections());
-            W.AddComponent(sdf, new Refractions());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
 
@@ -103,8 +110,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFRoundedBox());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
-            W.AddComponent(sdf, new Reflections());
-            W.AddComponent(sdf, new Refractions());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
 
@@ -116,8 +122,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFTorus());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
-            W.AddComponent(sdf, new Reflections());
-            W.AddComponent(sdf, new Refractions());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
 
@@ -129,8 +134,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFPyramid());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
-            W.AddComponent(sdf, new Reflections());
-            W.AddComponent(sdf, new Refractions());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
 
@@ -142,8 +146,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFPlane());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
-            W.AddComponent(sdf, new Reflections());
-            W.AddComponent(sdf, new Refractions());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
 
@@ -155,8 +158,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFCylinder());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
-            W.AddComponent(sdf, new Reflections());
-            W.AddComponent(sdf, new Refractions());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
 
@@ -168,8 +170,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFCapsule());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
-            W.AddComponent(sdf, new Reflections());
-            W.AddComponent(sdf, new Refractions());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
 
@@ -181,8 +182,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFCone());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
-            W.AddComponent(sdf, new Reflections());
-            W.AddComponent(sdf, new Refractions());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
 
@@ -194,6 +194,7 @@ namespace DivisionEngine.Editor
             W.AddComponent(sdf, new SDFTerrain());
             W.AddComponent(sdf, new SDFMaterial());
             W.AddComponent(sdf, new SoftShadows());
+            Selection.SelectEntity(sdf);
             return sdf;
         }
     }
