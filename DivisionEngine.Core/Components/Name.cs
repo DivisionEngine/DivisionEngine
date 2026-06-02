@@ -29,7 +29,7 @@ namespace DivisionEngine.Components
             this.name = name;
         }
 
-        public string? name;
+        public string? name = null;
 
         public IComponent Clone() => new Name
         {

@@ -14,18 +14,10 @@ namespace DivisionEngine.Components.SDFs.Effects
     /// </summary>
     public class Reflections : IComponent
     {
-        public Reflections()
-        {
-            hasReflections = true;
-            reflectionShadows = true;
-            rayStepsFalloff = 3f;
-            maxBounces = 2;
-        }
-
-        public bool hasReflections;
-        public bool reflectionShadows;
-        [Range(1f, 10f)] public float rayStepsFalloff;
-        [Range(1, 16)] public int maxBounces;
+        public bool hasReflections = true;
+        public bool reflectionShadows = true;
+        [Range(1f, 10f)] public float rayStepsFalloff = 3f;
+        [Range(1, 16)] public int maxBounces = 2;
 
         public IComponent Clone() => new Reflections
         {

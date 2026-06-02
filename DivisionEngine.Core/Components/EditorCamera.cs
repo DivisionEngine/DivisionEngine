@@ -14,16 +14,9 @@ namespace DivisionEngine.Components
     {
         public const uint EditorCameraId = 999999999; // High ID that won't conflict
 
-        public EditorCamera()
-        {
-            movementSpeed = 10f;
-            mouseSensitivity = 2f;
-            sprintMultiplier = 2f;
-        }
-
-        public float movementSpeed;
-        public float mouseSensitivity;
-        public float sprintMultiplier;
+        public float movementSpeed = 10f;
+        public float mouseSensitivity = 2f;
+        public float sprintMultiplier = 2f;
 
         public IComponent Clone() => new EditorCamera
         {

@@ -7,7 +7,6 @@
 //
 using ComputeSharp;
 using DivisionEngine.Components;
-using DivisionEngine.Input;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
 using DivisionEngine.Settings;
@@ -214,13 +213,8 @@ namespace DivisionEngine.Rendering
             int height = RendererWindow.Size.Y;
 
             if (mouseX >= 0 && mouseX < width && mouseY >= 0 && mouseY < height)
-            {
                 currentHoveredHandle = HandleIds[mouseX + (height - 1 - mouseY) * width];
-            }
-            else
-            {
-                currentHoveredHandle = 0;
-            }
+            else currentHoveredHandle = 0;
         }
 
         #endregion editorHandles

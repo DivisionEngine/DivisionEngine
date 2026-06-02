@@ -38,44 +38,27 @@ namespace DivisionEngine.Components.SDFs
         const float IOR_ACRYLIC = 1.49f;
         const float IOR_POLYCARBONATE = 1.58f;
 
-        /// <summary>
-        /// White material with metallic = 0, roughness = 0.5, specular = 0.5, ior = 1, and ao = 0.7.
-        /// </summary>
-        public SDFMaterial()
-        {
-            albedoColor = ColorPalette.White;
-            metallic = 0.8f;
-            roughness = 0.2f;
-            specular = 1f;
-            ior = 1.0f;
-            ambientOcclusion = 0.7f;
-            ambientRange = 1f;
-            ambientFalloff = 2f;
-            reflectance = 2f;
-            stepBias = 1f;
-        }
-
-        [Color(false)] public float4 albedoColor;
-        [Range(0f, 1f)] public float metallic;
-        [Range(0f, 1f)] public float roughness;
-        public float specular;
+        [Color(false)] public float4 albedoColor = ColorPalette.White;
+        [Range(0f, 1f)] public float metallic = 0.8f;
+        [Range(0f, 1f)] public float roughness = 0.2f;
+        public float specular = 1f;
 
         [Tooltip("Index of refraction")]
-        [Range(1f, 3f)] public float ior;
+        [Range(1f, 3f)] public float ior = 1.0f;
 
-        [Range(0f, 1f)] public float ambientOcclusion;
+        [Range(0f, 1f)] public float ambientOcclusion = 0.7f;
 
         [Tooltip("Ambient occlusion maximum falloff distance")]
-        [Range(0f, 10f)] public float ambientRange;
+        [Range(0f, 10f)] public float ambientRange = 1f;
 
         [Tooltip("Ambient occlusion falloff curve, higher value = faster falloff")]
-        [Range(0f, 10f)] public float ambientFalloff;
+        [Range(0f, 10f)] public float ambientFalloff = 2f;
 
         [Tooltip("Raymarched reflection intensity, useful for combining with refractions")]
-        [Range(0f, 10f)] public float reflectance;
+        [Range(0f, 10f)] public float reflectance = 2f;
 
         [Tooltip("A multiplier given to any SDF that can modify the step size to it")]
-        [Range(0.1f, 1.5f)] public float stepBias;
+        [Range(0.1f, 1.5f)] public float stepBias = 1f;
 
         public IComponent Clone() => new SDFMaterial
         {

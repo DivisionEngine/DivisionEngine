@@ -12,21 +12,10 @@ namespace DivisionEngine.Components.SDFs
     /// </summary>
     public class SDFTerrain : IComponent
     {
-        /// <summary>
-        /// Creates a new base terrain SDF.
-        /// </summary>
-        public SDFTerrain()
-        {
-            scale = 1000f;
-            height = 100f;
-            persistence = 0.5f;
-            lacunarity = 2f;
-        }
-
-        public float scale;
-        public float height;
-        public float persistence;
-        public float lacunarity;
+        public float scale = 1000f;
+        public float height = 100f;
+        public float persistence = 0.5f;
+        public float lacunarity = 2f;
 
         public IComponent Clone() => new SDFTerrain
         {

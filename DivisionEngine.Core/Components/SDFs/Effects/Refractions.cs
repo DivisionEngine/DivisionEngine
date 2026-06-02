@@ -14,18 +14,10 @@ namespace DivisionEngine.Components.SDFs.Effects
     /// </summary>
     public class Refractions : IComponent
     {
-        public Refractions()
-        {
-            hasRefractions = true;
-            absorptionColor = new float4(1f, 1f, 1f, 0.1f);
-            maxRaySteps = 196;
-            maxRecursionTraces = 4;
-        }
-
-        public bool hasRefractions;
-        [Color(ShowAlpha = true)] public float4 absorptionColor;
-        public int maxRaySteps;
-        [Range(1, 16)] public int maxRecursionTraces;
+        public bool hasRefractions = true;
+        [Color(ShowAlpha = true)] public float4 absorptionColor = new float4(1f, 1f, 1f, 0.1f);
+        public int maxRaySteps = 196;
+        [Range(1, 16)] public int maxRecursionTraces = 4;
 
         public IComponent Clone() => new Refractions
         {

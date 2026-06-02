@@ -14,19 +14,9 @@ namespace DivisionEngine.Components.Lights
     /// </summary>
     public class PointLight : IComponent
     {
-        /// <summary>
-        /// White point light with radius = 10.
-        /// </summary>
-        public PointLight()
-        {
-            color = ColorPalette.White;
-            intensity = 1f;
-            radius = 10f;
-        }
-
-        public float4 color;
-        public float intensity;
-        public float radius;
+        public float4 color = ColorPalette.White;
+        public float intensity = 1f;
+        public float radius = 10f;
 
         public IComponent Clone() => new PointLight
         {

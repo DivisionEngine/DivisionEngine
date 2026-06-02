@@ -13,6 +13,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components.FieldAttributes;
+using DivisionEngine.Editor.Systems;
 using DivisionEngine.MathLib;
 using DivisionEngine.Projects.Assets;
 using Material.Icons;
@@ -181,6 +182,15 @@ public partial class PropertiesWindow : EditorWindow
     private void OnSelectedObject(object? selection)
     {
         if (Selection.SelectedType == SelectionType.Entity) LoadEntityComponents((uint)selection!);
+    }
+
+    /// <summary>
+    /// Gets all active properties windows.
+    /// </summary>
+    public static List<PropertiesWindow?> GetCurrentWindows()
+    {
+        ValidatePropertiesWindows();
+        return currentWindows;
     }
 
     /// <summary>
@@ -386,6 +396,9 @@ public partial class PropertiesWindow : EditorWindow
             Debug.Warning("Could not load entity, world is null or entity does not exist");
             return false;
         }
+
+        // Notify the refresh system of the selected entity
+        PropertiesRefreshSystem.OnEntitySelected(entityId);
         propertiesPanel.Children.Clear();
 
         string entityName = W.TryGetEntityName(entityId);
@@ -394,7 +407,8 @@ public partial class PropertiesWindow : EditorWindow
         curEntityId = entityId;
 
         List<IComponent> entityComps = W.GetAllComponents(entityId);
-        foreach (IComponent component in entityComps) CreateComponentEditor(component.GetType(), component, entityId);
+        foreach (IComponent component in entityComps)
+            CreateComponentEditor(component.GetType(), component, entityId);
         return true;
     }
 
@@ -552,7 +566,9 @@ public partial class PropertiesWindow : EditorWindow
         {
             Orientation = Orientation.Vertical,
             Margin = new Thickness(4, 0, 4, 0),
+            Tag = compType // Store component type for reference
         };
+
         Border fieldsBorder = new Border
         {
             BorderThickness = new Thickness(0, 0, 1, 1),
@@ -561,6 +577,8 @@ public partial class PropertiesWindow : EditorWindow
             CornerRadius = new CornerRadius(0, 0, 4, 4),
             Margin = new Thickness(4, 0, 12, 0),
             Padding = new Thickness(8, 4, 4, 4),
+            Tag = compType,
+            Child = fieldsPanel
         };
         fieldsBorder.PointerEntered += (_, _) =>
         {
@@ -585,6 +603,56 @@ public partial class PropertiesWindow : EditorWindow
 
         fieldsBorder.Child = fieldsPanel;
         if (fieldsPanel.Children.Count > 0) propertiesPanel.Children.Add(fieldsBorder);
+    }
+
+    /// <summary>
+    /// Refreshes only a specific component on the currently selected entity.
+    /// </summary>
+    /// <summary>
+    /// Refreshes only a specific component on the currently selected entity.
+    /// </summary>
+    public void RefreshComponent(Type compType)
+    {
+        if (curEntityId == uint.MaxValue) return;
+        if (WorldManager.CurrentWorld == null) return;
+        if (!W.EntityExists(curEntityId)) return;
+
+        // Get the FRESH component instance from the world
+        IComponent? freshComponent = null;
+        foreach (var comp in W.GetAllComponents(curEntityId))
+        {
+            if (comp.GetType() == compType)
+            {
+                freshComponent = comp;
+                break;
+            }
+        }
+
+        if (freshComponent == null) return;
+
+        // Find the existing component UI in the properties panel
+        foreach (var child in propertiesPanel.Children)
+        {
+            if (child is Border border && border.Tag is Type type && type == compType)
+            {
+                // Find the fields panel inside this component
+                if (border.Child is StackPanel fieldsPanel)
+                {
+                    // Clear existing field editors
+                    fieldsPanel.Children.Clear();
+
+                    // Recreate field editors with updated values using the FRESH component
+                    FieldInfo[] fields = compType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+                    foreach (var field in fields)
+                    {
+                        if (field.IsInitOnly) continue;
+                        var fieldEditor = CreateFieldEditor(field, freshComponent, curEntityId);
+                        if (fieldEditor != null) fieldsPanel.Children.Add(fieldEditor);
+                    }
+                }
+                break;
+            }
+        }
     }
 
     /// <summary>
@@ -618,7 +686,6 @@ public partial class PropertiesWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 4, 0),
         };
-
         TextBlock nameLabel = new TextBlock
         {
             Text = formattedFieldName,
@@ -627,9 +694,43 @@ public partial class PropertiesWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
         nameContainer.Children.Add(nameLabel);
-
         fieldPanel.Children.Add(nameContainer);
+
         Control? editorControl = new Control();
+        fieldPanel.Children.Add(editorControl);
+
+        // Create context menu for this field
+        ContextMenu fieldContextMenu = new ContextMenu
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            BorderBrush = EditorColor.FromRGB(128, 128, 128),
+        };
+        MenuItem resetMenuItem = new MenuItem
+        {
+            Header = "Reset to Default",
+            Icon = new MaterialIcon
+            {
+                Kind = MaterialIconKind.Restore,
+                Width = 16,
+                Height = 16,
+                Foreground = EditorColor.FromRGB(200, 140, 120),
+            },
+            Foreground = Brushes.White,
+        };
+
+        // Get default value from a fresh component instance
+        object? defaultValue = GetDefaultFieldValue(component.GetType(), field.Name);
+
+        resetMenuItem.Click += (s, e) =>
+        {
+            if (defaultValue != null)
+            {
+                field.SetValue(component, defaultValue);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            }
+        };
+        fieldContextMenu.Items.Add(resetMenuItem);
+        fieldPanel.ContextMenu = fieldContextMenu;
 
         RangeAttribute? rangeAttr = field.GetCustomAttribute<RangeAttribute>();
         if (fieldValue != null && fieldType == typeof(float))
@@ -644,17 +745,23 @@ public partial class PropertiesWindow : EditorWindow
                 NumericUpDown floatBox = CreateFloatNumericBox(value, (f) =>
                 {
                     field.SetValue(component, f);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
                 }, false);
                 StackPanel floatSlider = CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, (f) =>
                 {
                     field.SetValue(component, f);
                     floatBox.Value = (decimal)f;
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
                 });
                 floatControl.Children.Add(floatSlider);
                 floatControl.Children.Add(floatBox);
                 editorControl = floatControl;
             }
-            else editorControl = CreateFloatNumericBox(value, (f) => field.SetValue(component, f), true);
+            else editorControl = CreateFloatNumericBox(value, (f) =>
+            {
+                field.SetValue(component, f);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            }, true);
         }
         else if (fieldValue != null && fieldType == typeof(int))
         {
@@ -665,18 +772,26 @@ public partial class PropertiesWindow : EditorWindow
                 {
                     Orientation = Orientation.Horizontal,
                 };
-                NumericUpDown intBox = CreateIntegerNumericBox(value, (f) => {
+                NumericUpDown intBox = CreateIntegerNumericBox(value, (f) =>
+                {
                     field.SetValue(component, f);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
                 }, false);
-                StackPanel intSlider = CreateIntegerSlider(value, (int)rangeAttr.Min, (int)rangeAttr.Max, (i) => {
+                StackPanel intSlider = CreateIntegerSlider(value, (int)rangeAttr.Min, (int)rangeAttr.Max, (i) =>
+                {
                     field.SetValue(component, i);
                     intBox.Value = i;
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
                 });
                 intControl.Children.Add(intSlider);
                 intControl.Children.Add(intBox);
                 editorControl = intControl;
             }
-            else editorControl = CreateIntegerNumericBox(value, (f) => field.SetValue(component, f), true);
+            else editorControl = CreateIntegerNumericBox(value, (f) =>
+            {
+                field.SetValue(component, f);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            }, true);
         }
         else if (fieldValue != null && fieldType == typeof(string))
         {
@@ -691,10 +806,13 @@ public partial class PropertiesWindow : EditorWindow
                 VerticalAlignment = VerticalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,
             };
-
             textBox.PropertyChanged += (s, e) =>
             {
-                if (e.Property == TextBox.TextProperty) field.SetValue(component, textBox.Text);
+                if (e.Property == TextBox.TextProperty)
+                {
+                    field.SetValue(component, textBox.Text);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                }
             };
             editorControl = textBox;
         }
@@ -709,8 +827,11 @@ public partial class PropertiesWindow : EditorWindow
                 VerticalAlignment = VerticalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,
             };
-            
-            checkBox.IsCheckedChanged += (s, e) => field.SetValue(component, checkBox.IsChecked);
+            checkBox.IsCheckedChanged += (s, e) =>
+            {
+                field.SetValue(component, checkBox.IsChecked);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            };
             editorControl = checkBox;
         }
         else if (fieldValue != null && fieldType == typeof(float2))
@@ -722,8 +843,18 @@ public partial class PropertiesWindow : EditorWindow
                 VerticalAlignment = VerticalAlignment.Center,
             };
 
-            NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) => { value.X = val; field.SetValue(component, value); });
-            NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) => { value.Y = val; field.SetValue(component, value); });
+            NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) =>
+            {
+                value.X = val;
+                field.SetValue(component, value);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            });
+            NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) =>
+            {
+                value.Y = val;
+                field.SetValue(component, value);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            });
 
             vectorPanel.Children.Add(new TextBlock
             {
@@ -743,7 +874,6 @@ public partial class PropertiesWindow : EditorWindow
                 Margin = new Thickness(2, 0, 2, 0),
             });
             vectorPanel.Children.Add(yBox);
-
             editorControl = vectorPanel;
         }
         else if (fieldValue != null && fieldType == typeof(float3))
@@ -755,9 +885,24 @@ public partial class PropertiesWindow : EditorWindow
                 VerticalAlignment = VerticalAlignment.Center,
             };
 
-            NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) => { value.X = val; field.SetValue(component, value); });
-            NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) => { value.Y = val; field.SetValue(component, value); });
-            NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) => { value.Z = val; field.SetValue(component, value); });
+            NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) =>
+            {
+                value.X = val;
+                field.SetValue(component, value);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            });
+            NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) =>
+            {
+                value.Y = val;
+                field.SetValue(component, value);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            });
+            NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) =>
+            {
+                value.Z = val;
+                field.SetValue(component, value);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            });
 
             vectorPanel.Children.Add(new TextBlock {
                 Text = "X",
@@ -783,15 +928,14 @@ public partial class PropertiesWindow : EditorWindow
                 Margin = new Thickness(2, 0, 2, 0),
             });
             vectorPanel.Children.Add(zBox);
-
             editorControl = vectorPanel;
         }
         else if (fieldValue != null && fieldType == typeof(float4))
         {
             ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>(); // This section tests for color or rotation editors
             RotationAttribute? rotAttr = field.GetCustomAttribute<RotationAttribute>();
-            if (colorAttr != null) editorControl = CreateColorFieldEditor(field, component, colorAttr);
-            else if (rotAttr != null) editorControl = CreateRotationFieldEditor(field, component, rotAttr);
+            if (colorAttr != null) editorControl = CreateColorFieldEditor(field, component, colorAttr, entityId);
+            else if (rotAttr != null) editorControl = CreateRotationFieldEditor(field, component, rotAttr, entityId);
             else
             {
                 float4 value = (float4)fieldValue;
@@ -801,10 +945,30 @@ public partial class PropertiesWindow : EditorWindow
                     VerticalAlignment = VerticalAlignment.Center,
                 };
 
-                NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) => { value.X = val; field.SetValue(component, value); });
-                NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) => { value.Y = val; field.SetValue(component, value); });
-                NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) => { value.Z = val; field.SetValue(component, value); });
-                NumericUpDown wBox = CreateFloatNumericBox(value.W, (val) => { value.W = val; field.SetValue(component, value); });
+                NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) =>
+                {
+                    value.X = val;
+                    field.SetValue(component, value);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                });
+                NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) =>
+                {
+                    value.Y = val;
+                    field.SetValue(component, value);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                });
+                NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) =>
+                {
+                    value.Z = val;
+                    field.SetValue(component, value);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                });
+                NumericUpDown wBox = CreateFloatNumericBox(value.W, (val) =>
+                {
+                    value.W = val;
+                    field.SetValue(component, value);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                });
 
                 vectorPanel.Children.Add(new TextBlock
                 {
@@ -842,7 +1006,6 @@ public partial class PropertiesWindow : EditorWindow
                     Margin = new Thickness(2, 0, 2, 0),
                 });
                 vectorPanel.Children.Add(wBox);
-
                 editorControl = vectorPanel;
             }
         }
@@ -860,17 +1023,20 @@ public partial class PropertiesWindow : EditorWindow
                 Foreground = Brushes.White,
                 VerticalContentAlignment = VerticalAlignment.Center,
             };
-
-            dateTimePicker.SelectedDateChanged += (s, e) => field.SetValue(component, dateTimePicker.SelectedDate);
+            dateTimePicker.SelectedDateChanged += (s, e) =>
+            {
+                field.SetValue(component, dateTimePicker.SelectedDate);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            };
             editorControl = dateTimePicker;
         }
         else if (fieldValue != null && fieldType == typeof(float4x4))
         {
             float4x4 value = (float4x4)fieldValue;
-            editorControl = CreateMatrixEditor(value, field, component);
+            editorControl = CreateMatrixEditor(value, field, component, entityId);
         }
         else if (fieldType.IsEnum)
-            editorControl = CreateEnumEditor(field, component, fieldType, fieldValue);
+            editorControl = CreateEnumEditor(field, component, fieldType, fieldValue, entityId);
         else if (fieldType == typeof(AssetRef) || (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>)))
             editorControl = CreateAssetRefEditor(field, component);
 
@@ -890,7 +1056,6 @@ public partial class PropertiesWindow : EditorWindow
                 Foreground = EditorColor.FromRGB(148, 148, 148),
                 VerticalAlignment = VerticalAlignment.Center,
             };
-
             ApplyTooltip(tooltipIcon, field);
             ApplyTooltip(nameLabel, field);
             fieldPanel.Children.Add(tooltipIcon);
@@ -901,7 +1066,7 @@ public partial class PropertiesWindow : EditorWindow
     /// <summary>
     /// Creates a ComboBox editor for enum types.
     /// </summary>
-    private static StackPanel CreateEnumEditor(FieldInfo field, IComponent component, Type enumType, object? currentValue)
+    private static StackPanel CreateEnumEditor(FieldInfo field, IComponent component, Type enumType, object? currentValue, uint entityId)
     {
         StackPanel enumPanel = new StackPanel
         {
@@ -985,7 +1150,11 @@ public partial class PropertiesWindow : EditorWindow
         {
             if (enumComboBox.SelectedItem is EnumItem selectedItem)
             {
-                try { field.SetValue(component, selectedItem.Value); }
+                try
+                {
+                    field.SetValue(component, selectedItem.Value);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                }
                 catch (Exception ex) { Debug.Error($"Failed to set enum value for {field.Name}", ex); }
             }
         };
@@ -1020,7 +1189,7 @@ public partial class PropertiesWindow : EditorWindow
         return result.ToString();
     }
 
-    private static Button CreateMatrixEditor(float4x4 initialValue, FieldInfo field, object component)
+    private static Button CreateMatrixEditor(float4x4 initialValue, FieldInfo field, object component, uint entityId)
     {
         Button matrixButton = new Button
         {
@@ -1150,6 +1319,7 @@ public partial class PropertiesWindow : EditorWindow
                     float4x4 currentMatrix = (float4x4)field.GetValue(component)!;
                     currentMatrix.SetVal(r, c, val);
                     field.SetValue(component, currentMatrix);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
                 });
                 numBox.Width = 24;
                 numBox.Height = 20;
@@ -1216,6 +1386,133 @@ public partial class PropertiesWindow : EditorWindow
         return previewPanel;
     }
 
+    private static StackPanel? CreateColorFieldEditor(FieldInfo field, IComponent component, ColorAttribute colorAttr, uint entityId)
+    {
+        object? fieldValue = field.GetValue(component);
+        if (fieldValue == null) return null;
+        float4 colorValue = (float4)fieldValue;
+
+        StackPanel fieldPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            MinHeight = 10,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        ColorPicker colorPicker = new ColorPicker
+        {
+            Width = 150,
+            Height = 20,
+            Color = EditorColor.FromColor(colorValue).Color,
+            Background = EditorColor.FromRGB(32, 32, 32),
+            IsAlphaVisible = colorAttr.ShowAlpha,
+            IsColorSpectrumVisible = true, // Shows as a simple color button
+            IsColorPreviewVisible = true,
+            IsColorComponentsVisible = true,
+            IsComponentTextInputVisible = false,
+            IsComponentSliderVisible = true,
+            IsAlphaEnabled = colorAttr.ShowAlpha,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Stretch,
+            IsHexInputVisible = true,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            FontSize = 12,
+        };
+        colorPicker.ColorChanged += (s, e) => // Update on color change
+        {
+            Color selectedColor = colorPicker.Color;
+            float4 newColor = new float4(selectedColor.R / 255f, selectedColor.G / 255f, selectedColor.B / 255f, selectedColor.A / 255f);
+            field.SetValue(component, newColor); // Update component
+            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+        };
+        fieldPanel.Children.Add(colorPicker);
+        return fieldPanel;
+    }
+
+    private static StackPanel? CreateRotationFieldEditor(FieldInfo field, IComponent component, RotationAttribute rotAttr, uint entityId)
+    {
+        object? fieldValue = field.GetValue(component);
+        if (fieldValue == null) return null;
+        float4 quaternionValue = (float4)fieldValue;
+
+        float3 eulerValue = Math.QuaternionToEuler(quaternionValue);
+        if (rotAttr.Degrees)
+            eulerValue = new float3(Math.Rad2Deg * eulerValue.X, Math.Rad2Deg * eulerValue.Y, Math.Rad2Deg * eulerValue.Z);
+
+        StackPanel eulerRotationPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        NumericUpDown xBox = CreateFloatNumericBox(eulerValue.X, (val) =>
+        {
+            if (rotAttr.Degrees) val *= Math.Deg2Rad;
+            eulerValue.X = val;
+            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
+            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+        });
+        NumericUpDown yBox = CreateFloatNumericBox(eulerValue.Y, (val) =>
+        {
+            if (rotAttr.Degrees) val *= Math.Deg2Rad;
+            eulerValue.Y = val;
+            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
+            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+        });
+        NumericUpDown zBox = CreateFloatNumericBox(eulerValue.Z, (val) =>
+        {
+            if (rotAttr.Degrees) val *= Math.Deg2Rad;
+            eulerValue.Z = val;
+            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
+            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+        });
+        MaterialIcon rotateTypeIcon = new MaterialIcon
+        {
+            Kind = MaterialIconKind.Pi,
+            Foreground = Brushes.LightGray,
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0),
+        };
+
+        if (rotAttr.Degrees)
+        {
+            rotateTypeIcon.Kind = MaterialIconKind.Rotate360;
+            xBox.Increment = 5;
+            yBox.Increment = 5;
+            zBox.Increment = 5;
+        }
+
+        eulerRotationPanel.Children.Add(new TextBlock
+        {
+            Text = "X",
+            Foreground = Brushes.LightGray,
+            FontSize = 9,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0),
+        });
+        eulerRotationPanel.Children.Add(xBox);
+        eulerRotationPanel.Children.Add(new TextBlock
+        {
+            Text = "Y",
+            Foreground = Brushes.LightGray,
+            FontSize = 9,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0),
+        });
+        eulerRotationPanel.Children.Add(yBox);
+        eulerRotationPanel.Children.Add(new TextBlock
+        {
+            Text = "Z",
+            Foreground = Brushes.LightGray,
+            FontSize = 9,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0),
+        });
+        eulerRotationPanel.Children.Add(zBox);
+        eulerRotationPanel.Children.Add(rotateTypeIcon);
+        return eulerRotationPanel;
+    }
+
     private static StackPanel CreateFloatSlider(float initialVal, float min, float max, Action<float> onValueChanged)
     {
         StackPanel sliderPanel = new StackPanel
@@ -1237,7 +1534,6 @@ public partial class PropertiesWindow : EditorWindow
             Background = EditorColor.FromRGB(32, 32, 32),
             Foreground = EditorColor.FromRGB(100, 100, 100),
         };
-
         slider.ValueChanged += (s, e) =>
         {
             float newValue = (float)slider.Value;
@@ -1270,7 +1566,6 @@ public partial class PropertiesWindow : EditorWindow
             TickFrequency = 1,
             IsSnapToTickEnabled = true,
         };
-
         slider.ValueChanged += (s, e) =>
         {
             int newValue = (int)slider.Value;
@@ -1336,128 +1631,29 @@ public partial class PropertiesWindow : EditorWindow
         return numericBox;
     }
 
-    private static StackPanel? CreateColorFieldEditor(FieldInfo field, IComponent component, ColorAttribute colorAttr)
+    /// <summary>
+    /// Gets the default value of a field from a newly created instance of the component.
+    /// </summary>
+    /// <param name="compType">Type of the component</param>
+    /// <param name="fieldName">Name of the field</param>
+    /// <returns>The default value, or null if not found</returns>
+    private static object? GetDefaultFieldValue(Type compType, string fieldName)
     {
-        object? fieldValue = field.GetValue(component);
-        if (fieldValue == null) return null;
-        float4 colorValue = (float4)fieldValue;
-
-        StackPanel fieldPanel = new StackPanel
+        try
         {
-            Orientation = Orientation.Horizontal,
-            MinHeight = 10,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        ColorPicker colorPicker = new ColorPicker
-        {
-            Width = 150,
-            Height = 20,
-            Color = EditorColor.FromColor(colorValue).Color,
-            Background = EditorColor.FromRGB(32, 32, 32),
-            IsAlphaVisible = colorAttr.ShowAlpha,
-            IsColorSpectrumVisible = true, // Shows as a simple color button
-            IsColorPreviewVisible = true,
-            IsColorComponentsVisible = true,
-            IsComponentTextInputVisible = false,
-            IsComponentSliderVisible = true,
-            IsAlphaEnabled = colorAttr.ShowAlpha,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            VerticalContentAlignment = VerticalAlignment.Stretch,
-            IsHexInputVisible = true,
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            FontSize = 12,
-        };
-        colorPicker.ColorChanged += (s, e) => // Update on color change
-        {
-            Color selectedColor = colorPicker.Color;
-            float4 newColor = new float4(selectedColor.R / 255f, selectedColor.G / 255f, selectedColor.B / 255f, selectedColor.A / 255f);
-            field.SetValue(component, newColor); // Update component
-        };
-
-        fieldPanel.Children.Add(colorPicker);
-        return fieldPanel;
-    }
-
-    private static StackPanel? CreateRotationFieldEditor(FieldInfo field, IComponent component, RotationAttribute rotAttr)
-    {
-        object? fieldValue = field.GetValue(component);
-        if (fieldValue == null) return null;
-        float4 quaternionValue = (float4)fieldValue;
-
-        float3 eulerValue = Math.QuaternionToEuler(quaternionValue);
-        if (rotAttr.Degrees)
-            eulerValue = new float3(Math.Rad2Deg * eulerValue.X, Math.Rad2Deg * eulerValue.Y, Math.Rad2Deg * eulerValue.Z);
-
-        StackPanel eulerRotationPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        NumericUpDown xBox = CreateFloatNumericBox(eulerValue.X, (val) =>
-        {
-            if (rotAttr.Degrees) val *= Math.Deg2Rad;
-            eulerValue.X = val;
-            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
-        });
-        NumericUpDown yBox = CreateFloatNumericBox(eulerValue.Y, (val) =>
-        {
-            if (rotAttr.Degrees) val *= Math.Deg2Rad;
-            eulerValue.Y = val;
-            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
-        });
-        NumericUpDown zBox = CreateFloatNumericBox(eulerValue.Z, (val) =>
-        {
-            if (rotAttr.Degrees) val *= Math.Deg2Rad;
-            eulerValue.Z = val;
-            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
-        });
-        MaterialIcon rotateTypeIcon = new MaterialIcon
-        {
-            Kind = MaterialIconKind.Pi,
-            Foreground = Brushes.LightGray,
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0),
-        };
-
-        if (rotAttr.Degrees)
-        {
-            rotateTypeIcon.Kind = MaterialIconKind.Rotate360;
-            xBox.Increment = 5;
-            yBox.Increment = 5;
-            zBox.Increment = 5;
+            // Create a fresh instance of the component to get default values
+            IComponent? freshInstance = (IComponent?)Activator.CreateInstance(compType);
+            if (freshInstance != null)
+            {
+                FieldInfo? field = compType.GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
+                return field?.GetValue(freshInstance);
+            }
         }
-
-        eulerRotationPanel.Children.Add(new TextBlock
+        catch (Exception ex)
         {
-            Text = "X",
-            Foreground = Brushes.LightGray,
-            FontSize = 9,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0),
-        });
-        eulerRotationPanel.Children.Add(xBox);
-        eulerRotationPanel.Children.Add(new TextBlock
-        {
-            Text = "Y",
-            Foreground = Brushes.LightGray,
-            FontSize = 9,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0),
-        });
-        eulerRotationPanel.Children.Add(yBox);
-        eulerRotationPanel.Children.Add(new TextBlock
-        {
-            Text = "Z",
-            Foreground = Brushes.LightGray,
-            FontSize = 9,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0),
-        });
-        eulerRotationPanel.Children.Add(zBox);
-        eulerRotationPanel.Children.Add(rotateTypeIcon);
-        return eulerRotationPanel;
+            Debug.Warning($"Failed to get default value for {compType.Name}.{fieldName}", ex);
+        }
+        return null;
     }
 
     #region AssetReferences

@@ -23,12 +23,23 @@ namespace DivisionEngine.Editor.Systems
         private static bool isDragging = false;
         private static uint selectedHandle = 0;
         private static uint draggedEntity = uint.MaxValue;
+
+        // Translation state
         private static float3 currentPosition;
         private static float2 lastMousePos;
         private static float3 cameraPosition;
         private static float3 cameraRight;
         private static float3 cameraUp;
         private static float distanceToCamera;
+
+        // Rotation state
+        private static float4 originalRotation;
+        private static float3 rotationAxis;
+        private static float lastAngle;
+
+        // Scaling state
+        private static float3 originalScale;
+        private static float3 currentScale;
 
         public override void AppStart()
         {
@@ -63,6 +74,7 @@ namespace DivisionEngine.Editor.Systems
             {
                 Transform? transform = W.GetComponent<Transform>(draggedEntity);
                 if (transform != null) RenderPipeline.Instance?.ShowHandles(transform.position, EditorSettings.Instance!.EditorHandleScale);
+                else RenderPipeline.Instance?.HideHandles();
             }
 
             float2 mousePos = InputSystem.MousePosition;
@@ -75,45 +87,58 @@ namespace DivisionEngine.Editor.Systems
             if (mouseDown && !isDragging)
             {
                 uint handleId = RenderPipeline.Instance.GetHandleAtPosition(pixelX, pixelY);
-                if (handleId > 0 && handleId <= 3 && draggedEntity != uint.MaxValue)
+
+                // Get camera data first (needed for all operations)
+                Transform? camTransform = GetMainCamera();
+                if (camTransform == null)
+                {
+                    Debug.Error("HandleInteraction: No camera found");
+                    return;
+                }
+                cameraPosition = camTransform.position;
+                cameraRight = camTransform.Right;
+                cameraUp = camTransform.Up;
+
+                var entityTransform = W.GetComponent<Transform>(draggedEntity);
+                if (entityTransform == null && handleId > 0)
+                {
+                    Debug.Error($"HandleInteraction: No Transform component on entity {draggedEntity}");
+                    return;
+                }
+
+                // Translation handles (1-3)
+                if (handleId >= 1 && handleId <= 3 && draggedEntity != uint.MaxValue)
                 {
                     isDragging = true;
                     selectedHandle = handleId;
                     lastMousePos = mousePos;
 
-                    // Store current position
-                    var entityTransform = W.GetComponent<Transform>(draggedEntity);
-                    if (entityTransform != null)
-                    {
-                        currentPosition = entityTransform.position;
-                        Debug.Info($"HandleInteraction: Started dragging handle {selectedHandle}, position {currentPosition}");
-                    }
-                    else
-                    {
-                        Debug.Error($"HandleInteraction: No Transform component on entity {draggedEntity}");
-                        isDragging = false;
-                        return;
-                    }
+                    currentPosition = entityTransform!.position;
+                    distanceToCamera = Math.Sqrt(
+                        (cameraPosition.X - currentPosition.X) * (cameraPosition.X - currentPosition.X) +
+                        (cameraPosition.Y - currentPosition.Y) * (cameraPosition.Y - currentPosition.Y) +
+                        (cameraPosition.Z - currentPosition.Z) * (cameraPosition.Z - currentPosition.Z)
+                    );
+                    Debug.Info($"HandleInteraction: Started translation on handle {selectedHandle}, position {currentPosition}");
+                }
+                // Scale handles (5-7)
+                else if (handleId >= 5 && handleId <= 7 && draggedEntity != uint.MaxValue)
+                {
+                    isDragging = true;
+                    selectedHandle = handleId;
+                    lastMousePos = mousePos;
 
-                    // Get camera data
-                    Transform? camTransform = GetMainCamera();
-                    if (camTransform != null)
-                    {
-                        cameraPosition = camTransform.position;
-                        cameraRight = camTransform.Right;
-                        cameraUp = camTransform.Up;
+                    currentScale = entityTransform!.scaling;
+                    originalScale = currentScale;
 
-                        distanceToCamera = Math.Sqrt(
-                            (cameraPosition.X - currentPosition.X) * (cameraPosition.X - currentPosition.X) +
-                            (cameraPosition.Y - currentPosition.Y) * (cameraPosition.Y - currentPosition.Y) +
-                            (cameraPosition.Z - currentPosition.Z) * (cameraPosition.Z - currentPosition.Z)
-                        );
-                    }
-                    else
-                    {
-                        Debug.Error("HandleInteraction: No camera found");
-                        isDragging = false;
-                    }
+                    // Use the entity's position for distance calculation
+                    float3 entityPos = entityTransform.position;
+                    distanceToCamera = Math.Sqrt(
+                        (cameraPosition.X - entityPos.X) * (cameraPosition.X - entityPos.X) +
+                        (cameraPosition.Y - entityPos.Y) * (cameraPosition.Y - entityPos.Y) +
+                        (cameraPosition.Z - entityPos.Z) * (cameraPosition.Z - entityPos.Z)
+                    );
+                    Debug.Info($"HandleInteraction: Started scaling on handle {handleId}, scale {currentScale}");
                 }
             }
 
@@ -126,29 +151,31 @@ namespace DivisionEngine.Editor.Systems
                     -(mousePos.Y - lastMousePos.Y)
                 );
 
-                if (delta.X != 0 || delta.Y != 0)
+                if ((delta.X != 0 || delta.Y != 0) && draggedEntity != uint.MaxValue)
                 {
-                    // Convert screen delta to world movement on the selected axis
-                    float3 movement = GetAxisMovement(delta);
-
-                    // Scale by distance to camera for natural feel
-                    float distanceScale = distanceToCamera * 0.002f;
-                    movement = new float3(
-                        movement.X * distanceScale,
-                        movement.Y * distanceScale,
-                        movement.Z * distanceScale
-                    );
-
-                    // Apply movement
                     Transform? transform = W.GetComponent<Transform>(draggedEntity);
-                    if (transform != null)
+                    if (transform == null) return;
+
+                    // Translation
+                    if (selectedHandle >= 1 && selectedHandle <= 3)
                     {
+                        float3 movement = GetAxisMovement(delta);
+
+                        // Scale by distance to camera for natural feel
+                        float distanceScale = distanceToCamera * 0.002f;
+                        movement = new float3(
+                            movement.X * distanceScale,
+                            movement.Y * distanceScale,
+                            movement.Z * distanceScale
+                        );
+
                         currentPosition = new float3(
                             currentPosition.X + movement.X,
                             currentPosition.Y + movement.Y,
                             currentPosition.Z + movement.Z
                         );
                         transform.position = currentPosition;
+                        PropertiesRefreshSystem.OnFieldChanged(draggedEntity, typeof(Transform).ToString(), "position");
                         RenderPipeline.Instance?.ShowHandles(transform.position, EditorSettings.Instance!.EditorHandleScale);
 
                         // Update distance as we move
@@ -157,6 +184,34 @@ namespace DivisionEngine.Editor.Systems
                             (cameraPosition.Y - currentPosition.Y) * (cameraPosition.Y - currentPosition.Y) +
                             (cameraPosition.Z - currentPosition.Z) * (cameraPosition.Z - currentPosition.Z)
                         );
+                    }
+                    // Scaling
+                    else if (selectedHandle >= 5 && selectedHandle <= 7)
+                    {
+                        // Use the combined delta for scaling (both X and Y movement contribute)
+                        float scaleDelta = (delta.X + delta.Y) * 0.01f;
+
+                        // Start from CURRENT scale, not original
+                        float3 newScale = currentScale;
+                        switch (selectedHandle)
+                        {
+                            case 5: // X Scale (orange square)
+                                newScale.X = Math.Max(0.01f, currentScale.X + scaleDelta);
+                                break;
+                            case 6: // Y Scale (green square)
+                                newScale.Y = Math.Max(0.01f, currentScale.Y + scaleDelta);
+                                break;
+                            case 7: // Z Scale (blue square)
+                                newScale.Z = Math.Max(0.01f, currentScale.Z + scaleDelta);
+                                break;
+                        }
+
+                        transform.scaling = newScale;
+                        PropertiesRefreshSystem.OnFieldChanged(draggedEntity, typeof(Transform).ToString(), "scaling");
+                        currentScale = newScale; // Update current scale for next frame
+
+                        if (scaleDelta != 0)
+                            Debug.Info($"HandleInteraction: Scaling {selectedHandle}: {newScale}");
                     }
                 }
 

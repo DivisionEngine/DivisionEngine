@@ -12,17 +12,8 @@ namespace DivisionEngine.Components.SDFs.Primitives
     /// </summary>
     public class SDFCylinder : IComponent
     {
-        /// <summary>
-        /// Cylinder with radius 1.0 and height 3.0.
-        /// </summary>
-        public SDFCylinder()
-        {
-            height = 3f;
-            radius = 1f;
-        }
-
-        public float height;
-        public float radius;
+        public float height = 3f;
+        public float radius = 1f;
 
         public IComponent Clone() => new SDFCylinder
         {

@@ -12,17 +12,8 @@ namespace DivisionEngine.Components.SDFs.Primitives
     /// </summary>
     public class SDFCapsule : IComponent
     {
-        /// <summary>
-        /// Capsule with radius of 1.0 and height of 3.0.
-        /// </summary>
-        public SDFCapsule()
-        {
-            height = 3f;
-            radius = 1f;
-        }
-
-        public float height;
-        public float radius;
+        public float height = 3f;
+        public float radius = 1f;
 
         public IComponent Clone() => new SDFCapsule
         {

@@ -15,70 +15,44 @@ namespace DivisionEngine.Components
     public class Camera : IComponent
     {
         /// <summary>
-        /// Camera with Fov = 75, max ray steps = 256, focus dist = 10, and denoise = true.
-        /// </summary>
-        public Camera()
-        {
-            fieldOfView = 75f;
-            nearClip = 0.01f;
-            farClip = 10000f;
-
-            enableDepthOfField = false;
-            enableAutofocus = false;
-            focusDistance = 24f;
-            focalLength = 26f;
-
-            maxRaySteps = 256;
-            maxShadowRaySteps = 128;
-
-            enableDivisionDenoise = true;
-            enableATrousDenoise = true;
-            divisionDenoiseThreshold = 0.24f;
-            divisionDenoiseDomain = 2;
-            aTrousStepCount = 2;
-
-            isActive = true; // Default to active
-        }
-
-        /// <summary>
         /// Whether this camera is currently active for rendering.
         /// </summary>
         [Tooltip("Whether this camera is currently active for rendering")]
-        public bool isActive;
+        public bool isActive = true;
 
         // Camera vars
         [Tooltip("The viewing angle of the camera")]
-        public float fieldOfView;
+        public float fieldOfView = 75f;
         [Tooltip("Near clip plane that the camera starts rendering at")]
-        public float nearClip;
+        public float nearClip = 0.01f;
         [Tooltip("Far clip plane that the camera stops rendering at")]
-        public float farClip;
+        public float farClip = 10000f;
 
         // Depth of field vars
-        public bool enableDepthOfField;
+        public bool enableDepthOfField = false;
         [Tooltip("Attempts to calculate focal length and focus distance based on scene content")]
-        public bool enableAutofocus;
+        public bool enableAutofocus = false;
         [Tooltip("Distance at which DOF = 0")]
-        public float focusDistance;
+        public float focusDistance = 24f;
         [Tooltip("Falloff distance for DOF")]
-        public float focalLength;
+        public float focalLength = 26f;
 
         // SDF rendering vars
         [Tooltip("Max number of trace steps")]
-        public int maxRaySteps;
+        public int maxRaySteps = 256;
         [Tooltip("Max trace steps for shadows")]
-        public int maxShadowRaySteps;
+        public int maxShadowRaySteps = 128;
 
         // Denoise vars
-        public bool enableDivisionDenoise;
+        public bool enableDivisionDenoise = true;
         [Tooltip("Enable A-Trous wavelet denoising")]
-        public bool enableATrousDenoise;
+        public bool enableATrousDenoise = true;
         [Range(0f, 1f)]
-        public float divisionDenoiseThreshold;
+        public float divisionDenoiseThreshold = 0.24f;
         [Range(1, 4)][Tooltip("Size of radius in render image to take blur samples from")]
-        public int divisionDenoiseDomain;
+        public int divisionDenoiseDomain = 2;
         [Range(1, 5)]
-        public int aTrousStepCount;
+        public int aTrousStepCount = 2;
 
         public IComponent Clone() => new Camera
         {

@@ -15,19 +15,9 @@ namespace DivisionEngine.Components
     /// </summary>
     public class Transform : IComponent
     {
-        /// <summary>
-        /// Sets the position to (0, 0, 0), rotation to identity quaternion, and scaling to (1, 1, 1).
-        /// </summary>
-        public Transform()
-        {
-            position = new float3(0f, 0f, 0f);
-            rotation = Quaternion.Identity;
-            scaling = new float3(1f, 1f, 1f);
-        }
-
-        public float3 position;
-        [Rotation(true)] public float4 rotation;
-        public float3 scaling;
+        public float3 position = new float3(0f, 0f, 0f);
+        [Rotation(true)] public float4 rotation = Quaternion.Identity;
+        public float3 scaling = new float3(1f, 1f, 1f);
 
         public float3 Forward => rotation.RotateVector(new float3(0, 0, -1)).Normalize();
         public float3 Back => rotation.RotateVector(new float3(0, 0, 1)).Normalize();

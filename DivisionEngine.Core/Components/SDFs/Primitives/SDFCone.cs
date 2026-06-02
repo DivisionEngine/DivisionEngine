@@ -12,17 +12,8 @@ namespace DivisionEngine.Components.SDFs.Primitives
     /// </summary>
     public class SDFCone : IComponent
     {
-        /// <summary>
-        /// Cone with angles of 0.6 and 0.4 and height of 3.0.
-        /// </summary>
-        public SDFCone()
-        {
-            cone = new float2(0.6f, 0.4f);
-            height = 3f;
-        }
-
-        public float2 cone;
-        public float height;
+        public float2 cone = new float2(0.6f, 0.4f);
+        public float height = 3f;
 
         public IComponent Clone() => new SDFCone
         {
