@@ -142,6 +142,10 @@ namespace DivisionEngine.Rendering
         private float editorHandleScale = 1.0f;
         private uint currentHoveredHandle = 0;
 
+        // Icons
+        private Dictionary<uint, (float3 position, IconType iconType, float3 direction)> iconsToRender = [];
+        private ReadWriteBuffer<uint>? iconIdBuffer;
+
         // Denoising
         private ReadOnlyBuffer<float>? kernelBuffer; // Reconstruction kernel
         private ReadWriteTexture2D<float4>? denoisedTex;
@@ -176,7 +180,7 @@ namespace DivisionEngine.Rendering
             currentDpiScale = scale;
         }
 
-        #region editorHandles
+        #region editorDrawing
 
         /// <summary>
         /// Sets the position where editor handles should be rendered.
@@ -217,7 +221,31 @@ namespace DivisionEngine.Rendering
             else currentHoveredHandle = 0;
         }
 
-        #endregion editorHandles
+        public void ShowIcon(float3 position, IconType icon, float3 direction, uint entityId)
+        {
+            lock (SyncLock)
+            {
+                iconsToRender[entityId] = (position, icon, direction);
+            }
+        }
+
+        public void HideIcon(uint entityId)
+        {
+            lock (SyncLock)
+            {
+                iconsToRender.Remove(entityId);
+            }
+        }
+
+        public void ClearIcons()
+        {
+            lock (SyncLock)
+            {
+                iconsToRender.Clear();
+            }
+        }
+
+        #endregion editorDrawing
 
         /// <summary>
         /// Initializes and runs the render window.
@@ -466,6 +494,13 @@ namespace DivisionEngine.Rendering
                         HandleIds = new uint[texWidth * texHeight];
                     }
 
+                    // Build icon ID buffer
+                    if (iconIdBuffer == null || iconIdBuffer.Length != (texWidth * texHeight))
+                    {
+                        iconIdBuffer?.Dispose();
+                        iconIdBuffer = Device!.AllocateReadWriteBuffer<uint>(texWidth * texHeight);
+                    }
+
                     // Build kernel buffer
                     if (kernelBuffer == null || ObjectIDs == null)
                     {
@@ -574,6 +609,32 @@ namespace DivisionEngine.Rendering
                             editorHandleScale,
                             currentHoveredHandle);
                         Device?.For(texWidth, texHeight, handleShader);
+                    }
+                }
+
+                // Editor Icons
+                if (iconsToRender.Count > 0)
+                {
+                    lock (SyncLock)
+                    {
+                        foreach (var (entityId, (position, icon, direction)) in iconsToRender)
+                        {
+                            IconShader iconShader = new IconShader(
+                                texWidth, texHeight,
+                                texWidth / (float)texHeight,
+                                worldDTO.camScreenDist,
+                                worldDTO.cameraOrigin,
+                                worldDTO.camForward,
+                                worldDTO.camRight,
+                                worldDTO.camUp,
+                                currentTexture!,
+                                iconIdBuffer,
+                                position,
+                                (uint)icon,
+                                direction, // Cast the IconType enum to uint
+                                entityId);    // Use icon type as ID
+                            Device?.For(texWidth, texHeight, iconShader);
+                        }
                     }
                 }
 

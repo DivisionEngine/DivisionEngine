@@ -1,0 +1,81 @@
+﻿//
+// Copyright (c) 2025-2026 Rex Woodfield and Division Engine contributors
+//
+// This file is part of Division Engine and is subject to the terms
+// of the Division Engine License. See the LICENSE.txt file in the
+// project root for full license terms.
+//
+using DivisionEngine.Components;
+using DivisionEngine.Rendering;
+
+namespace DivisionEngine.Systems
+{
+    /// <summary>
+    /// Renders screen-space icons for entities with specific components.
+    /// </summary>
+    public class IconRendererSystem : SystemBase
+    {
+        private static Dictionary<uint, (float3 position, IconType iconType, float3 direction)> iconsToRender = new();
+
+        public override void EditorUpdate()
+        {
+            if (RenderPipeline.Instance == null || EngineCore.IsInPlayMode) return;
+
+            iconsToRender.Clear();
+
+            foreach (var entityId in W.Query<Transform>())
+            {
+                var transform = W.GetComponent<Transform>(entityId);
+                if (transform == null) continue;
+
+                IconType icon = IconDefinitions.GetIconForEntity(entityId, WorldManager.CurrentWorld!);
+                if (icon != IconType.None)
+                {
+                    float3 direction = float3.Zero;
+
+                    // Get direction for directional lights
+                    if (W.HasComponent<Components.Lights.DirectionalLight>(entityId))
+                    {
+                        direction = transform.Forward; // The direction the light is pointing
+                    }
+
+                    iconsToRender[entityId] = (transform.position, icon, direction);
+                    RenderPipeline.Instance?.ShowIcon(transform.position, icon, direction, entityId);
+                }
+            }
+        }
+    }
+
+    public enum IconType : uint
+    {
+        None = 0,
+        Camera = 100,
+        DirectionalLight = 101,
+        PointLight = 102,
+        SpotLight = 103,
+        Environment = 104,
+        AudioSource = 104,
+        RigidBody = 105,
+        // Add more as needed
+    }
+
+    public static class IconDefinitions
+    {
+        public static IconType GetIconForEntity(uint entityId, World world)
+        {
+            if (world.HasComponent<Camera>(entityId))
+                return IconType.Camera;
+
+            if (world.HasComponent<Components.Lights.DirectionalLight>(entityId))
+                return IconType.DirectionalLight;
+
+            if (world.HasComponent<Components.Lights.PointLight>(entityId))
+                return IconType.PointLight;
+
+            if (world.HasComponent<Components.Environment>(entityId))
+                return IconType.Environment;
+
+            return IconType.None;
+        }
+    }
+}
