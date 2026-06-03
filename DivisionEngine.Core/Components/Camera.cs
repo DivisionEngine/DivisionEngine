@@ -41,7 +41,7 @@ namespace DivisionEngine.Components
         [Tooltip("Max number of trace steps")]
         public int maxRaySteps = 256;
         [Tooltip("Max trace steps for shadows")]
-        public int maxShadowRaySteps = 128;
+        public int maxShadowRaySteps = 32;
 
         // Denoise vars
         public bool enableDivisionDenoise = true;

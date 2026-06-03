@@ -12,9 +12,9 @@ namespace DivisionEngine.Components.SDFs
     /// </summary>
     public class SDFTerrain : IComponent
     {
-        public float scale = 2000f;
-        public float height = 100f;
-        public float baseGain = 0.5f;
+        public float scale = 2500f;
+        public float height = 1000f;
+        public float baseGain = 0.1f;
         public float lacunarity = 2f;
         public int octaves = 2;
 
@@ -22,7 +22,7 @@ namespace DivisionEngine.Components.SDFs
         public float gullyWeight = 0.5f;
         public float erosionDetail = 1.5f;
         public float erosionScale = 0.15f;
-        public int erosionOctaves = 5;
+        public int erosionOctaves = 4;
         public float erosionLacunarity = 2.0f;
         public float erosionGain = 0.5f;
         public float cellScale = 0.7f;

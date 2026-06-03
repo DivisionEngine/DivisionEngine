@@ -136,6 +136,11 @@ namespace DivisionEngine.Rendering
         /// </summary>
         public float4[]? DepthNormalPixels { get; private set; }
 
+        /// <summary>
+        /// Is checkerboard rendering enabled (renders half the pixels each frame).
+        /// </summary>
+        public bool CheckerboardRenderingEnabled => EngineSettings.Instance?.CheckerboardRendering ?? false;
+
         // Time measurement
 
         /// <summary>
@@ -570,12 +575,26 @@ namespace DivisionEngine.Rendering
                     // Dispatch SDF compute shader
                     int outputMode = 0;
                     if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
-                    
+
+                    // Checkerboard rendering toggle
+                    int checkerboardEnabled = CheckerboardRenderingEnabled ? 1 : 0;
+                    int dispatchWidth, dispatchHeight;
+                    if (CheckerboardRenderingEnabled)
+                    {
+                        dispatchWidth = (texWidth + 1) / 2;
+                        dispatchHeight = texHeight;
+                    }
+                    else
+                    {
+                        dispatchWidth = texWidth;
+                        dispatchHeight = texHeight;
+                    }
+
                     // Debugging handled in-shader now (again)
                     SDFShader3D shader = new SDFShader3D(texWidth, texHeight, testBackgroundTex.Width, testBackgroundTex.Height,
-                        texWidth / (float)texHeight, TimeSystem.FrameCount, (int)debugMode, worldDTO,
+                        texWidth / (float)texHeight, TimeSystem.FrameCount, (int)debugMode, checkerboardEnabled, worldDTO,
                         renderTex, depthNormalsTex, objectIdBuffer, sdfObjBuffer, lightsBuffer, testBackgroundTex);
-                    Device?.For(texWidth, texHeight, shader);
+                    Device?.For(dispatchWidth, dispatchHeight, shader);
                 }
 
                 // Rendering pipeline

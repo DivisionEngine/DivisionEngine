@@ -134,6 +134,7 @@ public partial class SettingsWindow : EditorWindow
         AddIntSetting("Resolution Height", settings.ResolutionHeight, 480, 4320, val => settings.ResolutionHeight = val);
         AddBoolSetting("Fullscreen", settings.Fullscreen, val => settings.Fullscreen = val);
         AddBoolSetting("VSync", settings.VSync, val => settings.VSync = val);
+        AddBoolSetting("Checkerboard Rendering", settings.CheckerboardRendering, val => settings.CheckerboardRendering = val);
         AddIntSetting("Max FPS (0 = unlimited)", settings.MaxFPS, 0, 1024, val => settings.MaxFPS = val);
     }
 

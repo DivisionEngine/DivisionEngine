@@ -23,6 +23,7 @@ namespace DivisionEngine
         float aspect,
         int frameCount,
         int debugMode,
+        int enableCheckerboard,
         SDFWorldDTO worldData,
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
@@ -373,10 +374,11 @@ namespace DivisionEngine
             for (int i = 0; i < worldData.maxShadowRaySteps; ++i)
             {
                 dist = WorldSDF(point + depth * dir, true, uint.MaxValue, out closestObj);
-                if (depth > end || shadow < -1f) break;
+                if (depth > end) break;
+                //if (shadow < 0f) break; // Already fully in shadow, stop early
 
                 shadow = Hlsl.Min(shadow, worldData.shadowScale * dist / depth);
-                depth += Hlsl.Clamp(dist, 0.01f, 10f);
+                depth += Hlsl.Clamp(dist, 0.05f, 10f); // Larger minimum step than 0.01
             }
 
             shadow = Hlsl.Max(shadow, -1f);
@@ -1149,7 +1151,19 @@ namespace DivisionEngine
         /// </summary>
         public void Execute()
         {
-            int2 pixel = ThreadIds.XY;
+            int2 localPixel = ThreadIds.XY;
+            int2 pixel;
+            if (enableCheckerboard == 1) // Checkerboard pattern
+            {
+                int framePass = frameCount & 1;
+                pixel = new int2(
+                    localPixel.X * 2 + (framePass ^ (localPixel.Y & 1)),
+                    localPixel.Y
+                );
+            }
+            else pixel = localPixel; // Full resolution rendering
+            if (pixel.X >= width || pixel.Y >= height) return;
+
             texture[pixel] = new float4(0, 0, 0, 0);
             depthNormals[pixel] = new float4(0, 0, 0, 0);
             entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2(uint.MaxValue, uint.MaxValue);

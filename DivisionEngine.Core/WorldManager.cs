@@ -98,6 +98,8 @@ namespace DivisionEngine
             {
                 albedoColor = ColorPalette.ForestGreen,
                 stepBias = 0.85f,
+                metallic = 0f,
+                roughness = 1f,
             });
             newDefaultWorld.AddComponent(terrainEntity, new SoftShadows());
 

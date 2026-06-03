@@ -80,6 +80,13 @@ namespace DivisionEngine.Settings
         }
 
         [JsonIgnore]
+        public bool CheckerboardRendering
+        {
+            get => Get(nameof(CheckerboardRendering), true);
+            set => Set(nameof(CheckerboardRendering), value);
+        }
+
+        [JsonIgnore]
         public int MaxFPS
         {
             get => Get(nameof(MaxFPS), 0);
