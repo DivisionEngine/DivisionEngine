@@ -28,6 +28,8 @@ namespace DivisionEngine.Components.SDFs
         public float cellScale = 0.7f;
         public float normalization = 0.5f;
 
+        public float4 rounding = new float4(1f, 1f, 1f, 1f);
+
         public IComponent Clone() => new SDFTerrain
         {
             scale = scale,
@@ -45,6 +47,8 @@ namespace DivisionEngine.Components.SDFs
             erosionGain = erosionGain,
             cellScale = cellScale,
             normalization = normalization,
+
+            rounding = rounding,
         };
     }
 }

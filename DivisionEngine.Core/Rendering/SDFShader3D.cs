@@ -208,7 +208,7 @@ namespace DivisionEngine
 
         private static float TerrainSDF_Eroded(float3 pt, float size, float heightScale, float baseGain, float lacunarity, 
             float erosionStrength, float gullyWeight, float erosionDetail, float erosionScale, int erosionOctaves,
-            float erosionLacunarity, float erosionGain, float cellScale, float normalization, int baseOctaves)
+            float erosionLacunarity, float erosionGain, float cellScale, float normalization, int baseOctaves, float4 rounding)
         {
             // Base terrain using your existing FBM (or use the new noised function)
             float2 uv = pt.XZ / size;
@@ -222,7 +222,6 @@ namespace DivisionEngine
             float fadeTarget = Hlsl.Clamp(baseTerrain.X / 0.6f, -1.0f, 1.0f); // use raw [-1,1] value
 
             // Erosion parameters (tweak these for different looks)
-            float4 rounding = new float4(0.1f, 0.0f, 0.1f, 2.0f);
             float4 onset = new float4(1.25f, 1.25f, 2.8f, 1.5f);
             float2 assumedSlope = new float2(0.7f, 1.0f);
 
@@ -293,7 +292,7 @@ namespace DivisionEngine
                     dist *= TerrainSDF_Eroded(curPoint, curSDF.parameters.X, curSDF.parameters.Y, curSDF.parameters.Z, curSDF.parameters.W,
                         curSDF.parameters2.X, curSDF.parameters2.Y, curSDF.parameters2.Z, curSDF.parameters2.W, 
                         (int)curSDF.parameters3.X, curSDF.parameters3.Y, curSDF.parameters3.Z, curSDF.parameters3.W,
-                        curSDF.parameters4.X, (int)curSDF.parameters4.Y);
+                        curSDF.parameters4.X, (int)curSDF.parameters4.Y, curSDF.parameters5);
                 else // Default to sphere SDF
                     dist *= SphereSDF(curPoint, curSDF.parameters.X);
 

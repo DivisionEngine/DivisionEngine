@@ -63,6 +63,8 @@ namespace DivisionEngine.Rendering
         public float4 parameters2; // 16b
         public float4 parameters3; // 16b
         public float4 parameters4; // 16b
+        public float4 parameters5; // 16b
+        public float4 parameters6; // 16b
         public float stepBias; // 4b
 
         // Material Properties
