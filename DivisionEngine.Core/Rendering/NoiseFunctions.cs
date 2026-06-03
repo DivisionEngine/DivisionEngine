@@ -10,6 +10,116 @@ using ComputeSharp;
 namespace DivisionEngine.Rendering
 {
     /// <summary>
+    /// Gradient noise functions (use on GPU only).
+    /// </summary>
+    public static class GradientNoise
+    {
+        public static float2 hash(float2 x)
+        {
+            float2 k = new float2(0.3183099f, 0.3678794f);
+            x = x * k + new float2(k.Y, k.X);
+            return -1.0f + 2.0f * Hlsl.Frac(16.0f * k * Hlsl.Frac(x.X * x.Y * (x.X + x.Y)));
+        }
+
+        // Noise function with derivatives
+        public static float3 noised(float2 x, int method, int interpolant)
+        {
+            float2 i;
+            float2 f;
+
+            if (method == 0)
+            {
+                int2 i_int = new int2((int)Hlsl.Floor(x.X), (int)Hlsl.Floor(x.Y));
+                i = new float2(i_int.X, i_int.Y);
+                f = Hlsl.Frac(x);
+            }
+            else
+            {
+                i = Hlsl.Floor(x);
+                f = Hlsl.Frac(x);
+            }
+
+            // Interpolation weights
+            float2 u;
+            float2 du;
+
+            if (interpolant == 1)
+            {
+                // quintic interpolation
+                u = f * f * f * (f * (f * 6.0f - 15.0f) + 10.0f);
+                du = 30.0f * f * f * (f * (f - 2.0f) + 1.0f);
+            }
+            else
+            {
+                // cubic interpolation
+                u = f * f * (3.0f - 2.0f * f);
+                du = 6.0f * f * (1.0f - f);
+            }
+
+            float2 ga, gb, gc, gd;
+
+            if (method == 0)
+            {
+                ga = hash(i + new float2(0.0f, 0.0f));
+                gb = hash(i + new float2(1.0f, 0.0f));
+                gc = hash(i + new float2(0.0f, 1.0f));
+                gd = hash(i + new float2(1.0f, 1.0f));
+            }
+            else
+            {
+                ga = hash(i + new float2(0.0f, 0.0f));
+                gb = hash(i + new float2(1.0f, 0.0f));
+                gc = hash(i + new float2(0.0f, 1.0f));
+                gd = hash(i + new float2(1.0f, 1.0f));
+            }
+
+            float va = Hlsl.Dot(ga, f - new float2(0.0f, 0.0f));
+            float vb = Hlsl.Dot(gb, f - new float2(1.0f, 0.0f));
+            float vc = Hlsl.Dot(gc, f - new float2(0.0f, 1.0f));
+            float vd = Hlsl.Dot(gd, f - new float2(1.0f, 1.0f));
+
+            // Value
+            float value = va + u.X * (vb - va) + u.Y * (vc - va) + u.X * u.Y * (va - vb - vc + vd);
+
+            // Derivatives
+            float2 derivatives = ga + u.X * (gb - ga) + u.Y * (gc - ga) + u.X * u.Y * (ga - gb - gc + gd) +
+                                 du * (new float2(u.Y, u.X) * (va - vb - vc + vd) + new float2(vb, vc) - va);
+
+            return new float3(value, derivatives.X, derivatives.Y);
+        }
+
+        // Convenience wrapper with default parameters (method=1 for vec2, interpolant=1 for quintic)
+        public static float3 noised(float2 x)
+        {
+            return noised(x, 1, 1);
+        }
+
+        // FBM (Fractal Brownian Motion) using the new noise function
+        public static float FBMNoised(float2 x, int octaves, float persistence, float lacunarity, out float2 derivatives)
+        {
+            float value = 0.0f;
+            derivatives = float2.Zero;
+            float amplitude = 1.0f;
+            float frequency = 1.0f;
+            float maxAmp = 0.0f;
+
+            for (int i = 0; i < octaves; i++)
+            {
+                float3 n = noised(x * frequency);
+                value += amplitude * n.X;
+                derivatives += amplitude * frequency * new float2(n.Y, n.Z);
+                maxAmp += amplitude;
+                amplitude *= persistence;
+                frequency *= lacunarity;
+            }
+
+            value /= maxAmp;
+            derivatives /= maxAmp;
+            return value;
+        }
+    }
+
+    /// <summary>
     /// Simplex noise functions for 2D and 3D.
     /// Based on the original implementation by Ken Perlin and Stefan Gustavson.
     /// </summary>

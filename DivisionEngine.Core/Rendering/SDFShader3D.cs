@@ -9,6 +9,7 @@
 
 using ComputeSharp;
 using DivisionEngine.Rendering;
+using DivisionEngine.Rendering.Terrains;
 
 namespace DivisionEngine
 {
@@ -174,33 +175,77 @@ namespace DivisionEngine
         // Terrain Generation
         // ------------------
 
-        private float TerrainSDF(float3 pt, float size, float heightScale, float persistence, float lacunarity)
+        private static float TerrainSDF(float3 pt, float size, float heightScale, float persistence, float lacunarity, int octaves)
         {
-            float height = SimplexNoise.FBM2D(pt.XZ / size, 4, persistence, lacunarity);
-            float grassHeight = SimplexNoise.FBM2D(pt.XZ / 10f + new float2(103, -1025), 2, persistence, lacunarity);
+            float height = GradientNoise.FBMNoised(pt.XZ / size, octaves, persistence, lacunarity, out float2 deriv);
             float terrainHeight = height * heightScale - (heightScale / 2f);
 
+            //float slope = Hlsl.Length(deriv) * heightScale / size;
+
+            float terrain = pt.Y - terrainHeight;
+            return terrain;
+
             // Repeating balls
-            float spacing = 1f;
-            float ballRadius = 0.1f;
+            //float spacing = 1f;
+            //float ballRadius = 0.1f;
 
             // Get position within repeating cell
-            float2 cellPos = new float2(
-                Hlsl.Fmod(Hlsl.Abs(pt.X), spacing) - spacing * 0.5f,
-                Hlsl.Fmod(Hlsl.Abs(pt.Z), spacing) - spacing * 0.5f
-            );
+            //float2 cellPos = new float2(
+            //    Hlsl.Fmod(Hlsl.Abs(pt.X), spacing) - spacing * 0.5f,
+            //    Hlsl.Fmod(Hlsl.Abs(pt.Z), spacing) - spacing * 0.5f
+            //);
 
+            //float grassHeight = GradientNoise.FBMNoised(pt.XZ / 10f + new float2(103, -1025), 2, persistence, lacunarity, out float2 grassDeriv);
             // Ball at each grid point (placed on terrain surface)
-            float3 grassLocal = new float3(cellPos.X, pt.Y - terrainHeight, cellPos.Y);
-            float grass = CapsuleSDF(grassLocal, ballRadius, grassHeight * 2f);
+            //float3 grassLocal = new float3(cellPos.X, pt.Y - terrainHeight, cellPos.Y);
+            //float grass = CapsuleSDF(grassLocal, ballRadius, grassHeight * 2f);
 
             // Box terrain - for the future
             //float3 q = Hlsl.Abs(pt) - new float3(size, 0f, size);
             //if (pt.Y > 0f) q.Y -= terrainHeight - (heightScale / 3f);
             //float terrain = Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
+        }
 
-            float terrain = pt.Y - terrainHeight;
-            return Hlsl.Min(terrain, grass);
+        private static float TerrainSDF_Eroded(float3 pt, float size, float heightScale, float baseGain, float lacunarity, 
+            float erosionStrength, float gullyWeight, float erosionDetail, float erosionScale, int erosionOctaves,
+            float erosionLacunarity, float erosionGain, float cellScale, float normalization, int baseOctaves)
+        {
+            // Base terrain using your existing FBM (or use the new noised function)
+            float2 uv = pt.XZ / size;
+
+            // Calculate base height and slope using the noised function (requires derivatives)
+            float3 baseTerrain = TerrainRendering.FractalNoiseWithDerivatives(uv, 3.0f, baseOctaves, lacunarity, baseGain);
+            float baseHeightNorm = baseTerrain.X * 0.5f + 0.5f; // [-1,1] -> [0,1]
+            float2 slope = new float2(baseTerrain.Y, baseTerrain.Z); // derivatives stay unscaled
+
+            // Prepare erosion parameters
+            float fadeTarget = Hlsl.Clamp(baseTerrain.X / 0.6f, -1.0f, 1.0f); // use raw [-1,1] value
+
+            // Erosion parameters (tweak these for different looks)
+            float4 rounding = new float4(0.1f, 0.0f, 0.1f, 2.0f);
+            float4 onset = new float4(1.25f, 1.25f, 2.8f, 1.5f);
+            float2 assumedSlope = new float2(0.7f, 1.0f);
+
+            float ridgeMap, debug;
+            float3 heightSlope = new float3(baseHeightNorm, slope.X, slope.Y);
+            float4 erosionResult = TerrainRendering.ErosionFilter(
+                uv, heightSlope, fadeTarget,
+                erosionStrength, gullyWeight, erosionDetail,
+                rounding, onset, assumedSlope,
+                erosionScale, erosionOctaves, erosionLacunarity,
+                erosionGain, cellScale, normalization,
+                out ridgeMap, out debug);
+
+            // Apply height offset based on erosion (optional: mix with base)
+            float heightOffset = -0.65f; // push down to avoid raising terrain
+            float offset = heightOffset * erosionResult.W; // W is magnitude
+            float erodedHeightNorm = baseHeightNorm + erosionResult.X + offset;
+
+            // NOW scale to world units
+            float erodedHeight = (erodedHeightNorm - 0.5f) * heightScale; // [0,1] -> world space
+
+            float terrain = pt.Y - erodedHeight;
+            return terrain;
         }
 
         /// <summary>
@@ -245,7 +290,10 @@ namespace DivisionEngine
                 else if (curSDF.type == 8) // Adds cone SDFs
                     dist *= ConeSDF(curPoint, curSDF.parameters.XY, curSDF.parameters.Z);
                 else if (curSDF.type == 9) // Adds terrain SDFs
-                    dist *= TerrainSDF(curPoint, curSDF.parameters.X, curSDF.parameters.Y, curSDF.parameters.Z, curSDF.parameters.W);
+                    dist *= TerrainSDF_Eroded(curPoint, curSDF.parameters.X, curSDF.parameters.Y, curSDF.parameters.Z, curSDF.parameters.W,
+                        curSDF.parameters2.X, curSDF.parameters2.Y, curSDF.parameters2.Z, curSDF.parameters2.W, 
+                        (int)curSDF.parameters3.X, curSDF.parameters3.Y, curSDF.parameters3.Z, curSDF.parameters3.W,
+                        curSDF.parameters4.X, (int)curSDF.parameters4.Y);
                 else // Default to sphere SDF
                     dist *= SphereSDF(curPoint, curSDF.parameters.X);
 
@@ -293,22 +341,22 @@ namespace DivisionEngine
         //    return Hlsl.Normalize(n);
         //}
 
-        /// <summary>
-        /// 6-Sample normal calculation.
-        /// </summary>
-        /// <param name="p">Point to sample at</param>
-        /// <returns>High quality normal</returns>
-        private float3 StableNormal(float3 p)
-        {
-            float e = EPSILON * 2.0f;
-            float dx = WorldSDF(p + new float3(e, 0, 0), false, uint.MaxValue, out _) -
-                       WorldSDF(p - new float3(e, 0, 0), false, uint.MaxValue, out _);
-            float dy = WorldSDF(p + new float3(0, e, 0), false, uint.MaxValue, out _) -
-                       WorldSDF(p - new float3(0, e, 0), false, uint.MaxValue, out _);
-            float dz = WorldSDF(p + new float3(0, 0, e), false, uint.MaxValue, out _) -
-                       WorldSDF(p - new float3(0, 0, e), false, uint.MaxValue, out _);
-            return Hlsl.Normalize(new float3(dx, dy, dz));
-        }
+        //// <summary>
+        //// 6-Sample normal calculation.
+        //// </summary>
+        //// <param name = "p" > Point to sample at</param>
+        //// <returns>High quality normal</returns>
+        //private float3 StableNormal(float3 p)
+        //{
+        //    float e = EPSILON * 20.0f;
+        //    float dx = WorldSDF(p + new float3(e, 0, 0), false, uint.MaxValue, out _) -
+        //               WorldSDF(p - new float3(e, 0, 0), false, uint.MaxValue, out _);
+        //    float dy = WorldSDF(p + new float3(0, e, 0), false, uint.MaxValue, out _) -
+        //               WorldSDF(p - new float3(0, e, 0), false, uint.MaxValue, out _);
+        //    float dz = WorldSDF(p + new float3(0, 0, e), false, uint.MaxValue, out _) -
+        //               WorldSDF(p - new float3(0, 0, e), false, uint.MaxValue, out _);
+        //    return Hlsl.Normalize(new float3(dx, dy, dz));
+        //}
 
         // --------------------
         // Lighting Calculation
@@ -732,18 +780,57 @@ namespace DivisionEngine
         // Raymarching
         // -----------
 
-        private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out int closestObj, out float depth, out int steps)
+        #region raymarching
+
+        private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps,
+            float farClipPlane, out int closestObj, out float depth, out int steps)
         {
             depth = worldData.nearPlane;
             closestObj = -1;
             float3 hitPoint = rayOrigin;
+            float lastSafeDepth = depth;
 
             for (steps = 0; steps < maxSteps && depth < farClipPlane; steps++)
             {
                 hitPoint = rayOrigin + rayDir * depth;
                 float worldDist = WorldSDF(hitPoint, false, uint.MaxValue, out closestObj);
 
-                if (worldDist < AdaptiveEpsilon(depth)) break;
+                if (worldDist > 0f) lastSafeDepth = depth;
+                else if (worldDist < 0f)
+                {
+                    // Binary search, use fixed small epsilon, not adaptive
+                    float tMin = lastSafeDepth;
+                    float tMax = depth;
+                    const float BISECT_EPS = EPSILON * 10f;
+
+                    for (int refine = 0; refine < 16; refine++) // More iterations
+                    {
+                        float tMid = (tMin + tMax) * 0.5f;
+                        float3 refinePoint = rayOrigin + rayDir * tMid;
+                        float refineDist = WorldSDF(refinePoint, false, uint.MaxValue, out int refinedObj);
+
+                        if (Hlsl.Abs(refineDist) < BISECT_EPS)
+                        {
+                            depth = tMid;
+                            closestObj = refinedObj;
+                            return rayOrigin + rayDir * (tMid - BISECT_EPS); // Step back slightly to guarantee we're outside
+                        }
+                        if (refineDist > 0f)
+                        {
+                            tMin = tMid;
+                            closestObj = refinedObj;
+                        }
+                        else tMax = tMid;
+                    }
+
+                    depth = tMin; // Always return the OUTSIDE point
+                    return rayOrigin + rayDir * tMin;
+                }
+
+                // Use fixed epsilon near surface, adaptive only for early termination
+                float hitEps = (depth < 10f) ? EPSILON : AdaptiveEpsilon(depth);
+                if (worldDist < hitEps) break;
+
                 depth += worldDist;
             }
             return hitPoint;
@@ -781,6 +868,7 @@ namespace DivisionEngine
             {
                 // Determine direction (into or out of material)
                 float currentEta = currentlyInsideObject ? 1.0f / currentMat.ior : currentMat.ior;
+
                 if (Refract(currentDir, currentNormal, currentEta, out float3 refractDir))
                 {
                     // Trace through the current medium
@@ -795,22 +883,43 @@ namespace DivisionEngine
                     for (int i = 0; i < currentMat.refractionMaxSteps; i++)
                     {
                         float d = WorldSDF(p, false, uint.MaxValue, out int closestObj);
-
-                        // Check crossed boundary
                         bool nowInside = d < 0f;
+
                         if (currentlyInsideObject != nowInside)
                         {
-                            exitPt = p;
-                            exitNorm = FastNormal(p);
+                            // Binary search for the actual surface crossing
+                            float3 tMin3 = p - refractDir * Hlsl.Max(Hlsl.Abs(d), AdaptiveEpsilon(travelDistance));
+                            float3 tMax3 = p;
+                            const float REFRACT_BISECT_EPS = EPSILON * 20f;
+
+                            for (int b = 0; b < 12; b++)
+                            {
+                                float3 mid = (tMin3 + tMax3) * 0.5f;
+                                float dMid = WorldSDF(mid, false, uint.MaxValue, out _);
+
+                                if (Hlsl.Abs(dMid) < REFRACT_BISECT_EPS)
+                                {
+                                    tMin3 = mid; // close enough, use this
+                                    break;
+                                }
+
+                                // tMin3 should always be on the "was inside" side
+                                if ((dMid < 0f) == currentlyInsideObject) tMin3 = mid;
+                                else tMax3 = mid;
+                            }
+
+                            // tMin3 is now on the side we WERE on — safe for normal sampling
+                            exitPt = tMin3;
+                            exitNorm = FastNormal(exitPt);
                             int exitClosestObj = closestObj;
-                            if (Hlsl.Dot(exitNorm, refractDir) > 0) exitNorm = -exitNorm;
+
+                            if (Hlsl.Dot(exitNorm, refractDir) > 0f) exitNorm = -exitNorm;
                             foundExit = true;
 
-                            // Calculate transmittance
-                            float3 segmentTransmittance = Hlsl.Exp(absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
+                            float3 segmentTransmittance = Hlsl.Exp(
+                                absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
                             totalTransmittance *= segmentTransmittance;
 
-                            // Update state
                             currentlyInsideObject = nowInside;
                             if (currentlyInsideObject && exitClosestObj != -1)
                             {
@@ -820,7 +929,6 @@ namespace DivisionEngine
                             break;
                         }
 
-                        // Still in same medium
                         float stepSize = Hlsl.Max(Hlsl.Abs(d), AdaptiveEpsilon(travelDistance));
                         p += refractDir * stepSize;
                         travelDistance += stepSize;
@@ -884,6 +992,7 @@ namespace DivisionEngine
             // Trace
             int maxRaySteps = worldData.maxRaySteps;
             float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, worldData.farPlane, out int closestObjIndex, out totalDist, out steps);
+
             if (closestObjIndex == -1 || totalDist > worldData.farPlane)
             {
                 finalColor += backgroundCol;
@@ -1033,6 +1142,8 @@ namespace DivisionEngine
 
             return outputColor;
         }
+
+        #endregion raymarching
 
         /// <summary>
         /// Executes the raymarching sequence.

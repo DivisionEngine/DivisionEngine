@@ -93,11 +93,7 @@ namespace DivisionEngine
             {
                 position = new float3(0, -20, 0),
             });
-            newDefaultWorld.AddComponent(terrainEntity, new SDFTerrain
-            {
-                scale = 200f,
-                height = 500f,
-            });
+            newDefaultWorld.AddComponent(terrainEntity, new SDFTerrain());
             newDefaultWorld.AddComponent(terrainEntity, new SDFMaterial
             {
                 albedoColor = ColorPalette.ForestGreen,

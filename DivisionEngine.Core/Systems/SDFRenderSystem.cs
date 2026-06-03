@@ -303,7 +303,10 @@ namespace DivisionEngine.Systems
                 {
                     SDFTerrain terrain = W.GetComponent<SDFTerrain>(id)!;
                     curSDF.type = 9; // Terrain type
-                    curSDF.parameters = new float4(terrain.scale, terrain.height, terrain.persistence, terrain.lacunarity);
+                    curSDF.parameters = new float4(terrain.scale, terrain.height, terrain.baseGain, terrain.lacunarity);
+                    curSDF.parameters2 = new float4(terrain.erosionStrength, terrain.gullyWeight, terrain.erosionDetail, terrain.erosionScale);
+                    curSDF.parameters3 = new float4(terrain.erosionOctaves, terrain.erosionLacunarity, terrain.erosionGain, terrain.cellScale);
+                    curSDF.parameters4 = new float4(terrain.normalization, terrain.octaves, 0, 0);
                     sdfObjects.Add(curSDF);
                 }
 

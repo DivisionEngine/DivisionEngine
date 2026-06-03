@@ -249,14 +249,17 @@ namespace DivisionEngine.Rendering
 
         public void UpdateHoveredHandle(int mouseX, int mouseY)
         {
-            if (HandleIds == null || RendererWindow == null) return;
+            lock (SyncLock)
+            {
+                if (HandleIds == null || RendererWindow == null) return;
 
-            int width = RendererWindow.Size.X;
-            int height = RendererWindow.Size.Y;
+                int width = RendererWindow.Size.X;
+                int height = RendererWindow.Size.Y;
 
-            if (mouseX >= 0 && mouseX < width && mouseY >= 0 && mouseY < height)
-                currentHoveredHandle = HandleIds[mouseX + (height - 1 - mouseY) * width];
-            else currentHoveredHandle = 0;
+                if (mouseX >= 0 && mouseX < width && mouseY >= 0 && mouseY < height)
+                    currentHoveredHandle = HandleIds[mouseX + (height - 1 - mouseY) * width];
+                else currentHoveredHandle = 0;
+            }
         }
 
         public void ShowIcon(float3 position, IconType icon, float3 direction, uint entityId)
