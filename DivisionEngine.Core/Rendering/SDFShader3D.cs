@@ -783,6 +783,23 @@ namespace DivisionEngine
 
         #region raymarching
 
+        //private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out int closestObj, out float depth, out int steps)
+        //{
+        //    depth = worldData.nearPlane;
+        //    closestObj = -1;
+        //    float3 hitPoint = rayOrigin;
+
+        //    for (steps = 0; steps < maxSteps && depth < farClipPlane; steps++)
+        //    {
+        //        hitPoint = rayOrigin + rayDir * depth;
+        //        float worldDist = WorldSDF(hitPoint, false, uint.MaxValue, out closestObj);
+
+        //        if (worldDist < AdaptiveEpsilon(depth)) break;
+        //        depth += worldDist;
+        //    }
+        //    return hitPoint;
+        //}
+
         private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps,
             float farClipPlane, out int closestObj, out float depth, out int steps)
         {
@@ -804,7 +821,8 @@ namespace DivisionEngine
                     float tMax = depth;
                     const float BISECT_EPS = EPSILON * 10f;
 
-                    for (int refine = 0; refine < 16; refine++) // More iterations
+                    int maxRefine = (depth < 100f) ? 8 : 4;
+                    for (int refine = 0; refine < maxRefine; refine++)
                     {
                         float tMid = (tMin + tMax) * 0.5f;
                         float3 refinePoint = rayOrigin + rayDir * tMid;

@@ -9,6 +9,7 @@ using ComputeSharp;
 using DivisionEngine.Components;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
+using DivisionEngine.Rendering.Terrains;
 using DivisionEngine.Settings;
 using DivisionEngine.Systems;
 using Silk.NET.Input;
@@ -125,6 +126,10 @@ namespace DivisionEngine.Rendering
         // Buffer storage
         private ReadOnlyBuffer<SDFObjectDTO>? sdfObjBuffer;
         private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
+
+        // Terrain storage
+        private ReadOnlyBuffer<TerrainData>? terrainHeightBuffer;
+        private ReadOnlyBuffer<TerrainMetadata>? terrainMetadataBuffer;
 
         /// <summary>
         /// Rendered pixels buffer.
@@ -486,9 +491,7 @@ namespace DivisionEngine.Rendering
                 sdfObjDTO = SDFRenderSystem.PreparedSDFObjectsDTO;
                 sdfLightsDTO = SDFRenderSystem.PreparedLightsDTO;
             }
-
             if (sdfObjDTO.Length < 1) return;
-            //Debug.Warning("device name: " + device.Name);
 
             try
             {

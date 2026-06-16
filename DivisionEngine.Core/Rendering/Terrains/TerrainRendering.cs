@@ -9,6 +9,30 @@ using ComputeSharp;
 
 namespace DivisionEngine.Rendering.Terrains
 {
+    /// <summary>
+    /// Stores data for a single terrain cell.
+    /// </summary>
+    public struct TerrainData
+    {
+        public float height;
+        public float2 slope;
+    }
+
+    /// <summary>
+    /// Metadata for a precomputed terrain heightfield.
+    /// </summary>
+    public struct TerrainMetadata
+    {
+        public float3 worldMin;
+        public float3 worldMax;
+        public int2 resolution;  // Width, Height
+        public int bufferOffset;  // Starting index in the big buffer
+        public float heightScale;
+        public float heightOffset;
+        public int terrainIndex;  // Which terrain this is
+        public float size;        // Original terrain scale
+    }
+
     public static class TerrainRendering
     {
         // Constants
