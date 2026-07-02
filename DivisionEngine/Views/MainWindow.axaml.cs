@@ -240,7 +240,7 @@ namespace DivisionEngine.Editor
         /// Called when play mode changes.
         /// </summary>
         /// <param name="inPlayMode">Is the engine in play mode or no</param>
-        private void OnPlayModeChanged(bool inPlayMode) => Avalonia.Threading.Dispatcher.UIThread.Post(UpdatePlayControlsUI);
+        private void OnPlayModeChanged(bool inPlayMode) => Dispatcher.UIThread.Post(UpdatePlayControlsUI);
 
         /// <summary>
         /// Updates the play controls UI based on current engine state.

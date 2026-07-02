@@ -113,28 +113,28 @@
 
         <!-- Play Controls Toolbar -->
         <Border Height="34">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="4, 0, 4, 0">
                 <!-- Play/Stop Button -->
-                <Button x:Name="PlayButton" Width="32" Height="28" Margin="2,0" Padding="0"
-                        Background="#222" BorderThickness="0" Cursor="Hand">
+                <Button x:Name="PlayButton" Width="32" Height="28" Margin="0" Padding="0" Background="#222"
+                        BorderThickness="0, 0, 0, 2" BorderBrush="#111" CornerRadius="8, 0, 0, 8" Cursor="Hand">
                     <Button.Content>
-                        <icons:MaterialIcon x:Name="PlayIcon" Kind="Play" Width="16" Height="16" Foreground="#8f8"/>
+                        <icons:MaterialIcon x:Name="PlayIcon" Kind="Play" Width="16" Height="16" Foreground="#bfff00"/>
                     </Button.Content>
                 </Button>
             
                 <!-- Pause/Resume Button -->
-                <Button x:Name="PauseButton" Width="32" Height="28" Margin="2,0" Padding="0"
-                        Background="#222" BorderThickness="0" Cursor="Hand">
+                <Button x:Name="PauseButton" Width="32" Height="28" Margin="0" Padding="0" Background="#222"
+                        BorderThickness="0, 0, 0, 2" BorderBrush="#111" CornerRadius="0" Cursor="Hand">
                     <Button.Content>
                         <icons:MaterialIcon x:Name="PauseIcon" Kind="Pause" Width="16" Height="16" Foreground="#fb2"/>
                     </Button.Content>
                 </Button>
             
                 <!-- Advance Frame Button (only enabled when paused) -->
-                <Button x:Name="AdvanceFrameButton" Width="32" Height="28" Margin="2,0" Padding="0"
-                        Background="#222" BorderThickness="0" Cursor="Hand" IsEnabled="False">
+                <Button x:Name="AdvanceFrameButton" Width="32" Height="28" Margin="0" Padding="0" Background="#222" 
+                        BorderThickness="0, 0, 2, 2" BorderBrush="#111" CornerRadius="0, 8, 8, 0" Cursor="Hand" IsEnabled="False">
                     <Button.Content>
-                        <icons:MaterialIcon Kind="StepForward" Width="16" Height="16" Foreground="#7f2"/>
+                        <icons:MaterialIcon Kind="StepForward" Width="16" Height="16" Foreground="#bfff00"/>
                     </Button.Content>
                 </Button>
             

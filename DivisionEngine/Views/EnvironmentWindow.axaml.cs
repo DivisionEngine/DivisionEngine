@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using DivisionEngine.MathLib;
 using DivisionEngine.Rendering;
 using DivisionEngine.Systems;
 using System.Collections.Generic;
@@ -25,7 +26,7 @@ public partial class EnvironmentWindow : EditorWindow
     private readonly DockPanel mainPanel;
     private readonly StackPanel headerPanel;
     private readonly ComboBox debugMode;
-    private CheckBox? iconsToggle;
+    private readonly CheckBox? iconsToggle;
 
     public readonly Panel renderVisualizerFrame;
     public readonly TextBlock widthHeightText;
@@ -107,7 +108,7 @@ public partial class EnvironmentWindow : EditorWindow
         }
         widthHeightText = new TextBlock
         {
-            Text = $"(Width {width}px,  Height {height}px,  FPS {TimeSystem.FPS})",
+            Text = $"(Width {width}px,  Height {height}px,  FPS {Math.Round(TimeSystem.FPS)})",
             FontSize = 12,
             FontWeight = FontWeight.Regular,
             Foreground = EditorColor.FromRGB(128, 128, 128),

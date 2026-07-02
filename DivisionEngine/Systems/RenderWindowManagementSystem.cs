@@ -160,7 +160,7 @@ namespace DivisionEngine.Editor.Systems
                     App.Renderer.RendererWindow.Size = new Silk.NET.Maths.Vector2D<int>(physicalWidth, physicalHeight);
 
                     // Update window text (show DPI size for reference)
-                    win.widthHeightText.Text = $"(Width {(int)sizeDPI.Width}px,  Height {(int)sizeDPI.Height}px,  FPS {TimeSystem.FPS})";
+                    win.widthHeightText.Text = $"(Width {(int)sizeDPI.Width}px,  Height {(int)sizeDPI.Height}px,  FPS {Math.Round(TimeSystem.FPS)})";
                 }
                 else if (App.RendererVisible) _ = App.SetEditorRenderingAsync(false);
             }
