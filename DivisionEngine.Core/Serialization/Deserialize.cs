@@ -192,32 +192,11 @@ namespace DivisionEngine.Serialization
         /// <returns>True if the field should be deserialized</returns>
         private static bool ShouldDeserializeField(FieldInfo field)
         {
-            // 1. Skip constants (const)
-            if (field.IsLiteral && !field.IsInitOnly)
-                return false;
-
-            // 2. Skip static fields
-            if (field.IsStatic)
-                return false;
-
-            // 3. Skip readonly fields (optional - depends on your needs)
-            // If you want to preserve readonly values from serialization, you might want to
-            // allow deserialization but be careful with init-only properties
-            if (field.IsInitOnly && !field.IsLiteral)
-                return false;
-
-            // 4. Skip fields with [NonSerialized]
-            if (field.GetCustomAttribute<NonSerializedAttribute>() != null)
-                return false;
-
-            // 6. Skip compiler-generated fields (like backing fields)
-            if (field.GetCustomAttribute<CompilerGeneratedAttribute>() != null)
-                return false;
-
-            // 7. Skip fields with [HideInInspector] (if you want to keep them hidden)
-            if (field.GetCustomAttribute<HideInEditorAttribute>() != null)
-                return false;
-
+            if ((field.IsLiteral && !field.IsInitOnly) ||  // skip constants
+                field.IsStatic || // skip static
+                (field.IsInitOnly && !field.IsLiteral) || // skip readonly fields
+                field.GetCustomAttribute<NonSerializedAttribute>() != null || // skip nonserialized
+                field.GetCustomAttribute<CompilerGeneratedAttribute>() != null) return false; // skip hide in editor
             return true;
         }
     }
