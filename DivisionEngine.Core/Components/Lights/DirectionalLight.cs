@@ -5,6 +5,7 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using DivisionEngine.Components.FieldAttributes;
 using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Components.Lights
@@ -14,7 +15,7 @@ namespace DivisionEngine.Components.Lights
     /// </summary>
     public class DirectionalLight : IComponent
     {
-        public float4 color = ColorPalette.White;
+        [Color(false)] public float4 color = ColorPalette.White;
         public float intensity = 1f;
 
         public IComponent Clone() => new DirectionalLight

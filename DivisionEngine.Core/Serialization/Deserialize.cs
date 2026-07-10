@@ -51,11 +51,13 @@ namespace DivisionEngine.Serialization
                     continue;
                 }
 
+                // Skip fields that shouldn't be deserialized
+                if (!ShouldDeserializeField(field)) continue;
+
                 try
                 {
                     object? value = ParsePropertyValue(kvp.Value, field.FieldType);
-                    if (value != null)
-                        field.SetValue(component, value);
+                    if (value != null) field.SetValue(component, value);
                 }
                 catch (Exception ex)
                 {
