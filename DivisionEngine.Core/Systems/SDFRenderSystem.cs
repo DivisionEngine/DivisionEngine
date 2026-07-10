@@ -5,6 +5,7 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using ComputeSharp;
 using DivisionEngine.Components;
 using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs;
@@ -12,6 +13,7 @@ using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
 using DivisionEngine.MathLib;
 using DivisionEngine.Rendering;
+using System.Diagnostics.CodeAnalysis;
 using Environment = DivisionEngine.Components.Environment;
 using Math = DivisionEngine.MathLib.Math;
 
@@ -38,6 +40,11 @@ namespace DivisionEngine.Systems
         /// Prepared settings for all SDF lights in the world.
         /// </summary>
         public static SDFLightDTO[] PreparedLightsDTO { get; private set; } = [];
+
+        /// <summary>
+        /// Helper used to quickly get the world data in an allocated compute buffer.
+        /// </summary>
+        public static ReadOnlyBuffer<SDFWorldDTO>? WorldDataBuffer { get; private set; }
 
         /// <summary>
         /// Called right before the world is rendered to screen.
@@ -315,6 +322,13 @@ namespace DivisionEngine.Systems
             }
 
             return (worldData, sdfObjects.ToArray(), sdfLights.ToArray());
+        }
+
+        [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
+        public static void UploadWorldData(GraphicsDevice device)
+        {
+            WorldDataBuffer?.Dispose();
+            WorldDataBuffer = device.AllocateReadOnlyBuffer([PreparedWorldDTO]);
         }
     }
 }

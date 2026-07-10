@@ -7,6 +7,7 @@
 //
 using DivisionEngine.Components.FieldAttributes;
 using DivisionEngine.MathLib;
+using DivisionEngine.Projects.Assets;
 
 namespace DivisionEngine.Components.SDFs
 {
@@ -38,6 +39,17 @@ namespace DivisionEngine.Components.SDFs
         const float IOR_ACRYLIC = 1.49f;
         const float IOR_POLYCARBONATE = 1.58f;
 
+        // Textures
+        public AssetRef<TextureAsset> albedoMap = default;
+        public AssetRef<TextureAsset> normalMap = default;
+        public AssetRef<TextureAsset> roughnessMap = default;
+        public AssetRef<TextureAsset> metallicMap = default;
+        public AssetRef<TextureAsset> emissiveMap = default;
+
+        // UV scale/offset
+        public float2 uvScale = new float2(1f, 1f);
+        public float2 uvOffset = float2.Zero;
+
         [Color(false)] public float4 albedoColor = ColorPalette.White;
         [Range(0f, 1f)] public float metallic = 0.8f;
         [Range(0f, 1f)] public float roughness = 0.2f;
@@ -62,6 +74,14 @@ namespace DivisionEngine.Components.SDFs
 
         public IComponent Clone() => new SDFMaterial
         {
+            albedoMap = albedoMap,
+            normalMap = normalMap,
+            roughnessMap = roughnessMap,
+            metallicMap = metallicMap,
+            emissiveMap = emissiveMap,
+            uvScale = uvScale,
+            uvOffset = uvOffset,
+
             albedoColor = albedoColor,
             metallic = metallic,
             roughness = roughness,

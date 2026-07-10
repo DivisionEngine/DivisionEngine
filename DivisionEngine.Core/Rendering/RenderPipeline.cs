@@ -10,6 +10,7 @@ using DivisionEngine.Components;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
 using DivisionEngine.Rendering.Terrains;
+using DivisionEngine.Rendering.Textures;
 using DivisionEngine.Settings;
 using DivisionEngine.Systems;
 using Silk.NET.Input;
@@ -126,10 +127,12 @@ namespace DivisionEngine.Rendering
         // Buffer storage
         private ReadOnlyBuffer<SDFObjectDTO>? sdfObjBuffer;
         private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
+        private ReadOnlyBuffer<TextureData>? textureBuffer;
+        private ReadOnlyBuffer<TextureMetadata>? textureMetaBuffer;
 
         // Terrain storage
-        private ReadOnlyBuffer<TerrainData>? terrainHeightBuffer;
-        private ReadOnlyBuffer<TerrainMetadata>? terrainMetadataBuffer;
+        private readonly ReadOnlyBuffer<TerrainData>? terrainHeightBuffer;
+        private readonly ReadOnlyBuffer<TerrainMetadata>? terrainMetadataBuffer;
 
         /// <summary>
         /// Rendered pixels buffer.
@@ -144,7 +147,7 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Is checkerboard rendering enabled (renders half the pixels each frame).
         /// </summary>
-        public bool CheckerboardRenderingEnabled => EngineSettings.Instance?.CheckerboardRendering ?? false;
+        public static bool CheckerboardRenderingEnabled => EngineSettings.Instance?.CheckerboardRendering ?? false;
 
         // Time measurement
 
@@ -164,11 +167,11 @@ namespace DivisionEngine.Rendering
         private uint currentHoveredHandle = 0;
 
         // Icons
-        private Dictionary<uint, (float3 position, IconType iconType, float3 direction)> iconsToRender = [];
+        private readonly Dictionary<uint, (float3 position, IconType iconType, float3 direction)> iconsToRender = [];
         private ReadWriteBuffer<uint>? iconIdBuffer;
 
         // Custom Shapes
-        private Dictionary<uint, HandleShape> customShapes = new();
+        private readonly Dictionary<uint, HandleShape> customShapes = [];
         private ReadWriteBuffer<uint>? customShapeIdBuffer;
         
 
@@ -485,11 +488,17 @@ namespace DivisionEngine.Rendering
             SDFWorldDTO worldDTO;
             SDFObjectDTO[] sdfObjDTO;
             SDFLightDTO[] sdfLightsDTO;
+
+            TextureData[] sdfTextureDTO;
+            TextureMetadata[] sdfTextureMetaDTO;
             lock (SyncLock)
             {
                 worldDTO = SDFRenderSystem.PreparedWorldDTO;
                 sdfObjDTO = SDFRenderSystem.PreparedSDFObjectsDTO;
                 sdfLightsDTO = SDFRenderSystem.PreparedLightsDTO;
+
+                sdfTextureDTO = TextureSystem.AllTextureData;
+                sdfTextureMetaDTO = TextureSystem.AllTextureMetadata;
             }
             if (sdfObjDTO.Length < 1) return;
 
@@ -575,6 +584,14 @@ namespace DivisionEngine.Rendering
                     lightsBuffer = Device?.AllocateReadOnlyBuffer(sdfLightsDTO);
                     if (lightsBuffer == null) return;
 
+                    textureBuffer?.Dispose();
+                    textureBuffer = Device?.AllocateReadOnlyBuffer(sdfTextureDTO);
+                    if (textureBuffer == null) return;
+
+                    textureMetaBuffer?.Dispose();
+                    textureMetaBuffer = Device?.AllocateReadOnlyBuffer(sdfTextureMetaDTO);
+                    if (textureMetaBuffer == null) return;
+
                     // Dispatch SDF compute shader
                     int outputMode = 0;
                     if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
@@ -593,10 +610,23 @@ namespace DivisionEngine.Rendering
                         dispatchHeight = texHeight;
                     }
 
-                    // Debugging handled in-shader now (again)
-                    SDFShader3D shader = new SDFShader3D(texWidth, texHeight, testBackgroundTex.Width, testBackgroundTex.Height,
-                        texWidth / (float)texHeight, TimeSystem.FrameCount, (int)debugMode, checkerboardEnabled, worldDTO,
-                        renderTex, depthNormalsTex, objectIdBuffer, sdfObjBuffer, lightsBuffer, testBackgroundTex);
+                    // Quickly update the world data buffer
+                    SDFRenderSystem.UploadWorldData(Device!);
+                    SDFShader3D shader = new SDFShader3D
+                        (texWidth,
+                        texHeight,
+                        texWidth / (float)texHeight,
+                        TimeSystem.FrameCount,
+                        (int)debugMode,
+                        checkerboardEnabled,
+                        SDFRenderSystem.WorldDataBuffer!,
+                        renderTex,
+                        depthNormalsTex,
+                        objectIdBuffer,
+                        sdfObjBuffer,
+                        lightsBuffer,
+                        textureBuffer,
+                        textureMetaBuffer);
                     Device?.For(dispatchWidth, dispatchHeight, shader);
                 }
 
@@ -610,8 +640,15 @@ namespace DivisionEngine.Rendering
                     lock (SyncLock)
                     {
                         DivisionDenoiseShader denoiseShader = new DivisionDenoiseShader(
-                            texWidth, texHeight, worldDTO.divisionThreshold, worldDTO.divisionDomain,
-                            currentTexture, denoisedTex, depthNormalsTex, sdfObjBuffer, objectIdBuffer);
+                            texWidth,
+                            texHeight,
+                            worldDTO.divisionThreshold,
+                            worldDTO.divisionDomain,
+                            currentTexture,
+                            denoisedTex,
+                            depthNormalsTex,
+                            sdfObjBuffer,
+                            objectIdBuffer);
                         Device?.For(texWidth, texHeight, denoiseShader);
                     }
                     currentTexture = denoisedTex;
@@ -630,8 +667,15 @@ namespace DivisionEngine.Rendering
                         lock (SyncLock)
                         {
                             ATrousDenoiseShader aTrousShader = new ATrousDenoiseShader(
-                                texWidth, texHeight, stepSize, ping, pong, depthNormalsTex,
-                                sdfObjBuffer, objectIdBuffer, kernelBuffer);
+                                texWidth,
+                                texHeight,
+                                stepSize,
+                                ping,
+                                pong,
+                                depthNormalsTex,
+                                sdfObjBuffer,
+                                objectIdBuffer,
+                                kernelBuffer);
                             Device?.For(texWidth, texHeight, aTrousShader);
                         }
 
@@ -653,8 +697,14 @@ namespace DivisionEngine.Rendering
                         lock (SyncLock)
                         {
                             FastDepthOfFieldShader dofShader = new FastDepthOfFieldShader(
-                                texWidth, texHeight, // Max blur radius
-                                source, target, depthNormalsTex, objectIdBuffer, sdfObjBuffer, worldDTO);
+                                texWidth,
+                                texHeight, // Max blur radius
+                                source,
+                                target,
+                                depthNormalsTex,
+                                objectIdBuffer,
+                                sdfObjBuffer,
+                                worldDTO);
                             Device?.For(texWidth, texHeight, dofShader);
                         }
                         currentTexture = target;

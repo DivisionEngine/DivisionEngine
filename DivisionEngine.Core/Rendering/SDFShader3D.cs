@@ -10,6 +10,7 @@
 using ComputeSharp;
 using DivisionEngine.Rendering;
 using DivisionEngine.Rendering.Terrains;
+using DivisionEngine.Rendering.Textures;
 
 namespace DivisionEngine
 {
@@ -18,19 +19,18 @@ namespace DivisionEngine
     public readonly partial struct SDFShader3D(
         float width,
         float height,
-        float backgroundWidth,
-        float backgroundHeight,
         float aspect,
         int frameCount,
         int debugMode,
         int enableCheckerboard,
-        SDFWorldDTO worldData,
+        ReadOnlyBuffer<SDFWorldDTO> worldData,
         ReadWriteTexture2D<float4> texture,
         ReadWriteTexture2D<float4> depthNormals,
         ReadWriteBuffer<uint2> entityIdBuffer,
         ReadOnlyBuffer<SDFObjectDTO> sdfObjects,
         ReadOnlyBuffer<SDFLightDTO> lights,
-        ReadOnlyTexture2D<float4> inputTestTexture) : IComputeShader
+        ReadOnlyBuffer<TextureData> textureData,
+        ReadOnlyBuffer<TextureMetadata> textureMetadata) : IComputeShader
     {
         // Main constants
         const float EPSILON = 0.0001f;
@@ -43,6 +43,8 @@ namespace DivisionEngine
         const float MIN_REFLECTION_CHANCE = 0.01f;
         const float MIN_THROUGHPUT = 0.01f;
         const float REFLECTION_BIAS = 2f; // Multiplier for normal offset
+
+        #region math_functions
 
         /// <summary>
         /// Picks a random color from an integer.
@@ -70,7 +72,7 @@ namespace DivisionEngine
 
         private float AdaptiveEpsilon(float td)
         {
-            float pixelSize = Hlsl.Max(td * worldData.camScreenDist / height, td * worldData.camScreenDist / width);
+            float pixelSize = Hlsl.Max(td * worldData[0].camScreenDist / height, td * worldData[0].camScreenDist / width);
             return Hlsl.Max(EPSILON, pixelSize); // Could use half pixel size
         }
 
@@ -84,11 +86,57 @@ namespace DivisionEngine
 
         private float3 GetCameraRayDirNew(float2 uv)
         {
-            float px = uv.X * aspect * worldData.camScreenDist;
-            float py = uv.Y * worldData.camScreenDist;
-            float3 rayDir = worldData.camForward + worldData.camRight * px + worldData.camUp * py;
+            float px = uv.X * aspect * worldData[0].camScreenDist;
+            float py = uv.Y * worldData[0].camScreenDist;
+            float3 rayDir = worldData[0].camForward + worldData[0].camRight * px + worldData[0].camUp * py;
             return Hlsl.Normalize(rayDir);
         }
+
+        #endregion math_functions
+        #region textures
+
+        // Add sampling method:
+        private float4 SampleTexture(int textureId, float2 uv)
+        {
+            TextureMetadata meta = textureMetadata[textureId];
+            int x = (int)(uv.X * (meta.resolution.X - 1));
+            int y = (int)(uv.Y * (meta.resolution.Y - 1));
+            int index = meta.bufferOffset + y * meta.resolution.X + x;
+            return textureData[index].pixel;
+        }
+
+        // Bilinear filtering version:
+        private float4 SampleTextureBilinear(int textureId, float2 uv)
+        {
+            TextureMetadata meta = textureMetadata[textureId];
+            float u = uv.X * (meta.resolution.X - 1);
+            float v = uv.Y * (meta.resolution.Y - 1);
+
+            int x0 = (int)u;
+            int y0 = (int)v;
+            int x1 = Hlsl.Min(x0 + 1, meta.resolution.X - 1);
+            int y1 = Hlsl.Min(y0 + 1, meta.resolution.Y - 1);
+
+            float u_frac = u - x0;
+            float v_frac = v - y0;
+
+            int idx00 = meta.bufferOffset + y0 * meta.resolution.X + x0;
+            int idx10 = meta.bufferOffset + y0 * meta.resolution.X + x1;
+            int idx01 = meta.bufferOffset + y1 * meta.resolution.X + x0;
+            int idx11 = meta.bufferOffset + y1 * meta.resolution.X + x1;
+
+            float4 c00 = textureData[idx00].pixel;
+            float4 c10 = textureData[idx10].pixel;
+            float4 c01 = textureData[idx01].pixel;
+            float4 c11 = textureData[idx11].pixel;
+
+            float4 c0 = Hlsl.Lerp(c00, c10, u_frac);
+            float4 c1 = Hlsl.Lerp(c01, c11, u_frac);
+            return Hlsl.Lerp(c0, c1, v_frac);
+        }
+
+        #endregion textures
+        #region sdfs
 
         private static float SphereSDF(float3 pt, float r)
         {
@@ -241,12 +289,15 @@ namespace DivisionEngine
             float offset = heightOffset * erosionResult.W; // W is magnitude
             float erodedHeightNorm = baseHeightNorm + erosionResult.X + offset;
 
-            // NOW scale to world units
+            // Scale to world units
             float erodedHeight = (erodedHeightNorm - 0.5f) * heightScale; // [0,1] -> world space
 
             float terrain = pt.Y - erodedHeight;
             return terrain;
         }
+
+        #endregion sdfs
+        #region sdf_sampling
 
         /// <summary>
         /// Calculates the SDF distance for the world at a point.
@@ -309,6 +360,9 @@ namespace DivisionEngine
             return minDist;
         }
 
+        #endregion sdf_sampling
+        #region normals
+
         // -------
         // Normals
         // -------
@@ -358,6 +412,9 @@ namespace DivisionEngine
         //    return Hlsl.Normalize(new float3(dx, dy, dz));
         //}
 
+        #endregion normals
+        #region lighting
+
         // --------------------
         // Lighting Calculation
         // --------------------
@@ -371,13 +428,13 @@ namespace DivisionEngine
             float shadow = 1f;
             closestObj = -1;
 
-            for (int i = 0; i < worldData.maxShadowRaySteps; ++i)
+            for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
             {
                 dist = WorldSDF(point + depth * dir, true, uint.MaxValue, out closestObj);
                 if (depth > end) break;
                 //if (shadow < 0f) break; // Already fully in shadow, stop early
 
-                shadow = Hlsl.Min(shadow, worldData.shadowScale * dist / depth);
+                shadow = Hlsl.Min(shadow, worldData[0].shadowScale * dist / depth);
                 depth += Hlsl.Clamp(dist, 0.05f, 10f); // Larger minimum step than 0.01
             }
 
@@ -472,9 +529,20 @@ namespace DivisionEngine
             return 1f - occlusion;
         }
 
+        #endregion lighting
+        #region pbr_workflow
+
         // ------------------------------
         // New Correct PBR BRDF Functions
         // ------------------------------
+
+        private float4 GetMaterialColor(int albedoTextureId, float2 uv)
+        {
+            if (albedoTextureId < 0 || albedoTextureId >= textureMetadata.Length)
+                return float4.One; // No texture, return white
+
+            return SampleTextureBilinear(albedoTextureId, uv);
+        }
 
         private static float3 FresnelSchlick(float cosTheta, float3 f0)
         {
@@ -660,13 +728,13 @@ namespace DivisionEngine
                 float3 normal = depthNormals[pixel].GBA;
                 float3 viewDir = -rayDir;
 
-                if (Hlsl.Length(-worldData.mainLightDir) > 0f)
+                if (Hlsl.Length(-worldData[0].mainLightDir) > 0f)
                 {
-                    float NoL = Hlsl.Max(Hlsl.Dot(normal, -worldData.mainLightDir), 0f);
+                    float NoL = Hlsl.Max(Hlsl.Dot(normal, -worldData[0].mainLightDir), 0f);
                     if (NoL > 0f)
                     {
                         // Visualize different BRDF components
-                        float3 brdf = BRDFMicrofacetFunction(-worldData.mainLightDir, viewDir, normal,
+                        float3 brdf = BRDFMicrofacetFunction(-worldData[0].mainLightDir, viewDir, normal,
                             entity.metallic, entity.roughness * entity.roughness,
                             entity.color.RGB, entity.specular);
 
@@ -675,7 +743,7 @@ namespace DivisionEngine
                         else if (debugMode == 7) // Specular only
                         {
                             // Calculate just the specular component
-                            float3 halfwayDir = Hlsl.Normalize(viewDir + -worldData.mainLightDir);
+                            float3 halfwayDir = Hlsl.Normalize(viewDir + -worldData[0].mainLightDir);
                             float NoV = Hlsl.Saturate(Hlsl.Dot(normal, viewDir));
                             float NoH = Hlsl.Saturate(Hlsl.Dot(normal, halfwayDir));
                             float VoH = Hlsl.Saturate(Hlsl.Dot(viewDir, halfwayDir));
@@ -695,7 +763,7 @@ namespace DivisionEngine
                         {
                             // Calculate just the diffuse component
                             float NoV = Hlsl.Saturate(Hlsl.Dot(normal, viewDir));
-                            float VoH = Hlsl.Saturate(Hlsl.Dot(viewDir, Hlsl.Normalize(viewDir + -worldData.mainLightDir)));
+                            float VoH = Hlsl.Saturate(Hlsl.Dot(viewDir, Hlsl.Normalize(viewDir + -worldData[0].mainLightDir)));
 
                             float3 rhoD = entity.color.RGB;
                             rhoD *= DisneyDiffuseFactor(NoV, NoL, VoH, entity.roughness * entity.roughness);
@@ -723,65 +791,12 @@ namespace DivisionEngine
             //return new float3(D, G, (F.X + F.Y + F.Z) / 3.0f);
         }
 
-        // --------------
-        // Volumetric Fog
-        // --------------
-
-        // Henyey-Greenstein phase function for volumetric scattering
-        private float PhaseFunction(float cosTheta, float g)
-        {
-            float g2 = g * g;
-            return (1.0f - g2) / (4.0f * PI * Hlsl.Pow(1.0f + g2 - 2.0f * g * cosTheta, 1.5f));
-        }
-
-        // Simple volumetric fog integration along ray
-        private float3 IntegrateVolumetricFog(float3 rayOrigin, float3 rayDir, float startDist, float endDist,
-            float3 lightDir, float3 lightColor)
-        {
-            if (worldData.fogDensity <= 0.0f) return float3.Zero;
-
-            float3 fogColor = float3.Zero;
-            float stepSize = (endDist - startDist) / 16.0f; // Simple fixed steps for performance
-            float t = startDist;
-
-            for (int i = 0; i < 16; i++)
-            {
-                float3 samplePoint = rayOrigin + rayDir * t;
-
-                // Sample fog density (could be modulated by SDF if needed)
-                float density = worldData.fogDensity;
-
-                // Calculate in-scattering from light
-                float3 inScatter = float3.Zero;
-                if (worldData.fogScattering > 0.0f)
-                {
-                    // Shadow test for light in fog (optional for performance)
-                    float3 lightVec = lightDir;
-                    float NoL = Hlsl.Max(Hlsl.Dot(rayDir, lightDir), 0.0f);
-
-                    // Henyey-Greenstein phase function
-                    float phase = PhaseFunction(NoL, worldData.fogAnisotropy);
-
-                    // Light contribution
-                    inScatter = lightColor * worldData.fogScattering * phase * density;
-                }
-
-                // Accumulate fog (simplified exponential absorption)
-                float transmittance = Hlsl.Exp(-worldData.fogAbsorption * density * stepSize);
-                fogColor += (worldData.fogColor.RGB * density * stepSize + inScatter * stepSize) * transmittance;
-
-                t += stepSize;
-                if (t >= endDist) break;
-            }
-
-            return fogColor;
-        }
+        #endregion pbr_workflow
+        #region raymarching
 
         // -----------
         // Raymarching
         // -----------
-
-        #region raymarching
 
         //private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps, float farClipPlane, out int closestObj, out float depth, out int steps)
         //{
@@ -803,7 +818,7 @@ namespace DivisionEngine
         private float3 Raymarch(float3 rayOrigin, float3 rayDir, int maxSteps,
             float farClipPlane, out int closestObj, out float depth, out int steps)
         {
-            depth = worldData.nearPlane;
+            depth = worldData[0].nearPlane;
             closestObj = -1;
             float3 hitPoint = rayOrigin;
             float lastSafeDepth = depth;
@@ -975,7 +990,7 @@ namespace DivisionEngine
                     {
                         // Raymarch from exit point
                         float3 rayStart = exitPt + currentNormal * EPSILON;
-                        float3 hitPoint = Raymarch(rayStart, currentDir, worldData.maxRaySteps, worldData.farPlane,
+                        float3 hitPoint = Raymarch(rayStart, currentDir, worldData[0].maxRaySteps, worldData[0].farPlane,
                             out int nextObjIndex, out _, out tracedSteps);
                         steps += tracedSteps;
 
@@ -1009,10 +1024,10 @@ namespace DivisionEngine
             normal = float3.Zero;
 
             // Trace
-            int maxRaySteps = worldData.maxRaySteps;
-            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, worldData.farPlane, out int closestObjIndex, out totalDist, out steps);
+            int maxRaySteps = worldData[0].maxRaySteps;
+            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, worldData[0].farPlane, out int closestObjIndex, out totalDist, out steps);
 
-            if (closestObjIndex == -1 || totalDist > worldData.farPlane)
+            if (closestObjIndex == -1 || totalDist > worldData[0].farPlane)
             {
                 finalColor += backgroundCol;
                 return finalColor;
@@ -1055,7 +1070,7 @@ namespace DivisionEngine
             SDFObjectDTO mainMat = default;
             outputNormal = float3.Zero;
             totalDist = 0f;
-            float farClipPlane = worldData.farPlane;
+            float farClipPlane = worldData[0].farPlane;
             bool firstHit = true;
             steps = 0;
 
@@ -1066,7 +1081,7 @@ namespace DivisionEngine
             float aoValue = 1f;
 
             // Adaptive reflection step sizes
-            int maxRaySteps = worldData.maxRaySteps;
+            int maxRaySteps = worldData[0].maxRaySteps;
             for (int bounce = 0; bounce < 32; bounce++)
             {
                 // Raymarch
@@ -1076,7 +1091,7 @@ namespace DivisionEngine
 
                 if (closestObjIndex == -1 || depth > farClipPlane)
                 {
-                    finalColor += contribution * worldData.backgroundColor.XYZ;
+                    finalColor += contribution * worldData[0].backgroundColor.XYZ;
                     if (firstHit) totalDist = depth;
                     break;
                 }
@@ -1103,7 +1118,7 @@ namespace DivisionEngine
                     mainMat = entity;
 
                     // Calculate ambient light
-                    ambientBase = Hlsl.Lerp(entity.color.RGB, worldData.backgroundColor.RGB, worldData.ambientStrength) * worldData.ambientStrength;
+                    ambientBase = Hlsl.Lerp(entity.color.RGB, worldData[0].backgroundColor.RGB, worldData[0].ambientStrength) * worldData[0].ambientStrength;
                     if (aoStrength > 0f)
                         aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, entity), aoStrength);
 
@@ -1111,7 +1126,7 @@ namespace DivisionEngine
                     {
                         isRefractive = true;
                         fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, worldData.backgroundColor.RGB, normal, entity, out tracedSteps);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, worldData[0].backgroundColor.RGB, normal, entity, out tracedSteps);
                         steps += tracedSteps;
                     }
                     firstHit = false;
@@ -1163,6 +1178,7 @@ namespace DivisionEngine
         }
 
         #endregion raymarching
+        #region main
 
         /// <summary>
         /// Executes the raymarching sequence.
@@ -1187,7 +1203,7 @@ namespace DivisionEngine
             entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2(uint.MaxValue, uint.MaxValue);
 
             float2 uv = (float2)pixel / new float2(width, height) * 2f - 1f; // UV math
-            float3 rayOrigin = worldData.cameraOrigin;
+            float3 rayOrigin = worldData[0].cameraOrigin;
 
             float3 accumulatedColor = float3.Zero;
             float3 accumulatedNormal = float3.Zero;
@@ -1222,7 +1238,7 @@ namespace DivisionEngine
                 accumulatedDistance += dist;
             }
 
-            float maxPossibleDistance = worldData.farPlane - worldData.nearPlane;
+            float maxPossibleDistance = worldData[0].farPlane - worldData[0].nearPlane;
             float3 finalColor = accumulatedColor / SAMPLES_PER_PIXEL;
             float3 finalNormal = accumulatedNormal / SAMPLES_PER_PIXEL;
             float finalDist = accumulatedDistance / SAMPLES_PER_PIXEL;
@@ -1251,9 +1267,9 @@ namespace DivisionEngine
                 }
                 else if (debugMode == 4) // Ray steps
                 {
-                    float stepValue1 = Hlsl.Saturate((float)steps / worldData.maxRaySteps);
-                    float stepValue2 = Hlsl.Saturate((float)(steps - worldData.maxRaySteps) / worldData.maxRaySteps);
-                    float stepValue3 = Hlsl.Saturate((float)(steps - worldData.maxRaySteps * 2) / worldData.maxRaySteps);
+                    float stepValue1 = Hlsl.Saturate((float)steps / worldData[0].maxRaySteps);
+                    float stepValue2 = Hlsl.Saturate((float)(steps - worldData[0].maxRaySteps) / worldData[0].maxRaySteps);
+                    float stepValue3 = Hlsl.Saturate((float)(steps - worldData[0].maxRaySteps * 2) / worldData[0].maxRaySteps);
                     texture[pixel] = new float4(stepValue1, stepValue2, stepValue3, 1);
                 }
                 else if (debugMode == 5) // Shadows
@@ -1266,13 +1282,13 @@ namespace DivisionEngine
                     if (idData.X != uint.MaxValue)
                     {
                         SDFObjectDTO entity = sdfObjects[(int)idData.X];
-                        float3 hitPoint = rayOrigin + rayDir * depthNormals[pixel].R * (worldData.farPlane - worldData.nearPlane);
+                        float3 hitPoint = rayOrigin + rayDir * depthNormals[pixel].R * (worldData[0].farPlane - worldData[0].nearPlane);
                         float3 normal = depthNormals[pixel].GBA;
 
-                        if (Hlsl.Length(worldData.mainLightDir) > 0f)
+                        if (Hlsl.Length(worldData[0].mainLightDir) > 0f)
                         {
                             float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                            float shadow = SoftShadow2(shadowOrigin, worldData.mainLightDir,
+                            float shadow = SoftShadow2(shadowOrigin, worldData[0].mainLightDir,
                                 entity.shadowDistances.X, entity.shadowDistances.Y, out int shadowObj);
                             float3 entityColor = IntToColor(entityIdBuffer[shadowObj].X);
                             shadowColor = new float3(shadow, entityColor.G, entityColor.B);
@@ -1287,6 +1303,8 @@ namespace DivisionEngine
                 }
             }
         }
+
+        #endregion main
     }
 }
 

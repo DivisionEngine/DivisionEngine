@@ -6,20 +6,21 @@
 // project root for full license terms.
 //
 using SkiaSharp;
+using System.Runtime.InteropServices;
 
 namespace DivisionEngine.Projects.Assets
 {
     [AssetType(AssetType.Texture)]
     public class TextureAsset(AssetMetadata metadata) : Asset(metadata)
     {
-        private byte[]? imageData;
+        private float4[]? pixelData;
         private int width;
         private int height;
 
         /// <summary>
-        /// Raw image data (BGRA bytes).
+        /// Raw image data.
         /// </summary>
-        public byte[]? ImageData => imageData;
+        public float4[]? PixelData => pixelData;
 
         public int Width => width;
         public int Height => height;
@@ -32,17 +33,33 @@ namespace DivisionEngine.Projects.Assets
             {
                 string fullPath = Path.Combine(AssetDatabase.ProjectPath, RelativePath);
 
-                // Just load and decode to get dimensions, but store raw bytes
                 using FileStream stream = File.OpenRead(fullPath);
                 using SKBitmap bitmap = SKBitmap.Decode(stream) ?? throw new InvalidOperationException($"Failed to decode image: {Metadata.FileName}");
+
                 width = bitmap.Width;
                 height = bitmap.Height;
 
-                // Reload to get raw bytes (or you could use the bitmap's bytes)
-                imageData = await File.ReadAllBytesAsync(fullPath);
+                // Get raw pixel data (BGRA format)
+                IntPtr pixelPtr = bitmap.GetPixels();
+                int pixelCount = width * height;
+                byte[] bgraData = new byte[pixelCount * 4];
+                Marshal.Copy(pixelPtr, bgraData, 0, bgraData.Length);
+
+                // Convert BGRA bytes to float4 (RGBA, normalized to 0-1)
+                pixelData = new float4[pixelCount];
+                for (int i = 0; i < pixelCount; i++)
+                {
+                    int offset = i * 4;
+                    pixelData[i] = new float4(
+                        bgraData[offset + 2] / 255.0f, // R
+                        bgraData[offset + 1] / 255.0f, // G
+                        bgraData[offset + 0] / 255.0f, // B
+                        bgraData[offset + 3] / 255.0f  // A
+                    );
+                }
 
                 IsLoaded = true;
-                Debug.Info($"Texture loaded: {Metadata.FileName} ({width}x{height}, {imageData.Length} bytes)");
+                Debug.Info($"Texture loaded: {Metadata.FileName} ({width}x{height}, {pixelData.Length} bytes)");
                 return true;
             }
             catch (Exception ex)
@@ -55,7 +72,7 @@ namespace DivisionEngine.Projects.Assets
 
         public override void Unload()
         {
-            imageData = null;
+            pixelData = null;
             width = 0;
             height = 0;
             IsLoaded = false;
