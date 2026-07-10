@@ -5,6 +5,7 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using DivisionEngine.Components.FieldAttributes;
 using DivisionEngine.Projects.Assets;
 using System.Reflection;
 using System.Text.Json;
@@ -38,18 +39,23 @@ namespace DivisionEngine.Serialization
         /// <returns>Serialized dictionary where keys are field names and values are serialized field values</returns>
         public static Dictionary<string, string> Component(IComponent component)
         {
-            FieldInfo[] fields = component.GetType().GetFields();
+            FieldInfo[] fields = component.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             Dictionary<string, string> serialized = [];
 
             foreach (FieldInfo field in fields)
             {
+                // Skip certain field modifiers
+                if (field.IsLiteral && !field.IsInitOnly) continue; // const fields
+                if (field.IsStatic) continue;
+                if (field.IsInitOnly) continue; // skip readonly fields
+                if (field.GetCustomAttribute<NonSerializedAttribute>() != null) continue;
+
                 Type fieldType = field.FieldType;
                 object? fieldVal = field.GetValue(component);
                 if (fieldVal == null)
                     serialized.Add(field.Name, "null");
-                else
+                else // Adaptive serialization for some special types
                 {
-                    // Adaptive serialization for some special types
                     string serializedField = fieldVal.ToString()!;
 
                     // Handle custom types

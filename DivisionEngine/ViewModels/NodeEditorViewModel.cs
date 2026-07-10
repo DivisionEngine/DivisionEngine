@@ -1,15 +1,10 @@
-﻿////
-//// Copyright (c) 2025-2026 Rex Woodfield and Division Engine contributors
-////
-//// This file is part of Division Engine and is subject to the terms
-//// of the Division Engine License. See the LICENSE.txt file in the
-//// project root for full license terms.
-////
-//using CommunityToolkit.Mvvm.ComponentModel;
-//using CommunityToolkit.Mvvm.Input;
-//using DivisionEngine.Nodes;
-//using DivisionEngine.Nodes.Math;
-//using System.Collections.ObjectModel;
+﻿//
+// Copyright (c) 2025-2026 Rex Woodfield and Division Engine contributors
+//
+// This file is part of Division Engine and is subject to the terms
+// of the Division Engine License. See the LICENSE.txt file in the
+// project root for full license terms.
+//
 
 //namespace DivisionEngine.Editor.ViewModels
 //{

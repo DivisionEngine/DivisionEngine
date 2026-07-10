@@ -597,7 +597,10 @@ public partial class PropertiesWindow : EditorWindow
         foreach (var field in fields)
         {
             if (field.IsInitOnly) continue; // readonly field, implement these in the future
-            Control? fieldEditor = CreateFieldEditor(field, instance, entityId);
+            HideInEditorAttribute? hideAttr = field.GetCustomAttribute<HideInEditorAttribute>();
+            if (hideAttr != null) return;
+
+            StackPanel? fieldEditor = CreateFieldEditor(field, instance, entityId);
             if (fieldEditor != null) fieldsPanel.Children.Add(fieldEditor);
         }
 
@@ -643,10 +646,13 @@ public partial class PropertiesWindow : EditorWindow
 
                     // Recreate field editors with updated values using the FRESH component
                     FieldInfo[] fields = compType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-                    foreach (var field in fields)
+                    foreach (FieldInfo field in fields)
                     {
                         if (field.IsInitOnly) continue;
-                        var fieldEditor = CreateFieldEditor(field, freshComponent, curEntityId);
+                        HideInEditorAttribute? hideAttr = field.GetCustomAttribute<HideInEditorAttribute>();
+                        if (hideAttr != null) return;
+
+                        StackPanel? fieldEditor = CreateFieldEditor(field, freshComponent, curEntityId);
                         if (fieldEditor != null) fieldsPanel.Children.Add(fieldEditor);
                     }
                 }
