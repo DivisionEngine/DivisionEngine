@@ -290,7 +290,7 @@ namespace DivisionEngine.Projects
             // Initialize the asset database
             AssetDatabase.Initialize();
             AssetManager = new AssetManager(); // Create asset manager instance
-            AssetDatabase.StartFileWatcher(); // Make sure to start asset file watcher system as well
+            AssetDatabase.StartFileWatcher();
         }
 
         /// <summary>

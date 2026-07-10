@@ -24,9 +24,18 @@ namespace DivisionEngine.Systems
         /// </summary>
         private static readonly Dictionary<string, int> textureIdToIndex = [];
 
+        private static bool mustReloadTextures = false;
+        private static bool loadingTextures = false;
+
         public override void Render()
         {
-            // Create default sun light if no lights exits, to prevent a crash
+            if (mustReloadTextures && !loadingTextures)
+            {
+                _ = LoadAllTexturesAsync();
+                mustReloadTextures = false;
+            }
+
+            // Create default texture if none exist to prevent a crash
             if (AllTextureMetadata.Length < 1 || AllTextureData.Length < 1)
             {
                 AllTextureMetadata = [
@@ -46,9 +55,16 @@ namespace DivisionEngine.Systems
             }
         }
 
+        public override void AppStart()
+        {
+            loadingTextures = false;
+            mustReloadTextures = false;
+            AssetDatabase.AssetsUpdated += () => mustReloadTextures = true;
+        }
+
         public override void Awake()
         {
-            _ = LoadAllTexturesAsync();
+            mustReloadTextures = true;
         }
 
         /// <summary>
@@ -56,9 +72,13 @@ namespace DivisionEngine.Systems
         /// </summary>
         public static async Task LoadAllTexturesAsync()
         {
+            if (loadingTextures) return;
+            loadingTextures = true;
+
             if (!ProjectManager.IsCurrentLoaded)
             {
                 Debug.Info("TextureSystem: Cannot load textures without a current project loaded!");
+                loadingTextures = false;
                 return;
             }
 
@@ -69,6 +89,7 @@ namespace DivisionEngine.Systems
                 Debug.Info("TextureSystem: No textures found in project");
                 AllTextureData = [];
                 AllTextureMetadata = [];
+                loadingTextures = false;
                 return;
             }
 
@@ -106,6 +127,7 @@ namespace DivisionEngine.Systems
                 Debug.Warning("TextureSystem: No textures loaded successfully");
                 AllTextureData = [];
                 AllTextureMetadata = [];
+                loadingTextures = false;
                 return;
             }
 
@@ -122,6 +144,7 @@ namespace DivisionEngine.Systems
             AllTextureMetadata = [.. metadataList];
 
             Debug.Info($"TextureSystem: Loaded {loadedTextures.Count} textures, {AllTextureData.Length} total pixels");
+            loadingTextures = false;
         }
 
         /// <summary>

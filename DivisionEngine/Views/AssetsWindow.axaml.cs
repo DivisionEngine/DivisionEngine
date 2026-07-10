@@ -543,6 +543,7 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     public static void LoadAssets(string path)
     {
+        if (string.IsNullOrEmpty(path)) return;
         Debug.Log($"Loading assets at folder: {path}");
         ValidateWindows();
         foreach (AssetsWindow? window in currentWindows) window!.Setup(path);

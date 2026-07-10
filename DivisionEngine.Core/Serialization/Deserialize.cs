@@ -108,6 +108,19 @@ namespace DivisionEngine.Serialization
                 if (targetType.IsGenericType) return Activator.CreateInstance(targetType, string.Empty);
                 else return new AssetRef("", AssetType.None);
             }
+            else if (targetType == typeof(float2))
+            {
+                // Parse format: "(1,2)"
+                string trimmed = value.Trim('(', ')');
+                string[] parts = trimmed.Split(',');
+                if (parts.Length == 2)
+                {
+                    return new float2(
+                        float.Parse(parts[0]),
+                        float.Parse(parts[1])
+                    );
+                }
+            }
             else if (targetType == typeof(float3))
             {
                 // Parse format: "(1,2,3)"
@@ -161,6 +174,7 @@ namespace DivisionEngine.Serialization
             else if (targetType == typeof(bool)) return bool.Parse(value);
             else if (targetType == typeof(float)) return float.Parse(value);
             else if (targetType == typeof(int)) return int.Parse(value);
+            else if (targetType == typeof(uint)) return uint.Parse(value);
             else if (targetType.IsEnum) return Enum.Parse(targetType, value);
 
             Debug.Warning($"Unhandled property parse type: {targetType.Name}");

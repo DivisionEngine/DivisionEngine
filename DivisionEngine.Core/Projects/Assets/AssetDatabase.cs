@@ -41,6 +41,11 @@ namespace DivisionEngine.Projects.Assets
         public static event Action<string>? FolderChanged;
 
         /// <summary>
+        /// Called when the asset database is modified.
+        /// </summary>
+        public static event Action? AssetsUpdated;
+
+        /// <summary>
         /// Current project path, if loaded.
         /// </summary>
         public static string ProjectPath => ProjectManager.CurrentProjectPath
@@ -66,7 +71,7 @@ namespace DivisionEngine.Projects.Assets
         {
             AllAssetsByID.Clear();
             Folders.Clear();
-            Directory.CreateDirectory(AssetsPath); // Ensures assets path exists
+            Directory.CreateDirectory(AssetsPath); // Ensures assets folder exists
 
             // Get all directories including root
             List<string> directories = [AssetsPath, .. Directory.GetDirectories(AssetsPath, "*", SearchOption.AllDirectories)];
@@ -76,6 +81,9 @@ namespace DivisionEngine.Projects.Assets
 
         #region fileWatcher
 
+        /// <summary>
+        /// Called when a new project is loaded, also can be started manually.
+        /// </summary>
         public static void StartFileWatcher()
         {
             if (!Directory.Exists(AssetsPath)) return;
@@ -110,16 +118,22 @@ namespace DivisionEngine.Projects.Assets
             pendingFolderToRefresh = null;
         }
 
+        /// <summary>
+        /// Refresh a specific folder in the project.
+        /// </summary>
+        /// <param name="folderPath">Folder path to refresh (global folder path)</param>
         public static void RefreshFolder(string folderPath)
         {
             if (!folderPath.StartsWith(AssetsPath)) return;
-
             Debug.Info($"Asset Database: Refreshing folder: {folderPath}");
 
             ProcessFolder(folderPath); // Only reprocess this specific folder
             FolderChanged?.Invoke(folderPath); // Notify UI to update
         }
 
+        /// <summary>
+        /// Stop the file watcher system (assets will need to be manually imported).
+        /// </summary>
         public static void StopFileWatcher()
         {
             watcher?.Dispose();
@@ -162,8 +176,13 @@ namespace DivisionEngine.Projects.Assets
 
                 // Add all existing assets to AllAssetsByID
                 foreach (AssetMetadata asset in folderMeta.Assets.Values)
+                {
                     if (!AllAssetsByID.ContainsKey(asset.ID))
+                    {
                         AllAssetsByID[asset.ID] = asset;
+                        AssetsUpdated?.Invoke();
+                    }
+                }
 
                 // Delete any other stray .divmeta files (from previous folder names)
                 foreach (string oldMetaFile in allMetaFiles)
@@ -191,6 +210,7 @@ namespace DivisionEngine.Projects.Assets
                         AssetMetadata asset = folderMeta.Assets[filename];
                         folderMeta.Assets.Remove(filename);
                         AllAssetsByID.Remove(asset.ID);
+                        AssetsUpdated?.Invoke();
                         Debug.Info($"Asset removed: {asset.FileName}");
                     }
                 }
@@ -217,6 +237,7 @@ namespace DivisionEngine.Projects.Assets
                         AssetMetadata newAsset = CreateAssetMetadata(fullPath);
                         folderMeta.Assets[filename] = newAsset;
                         AllAssetsByID[newAsset.ID] = newAsset;
+                        AssetsUpdated?.Invoke();
                         Debug.Info($"Asset added: {newAsset.FileName} (GUID: {newAsset.ID})");
                     }
                 }
@@ -230,6 +251,7 @@ namespace DivisionEngine.Projects.Assets
                     AssetMetadata asset = CreateAssetMetadata(file);
                     folderMeta.Assets[Path.GetFileName(file)] = asset;
                     AllAssetsByID[asset.ID] = asset;
+                    AssetsUpdated?.Invoke();
                     Debug.Info($"Asset discovered: {asset.FileName} (GUID: {asset.ID})");
                 }
 
