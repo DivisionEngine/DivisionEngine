@@ -67,6 +67,8 @@ namespace DivisionEngine.Systems
             loadingTextures = false;
             mustReloadTextures = false;
             AssetDatabase.AssetsUpdated += () => mustReloadTextures = true;
+            ProjectManager.ProjectLoaded += () => mustReloadTextures = true;
+            ProjectManager.ProjectClosed += () => mustReloadTextures = true;
         }
 
         public override void Awake()
