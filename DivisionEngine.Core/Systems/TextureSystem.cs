@@ -126,16 +126,18 @@ namespace DivisionEngine.Systems
             // Load each texture through the AssetManager (caches them)
             List<TextureAsset> loadedTextures = [];
             List<TextureMetadata> metadataList = [];
+            List<TextureData> allData = [];
             int currentOffset = 0;
             foreach (AssetMetadata meta in textureMetadatas)
             {
                 TextureAsset? texture = await ProjectManager.AssetManager!.LoadAssetAsync<TextureAsset>(meta.ID);
-                if (texture == null || texture.PixelData == null)
+                if (texture == null)
                 {
                     Debug.Warning($"TextureSystem: Failed to load texture: {meta.FileName}");
                     continue;
                 }
 
+                // Set loaded textures and metadata
                 loadedTextures.Add(texture);
                 metadataList.Add(new TextureMetadata
                 {
@@ -143,7 +145,14 @@ namespace DivisionEngine.Systems
                     bufferOffset = currentOffset
                 });
                 textureIdToIndex[meta.ID] = loadedTextures.Count - 1;
+
+                // Set pixel data
+                if (texture?.PixelData == null) continue;
+                foreach (float4 pixel in texture.PixelData)
+                    allData.Add(new TextureData { pixel = pixel });
+
                 currentOffset += texture.PixelData.Length;
+                GC.Collect(); // Collect GC after every texture loaded
             }
 
             if (loadedTextures.Count == 0)
@@ -154,15 +163,6 @@ namespace DivisionEngine.Systems
                 UpdatedTextureData?.Invoke();
                 loadingTextures = false;
                 return;
-            }
-
-            // Flatten all texture data into a single array
-            List<TextureData> allData = [];
-            foreach (TextureAsset texture in loadedTextures)
-            {
-                if (texture.PixelData == null) continue;
-                foreach (float4 pixel in texture.PixelData)
-                    allData.Add(new TextureData { pixel = pixel });
             }
 
             AllTextureData = [.. allData];

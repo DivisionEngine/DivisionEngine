@@ -34,7 +34,7 @@ namespace DivisionEngine.Projects.Assets
 
                 //SKImageInfo imageDecoder = new SKImageInfo()
                 //{
-                //    ColorSpace = SKColorSpace.CreateSrgbLinear(),
+                //    ColorSpace = SKColor
                 //};
                 FileStream stream = File.OpenRead(fullPath);
                 SKBitmap bitmap = SKBitmap.Decode(stream) ?? throw new InvalidOperationException($"Failed to decode image: {Metadata.FileName}");
