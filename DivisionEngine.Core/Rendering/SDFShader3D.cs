@@ -440,13 +440,13 @@ namespace DivisionEngine
                               k.XXX * WorldSDF(pos + k.XXX * h, false, uint.MaxValue, out _));
         }
 
-        private float3 CalcTangent(float3 normal)
+        private static float3 CalcTangent(float3 normal)
         {
             float3 up = Hlsl.Abs(normal.Z) < 0.999f ? new float3(0, 0, 1) : new float3(1, 0, 0);
             return Hlsl.Normalize(Hlsl.Cross(up, normal));
         }
 
-        private float3 CalcBitangent(float3 normal, float3 tangent)
+        private static float3 CalcBitangent(float3 normal, float3 tangent)
         {
             return Hlsl.Normalize(Hlsl.Cross(normal, tangent));
         }
@@ -720,7 +720,7 @@ namespace DivisionEngine
             float3 specular = F * D * G / denominator;
 
             // Clamp specular to prevent fireflies
-            specular = Hlsl.Min(specular, 20.0f); // Limit max brightness
+            specular = Hlsl.Min(specular, 20f); // Limit max brightness
 
             // Diffuse
             float3 rhoD = baseCol;
@@ -728,7 +728,7 @@ namespace DivisionEngine
             float3 diff = rhoD * RECIPROCAL_PI;
 
             // Clamp final BRDF result
-            return Hlsl.Min(diff + specular, 100.0f); // Hard cap to prevent explosions
+            return Hlsl.Min(diff + specular, 100f); // Hard cap to prevent explosions
         }
 
         /// <summary>
@@ -1175,7 +1175,7 @@ namespace DivisionEngine
 
                 // Get material properties
                 SDFObjectDTO entity = sdfObjects[closestObjIndex];
-                float metallic = entity.metallic;
+                float metallic =  entity.metallic;
                 float roughness = Hlsl.Max(entity.roughness, 0.1f);
                 float aoStrength = entity.aoValues.X;
 

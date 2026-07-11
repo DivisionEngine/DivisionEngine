@@ -288,8 +288,8 @@ namespace DivisionEngine.Projects
         private static void InitializeAssetSystem()
         {
             // Initialize the asset database
-            AssetDatabase.Initialize();
             AssetManager = new AssetManager(); // Create asset manager instance
+            AssetDatabase.Initialize();
             AssetDatabase.StartFileWatcher();
         }
 
