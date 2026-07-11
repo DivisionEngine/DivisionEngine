@@ -27,6 +27,11 @@ namespace DivisionEngine.Systems
         public static TextureMetadata[] AllTextureMetadata { get; private set; } = [];
 
         /// <summary>
+        /// Use this to determine when the texture data is changed.
+        /// </summary>
+        public static event Action? UpdatedTextureData;
+
+        /// <summary>
         /// Dictionary mapping texture asset IDs to their metadata index.
         /// </summary>
         private static readonly Dictionary<string, int> textureIdToIndex = [];
@@ -87,6 +92,7 @@ namespace DivisionEngine.Systems
             if (!ProjectManager.IsCurrentLoaded)
             {
                 Debug.Info("TextureSystem: Cannot load textures without a current project loaded!");
+                UpdatedTextureData?.Invoke();
                 loadingTextures = false;
                 return;
             }
@@ -98,6 +104,7 @@ namespace DivisionEngine.Systems
                 Debug.Info("TextureSystem: No textures found in project");
                 AllTextureData = [];
                 AllTextureMetadata = [];
+                UpdatedTextureData?.Invoke();
                 loadingTextures = false;
                 return;
             }
@@ -108,7 +115,6 @@ namespace DivisionEngine.Systems
             List<TextureAsset> loadedTextures = [];
             List<TextureMetadata> metadataList = [];
             int currentOffset = 0;
-
             foreach (AssetMetadata meta in textureMetadatas)
             {
                 TextureAsset? texture = await ProjectManager.AssetManager!.LoadAssetAsync<TextureAsset>(meta.ID);
@@ -119,14 +125,11 @@ namespace DivisionEngine.Systems
                 }
 
                 loadedTextures.Add(texture);
-
-                // Add metadata
                 metadataList.Add(new TextureMetadata
                 {
                     resolution = new int2(texture.Width, texture.Height),
                     bufferOffset = currentOffset
                 });
-
                 textureIdToIndex[meta.ID] = loadedTextures.Count - 1;
                 currentOffset += texture.PixelData.Length;
             }
@@ -136,6 +139,7 @@ namespace DivisionEngine.Systems
                 Debug.Warning("TextureSystem: No textures loaded successfully");
                 AllTextureData = [];
                 AllTextureMetadata = [];
+                UpdatedTextureData?.Invoke();
                 loadingTextures = false;
                 return;
             }
@@ -153,7 +157,19 @@ namespace DivisionEngine.Systems
             AllTextureMetadata = [.. metadataList];
 
             Debug.Info($"TextureSystem: Loaded {loadedTextures.Count} textures, {AllTextureData.Length} total pixels");
+            UpdatedTextureData?.Invoke();
             loadingTextures = false;
+        }
+
+        /// <summary>
+        /// Get the index that the metadata of the texture is stored at (for rendering).
+        /// </summary>
+        /// <param name="assetId">Asset ID of the texture</param>
+        /// <returns>Metadata array index</returns>
+        public static int GetTextureMetadataIndex(string assetId)
+        {
+            if (textureIdToIndex.TryGetValue(assetId, out int index)) return index;
+            return -1;
         }
 
         /// <summary>
@@ -161,10 +177,7 @@ namespace DivisionEngine.Systems
         /// </summary>
         public static TextureMetadata? GetTextureMetadata(string assetId)
         {
-            if (textureIdToIndex.TryGetValue(assetId, out int index))
-            {
-                return AllTextureMetadata[index];
-            }
+            if (textureIdToIndex.TryGetValue(assetId, out int index)) return AllTextureMetadata[index];
             return null;
         }
 
@@ -175,10 +188,10 @@ namespace DivisionEngine.Systems
         {
             if (textureIdToIndex.TryGetValue(assetId, out int index))
             {
-                var meta = AllTextureMetadata[index];
+                TextureMetadata meta = AllTextureMetadata[index];
                 int start = meta.bufferOffset;
                 int length = meta.resolution.X * meta.resolution.Y;
-                var result = new TextureData[length];
+                TextureData[] result = new TextureData[length];
                 Array.Copy(AllTextureData, start, result, 0, length);
                 return result;
             }

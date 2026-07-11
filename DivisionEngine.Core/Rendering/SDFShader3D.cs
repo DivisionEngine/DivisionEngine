@@ -445,7 +445,7 @@ namespace DivisionEngine
         /// <summary>
         /// Calculate lighting contribution from all lights
         /// </summary>
-        private float3 CalculateLighting(float3 hitPoint, float3 normal, float3 viewDir, SDFObjectDTO material)
+        private float3 CalculateLighting(float3 hitPoint, float3 normal, float3 viewDir, SDFObjectDTO sdf)
         {
             float3 totalLight = float3.Zero;
             float lightShadow = 1f;
@@ -462,17 +462,16 @@ namespace DivisionEngine
                     if (NoL <= 0f) continue;
 
                     // Calculate shadow for directional light
-                    if (material.shadowEffects.Y)
+                    if (sdf.shadowEffects.Y)
                     {
                         float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                         lightShadow = Hlsl.Min(SoftShadow2(shadowOrigin, lightDir,
-                            material.shadowDistances.X, material.shadowDistances.Y, out _), lightShadow);
+                            sdf.shadowDistances.X, sdf.shadowDistances.Y, out _), lightShadow);
                     }
 
                     // Calculate BRDF here now
-                    float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal,
-                        material.metallic, material.roughness * material.roughness,
-                        material.color.RGB, material.specular);
+                    float2 texuv = (hitPoint.XZ - sdf.position.XZ) / sdf.texTilingOffset.XY + sdf.texTilingOffset.ZW;
+                    float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, sdf, texuv);
                     totalLight += brdf * lightColor * NoL * lightShadow;
                 }
                 else if (light.type == 1) // Point light
@@ -492,18 +491,17 @@ namespace DivisionEngine
                     float3 lightColor = light.color.RGB * light.intensity * attenuation;
 
                     // Simplified shadow for point lights
-                    if (material.shadowEffects.Y && distance < light.radius * 2f)
+                    if (sdf.shadowEffects.Y && distance < light.radius * 2f)
                     {
                         // Basic point light shadow (could be optimized)
                         float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                         lightShadow = Hlsl.Min(SoftShadow2(shadowOrigin, lightDir,
-                            material.shadowDistances.X, distance, out _), lightShadow);
+                            sdf.shadowDistances.X, distance, out _), lightShadow);
                     }
 
                     // Calculate point light BRDF
-                    float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal,
-                        material.metallic, material.roughness * material.roughness,
-                        material.color.RGB, material.specular);
+                    float2 texuv = (hitPoint.XZ - sdf.position.XZ) / sdf.texTilingOffset.XY + sdf.texTilingOffset.ZW;
+                    float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, sdf, texuv);
                     totalLight += brdf * lightColor * NoL * lightShadow;
                 }
             }
@@ -536,10 +534,10 @@ namespace DivisionEngine
         // New Correct PBR BRDF Functions
         // ------------------------------
 
-        private float4 GetMaterialColor(int albedoTextureId, float2 uv)
+        private float4 GetMaterialColor(int albedoTextureId, float4 albedoCol, float2 uv)
         {
             if (albedoTextureId < 0 || albedoTextureId >= textureMetadata.Length)
-                return float4.One; // No texture, return white
+                return albedoCol; // No texture, return albedo color
 
             return SampleTextureBilinear(albedoTextureId, uv);
         }
@@ -626,14 +624,19 @@ namespace DivisionEngine
         /// <param name="baseCol">Base color of material</param>
         /// <param name="reflectance">Reflectance level of material</param>
         /// <returns>BRDF output value</returns>
-        private static float3 BRDFMicrofacetFunction(float3 lightDir, float3 viewDir, float3 normal,
-            float metallic, float roughAlpha, float3 baseCol, float reflectance)
+        private float3 BRDFMicrofacetFunction(float3 lightDir, float3 viewDir, float3 normal, SDFObjectDTO sdfObject, float2 texUV)
         {
             float3 halfwayDir = Hlsl.Normalize(viewDir + lightDir);
             float NoV = Hlsl.Saturate(Hlsl.Dot(normal, viewDir));
             float NoL = Hlsl.Saturate(Hlsl.Dot(normal, lightDir));
             float VoH = Hlsl.Saturate(Hlsl.Dot(viewDir, halfwayDir));
             float NoH = Hlsl.Saturate(Hlsl.Dot(normal, halfwayDir));
+
+            // SDF object material
+            float3 baseCol = GetMaterialColor(sdfObject.albedoTexMetaID, sdfObject.color, texUV).RGB;
+            float metallic = sdfObject.metallic;
+            float roughAlpha = sdfObject.roughness * sdfObject.roughness;
+            float reflectance = sdfObject.specular;
 
             float3 f0 = float3.One * 0.16f * reflectance * reflectance;
             f0 = Hlsl.Lerp(f0, baseCol, new float3(metallic, metallic, metallic));
@@ -651,8 +654,7 @@ namespace DivisionEngine
 
             // Diffuse
             float3 rhoD = baseCol;
-            rhoD *= DisneyDiffuseFactor(NoV, NoL, VoH, roughAlpha);
-            //rhoD *= 1f - metallic;
+            rhoD *= DisneyDiffuseFactor(NoV, NoL, VoH, roughAlpha); // alternative: rhoD *= 1f - metallic;
             float3 diff = rhoD * RECIPROCAL_PI;
 
             // Clamp final BRDF result
@@ -734,9 +736,8 @@ namespace DivisionEngine
                     if (NoL > 0f)
                     {
                         // Visualize different BRDF components
-                        float3 brdf = BRDFMicrofacetFunction(-worldData[0].mainLightDir, viewDir, normal,
-                            entity.metallic, entity.roughness * entity.roughness,
-                            entity.color.RGB, entity.specular);
+                        float2 texuv = pixel / new float2(width, height);
+                        float3 brdf = BRDFMicrofacetFunction(-worldData[0].mainLightDir, viewDir, normal, entity, texuv);
 
                         if (debugMode == 6) // Full BRDF
                             outputVec = brdf;

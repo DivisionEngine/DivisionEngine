@@ -221,6 +221,12 @@ namespace DivisionEngine.Systems
                 if (W.HasComponent<SDFMaterial>(id))
                 {
                     SDFMaterial mat = W.GetComponent<SDFMaterial>(id)!;
+
+                    // Textures
+                    curSDF.albedoTexMetaID = mat.albedoMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.albedoMap.ID) : -1;
+                    curSDF.texTilingOffset = new float4(mat.uvScale.X, mat.uvScale.Y, mat.uvOffset.X, mat.uvOffset.Y);
+
+                    // Material properties
                     curSDF.color = mat.albedoColor;
                     curSDF.metallic = mat.metallic;
                     curSDF.roughness = mat.roughness;

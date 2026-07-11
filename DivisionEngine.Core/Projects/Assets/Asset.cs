@@ -23,12 +23,35 @@ namespace DivisionEngine.Projects.Assets
     /// <param name="metadata">Asset metadata</param>
     public abstract class Asset(AssetMetadata metadata)
     {
+        /// <summary>
+        /// Identifier of the asset.
+        /// </summary>
         public string ID { get; protected set; } = metadata.ID;
+
+        /// <summary>
+        /// Path relative to the project assets folder for this asset.
+        /// </summary>
         public string RelativePath { get; protected set; } = metadata.RelativePath;
+
+        /// <summary>
+        /// Metadata of this asset.
+        /// </summary>
         public AssetMetadata Metadata { get; protected set; } = metadata;
+
+        /// <summary>
+        /// Whether this asset is loaded or not.
+        /// </summary>
         public bool IsLoaded { get; protected set; }
 
+        /// <summary>
+        /// Defines how to load this asset type.
+        /// </summary>
+        /// <returns>Async task whether the asset was loaded or not</returns>
         public abstract Task<bool> LoadAsync();
+
+        /// <summary>
+        /// Defines how to unload this asset type.
+        /// </summary>
         public abstract void Unload();
     }
 
@@ -37,14 +60,43 @@ namespace DivisionEngine.Projects.Assets
     /// </summary>
     public struct AssetRef(string id, AssetType type)
     {
+        /// <summary>
+        /// Identifier of the asset.
+        /// </summary>
         public string ID { get; set; } = id;
+
+        /// <summary>
+        /// Expected type of the asset.
+        /// </summary>
         public AssetType ExpectedType { get; set; } = type;
 
         public AssetRef() : this(string.Empty, AssetType.None) { }
 
-        [JsonIgnore] public Asset? LoadedAsset { get; internal set; } = null;
+        /// <summary>
+        /// The loaded asset object for this asset reference, null if not loaded.
+        /// </summary>
+        [JsonIgnore] public readonly Asset? LoadedAsset
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(ID)) return null;
+
+                // Try to get from AssetManager
+                Asset? asset = ProjectManager.AssetManager?.Get(ID);
+                if (asset != null) return asset;
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Whether the asset this reference refers to is loaded or not.
+        /// </summary>
         [JsonIgnore] public readonly bool IsLoaded => LoadedAsset != null;
 
+        /// <summary>
+        /// Checks whether the asset ID is valid or not.
+        /// </summary>
+        /// <returns>True if valid asset ID</returns>
         public readonly bool IsValid() => !string.IsNullOrEmpty(ID);
     }
 
@@ -53,12 +105,38 @@ namespace DivisionEngine.Projects.Assets
     /// </summary>
     public struct AssetRef<T>(string id) where T : Asset
     {
+        /// <summary>
+        /// Identifier of the asset.
+        /// </summary>
         public string ID { get; set; } = id;
+
+        /// <summary>
+        /// Expected type of the asset.
+        /// </summary>
         public AssetType ExpectedType { get; set; } = AssetDatabase.GetAssetType<T>();
 
         public AssetRef() : this(string.Empty) { }
 
-        [JsonIgnore] public T? LoadedAsset { get; internal set; } = null;
+        /// <summary>
+        /// The loaded type object for this asset reference, null if not loaded.
+        /// </summary>
+        [JsonIgnore]
+        public readonly T? LoadedAsset
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(ID)) return null;
+
+                // Try to get from AssetManager
+                T? asset = ProjectManager.AssetManager?.Get<T>(ID);
+                if (asset != null) return asset;
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Whether the asset this reference refers to is loaded or not.
+        /// </summary>
         [JsonIgnore] public readonly bool IsLoaded => LoadedAsset != null;
 
         public static implicit operator AssetRef(AssetRef<T> generic) =>

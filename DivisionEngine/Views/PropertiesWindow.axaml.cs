@@ -594,11 +594,9 @@ public partial class PropertiesWindow : EditorWindow
         };
 
         FieldInfo[] fields = compType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-        foreach (var field in fields)
+        foreach (FieldInfo field in fields)
         {
-            if (field.IsInitOnly) continue; // readonly field, implement these in the future
-            HideInEditorAttribute? hideAttr = field.GetCustomAttribute<HideInEditorAttribute>();
-            if (hideAttr != null) return;
+            if (field.GetCustomAttribute<HideInEditorAttribute>() != null) continue;
 
             StackPanel? fieldEditor = CreateFieldEditor(field, instance, entityId);
             if (fieldEditor != null) fieldsPanel.Children.Add(fieldEditor);
@@ -648,9 +646,7 @@ public partial class PropertiesWindow : EditorWindow
                     FieldInfo[] fields = compType.GetFields(BindingFlags.Public | BindingFlags.Instance);
                     foreach (FieldInfo field in fields)
                     {
-                        if (field.IsInitOnly) continue;
-                        HideInEditorAttribute? hideAttr = field.GetCustomAttribute<HideInEditorAttribute>();
-                        if (hideAttr != null) return;
+                        if (field.GetCustomAttribute<HideInEditorAttribute>() != null) continue;
 
                         StackPanel? fieldEditor = CreateFieldEditor(field, freshComponent, curEntityId);
                         if (fieldEditor != null) fieldsPanel.Children.Add(fieldEditor);

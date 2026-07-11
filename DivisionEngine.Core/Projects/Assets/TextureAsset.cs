@@ -38,23 +38,18 @@ namespace DivisionEngine.Projects.Assets
 
                 width = bitmap.Width;
                 height = bitmap.Height;
-
-                // Get raw pixel data (BGRA format)
-                IntPtr pixelPtr = bitmap.GetPixels();
-                int pixelCount = width * height;
-                byte[] bgraData = new byte[pixelCount * 4];
-                Marshal.Copy(pixelPtr, bgraData, 0, bgraData.Length);
+                SKColor[] skData = bitmap.Pixels;
 
                 // Convert BGRA bytes to float4 (RGBA, normalized to 0-1)
-                pixelData = new float4[pixelCount];
-                for (int i = 0; i < pixelCount; i++)
+                pixelData = new float4[skData.Length];
+                for (int i = 0; i < skData.Length; i++)
                 {
-                    int offset = i * 4;
+                    SKColor skPixel = skData[i];
                     pixelData[i] = new float4(
-                        bgraData[offset + 2] / 255.0f, // R
-                        bgraData[offset + 1] / 255.0f, // G
-                        bgraData[offset + 0] / 255.0f, // B
-                        bgraData[offset + 3] / 255.0f  // A
+                        skPixel.Red / 255.0f,
+                        skPixel.Green / 255.0f,
+                        skPixel.Blue / 255.0f,
+                        skPixel.Alpha / 255.0f
                     );
                 }
 

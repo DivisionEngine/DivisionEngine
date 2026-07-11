@@ -41,11 +41,11 @@ namespace DivisionEngine.Rendering
         public int aTrousStepCount; // 4b
 
         // Fog settings
-        public float fogDensity;
-        public float4 fogColor;
-        public float fogAbsorption;
-        public float fogScattering;
-        public float fogAnisotropy;
+        public float fogDensity; // 4b
+        public float4 fogColor; // 16b
+        public float fogAbsorption; // 4b
+        public float fogScattering; // 4b
+        public float fogAnisotropy; // 4b
     }
 
     /// <summary>
@@ -68,6 +68,8 @@ namespace DivisionEngine.Rendering
         public float stepBias; // 4b
 
         // Material Properties
+        public int albedoTexMetaID; // 4b
+        public float4 texTilingOffset; // 16b - xy is tiling, zw is offsets
         public float4 color; // 16b
         public float metallic; // 4b
         public float roughness; // 4b

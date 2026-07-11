@@ -46,7 +46,7 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Synchronization lock for thread safety
         /// </summary>
-        public readonly Lock SyncLock = new Lock(); // 
+        public readonly Lock SyncLock = new Lock();
         private bool closeWindowWithCloseEvent = true;
 
         // OpenGL variables
@@ -172,8 +172,7 @@ namespace DivisionEngine.Rendering
 
         // Custom Shapes
         private readonly Dictionary<uint, HandleShape> customShapes = [];
-        private ReadWriteBuffer<uint>? customShapeIdBuffer;
-        
+        private ReadWriteBuffer<uint>? customShapeIdBuffer;        
 
         // Denoising
         private ReadOnlyBuffer<float>? kernelBuffer; // Reconstruction kernel
@@ -181,6 +180,9 @@ namespace DivisionEngine.Rendering
 
         // Input context
         private IInputContext? inputContext;
+
+        // Textures
+        private bool rebuildTextureBuffer = true;
 
         /// <summary>
         /// Create a new render pipeline.
@@ -339,6 +341,10 @@ namespace DivisionEngine.Rendering
                 RendererWindow.Closing += OnClosing;
                 RendererWindow.FocusChanged += (f) => { if (RenderWindowFocusd != null) RenderWindowFocusd!(f); };
 
+                // Handle texture updates
+                TextureSystem.UpdatedTextureData += () => rebuildTextureBuffer = true;
+                rebuildTextureBuffer = true;
+
                 Debug.Info("Renderer: Starting window run loop");
                 RendererWindow.Run();
             }
@@ -496,7 +502,7 @@ namespace DivisionEngine.Rendering
                 worldDTO = SDFRenderSystem.PreparedWorldDTO;
                 sdfObjDTO = SDFRenderSystem.PreparedSDFObjectsDTO;
                 sdfLightsDTO = SDFRenderSystem.PreparedLightsDTO;
-
+                
                 sdfTextureDTO = TextureSystem.AllTextureData;
                 sdfTextureMetaDTO = TextureSystem.AllTextureMetadata;
             }
@@ -584,13 +590,18 @@ namespace DivisionEngine.Rendering
                     lightsBuffer = Device?.AllocateReadOnlyBuffer(sdfLightsDTO);
                     if (lightsBuffer == null) return;
 
-                    textureBuffer?.Dispose();
-                    textureBuffer = Device?.AllocateReadOnlyBuffer(sdfTextureDTO);
-                    if (textureBuffer == null) return;
+                    if (rebuildTextureBuffer)
+                    {
+                        textureBuffer?.Dispose();
+                        textureBuffer = Device?.AllocateReadOnlyBuffer(sdfTextureDTO);
+                        if (textureBuffer == null) return;
 
-                    textureMetaBuffer?.Dispose();
-                    textureMetaBuffer = Device?.AllocateReadOnlyBuffer(sdfTextureMetaDTO);
-                    if (textureMetaBuffer == null) return;
+                        textureMetaBuffer?.Dispose();
+                        textureMetaBuffer = Device?.AllocateReadOnlyBuffer(sdfTextureMetaDTO);
+                        if (textureMetaBuffer == null) return;
+
+                        rebuildTextureBuffer = false;
+                    }
 
                     // Dispatch SDF compute shader
                     int outputMode = 0;
@@ -625,8 +636,8 @@ namespace DivisionEngine.Rendering
                         objectIdBuffer,
                         sdfObjBuffer,
                         lightsBuffer,
-                        textureBuffer,
-                        textureMetaBuffer);
+                        textureBuffer!,
+                        textureMetaBuffer!);
                     Device?.For(dispatchWidth, dispatchHeight, shader);
                 }
 
