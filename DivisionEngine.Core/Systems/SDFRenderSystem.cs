@@ -224,6 +224,11 @@ namespace DivisionEngine.Systems
 
                     // Textures
                     curSDF.albedoTexMetaID = mat.albedoMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.albedoMap.ID) : -1;
+                    curSDF.normalTexMetaID = mat.normalMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.normalMap.ID) : -1;
+                    curSDF.normalStrength = mat.normalStrength;
+                    curSDF.roughTexMetaID = mat.roughnessMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.roughnessMap.ID) : -1;
+                    curSDF.metalTexMetaID = mat.metallicMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.metallicMap.ID) : -1;
+                    curSDF.emissionTexMetaID = mat.emissiveMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.emissiveMap.ID) : -1;
                     curSDF.texTilingOffset = new float4(mat.uvScale.X, mat.uvScale.Y, mat.uvOffset.X, mat.uvOffset.Y);
 
                     // Material properties

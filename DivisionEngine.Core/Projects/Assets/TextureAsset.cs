@@ -6,7 +6,6 @@
 // project root for full license terms.
 //
 using SkiaSharp;
-using System.Runtime.InteropServices;
 
 namespace DivisionEngine.Projects.Assets
 {
@@ -33,8 +32,12 @@ namespace DivisionEngine.Projects.Assets
             {
                 string fullPath = Path.Combine(AssetDatabase.ProjectPath, RelativePath);
 
-                using FileStream stream = File.OpenRead(fullPath);
-                using SKBitmap bitmap = SKBitmap.Decode(stream) ?? throw new InvalidOperationException($"Failed to decode image: {Metadata.FileName}");
+                //SKImageInfo imageDecoder = new SKImageInfo()
+                //{
+                //    ColorSpace = SKColorSpace.CreateSrgbLinear(),
+                //};
+                FileStream stream = File.OpenRead(fullPath);
+                SKBitmap bitmap = SKBitmap.Decode(stream) ?? throw new InvalidOperationException($"Failed to decode image: {Metadata.FileName}");
 
                 width = bitmap.Width;
                 height = bitmap.Height;
@@ -53,6 +56,8 @@ namespace DivisionEngine.Projects.Assets
                     );
                 }
 
+                stream.Dispose();
+                bitmap.Dispose();
                 IsLoaded = true;
                 Debug.Info($"Texture loaded: {Metadata.FileName} ({width}x{height}, {pixelData.Length} bytes)");
                 return true;

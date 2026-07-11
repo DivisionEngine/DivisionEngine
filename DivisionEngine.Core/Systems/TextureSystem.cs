@@ -16,15 +16,26 @@ namespace DivisionEngine.Systems
     /// </summary>
     public class TextureSystem : SystemBase
     {
+        private static TextureData[]? _allTextureData = [];
+        private static TextureMetadata[]? _allTextureMetadata = [];
+
         /// <summary>
         /// All texture data flattened into a single array (for GPU buffer).
         /// </summary>
-        public static TextureData[] AllTextureData { get; private set; } = [];
+        public static TextureData[]? AllTextureData
+        {
+            get => _allTextureData;
+            private set => _allTextureData = value;
+        }
 
         /// <summary>
         /// Metadata for each texture (resolution, offset in buffer).
         /// </summary>
-        public static TextureMetadata[] AllTextureMetadata { get; private set; } = [];
+        public static TextureMetadata[]? AllTextureMetadata
+        {
+            get => _allTextureMetadata;
+            private set => _allTextureMetadata = value;
+        }
 
         /// <summary>
         /// Use this to determine when the texture data is changed.
@@ -48,6 +59,7 @@ namespace DivisionEngine.Systems
             }
 
             // Create default texture if none exist to prevent a crash
+            if (AllTextureMetadata == null || AllTextureData == null) return;
             if (AllTextureMetadata.Length < 1 || AllTextureData.Length < 1)
             {
                 AllTextureMetadata = [
@@ -177,7 +189,7 @@ namespace DivisionEngine.Systems
         /// </summary>
         public static TextureMetadata? GetTextureMetadata(string assetId)
         {
-            if (textureIdToIndex.TryGetValue(assetId, out int index)) return AllTextureMetadata[index];
+            if (textureIdToIndex.TryGetValue(assetId, out int index)) return AllTextureMetadata?[index];
             return null;
         }
 
@@ -188,6 +200,7 @@ namespace DivisionEngine.Systems
         {
             if (textureIdToIndex.TryGetValue(assetId, out int index))
             {
+                if (AllTextureMetadata == null || AllTextureData == null) return null;
                 TextureMetadata meta = AllTextureMetadata[index];
                 int start = meta.bufferOffset;
                 int length = meta.resolution.X * meta.resolution.Y;
@@ -207,6 +220,14 @@ namespace DivisionEngine.Systems
             AllTextureMetadata = [];
             textureIdToIndex.Clear();
             Debug.Info("TextureSystem: Unloaded all textures");
+        }
+
+        public static void FreeCPUTextureData()
+        {
+            _allTextureData = null;
+            _allTextureMetadata = null;
+            GC.Collect(); // Force garbage collection
+            Debug.Info("TextureSystem: Freed CPU texture data");
         }
     }
 }

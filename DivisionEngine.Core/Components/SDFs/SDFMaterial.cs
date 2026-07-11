@@ -39,17 +39,19 @@ namespace DivisionEngine.Components.SDFs
         const float IOR_ACRYLIC = 1.49f;
         const float IOR_POLYCARBONATE = 1.58f;
 
-        // Textures
+        [Header("Textures")]
         public AssetRef<TextureAsset> albedoMap = default;
         public AssetRef<TextureAsset> normalMap = default;
+        [Min(0f)] public float normalStrength = 1f;
         public AssetRef<TextureAsset> roughnessMap = default;
         public AssetRef<TextureAsset> metallicMap = default;
         public AssetRef<TextureAsset> emissiveMap = default;
 
-        // UV scale/offset
+        [Header("UV Scale / Offset")]
         public float2 uvScale = new float2(1f, 1f);
         public float2 uvOffset = float2.Zero;
 
+        [Space(10f)]
         [Color(false)] public float4 albedoColor = ColorPalette.White;
         [Range(0f, 1f)] public float metallic = 0.8f;
         [Range(0f, 1f)] public float roughness = 0.2f;

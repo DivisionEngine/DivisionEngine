@@ -669,13 +669,41 @@ public partial class PropertiesWindow : EditorWindow
         Type fieldType = field.FieldType;
         object? fieldValue = field.GetValue(component);
 
+        float topMargin = 0f;
+        SpaceAttribute? spaceAttr = field.GetCustomAttribute<SpaceAttribute>();
+        if (spaceAttr != null) topMargin = spaceAttr.Space;
+
         // Setup field panel
         StackPanel fieldPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             MinHeight = 20,
-            Margin = new Thickness(0, 0),
+            Margin = new Thickness(0, topMargin, 0, 0),
         };
+
+        // If header exists
+        HeaderAttribute? headerAttr = field.GetCustomAttribute<HeaderAttribute>();
+        StackPanel superFieldPanel = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            MinHeight = 20,
+            Margin = new Thickness(0, topMargin, 0, 0f),
+        };
+        if (headerAttr != null)
+        {
+            TextBlock headerText = new TextBlock
+            {
+                Text = headerAttr.Header,
+                FontSize = 14,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0f, 12f, 0f, 6f),
+            };
+            fieldPanel.Margin = new Thickness(0);
+            superFieldPanel.Children.Add(headerText);
+            superFieldPanel.Children.Add(fieldPanel);
+        }
 
         CultureInfo cultureInfo = Thread.CurrentThread.CurrentCulture;
         TextInfo textInfo = cultureInfo.TextInfo;
@@ -734,6 +762,8 @@ public partial class PropertiesWindow : EditorWindow
         fieldContextMenu.Items.Add(resetMenuItem);
         fieldPanel.ContextMenu = fieldContextMenu;
 
+        MinAttribute? minAttr = field.GetCustomAttribute<MinAttribute>();
+        MaxAttribute? maxAttr = field.GetCustomAttribute<MaxAttribute>();
         RangeAttribute? rangeAttr = field.GetCustomAttribute<RangeAttribute>();
         if (fieldValue != null && fieldType == typeof(float))
         {
@@ -748,7 +778,7 @@ public partial class PropertiesWindow : EditorWindow
                 {
                     field.SetValue(component, f);
                     PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
-                }, false);
+                }, false, minAttr != null ? minAttr.Min : -2000000000f, maxAttr != null ? maxAttr.Max : 2000000000f);
                 StackPanel floatSlider = CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, (f) =>
                 {
                     field.SetValue(component, f);
@@ -763,7 +793,7 @@ public partial class PropertiesWindow : EditorWindow
             {
                 field.SetValue(component, f);
                 PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
-            }, true);
+            }, true, minAttr != null ? minAttr.Min : -2000000000f, maxAttr != null ? maxAttr.Max : 2000000000f);
         }
         else if (fieldValue != null && fieldType == typeof(int))
         {
@@ -778,7 +808,7 @@ public partial class PropertiesWindow : EditorWindow
                 {
                     field.SetValue(component, f);
                     PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
-                }, false);
+                }, false, minAttr != null ? (int)minAttr.Min : int.MinValue, maxAttr != null ? (int)maxAttr.Max : int.MaxValue);
                 StackPanel intSlider = CreateIntegerSlider(value, (int)rangeAttr.Min, (int)rangeAttr.Max, (i) =>
                 {
                     field.SetValue(component, i);
@@ -793,7 +823,7 @@ public partial class PropertiesWindow : EditorWindow
             {
                 field.SetValue(component, f);
                 PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
-            }, true);
+            }, true, minAttr != null ? (int)minAttr.Min : int.MinValue, maxAttr != null ? (int)maxAttr.Max : int.MaxValue);
         }
         else if (fieldValue != null && fieldType == typeof(string))
         {
@@ -1062,7 +1092,9 @@ public partial class PropertiesWindow : EditorWindow
             ApplyTooltip(nameLabel, field);
             fieldPanel.Children.Add(tooltipIcon);
         }
-        return fieldPanel;
+
+        if (headerAttr != null) return superFieldPanel;
+        else return fieldPanel;
     }
 
     /// <summary>
@@ -1577,11 +1609,23 @@ public partial class PropertiesWindow : EditorWindow
         return sliderPanel;
     }
 
-    private static NumericUpDown CreateFloatNumericBox(float initialVal, Action<float> onValueChanged, bool hasSpinner = false)
+    /// <summary>
+    /// Creates a numeric float field box with optional addons.
+    /// </summary>
+    /// <param name="initialVal">Starting value</param>
+    /// <param name="onValueChanged">Called when the value of this is changed</param>
+    /// <param name="hasSpinner">Has a spinner next to the field</param>
+    /// <param name="min">Minimum float value</param>
+    /// <param name="max">Maximum float value</param>
+    /// <returns>NumericUpDown specialized stylized float box</returns>
+    private static NumericUpDown CreateFloatNumericBox(float initialVal, Action<float> onValueChanged,
+        bool hasSpinner = false, float min = -2000000000f, float max = 2000000000f)
     {
         NumericUpDown numericBox = new NumericUpDown
         {
             Value = (decimal)initialVal,
+            Minimum = (decimal)min,
+            Maximum = (decimal)max,
             Increment = (decimal)Math.Max(initialVal / 10f, 0.1f),
             FontSize = 11,
             AllowSpin = true,
@@ -1604,11 +1648,23 @@ public partial class PropertiesWindow : EditorWindow
         return numericBox;
     }
 
-    private static NumericUpDown CreateIntegerNumericBox(int initialVal, Action<int> onValueChanged, bool hasSpinner = false)
+    /// <summary>
+    /// Creates a numeric integer field box with optional addons.
+    /// </summary>
+    /// <param name="initialVal">Starting value</param>
+    /// <param name="onValueChanged">Called when the value of this is changed</param>
+    /// <param name="hasSpinner">Has a spinner next to the field</param>
+    /// <param name="min">Minimum integer value</param>
+    /// <param name="max">Maximum integer value</param>
+    /// <returns>NumericUpDown specialized stylized integer box</returns>
+    private static NumericUpDown CreateIntegerNumericBox(int initialVal, Action<int> onValueChanged,
+        bool hasSpinner = false, int min = int.MinValue, int max = int.MaxValue)
     {
         NumericUpDown numericBox = new NumericUpDown
         {
             Value = initialVal,
+            Minimum = min,
+            Maximum = max,
             Increment = 1,
             FontSize = 11,
             AllowSpin = true,

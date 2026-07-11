@@ -494,17 +494,11 @@ namespace DivisionEngine.Rendering
             SDFWorldDTO worldDTO;
             SDFObjectDTO[] sdfObjDTO;
             SDFLightDTO[] sdfLightsDTO;
-
-            TextureData[] sdfTextureDTO;
-            TextureMetadata[] sdfTextureMetaDTO;
             lock (SyncLock)
             {
                 worldDTO = SDFRenderSystem.PreparedWorldDTO;
                 sdfObjDTO = SDFRenderSystem.PreparedSDFObjectsDTO;
                 sdfLightsDTO = SDFRenderSystem.PreparedLightsDTO;
-                
-                sdfTextureDTO = TextureSystem.AllTextureData;
-                sdfTextureMetaDTO = TextureSystem.AllTextureMetadata;
             }
             if (sdfObjDTO.Length < 1) return;
 
@@ -582,24 +576,33 @@ namespace DivisionEngine.Rendering
                     }
 
                     // Build and copy buffers
-                    sdfObjBuffer?.Dispose();
-                    sdfObjBuffer = Device?.AllocateReadOnlyBuffer(sdfObjDTO);
+                    if (sdfObjBuffer?.Length != sdfObjDTO.Length)
+                    {
+                        sdfObjBuffer?.Dispose();
+                        sdfObjBuffer = Device?.AllocateReadOnlyBuffer(sdfObjDTO);
+                    }
+                    else sdfObjBuffer.CopyFrom(sdfObjDTO);
                     if (sdfObjBuffer == null) return;
 
-                    lightsBuffer?.Dispose();
-                    lightsBuffer = Device?.AllocateReadOnlyBuffer(sdfLightsDTO);
+                    if (lightsBuffer?.Length != sdfLightsDTO.Length)
+                    {
+                        lightsBuffer?.Dispose();
+                        lightsBuffer = Device?.AllocateReadOnlyBuffer(sdfLightsDTO);
+                    }
+                    else lightsBuffer.CopyFrom(sdfLightsDTO);
                     if (lightsBuffer == null) return;
 
-                    if (rebuildTextureBuffer)
+                    if (rebuildTextureBuffer && TextureSystem.AllTextureData != null && TextureSystem.AllTextureMetadata != null)
                     {
                         textureBuffer?.Dispose();
-                        textureBuffer = Device?.AllocateReadOnlyBuffer(sdfTextureDTO);
+                        textureBuffer = Device?.AllocateReadOnlyBuffer(TextureSystem.AllTextureData);
                         if (textureBuffer == null) return;
 
                         textureMetaBuffer?.Dispose();
-                        textureMetaBuffer = Device?.AllocateReadOnlyBuffer(sdfTextureMetaDTO);
+                        textureMetaBuffer = Device?.AllocateReadOnlyBuffer(TextureSystem.AllTextureMetadata);
                         if (textureMetaBuffer == null) return;
 
+                        TextureSystem.FreeCPUTextureData();
                         rebuildTextureBuffer = false;
                     }
 

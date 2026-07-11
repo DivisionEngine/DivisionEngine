@@ -95,22 +95,36 @@ namespace DivisionEngine
         #endregion math_functions
         #region textures
 
-        // Add sampling method:
-        private float4 SampleTexture(int textureId, float2 uv)
+        public float SampleTexture(int textureId, float2 uv, float fallback)
         {
+            return SampleTexture(textureId, uv, fallback * float4.One).R;
+        }
+
+        private float4 SampleTexture(int textureId, float2 uv, float4 fallbackColor)
+        {
+            if (textureId < 0 || textureId >= textureMetadata.Length) return fallbackColor;
+            float2 newUV = new float2(Hlsl.Abs(uv.X % 1), Hlsl.Abs(uv.Y % 1));
+
             TextureMetadata meta = textureMetadata[textureId];
-            int x = (int)(uv.X * (meta.resolution.X - 1));
-            int y = (int)(uv.Y * (meta.resolution.Y - 1));
+            int x = (int)(newUV.X * (meta.resolution.X - 1));
+            int y = (int)(newUV.Y * (meta.resolution.Y - 1));
             int index = meta.bufferOffset + y * meta.resolution.X + x;
             return textureData[index].pixel;
         }
 
-        // Bilinear filtering version:
-        private float4 SampleTextureBilinear(int textureId, float2 uv)
+        public float SampleTextureBilinear(int textureId, float2 uv, float fallback)
         {
+            return SampleTextureBilinear(textureId, uv, fallback * float4.One).R;
+        }
+
+        private float4 SampleTextureBilinear(int textureId, float2 uv, float4 fallbackColor)
+        {
+            if (textureId < 0 || textureId >= textureMetadata.Length) return fallbackColor;
+            float2 newUV = new float2(Hlsl.Abs(uv.X % 1), Hlsl.Abs(uv.Y % 1));
+
             TextureMetadata meta = textureMetadata[textureId];
-            float u = uv.X * (meta.resolution.X - 1);
-            float v = uv.Y * (meta.resolution.Y - 1);
+            float u = newUV.X * (meta.resolution.X - 1);
+            float v = newUV.Y * (meta.resolution.Y - 1);
 
             int x0 = (int)u;
             int y0 = (int)v;
@@ -133,6 +147,50 @@ namespace DivisionEngine
             float4 c0 = Hlsl.Lerp(c00, c10, u_frac);
             float4 c1 = Hlsl.Lerp(c01, c11, u_frac);
             return Hlsl.Lerp(c0, c1, v_frac);
+        }
+
+        //private float3 SampleNormalMap(int textureId, float2 uv, float3 normal, float3 tangent, float strength)
+        //{
+        //    // Sample normal map (stores normal in tangent space, range [0,1])
+        //    float4 normalMap = SampleTextureBilinear(textureId, uv, new float4(0.5f, 0.5f, 1.0f, 1.0f));
+
+        //    // Convert from [0,1] to [-1,1]
+        //    float3 tangentNormal = new float3(
+        //        (normalMap.R * 2.0f - 1.0f) * strength,
+        //        (normalMap.G * 2.0f - 1.0f) * strength,
+        //        normalMap.B * 2.0f - 1.0f
+        //    );
+
+        //    // Normalize the tangent space normal
+        //    tangentNormal = Hlsl.Normalize(tangentNormal);
+
+        //    // Construct TBN matrix and transform to world space
+        //    // TBN matrix: [tangent, bitangent, normal]
+        //    float3 worldNormal = tangent * tangentNormal.X + CalcBitangent(normal, tangent) * tangentNormal.Y + normal * tangentNormal.Z;
+        //    return Hlsl.Normalize(worldNormal);
+        //}
+
+        /// <summary>
+        /// Faster version using precomputed TBN matrix (reduces operations).
+        /// </summary>
+        private float3 SampleNormalMapFast(int textureId, float2 uv, float3 normal, float3 tangent, float strength)
+        {
+            float4 normalMap = SampleTextureBilinear(textureId, uv, new float4(0.5f, 0.5f, 1.0f, 1.0f));
+
+            // Unpack normal
+            float3 tangentNormal = new float3(
+                (normalMap.R * 2.0f - 1.0f) * strength,
+                (normalMap.G * 2.0f - 1.0f) * strength,
+                normalMap.B * 2.0f - 1.0f
+            );
+            tangentNormal = Hlsl.Normalize(tangentNormal);
+
+            // Transform to world space using TBN matrix
+            return Hlsl.Normalize(
+                tangent * tangentNormal.X +
+                CalcBitangent(normal, tangent) * tangentNormal.Y +
+                normal * tangentNormal.Z
+            );
         }
 
         #endregion textures
@@ -363,9 +421,9 @@ namespace DivisionEngine
         #endregion sdf_sampling
         #region normals
 
-        // -------
-        // Normals
-        // -------
+        // --------------------
+        // Normals and Tangents
+        // --------------------
 
         /// <summary>
         /// Very fast high quality normal calculation (4 samples).
@@ -380,6 +438,17 @@ namespace DivisionEngine
                               k.YYX * WorldSDF(pos + k.YYX * h, false, uint.MaxValue, out _) +
                               k.YXY * WorldSDF(pos + k.YXY * h, false, uint.MaxValue, out _) +
                               k.XXX * WorldSDF(pos + k.XXX * h, false, uint.MaxValue, out _));
+        }
+
+        private float3 CalcTangent(float3 normal)
+        {
+            float3 up = Hlsl.Abs(normal.Z) < 0.999f ? new float3(0, 0, 1) : new float3(1, 0, 0);
+            return Hlsl.Normalize(Hlsl.Cross(up, normal));
+        }
+
+        private float3 CalcBitangent(float3 normal, float3 tangent)
+        {
+            return Hlsl.Normalize(Hlsl.Cross(normal, tangent));
         }
 
         // Platform compliant version
@@ -534,14 +603,6 @@ namespace DivisionEngine
         // New Correct PBR BRDF Functions
         // ------------------------------
 
-        private float4 GetMaterialColor(int albedoTextureId, float4 albedoCol, float2 uv)
-        {
-            if (albedoTextureId < 0 || albedoTextureId >= textureMetadata.Length)
-                return albedoCol; // No texture, return albedo color
-
-            return SampleTextureBilinear(albedoTextureId, uv);
-        }
-
         private static float3 FresnelSchlick(float cosTheta, float3 f0)
         {
             return f0 + (float3.One - f0) * Hlsl.Pow(1f - cosTheta, 5f);
@@ -627,15 +688,24 @@ namespace DivisionEngine
         private float3 BRDFMicrofacetFunction(float3 lightDir, float3 viewDir, float3 normal, SDFObjectDTO sdfObject, float2 texUV)
         {
             float3 halfwayDir = Hlsl.Normalize(viewDir + lightDir);
-            float NoV = Hlsl.Saturate(Hlsl.Dot(normal, viewDir));
-            float NoL = Hlsl.Saturate(Hlsl.Dot(normal, lightDir));
+            float3 finalNormal = SampleNormalMapFast(
+                sdfObject.normalTexMetaID,
+                texUV,
+                normal,
+                CalcTangent(normal),
+                sdfObject.normalStrength
+            );
+
+            float NoV = Hlsl.Saturate(Hlsl.Dot(finalNormal, viewDir));
+            float NoL = Hlsl.Saturate(Hlsl.Dot(finalNormal, lightDir));
             float VoH = Hlsl.Saturate(Hlsl.Dot(viewDir, halfwayDir));
-            float NoH = Hlsl.Saturate(Hlsl.Dot(normal, halfwayDir));
+            float NoH = Hlsl.Saturate(Hlsl.Dot(finalNormal, halfwayDir));
 
             // SDF object material
-            float3 baseCol = GetMaterialColor(sdfObject.albedoTexMetaID, sdfObject.color, texUV).RGB;
-            float metallic = sdfObject.metallic;
-            float roughAlpha = sdfObject.roughness * sdfObject.roughness;
+            float3 baseCol = SampleTextureBilinear(sdfObject.albedoTexMetaID, texUV, sdfObject.color).RGB;
+            float metallic = SampleTextureBilinear(sdfObject.metalTexMetaID, texUV, sdfObject.metallic);
+            float roughAlpha = SampleTextureBilinear(sdfObject.roughTexMetaID, texUV, sdfObject.roughness);
+            roughAlpha *= roughAlpha;
             float reflectance = sdfObject.specular;
 
             float3 f0 = float3.One * 0.16f * reflectance * reflectance;
