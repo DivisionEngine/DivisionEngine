@@ -73,7 +73,7 @@ namespace DivisionEngine.Systems
                 AllTextureData = [
                     new TextureData
                     {
-                        pixel = new float4(1, 1, 1, 1),
+                        pixel = new float4(1, 0, 1, 1),
                     }
                 ];
             }

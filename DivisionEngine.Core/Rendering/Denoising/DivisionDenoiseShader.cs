@@ -70,18 +70,18 @@ namespace DivisionEngine.Rendering
             // Get roughness from material
             float roughness = sdfObjects[centerObjId].roughness;
 
-            // Perform custom Division Denoising
-            if (pixel.X > divisionDomain - 1 && pixel.Y > divisionDomain - 1 &&
-                pixel.X < width - divisionDomain && pixel.Y < height - divisionDomain)
-                centerColor.RGB = DivisionDenoise(centerColor.RGB, pixel, roughness);
-            outputTexture[pixel] = centerColor;
-
             // Skip blur if not reflective or very smooth
             if (sdfObjects[centerObjId].hasReflection == 0 || roughness < MIN_ROUGHNESS_BLUR)
             {
                 outputTexture[pixel] = centerColor;
                 return;
             }
+
+            // Perform custom Division Denoising
+            if (pixel.X > divisionDomain - 1 && pixel.Y > divisionDomain - 1 &&
+                pixel.X < width - divisionDomain && pixel.Y < height - divisionDomain)
+                centerColor.RGB = DivisionDenoise(centerColor.RGB, pixel, roughness);
+            outputTexture[pixel] = centerColor;
 
             // More aggressive blur radius for rough surfaces
             int blurRadius = (int)Hlsl.Lerp(2.0f, 4.0f, roughness);
