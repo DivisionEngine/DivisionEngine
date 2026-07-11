@@ -95,6 +95,53 @@ namespace DivisionEngine
         #endregion math_functions
         #region textures
 
+        /// <summary>
+        /// Unpacks a uint RGBA pixel to float4.
+        /// </summary>
+        private static float4 UnpackRGBA(uint packed)
+        {
+            float r = ((packed >> 24) & 0xFF) / 255.0f;
+            float g = ((packed >> 16) & 0xFF) / 255.0f;
+            float b = ((packed >> 8) & 0xFF) / 255.0f;
+            float a = (packed & 0xFF) / 255.0f;
+            return new float4(r, g, b, a);
+        }
+
+        ///// <summary>
+        ///// Unpacks a uint RGBA pixel to float3 (RGB only, ignores alpha).
+        ///// </summary>
+        //private float3 UnpackRGB(uint packed)
+        //{
+        //    float r = ((packed >> 24) & 0xFF) / 255.0f;
+        //    float g = ((packed >> 16) & 0xFF) / 255.0f;
+        //    float b = ((packed >> 8) & 0xFF) / 255.0f;
+        //    return new float3(r, g, b);
+        //}
+
+        ///// <summary>
+        ///// Unpacks a single channel from a uint (0-255 to 0-1).
+        ///// </summary>
+        //private float UnpackChannel(uint packed, int channel)
+        //{
+        //    uint mask = channel switch
+        //    {
+        //        0 => 0xFF000000u, // R
+        //        1 => 0x00FF0000u, // G
+        //        2 => 0x0000FF00u, // B
+        //        3 => 0x000000FFu, // A
+        //        _ => 0xFFFFFFFFu
+        //    };
+        //    int shift = channel switch
+        //    {
+        //        0 => 24,
+        //        1 => 16,
+        //        2 => 8,
+        //        3 => 0,
+        //        _ => 0
+        //    };
+        //    return ((packed & mask) >> shift) / 255.0f;
+        //}
+
         public float SampleTexture(int textureId, float2 uv, float fallback)
         {
             return SampleTexture(textureId, uv, fallback * float4.One).R;
@@ -109,7 +156,7 @@ namespace DivisionEngine
             int x = (int)(newUV.X * (meta.resolution.X - 1));
             int y = (int)(newUV.Y * (meta.resolution.Y - 1));
             int index = meta.bufferOffset + y * meta.resolution.X + x;
-            return textureData[index].pixel;
+            return UnpackRGBA(textureData[index].packedPixel);
         }
 
         public float SampleTextureBilinear(int textureId, float2 uv, float fallback)
@@ -139,10 +186,10 @@ namespace DivisionEngine
             int idx01 = meta.bufferOffset + y1 * meta.resolution.X + x0;
             int idx11 = meta.bufferOffset + y1 * meta.resolution.X + x1;
 
-            float4 c00 = textureData[idx00].pixel;
-            float4 c10 = textureData[idx10].pixel;
-            float4 c01 = textureData[idx01].pixel;
-            float4 c11 = textureData[idx11].pixel;
+            float4 c00 = UnpackRGBA(textureData[idx00].packedPixel);
+            float4 c10 = UnpackRGBA(textureData[idx10].packedPixel);
+            float4 c01 = UnpackRGBA(textureData[idx01].packedPixel);
+            float4 c11 = UnpackRGBA(textureData[idx11].packedPixel);
 
             float4 c0 = Hlsl.Lerp(c00, c10, u_frac);
             float4 c1 = Hlsl.Lerp(c01, c11, u_frac);

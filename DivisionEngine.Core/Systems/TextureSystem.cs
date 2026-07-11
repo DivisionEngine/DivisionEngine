@@ -73,7 +73,7 @@ namespace DivisionEngine.Systems
                 AllTextureData = [
                     new TextureData
                     {
-                        pixel = new float4(1, 0, 1, 1),
+                        packedPixel = 0,
                     }
                 ];
             }
@@ -148,8 +148,8 @@ namespace DivisionEngine.Systems
 
                 // Set pixel data
                 if (texture?.PixelData == null) continue;
-                foreach (float4 pixel in texture.PixelData)
-                    allData.Add(new TextureData { pixel = pixel });
+                foreach (uint pixel in texture.PixelData)
+                    allData.Add(new TextureData { packedPixel = pixel });
 
                 currentOffset += texture.PixelData.Length;
                 GC.Collect(); // Collect GC after every texture loaded

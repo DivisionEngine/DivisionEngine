@@ -12,14 +12,14 @@ namespace DivisionEngine.Projects.Assets
     [AssetType(AssetType.Texture)]
     public class TextureAsset(AssetMetadata metadata) : Asset(metadata)
     {
-        private float4[]? pixelData;
+        private uint[]? pixelData;
         private int width;
         private int height;
 
         /// <summary>
-        /// Raw image data.
+        /// Raw image data (rgba packed into uint array).
         /// </summary>
-        public float4[]? PixelData => pixelData;
+        public uint[]? PixelData => pixelData;
 
         public int Width => width;
         public int Height => height;
@@ -43,16 +43,16 @@ namespace DivisionEngine.Projects.Assets
                 height = bitmap.Height;
                 SKColor[] skData = bitmap.Pixels;
 
-                // Convert BGRA bytes to float4 (RGBA, normalized to 0-1)
-                pixelData = new float4[skData.Length];
+                // Convert rgba bytes to packed uint
+                pixelData = new uint[skData.Length];
                 for (int i = 0; i < skData.Length; i++)
                 {
                     SKColor skPixel = skData[i];
-                    pixelData[i] = new float4(
-                        skPixel.Red / 255.0f,
-                        skPixel.Green / 255.0f,
-                        skPixel.Blue / 255.0f,
-                        skPixel.Alpha / 255.0f
+                    pixelData[i] = (uint)(
+                        (skPixel.Red << 24) |
+                        (skPixel.Green << 16) |
+                        (skPixel.Blue << 8) |
+                        skPixel.Alpha
                     );
                 }
 

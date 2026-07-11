@@ -12,7 +12,7 @@ namespace DivisionEngine.Rendering.Textures
      /// </summary>
     public struct TextureData
     {
-        public float4 pixel;
+        public uint packedPixel;
     }
 
     /// <summary>
