@@ -5,16 +5,8 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
-namespace DivisionEngine.Rendering.Textures
+namespace DivisionEngine.Rendering
 {
-     /// <summary>
-     /// Stores data for a single pixel.
-     /// </summary>
-    public struct TextureData
-    {
-        public uint packedPixel;
-    }
-
     /// <summary>
     /// Metadata for a loaded texture.
     /// </summary>

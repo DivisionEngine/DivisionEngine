@@ -10,7 +10,6 @@ using DivisionEngine.Components;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
 using DivisionEngine.Rendering.Terrains;
-using DivisionEngine.Rendering.Textures;
 using DivisionEngine.Settings;
 using DivisionEngine.Systems;
 using Silk.NET.Input;
@@ -127,7 +126,7 @@ namespace DivisionEngine.Rendering
         // Buffer storage
         private ReadOnlyBuffer<SDFObjectDTO>? sdfObjBuffer;
         private ReadOnlyBuffer<SDFLightDTO>? lightsBuffer;
-        private ReadOnlyBuffer<TextureData>? textureBuffer;
+        private ReadOnlyBuffer<uint>? textureBuffer;
         private ReadOnlyBuffer<TextureMetadata>? textureMetaBuffer;
 
         // Terrain storage

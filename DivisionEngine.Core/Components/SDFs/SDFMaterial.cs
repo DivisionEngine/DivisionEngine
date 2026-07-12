@@ -52,6 +52,7 @@ namespace DivisionEngine.Components.SDFs
         public float2 uvOffset = float2.Zero;
 
         [Space(10f)]
+        [Header("Material Properties")]
         [Color(false)] public float4 albedoColor = ColorPalette.White;
         [Range(0f, 1f)] public float metallic = 0.8f;
         [Range(0f, 1f)] public float roughness = 0.2f;
@@ -78,6 +79,7 @@ namespace DivisionEngine.Components.SDFs
         {
             albedoMap = albedoMap,
             normalMap = normalMap,
+            normalStrength = normalStrength,
             roughnessMap = roughnessMap,
             metallicMap = metallicMap,
             emissiveMap = emissiveMap,

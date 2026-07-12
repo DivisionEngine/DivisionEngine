@@ -10,7 +10,6 @@
 using ComputeSharp;
 using DivisionEngine.Rendering;
 using DivisionEngine.Rendering.Terrains;
-using DivisionEngine.Rendering.Textures;
 
 namespace DivisionEngine
 {
@@ -29,7 +28,7 @@ namespace DivisionEngine
         ReadWriteBuffer<uint2> entityIdBuffer,
         ReadOnlyBuffer<SDFObjectDTO> sdfObjects,
         ReadOnlyBuffer<SDFLightDTO> lights,
-        ReadOnlyBuffer<TextureData> textureData,
+        ReadOnlyBuffer<uint> textureData,
         ReadOnlyBuffer<TextureMetadata> textureMetadata) : IComputeShader
     {
         // Main constants
@@ -156,7 +155,7 @@ namespace DivisionEngine
             int x = (int)(newUV.X * (meta.resolution.X - 1));
             int y = (int)(newUV.Y * (meta.resolution.Y - 1));
             int index = meta.bufferOffset + y * meta.resolution.X + x;
-            return UnpackRGBA(textureData[index].packedPixel);
+            return UnpackRGBA(textureData[index]);
         }
 
         public float SampleTextureBilinear(int textureId, float2 uv, float fallback)
@@ -186,10 +185,10 @@ namespace DivisionEngine
             int idx01 = meta.bufferOffset + y1 * meta.resolution.X + x0;
             int idx11 = meta.bufferOffset + y1 * meta.resolution.X + x1;
 
-            float4 c00 = UnpackRGBA(textureData[idx00].packedPixel);
-            float4 c10 = UnpackRGBA(textureData[idx10].packedPixel);
-            float4 c01 = UnpackRGBA(textureData[idx01].packedPixel);
-            float4 c11 = UnpackRGBA(textureData[idx11].packedPixel);
+            float4 c00 = UnpackRGBA(textureData[idx00]);
+            float4 c10 = UnpackRGBA(textureData[idx10]);
+            float4 c01 = UnpackRGBA(textureData[idx01]);
+            float4 c11 = UnpackRGBA(textureData[idx11]);
 
             float4 c0 = Hlsl.Lerp(c00, c10, u_frac);
             float4 c1 = Hlsl.Lerp(c01, c11, u_frac);

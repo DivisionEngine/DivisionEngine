@@ -827,11 +827,13 @@ public partial class PropertiesWindow : EditorWindow
         }
         else if (fieldValue != null && fieldType == typeof(string))
         {
+            bool multiline = field.GetCustomAttribute<MultilineAttribute>() != null; // checks to see if multiline text field
             string value = (string)fieldValue;
             TextBox textBox = new TextBox
             {
                 Text = value,
                 FontSize = 12,
+                AcceptsReturn = multiline,
                 Background = EditorColor.FromRGB(32, 32, 32),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(4, 2),

@@ -7,7 +7,7 @@
 //
 using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
-using DivisionEngine.Rendering.Textures;
+using DivisionEngine.Rendering;
 
 namespace DivisionEngine.Systems
 {
@@ -16,13 +16,13 @@ namespace DivisionEngine.Systems
     /// </summary>
     public class TextureSystem : SystemBase
     {
-        private static TextureData[]? _allTextureData = [];
+        private static uint[]? _allTextureData = [];
         private static TextureMetadata[]? _allTextureMetadata = [];
 
         /// <summary>
         /// All texture data flattened into a single array (for GPU buffer).
         /// </summary>
-        public static TextureData[]? AllTextureData
+        public static uint[]? AllTextureData
         {
             get => _allTextureData;
             private set => _allTextureData = value;
@@ -69,13 +69,7 @@ namespace DivisionEngine.Systems
                         resolution = 1,
                     }
                 ];
-
-                AllTextureData = [
-                    new TextureData
-                    {
-                        packedPixel = 0,
-                    }
-                ];
+                AllTextureData = [0];
             }
         }
 
@@ -126,7 +120,7 @@ namespace DivisionEngine.Systems
             // Load each texture through the AssetManager (caches them)
             List<TextureAsset> loadedTextures = [];
             List<TextureMetadata> metadataList = [];
-            List<TextureData> allData = [];
+            List<uint> allData = [];
             int currentOffset = 0;
             foreach (AssetMetadata meta in textureMetadatas)
             {
@@ -148,8 +142,7 @@ namespace DivisionEngine.Systems
 
                 // Set pixel data
                 if (texture?.PixelData == null) continue;
-                foreach (uint pixel in texture.PixelData)
-                    allData.Add(new TextureData { packedPixel = pixel });
+                foreach (uint pixel in texture.PixelData) allData.Add(pixel);
 
                 currentOffset += texture.PixelData.Length;
                 GC.Collect(); // Collect GC after every texture loaded
@@ -196,7 +189,7 @@ namespace DivisionEngine.Systems
         /// <summary>
         /// Gets a texture's pixel data by asset ID.
         /// </summary>
-        public static TextureData[]? GetTextureData(string assetId)
+        public static uint[]? GetTextureData(string assetId)
         {
             if (textureIdToIndex.TryGetValue(assetId, out int index))
             {
@@ -204,7 +197,7 @@ namespace DivisionEngine.Systems
                 TextureMetadata meta = AllTextureMetadata[index];
                 int start = meta.bufferOffset;
                 int length = meta.resolution.X * meta.resolution.Y;
-                TextureData[] result = new TextureData[length];
+                uint[] result = new uint[length];
                 Array.Copy(AllTextureData, start, result, 0, length);
                 return result;
             }
