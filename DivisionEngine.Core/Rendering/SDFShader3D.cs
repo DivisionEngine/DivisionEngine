@@ -256,6 +256,40 @@ namespace DivisionEngine
             return SampleTriplanarMip(textureId, localPos, blend, scale, mipLevel, fallback * float4.One).R;
         }
 
+        /// <summary>
+        /// Triplanar normal map sample with mipmapping.
+        /// </summary>
+        private float3 SampleNormalTriplanarMip(int textureId, float3 localPos, float3 localNormal, float3 blend,
+            float scale, float strength, float mipLevel)
+        {
+            if (textureId < 0) return localNormal;
+
+            float4 flat = new float4(0.5f, 0.5f, 1f, 1f);
+
+            // Use trilinear/mipmapped sampling for each axis
+            float4 mapX = SampleTextureTrilinear(textureId, localPos.YZ * scale, mipLevel, flat);
+            float4 mapY = SampleTextureTrilinear(textureId, localPos.XZ * scale, mipLevel, flat);
+            float4 mapZ = SampleTextureTrilinear(textureId, localPos.XY * scale, mipLevel, flat);
+
+            float3 tX = new float3((mapX.R * 2f - 1f) * strength, (mapX.G * 2f - 1f) * strength, mapX.B);
+            float3 tY = new float3((mapY.R * 2f - 1f) * strength, (mapY.G * 2f - 1f) * strength, mapY.B);
+            float3 tZ = new float3((mapZ.R * 2f - 1f) * strength, (mapZ.G * 2f - 1f) * strength, mapZ.B);
+
+            // Keep the map's "outward" axis pointing the same way as the geometric normal
+            float sx = Hlsl.Sign(localNormal.X);
+            float sy = Hlsl.Sign(localNormal.Y);
+            float sz = Hlsl.Sign(localNormal.Z);
+
+            // X-projection: U=localY, V=localZ, tangent-Z = localX
+            float3 nX = new float3(tX.Z * sx, tX.X, tX.Y);
+            // Y-projection: U=localX, V=localZ, tangent-Z = localY
+            float3 nY = new float3(tY.X, tY.Z * sy, tY.Y);
+            // Z-projection: U=localX, V=localY, tangent-Z = localZ
+            float3 nZ = new float3(tZ.X, tZ.Y, tZ.Z * sz);
+
+            return Hlsl.Normalize(nX * blend.X + nY * blend.Y + nZ * blend.Z);
+        }
+
         #endregion triplanar
         #region sdf_sampling
 
@@ -534,7 +568,7 @@ namespace DivisionEngine
             metallic = SampleTriplanarScalarMip(sdf.metalTexMetaID, localPos, blend, scale, mipLevel, sdf.metallic);
             roughness = Hlsl.Max(SampleTriplanarScalarMip(sdf.roughTexMetaID, localPos, blend, scale, mipLevel, sdf.roughness), 0.045f);
 
-            float3 localFinalNormal = SampleNormalTriplanarLocal(sdf.normalTexMetaID, localPos, localGeoNormal, blend, scale, sdf.normalStrength);
+            float3 localFinalNormal = SampleNormalTriplanarMip(sdf.normalTexMetaID, localPos, localGeoNormal, blend, scale, sdf.normalStrength, mipLevel);
             finalNormal = Hlsl.Normalize(ShaderMath.InverseRotateVector(localFinalNormal, sdf.rotation));
         }
 
