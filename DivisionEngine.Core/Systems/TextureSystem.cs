@@ -8,6 +8,7 @@
 using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using DivisionEngine.Rendering;
+using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {
@@ -143,7 +144,7 @@ namespace DivisionEngine.Systems
                     bufferOffset = currentOffset,
                     mipCount = mipChain.Count,
                 });
-                textureIdToIndex[meta.ID] = loadedTextures.Count - 1;
+                textureIdToIndex[meta.ID] = metadataList.Count - 1;
                 Debug.Log($"Texture {texture.ID} created with {mipChain.Count} mips");
 
                 foreach (uint[] level in mipChain)
@@ -181,18 +182,18 @@ namespace DivisionEngine.Systems
 
             while (w > 1 || h > 1)
             {
-                int nw = System.Math.Max(1, w / 2);
-                int nh = System.Math.Max(1, h / 2);
+                int nw = Math.Max(1, w / 2);
+                int nh = Math.Max(1, h / 2);
                 uint[] next = new uint[nw * nh];
 
                 for (int y = 0; y < nh; y++)
                 {
                     for (int x = 0; x < nw; x++)
                     {
-                        int x0 = System.Math.Min(x * 2, w - 1);
-                        int x1 = System.Math.Min(x * 2 + 1, w - 1);
-                        int y0 = System.Math.Min(y * 2, h - 1);
-                        int y1 = System.Math.Min(y * 2 + 1, h - 1);
+                        int x0 = Math.Min(x * 2, w - 1);
+                        int x1 = Math.Min(x * 2 + 1, w - 1);
+                        int y0 = Math.Min(y * 2, h - 1);
+                        int y1 = Math.Min(y * 2 + 1, h - 1);
 
                         next[y * nw + x] = AveragePixels(
                             prev[y0 * w + x0], prev[y0 * w + x1],
