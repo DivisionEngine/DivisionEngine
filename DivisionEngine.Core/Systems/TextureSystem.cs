@@ -67,6 +67,7 @@ namespace DivisionEngine.Systems
                     {
                         bufferOffset = 0,
                         resolution = 1,
+                        mipCount = 1,
                     }
                 ];
                 AllTextureData = [0];
@@ -131,20 +132,26 @@ namespace DivisionEngine.Systems
                     continue;
                 }
 
-                // Set loaded textures and metadata
                 loadedTextures.Add(texture);
+                if (texture?.PixelData == null) continue;
+
+                List<uint[]> mipChain = BuildMipChain(texture.PixelData, texture.Width, texture.Height);
+
                 metadataList.Add(new TextureMetadata
                 {
                     resolution = new int2(texture.Width, texture.Height),
-                    bufferOffset = currentOffset
+                    bufferOffset = currentOffset,
+                    mipCount = mipChain.Count,
                 });
                 textureIdToIndex[meta.ID] = loadedTextures.Count - 1;
+                Debug.Log($"Texture {texture.ID} created with {mipChain.Count} mips");
 
-                // Set pixel data
-                if (texture?.PixelData == null) continue;
-                foreach (uint pixel in texture.PixelData) allData.Add(pixel);
+                foreach (uint[] level in mipChain)
+                {
+                    foreach (uint pixel in level) allData.Add(pixel);
+                    currentOffset += level.Length;
+                }
 
-                currentOffset += texture.PixelData.Length;
                 GC.Collect(); // Collect GC after every texture loaded
             }
 
@@ -164,6 +171,56 @@ namespace DivisionEngine.Systems
             Debug.Info($"TextureSystem: Loaded {loadedTextures.Count} textures, {AllTextureData.Length} total pixels");
             UpdatedTextureData?.Invoke();
             loadingTextures = false;
+        }
+
+        private static List<uint[]> BuildMipChain(uint[] baseLevel, int width, int height)
+        {
+            List<uint[]> levels = new List<uint[]> { baseLevel };
+            int w = width, h = height;
+            uint[] prev = baseLevel;
+
+            while (w > 1 || h > 1)
+            {
+                int nw = System.Math.Max(1, w / 2);
+                int nh = System.Math.Max(1, h / 2);
+                uint[] next = new uint[nw * nh];
+
+                for (int y = 0; y < nh; y++)
+                {
+                    for (int x = 0; x < nw; x++)
+                    {
+                        int x0 = System.Math.Min(x * 2, w - 1);
+                        int x1 = System.Math.Min(x * 2 + 1, w - 1);
+                        int y0 = System.Math.Min(y * 2, h - 1);
+                        int y1 = System.Math.Min(y * 2 + 1, h - 1);
+
+                        next[y * nw + x] = AveragePixels(
+                            prev[y0 * w + x0], prev[y0 * w + x1],
+                            prev[y1 * w + x0], prev[y1 * w + x1]);
+                    }
+                }
+
+                levels.Add(next);
+                prev = next;
+                w = nw; h = nh;
+            }
+
+            return levels;
+        }
+
+        private static uint AveragePixels(uint a, uint b, uint c, uint d)
+        {
+            int r = (UnpackChannel(a, 0) + UnpackChannel(b, 0) + UnpackChannel(c, 0) + UnpackChannel(d, 0)) / 4;
+            int g = (UnpackChannel(a, 1) + UnpackChannel(b, 1) + UnpackChannel(c, 1) + UnpackChannel(d, 1)) / 4;
+            int b_ = (UnpackChannel(a, 2) + UnpackChannel(b, 2) + UnpackChannel(c, 2) + UnpackChannel(d, 2)) / 4;
+            int al = (UnpackChannel(a, 3) + UnpackChannel(b, 3) + UnpackChannel(c, 3) + UnpackChannel(d, 3)) / 4;
+            return (uint)((r << 24) | (g << 16) | (b_ << 8) | al);
+        }
+
+        private static int UnpackChannel(uint packed, int channel)
+        {
+            int shift = channel switch { 0 => 24, 1 => 16, 2 => 8, 3 => 0, _ => 0 };
+            return (int)((packed >> shift) & 0xFF);
         }
 
         /// <summary>

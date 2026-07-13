@@ -59,7 +59,7 @@ public partial class EnvironmentWindow : EditorWindow
         };
         debugMode = new ComboBox
         {
-            ItemsSource = new[] { "None", "Depth", "World Normals", "Object ID", "Ray Steps", "Shadows", "BRDF", "Specular", "Diffuse" },
+            ItemsSource = new[] { "None", "Depth", "World Normals", "Object ID", "Ray Steps", "Shadows", "BRDF", "Specular", "Diffuse", "Mip Cascades" },
             SelectedIndex = 0,
             FontSize = 12,
             FontWeight = FontWeight.Regular,
@@ -179,7 +179,7 @@ public partial class EnvironmentWindow : EditorWindow
     private void UpdateRendererDebugMode()
     {
         RenderPipeline.DebugMode mode = (RenderPipeline.DebugMode)debugMode.SelectedIndex;
-        if (App.Renderer != null) App.Renderer!.debugMode = mode;
+        if (App.Renderer != null) App.Renderer!.CurrentDebugMode = mode;
     }
 
     /// <summary>

@@ -32,7 +32,8 @@ namespace DivisionEngine.Rendering
         /// </summary>
         public enum DebugMode
         {
-            None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3, RaySteps = 4, Shadows = 5, BRDF = 6, Specular = 7, Diffuse = 8,
+            None = 0, Depth = 1, WorldNormals = 2, ObjectID = 3, RaySteps = 4,
+            Shadows = 5, BRDF = 6, Specular = 7, Diffuse = 8, MipLevels = 9,
         }
 
         // Special variables
@@ -94,7 +95,7 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// The current debug mode of the render pipeline.
         /// </summary>
-        public DebugMode debugMode = DebugMode.None;
+        public DebugMode CurrentDebugMode { get; set; } = DebugMode.None;
 
         /// <summary>
         /// Buffer of all of the object IDs per pixel on screen.
@@ -607,7 +608,7 @@ namespace DivisionEngine.Rendering
 
                     // Dispatch SDF compute shader
                     int outputMode = 0;
-                    if ((int)debugMode > 3) outputMode = (int)debugMode - 3;
+                    if ((int)CurrentDebugMode > 3) outputMode = (int)CurrentDebugMode - 3;
 
                     // Checkerboard rendering toggle
                     int checkerboardEnabled = CheckerboardRenderingEnabled ? 1 : 0;
@@ -630,7 +631,7 @@ namespace DivisionEngine.Rendering
                         texHeight,
                         texWidth / (float)texHeight,
                         TimeSystem.FrameCount,
-                        (int)debugMode,
+                        (int)CurrentDebugMode,
                         checkerboardEnabled,
                         SDFRenderSystem.WorldDataBuffer!,
                         renderTex,
@@ -647,7 +648,7 @@ namespace DivisionEngine.Rendering
                 ReadWriteTexture2D<float4>? currentTexture = renderTex;
 
                 // Division Denoising
-                if (worldDTO.enableDivisionDenoise == 1 && debugMode == DebugMode.None &&
+                if (worldDTO.enableDivisionDenoise == 1 && CurrentDebugMode == DebugMode.None &&
                     currentTexture != null && denoisedTex != null && objectIdBuffer != null && depthNormalsTex != null)
                 {
                     lock (SyncLock)
@@ -668,7 +669,7 @@ namespace DivisionEngine.Rendering
                 }
 
                 // A-Trous denoising using wavelets
-                if (worldDTO.enableATrousDenoise == 1 && debugMode == DebugMode.None &&
+                if (worldDTO.enableATrousDenoise == 1 && CurrentDebugMode == DebugMode.None &&
                     currentTexture != null && denoisedTex != null && kernelBuffer != null && objectIdBuffer != null && depthNormalsTex != null)
                 {
                     ReadWriteTexture2D<float4> ping = currentTexture;
@@ -702,7 +703,7 @@ namespace DivisionEngine.Rendering
                 foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
                 {
                     // Depth of field
-                    if (debugMode == DebugMode.None && camera.enableDepthOfField &&
+                    if (CurrentDebugMode == DebugMode.None && camera.enableDepthOfField &&
                         currentTexture != null && denoisedTex != null && objectIdBuffer != null && depthNormalsTex != null)
                     {
                         ReadWriteTexture2D<float4> source = currentTexture;
