@@ -6,6 +6,7 @@
 // project root for full license terms.
 //
 using ComputeSharp;
+using DivisionEngine.Rendering.ShaderUtilities;
 
 namespace DivisionEngine.Rendering.Terrains
 {

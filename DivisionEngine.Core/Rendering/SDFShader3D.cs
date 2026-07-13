@@ -9,7 +9,7 @@
 
 using ComputeSharp;
 using DivisionEngine.Rendering;
-using DivisionEngine.Rendering.Terrains;
+using DivisionEngine.Rendering.ShaderUtilities;
 
 namespace DivisionEngine
 {
@@ -43,75 +43,14 @@ namespace DivisionEngine
         const float MIN_THROUGHPUT = 0.01f;
         const float REFLECTION_BIAS = 2f; // Multiplier for normal offset
 
-        #region math_functions
-
-        /// <summary>
-        /// Picks a random color from an integer.
-        /// </summary>
-        /// <param name="id">Object ID</param>
-        /// <returns>Random hashed color</returns>
-        private static float3 IntToColor(uint id)
-        {
-            // Mix the bits using prime numbers
-            uint hash = id;
-            hash ^= hash >> 16;
-            hash *= 0x85ebca6b;
-            hash ^= hash >> 13;
-            hash *= 0xc2b2ae35;
-            hash ^= hash >> 16;
-
-            // Convert to float in [0,1] range
-            float r = (hash & 0xFF) / 255.0f;
-            float g = ((hash >> 8) & 0xFF) / 255.0f;
-            float b = ((hash >> 16) & 0xFF) / 255.0f;
-
-            // Ensure minimum brightness and saturation
-            return Hlsl.Max(new float3(r, g, b), 0.2f);
-        }
-
-        private float AdaptiveEpsilon(float td)
-        {
-            float pixelSize = Hlsl.Max(td * worldData[0].camScreenDist / height, td * worldData[0].camScreenDist / width);
-            return Hlsl.Max(EPSILON, pixelSize); // Could use half pixel size
-        }
-
-        // Quaternion rotation
-        private static float3 RotateVector(float3 v, float4 r)
-        {
-            float3 qv = r.XYZ;
-            float3 t = 2.0f * Hlsl.Cross(qv, v);
-            return v + r.W * t + Hlsl.Cross(qv, t);
-        }
-
-        private float3 GetCameraRayDirNew(float2 uv)
-        {
-            float px = uv.X * aspect * worldData[0].camScreenDist;
-            float py = uv.Y * worldData[0].camScreenDist;
-            float3 rayDir = worldData[0].camForward + worldData[0].camRight * px + worldData[0].camUp * py;
-            return Hlsl.Normalize(rayDir);
-        }
-
-        #endregion math_functions
         #region textures
-
-        /// <summary>
-        /// Unpacks a uint RGBA pixel to float4.
-        /// </summary>
-        private static float4 UnpackRGBA(uint packed)
-        {
-            float r = ((packed >> 24) & 0xFF) / 255.0f;
-            float g = ((packed >> 16) & 0xFF) / 255.0f;
-            float b = ((packed >> 8) & 0xFF) / 255.0f;
-            float a = (packed & 0xFF) / 255.0f;
-            return new float4(r, g, b, a);
-        }
 
         public float SampleTexture(int textureId, float2 uv, float fallback)
         {
             return SampleTexture(textureId, uv, fallback * float4.One).R;
         }
 
-        private float4 SampleTexture(int textureId, float2 uv, float4 fallbackColor)
+        public float4 SampleTexture(int textureId, float2 uv, float4 fallbackColor)
         {
             if (textureId < 0 || textureId >= textureMetadata.Length) return fallbackColor;
             float2 newUV = new float2(Hlsl.Abs(uv.X % 1), Hlsl.Abs(uv.Y % 1));
@@ -120,7 +59,7 @@ namespace DivisionEngine
             int x = (int)(newUV.X * (meta.resolution.X - 1));
             int y = (int)(newUV.Y * (meta.resolution.Y - 1));
             int index = meta.bufferOffset + y * meta.resolution.X + x;
-            return UnpackRGBA(textureData[index]);
+            return ShaderMath.UnpackRGBA(textureData[index]);
         }
 
         public float SampleTextureBilinear(int textureId, float2 uv, float fallback)
@@ -128,7 +67,7 @@ namespace DivisionEngine
             return SampleTextureBilinear(textureId, uv, fallback * float4.One).R;
         }
 
-        private float4 SampleTextureBilinear(int textureId, float2 uv, float4 fallbackColor)
+        public float4 SampleTextureBilinear(int textureId, float2 uv, float4 fallbackColor)
         {
             if (textureId < 0 || textureId >= textureMetadata.Length) return fallbackColor;
             float2 newUV = new float2(Hlsl.Abs(uv.X % 1), Hlsl.Abs(uv.Y % 1));
@@ -150,41 +89,20 @@ namespace DivisionEngine
             int idx01 = meta.bufferOffset + y1 * meta.resolution.X + x0;
             int idx11 = meta.bufferOffset + y1 * meta.resolution.X + x1;
 
-            float4 c00 = UnpackRGBA(textureData[idx00]);
-            float4 c10 = UnpackRGBA(textureData[idx10]);
-            float4 c01 = UnpackRGBA(textureData[idx01]);
-            float4 c11 = UnpackRGBA(textureData[idx11]);
+            float4 c00 = ShaderMath.UnpackRGBA(textureData[idx00]);
+            float4 c10 = ShaderMath.UnpackRGBA(textureData[idx10]);
+            float4 c01 = ShaderMath.UnpackRGBA(textureData[idx01]);
+            float4 c11 = ShaderMath.UnpackRGBA(textureData[idx11]);
 
             float4 c0 = Hlsl.Lerp(c00, c10, u_frac);
             float4 c1 = Hlsl.Lerp(c01, c11, u_frac);
             return Hlsl.Lerp(c0, c1, v_frac);
         }
 
-        //private float3 SampleNormalMap(int textureId, float2 uv, float3 normal, float3 tangent, float strength)
-        //{
-        //    // Sample normal map (stores normal in tangent space, range [0,1])
-        //    float4 normalMap = SampleTextureBilinear(textureId, uv, new float4(0.5f, 0.5f, 1.0f, 1.0f));
-
-        //    // Convert from [0,1] to [-1,1]
-        //    float3 tangentNormal = new float3(
-        //        (normalMap.R * 2.0f - 1.0f) * strength,
-        //        (normalMap.G * 2.0f - 1.0f) * strength,
-        //        normalMap.B * 2.0f - 1.0f
-        //    );
-
-        //    // Normalize the tangent space normal
-        //    tangentNormal = Hlsl.Normalize(tangentNormal);
-
-        //    // Construct TBN matrix and transform to world space
-        //    // TBN matrix: [tangent, bitangent, normal]
-        //    float3 worldNormal = tangent * tangentNormal.X + CalcBitangent(normal, tangent) * tangentNormal.Y + normal * tangentNormal.Z;
-        //    return Hlsl.Normalize(worldNormal);
-        //}
-
         /// <summary>
         /// Faster version using precomputed TBN matrix (reduces operations).
         /// </summary>
-        private float3 SampleNormalMapFast(int textureId, float2 uv, float3 normal, float3 tangent, float strength)
+        public float3 SampleNormalMapFast(int textureId, float2 uv, float3 normal, float3 tangent, float strength)
         {
             float4 normalMap = SampleTextureBilinear(textureId, uv, new float4(0.5f, 0.5f, 1.0f, 1.0f));
 
@@ -199,19 +117,13 @@ namespace DivisionEngine
             // Transform to world space using TBN matrix
             return Hlsl.Normalize(
                 tangent * tangentNormal.X +
-                CalcBitangent(normal, tangent) * tangentNormal.Y +
+                ShaderMath.CalcBitangent(normal, tangent) * tangentNormal.Y +
                 normal * tangentNormal.Z
             );
         }
 
         #endregion textures
         #region triplanar
-
-        private static float3 InverseRotateVector(float3 v, float4 r)
-        {
-            // Conjugate of a unit quaternion is its inverse
-            return RotateVector(v, new float4(-r.X, -r.Y, -r.Z, r.W));
-        }
 
         /// <summary>
         /// Blend weights for triplanar projection based on a local-space surface normal.
@@ -274,168 +186,26 @@ namespace DivisionEngine
         }
 
         #endregion triplanar
-        #region sdfs
-
-        private static float SphereSDF(float3 pt, float r)
-        {
-            //float3 s = new float3(8, 8, 8);
-            //float3 l = new float3(100, 1, 100);
-            //float3 q = pt - s * Hlsl.Clamp(Hlsl.Round(pt / s), -l, l);
-            return Hlsl.Length(pt) - r;
-        }
-
-        private static float BoxSDF(float3 pt, float3 size)
-        {
-            float3 q = Hlsl.Abs(pt) - size;
-            return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
-
-            //float3 s = new float3(8, 8, 8);
-            //float3 l = new float3(10000, 6, 10000);
-            //float3 q = pt - s * Hlsl.Clamp(Hlsl.Round(pt / s), -l, l);
-
-            //float sd1 = TorusSDF(q, size.XY);
-            //float sd2 = PyramidSDF(q, size.X);
-
-            //return Hlsl.Lerp(sd1, sd2, Hlsl.Saturate(worldData.fogAnisotropy));
-        }
-
-        private static float RoundedBoxSDF(float3 pt, float3 size, float r)
-        {
-            float3 q = Hlsl.Abs(pt) - size + r;
-            return Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f) - r;
-        }
-
-        private static float TorusSDF(float3 pt, float2 tr)
-        {
-            float2 q = new float2(Hlsl.Length(pt.XZ) - tr.X, pt.Y);
-            return Hlsl.Length(q) - tr.Y;
-        }
-
-        private static float PyramidSDF(float3 pt, float h)
-        {
-            float m2 = h * h + 0.25f;
-
-            pt.XZ = Hlsl.Abs(pt.XZ);
-            pt.XZ = (pt.Z > pt.X) ? pt.ZX : pt.XZ;
-            pt.XZ -= 0.5f;
-
-            float3 q = new float3(pt.Z, h * pt.Y - 0.5f * pt.X, h * pt.X + 0.5f * pt.Y);
-
-            float s = Hlsl.Max(-q.X, 0.0f);
-            float t = Hlsl.Saturate((q.Y - 0.5f * pt.Z) / (m2 + 0.25f));
-
-            float a = m2 * (q.X + s) * (q.X + s) + q.Y * q.Y;
-            float b = m2 * (q.X + 0.5f * t) * (q.X + 0.5f * t) + (q.Y - m2 * t) * (q.Y - m2 * t);
-
-            float d2 = Hlsl.Min(q.Y, -q.X * m2 - q.Y * 0.5f) > 0.0f ? 0.0f : Hlsl.Min(a, b);
-
-            return Hlsl.Sqrt((d2 + q.Z * q.Z) / m2) * Hlsl.Sign(Hlsl.Max(q.Z, -pt.Y));
-        }
-
-        private static float PlaneSDF(float3 pt, float3 n, float h)
-        {
-            return Hlsl.Dot(pt, Hlsl.Normalize(n)) + h;
-        }
-
-        // Bound not exact, for performance
-        private static float ConeSDF(float3 pt, float2 c, float h)
-        {
-            float q = Hlsl.Length(pt.XZ);
-            return Hlsl.Max(Hlsl.Dot(c.XY, new float2(q, pt.Y)), -h - pt.Y);
-        }
-
-        // Vertical version, for performance
-        private static float CylinderSDF(float3 pt, float r, float h)
-        {
-            float2 d = Hlsl.Abs(new float2(Hlsl.Length(pt.XZ), pt.Y)) - new float2(r, h);
-            return Hlsl.Min(Hlsl.Max(d.X, d.Y), 0.0f) + Hlsl.Length(Hlsl.Max(d, 0.0f));
-        }
-
-        // Vertical version, for performance
-        private static float CapsuleSDF(float3 pt, float r, float h)
-        {
-            pt.Y -= Hlsl.Clamp(pt.Y, 0.0f, h);
-            return Hlsl.Length(pt) - r;
-        }
-
-        // ------------------
-        // Terrain Generation
-        // ------------------
-
-        private static float TerrainSDF(float3 pt, float size, float heightScale, float persistence, float lacunarity, int octaves)
-        {
-            float height = GradientNoise.FBMNoised(pt.XZ / size, octaves, persistence, lacunarity, out float2 deriv);
-            float terrainHeight = height * heightScale - (heightScale / 2f);
-
-            //float slope = Hlsl.Length(deriv) * heightScale / size;
-
-            float terrain = pt.Y - terrainHeight;
-            return terrain;
-
-            // Repeating balls
-            //float spacing = 1f;
-            //float ballRadius = 0.1f;
-
-            // Get position within repeating cell
-            //float2 cellPos = new float2(
-            //    Hlsl.Fmod(Hlsl.Abs(pt.X), spacing) - spacing * 0.5f,
-            //    Hlsl.Fmod(Hlsl.Abs(pt.Z), spacing) - spacing * 0.5f
-            //);
-
-            //float grassHeight = GradientNoise.FBMNoised(pt.XZ / 10f + new float2(103, -1025), 2, persistence, lacunarity, out float2 grassDeriv);
-            // Ball at each grid point (placed on terrain surface)
-            //float3 grassLocal = new float3(cellPos.X, pt.Y - terrainHeight, cellPos.Y);
-            //float grass = CapsuleSDF(grassLocal, ballRadius, grassHeight * 2f);
-
-            // Box terrain - for the future
-            //float3 q = Hlsl.Abs(pt) - new float3(size, 0f, size);
-            //if (pt.Y > 0f) q.Y -= terrainHeight - (heightScale / 3f);
-            //float terrain = Hlsl.Length(Hlsl.Max(q, 0.0f)) + Hlsl.Min(Hlsl.Max(q.X, Hlsl.Max(q.Y, q.Z)), 0.0f);
-        }
-
-        private static float TerrainSDF_Eroded(float3 pt, float size, float heightScale, float baseGain, float lacunarity,
-            float erosionStrength, float gullyWeight, float erosionDetail, float erosionScale, int erosionOctaves,
-            float erosionLacunarity, float erosionGain, float cellScale, float normalization, int baseOctaves, float4 rounding)
-        {
-            // Base terrain using your existing FBM (or use the new noised function)
-            float2 uv = pt.XZ / size;
-
-            // Calculate base height and slope using the noised function (requires derivatives)
-            float3 baseTerrain = TerrainRendering.FractalNoiseWithDerivatives(uv, 3.0f, baseOctaves, lacunarity, baseGain);
-            float baseHeightNorm = baseTerrain.X * 0.5f + 0.5f; // [-1,1] -> [0,1]
-            float2 slope = new float2(baseTerrain.Y, baseTerrain.Z); // derivatives stay unscaled
-
-            // Prepare erosion parameters
-            float fadeTarget = Hlsl.Clamp(baseTerrain.X / 0.6f, -1.0f, 1.0f); // use raw [-1,1] value
-
-            // Erosion parameters (tweak these for different looks)
-            float4 onset = new float4(1.25f, 1.25f, 2.8f, 1.5f);
-            float2 assumedSlope = new float2(0.7f, 1.0f);
-
-            float ridgeMap, debug;
-            float3 heightSlope = new float3(baseHeightNorm, slope.X, slope.Y);
-            float4 erosionResult = TerrainRendering.ErosionFilter(
-                uv, heightSlope, fadeTarget,
-                erosionStrength, gullyWeight, erosionDetail,
-                rounding, onset, assumedSlope,
-                erosionScale, erosionOctaves, erosionLacunarity,
-                erosionGain, cellScale, normalization,
-                out ridgeMap, out debug);
-
-            // Apply height offset based on erosion (optional: mix with base)
-            float heightOffset = -0.65f; // push down to avoid raising terrain
-            float offset = heightOffset * erosionResult.W; // W is magnitude
-            float erodedHeightNorm = baseHeightNorm + erosionResult.X + offset;
-
-            // Scale to world units
-            float erodedHeight = (erodedHeightNorm - 0.5f) * heightScale; // [0,1] -> world space
-
-            float terrain = pt.Y - erodedHeight;
-            return terrain;
-        }
-
-        #endregion sdfs
         #region sdf_sampling
+
+        /// <summary>
+        /// Single dispatch for a primitive's own local-space distance, excluding terrain.
+        /// Takes only what it needs (type + one float4), not the full DTO, to keep
+        /// per-call codegen light — this gets called multiple times per normal.
+        /// </summary>
+        private static float EvaluatePrimitiveDistanceFast(int type, float4 parameters, float3 localPt)
+        {
+            if (type == 0) return SDFPrimitives.Sphere(localPt, parameters.X);
+            else if (type == 1) return SDFPrimitives.Box(localPt, parameters.XYZ);
+            else if (type == 2) return SDFPrimitives.RoundedBox(localPt, parameters.XYZ, parameters.W);
+            else if (type == 3) return SDFPrimitives.Torus(localPt, parameters.XY);
+            else if (type == 4) return SDFPrimitives.Pyramid(localPt, parameters.X);
+            else if (type == 5) return SDFPrimitives.Plane(localPt, parameters.XYZ, parameters.W);
+            else if (type == 6) return SDFPrimitives.Cylinder(localPt, parameters.X, parameters.Y);
+            else if (type == 7) return SDFPrimitives.Capsule(localPt, parameters.X, parameters.Y);
+            else if (type == 8) return SDFPrimitives.Cone(localPt, parameters.XY, parameters.Z);
+            else return SDFPrimitives.Sphere(localPt, parameters.X);
+        }
 
         /// <summary>
         /// Calculates the SDF distance for the world at a point.
@@ -455,36 +225,18 @@ namespace DivisionEngine
                 if (sdfObjects[i].entityId == excludeID) continue; // Exclude to get second-closest object
                 float3 scaling = curSDF.scaling;
                 float3 curPoint = point - curSDF.position; // Transform SDF
-                curPoint = RotateVector(curPoint, curSDF.rotation); // Rotate SDF
+                curPoint = ShaderMath.RotateVector(curPoint, curSDF.rotation); // Rotate SDF
                 curPoint *= scaling;
 
                 // Scale distance function
                 float dist = Hlsl.Min(scaling.X, Hlsl.Min(scaling.Y, scaling.Z));
-                if (curSDF.type == 0) // Adds sphere SDFs
-                    dist *= SphereSDF(curPoint, curSDF.parameters.X);
-                else if (curSDF.type == 1) // Adds box SDFs
-                    dist *= BoxSDF(curPoint, curSDF.parameters.XYZ);
-                else if (curSDF.type == 2) // Adds rounded box SDFs
-                    dist *= RoundedBoxSDF(curPoint, curSDF.parameters.XYZ, curSDF.parameters.W);
-                else if (curSDF.type == 3) // Adds torus SDFs
-                    dist *= TorusSDF(curPoint, curSDF.parameters.XY);
-                else if (curSDF.type == 4) // Adds pyramid SDFs
-                    dist *= PyramidSDF(curPoint, curSDF.parameters.X);
-                else if (curSDF.type == 5) // Adds plane SDFs
-                    dist *= PlaneSDF(curPoint, curSDF.parameters.XYZ, curSDF.parameters.W);
-                else if (curSDF.type == 6) // Adds cylinder SDFs
-                    dist *= CylinderSDF(curPoint, curSDF.parameters.X, curSDF.parameters.Y);
-                else if (curSDF.type == 7) // Adds capsule SDFs
-                    dist *= CapsuleSDF(curPoint, curSDF.parameters.X, curSDF.parameters.Y);
-                else if (curSDF.type == 8) // Adds cone SDFs
-                    dist *= ConeSDF(curPoint, curSDF.parameters.XY, curSDF.parameters.Z);
-                else if (curSDF.type == 9) // Adds terrain SDFs
-                    dist *= TerrainSDF_Eroded(curPoint, curSDF.parameters.X, curSDF.parameters.Y, curSDF.parameters.Z, curSDF.parameters.W,
+                if (curSDF.type == 9) // Terrain: many-parameter dispatch, kept separate
+                    dist *= SDFPrimitives.TerrainEroded(curPoint, curSDF.parameters.X, curSDF.parameters.Y, curSDF.parameters.Z, curSDF.parameters.W,
                         curSDF.parameters2.X, curSDF.parameters2.Y, curSDF.parameters2.Z, curSDF.parameters2.W,
                         (int)curSDF.parameters3.X, curSDF.parameters3.Y, curSDF.parameters3.Z, curSDF.parameters3.W,
                         curSDF.parameters4.X, (int)curSDF.parameters4.Y, curSDF.parameters5);
-                else // Default to sphere SDF
-                    dist *= SphereSDF(curPoint, curSDF.parameters.X);
+                else
+                    dist *= EvaluatePrimitiveDistanceFast(curSDF.type, curSDF.parameters, curPoint);
 
                 // Cheap displacement texture mapping
                 if (curSDF.displaceTexMetaID >= 0)
@@ -537,15 +289,35 @@ namespace DivisionEngine
                               k.XXX * WorldSDF(pos + k.XXX * h, false, uint.MaxValue, out _));
         }
 
-        private static float3 CalcTangent(float3 normal)
+        /// <summary>
+        /// Computes a surface normal using only the known hit object's own primitive
+        /// field, instead of the full multi-object WorldSDF. Cuts normal calculation
+        /// from O(4 * totalObjectCount) world samples down to O(4) — since WorldSDF is
+        /// a hard-min union (no smooth blending), the gradient at a given hit point is
+        /// exactly this object's own gradient there, so this isn't an approximation
+        /// except at the measure-zero seam where two objects are exactly tied.
+        /// Not used for terrain (type 9) — see ComputeSurfaceNormal below.
+        /// </summary>
+        private float3 FastNormalSingleObject(float3 pos, SDFObjectDTO sdf)
         {
-            float3 up = Hlsl.Abs(normal.Z) < 0.999f ? new float3(0, 0, 1) : new float3(1, 0, 0);
-            return Hlsl.Normalize(Hlsl.Cross(up, normal));
+            float h = EPSILON * 1000;
+            float2 k = new float2(1f, -1f);
+            return Hlsl.Normalize(k.XYY * EvaluatePrimitiveDistanceFast(sdf.type, sdf.parameters, pos + k.XYY * h) +
+                              k.YYX * EvaluatePrimitiveDistanceFast(sdf.type, sdf.parameters, pos + k.YYX * h) +
+                              k.YXY * EvaluatePrimitiveDistanceFast(sdf.type, sdf.parameters, pos + k.YXY * h) +
+                              k.XXX * EvaluatePrimitiveDistanceFast(sdf.type, sdf.parameters, pos + k.XXX * h));
         }
 
-        private static float3 CalcBitangent(float3 normal, float3 tangent)
+        /// <summary>
+        /// Picks the cheap single-object normal for ordinary primitives, and falls back
+        /// to the full scene-aware WorldSDF path for terrain, which needs the erosion-
+        /// aware field and is usually one large object anyway (so the multi-object cost
+        /// matters less there).
+        /// </summary>
+        private float3 ComputeSurfaceNormal(float3 worldPos, SDFObjectDTO sdf)
         {
-            return Hlsl.Normalize(Hlsl.Cross(normal, tangent));
+            if (sdf.type == 9) return FastNormal(worldPos);
+            return FastNormalSingleObject(worldPos, sdf);
         }
 
         // Platform compliant version
@@ -595,7 +367,7 @@ namespace DivisionEngine
         /// Calculate lighting contribution from all lights
         /// </summary>
         private float3 CalculateLighting(float3 hitPoint, float3 geoNormal, float3 finalNormal, float3 viewDir,
-            SDFObjectDTO sdf, float3 baseCol, float metallic, float roughAlpha)
+            bool2 shadowEffects, float2 shadowDistances, float specular, float3 baseCol, float metallic, float roughAlpha)
         {
             float3 totalLight = float3.Zero;
             float lightShadow = 1f;
@@ -605,20 +377,21 @@ namespace DivisionEngine
                 SDFLightDTO light = lights[i];
                 if (light.type == 0) // Directional
                 {
-                    float3 lightDir = Hlsl.Normalize(RotateVector(new float3(0, 0, -1), light.rotation));
+                    float3 lightDir = Hlsl.Normalize(ShaderMath.RotateVector(new float3(0, 0, -1), light.rotation));
                     float3 lightColor = light.color.RGB * light.intensity;
 
                     float NoL = Hlsl.Max(Hlsl.Dot(finalNormal, lightDir), 0f);
                     if (NoL <= 0f) continue;
 
-                    if (sdf.shadowEffects.Y)
+                    if (shadowEffects.Y)
                     {
                         float3 shadowOrigin = hitPoint + geoNormal * EPSILON * REFLECTION_BIAS;
                         lightShadow = Hlsl.Min(SoftShadow2(shadowOrigin, lightDir,
-                            sdf.shadowDistances.X, sdf.shadowDistances.Y, out _), lightShadow);
+                            shadowDistances.X, shadowDistances.Y, out _), lightShadow);
                     }
 
-                    float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, finalNormal, baseCol, metallic, roughAlpha, sdf.specular);
+                    float3 brdf = PBR.BRDFMicrofacetFunction(lightDir, viewDir,
+                        finalNormal, baseCol, metallic, roughAlpha, specular, RECIPROCAL_PI, EPSILON);
                     totalLight += brdf * lightColor * NoL * lightShadow;
                 }
                 else if (light.type == 1) // Point
@@ -635,14 +408,15 @@ namespace DivisionEngine
 
                     float3 lightColor = light.color.RGB * light.intensity * attenuation;
 
-                    if (sdf.shadowEffects.Y && distance < light.radius * 2f)
+                    if (shadowEffects.Y && distance < light.radius * 2f)
                     {
                         float3 shadowOrigin = hitPoint + geoNormal * EPSILON * REFLECTION_BIAS;
                         lightShadow = Hlsl.Min(SoftShadow2(shadowOrigin, lightDir,
-                            sdf.shadowDistances.X, distance, out _), lightShadow);
+                            shadowDistances.X, distance, out _), lightShadow);
                     }
 
-                    float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, finalNormal, baseCol, metallic, roughAlpha, sdf.specular);
+                    float3 brdf = PBR.BRDFMicrofacetFunction(lightDir, viewDir,
+                        finalNormal, baseCol, metallic, roughAlpha, specular, RECIPROCAL_PI, EPSILON);
                     totalLight += brdf * lightColor * NoL * lightShadow;
                 }
             }
@@ -657,102 +431,27 @@ namespace DivisionEngine
         /// <param name="normal">Initial hit normal</param>
         /// <param name="sdf">Initial sdf hit</param>
         /// <returns>Occlusion value at hit point</returns>
-        private float CalculateAO(float3 hitPoint, float3 normal, SDFObjectDTO sdf)
+        private float CalculateAO(float3 hitPoint, float3 normal, uint entityId, float3 aoValues)
         {
             float3 samplePoint = hitPoint + normal * EPSILON; // Normal vector offset
-            float worldDist = WorldSDF(samplePoint, false, sdf.entityId, out _); // Get distance to the next closest object
-            float occlusionRadius = sdf.aoValues.Y;
+            float worldDist = WorldSDF(samplePoint, false, entityId, out _); // Get distance to the next closest object
+            float occlusionRadius = aoValues.Y;
             if (worldDist >= occlusionRadius) return 1f; // No object found within radius
             float occlusion = 1f - Hlsl.Saturate(worldDist / occlusionRadius);
-            occlusion = Hlsl.Pow(occlusion, sdf.aoValues.Z);
+            occlusion = Hlsl.Pow(occlusion, aoValues.Z);
             return 1f - occlusion;
         }
 
         #endregion lighting
         #region pbr_workflow
 
-        // ------------------------------
-        // New Correct PBR BRDF Functions
-        // ------------------------------
-
-        private static float3 FresnelSchlick(float cosTheta, float3 f0)
-        {
-            return f0 + (float3.One - f0) * Hlsl.Pow(1f - cosTheta, 5f);
-        }
-
-        /// <summary>
-        /// Calculates the diffuse factor for GGX.
-        /// </summary>
-        /// <param name="NoH">Normal dot Halfway</param>
-        /// <param name="alpha">Roughness squared</param>
-        /// <returns>Diffuse GGX factor</returns>
-        private static float D_GGX(float NoH, float alpha)
-        {
-            float alpha2 = alpha * alpha;
-            float NoH2 = NoH * NoH;
-            float b = NoH2 * (alpha2 - 1f) + 1f;
-            return alpha2 * RECIPROCAL_PI / (b * b);
-        }
-
-        /// <summary>
-        /// Combines GGX Schlick functions for difference vectors.
-        /// </summary>
-        /// <param name="NoV">Normal dot View</param>
-        /// <param name="NoL">Normal dot Light</param>
-        /// <param name="alpha">Roughness squared</param>
-        /// <returns>G Smith value</returns>
-        private static float GSmith(float NoV, float NoL, float alpha)
-        {
-            return G1_GGX_Schlick(NoL, alpha) * G1_GGX_Schlick(NoV, alpha);
-        }
-
-        /// <summary>
-        /// Calculates the GGX Schlick function.
-        /// </summary>
-        /// <param name="NoV">Normal dot View</param>
-        /// <param name="alpha">Roughness squared</param>
-        /// <returns>G1 factor for GGX Schlick</returns>
-        private static float G1_GGX_Schlick(float NoV, float alpha)
-        {
-            float k = alpha / 2f;
-            return Hlsl.Max(NoV, EPSILON) / (NoV * (1f - k) + k);
-        }
-
-        /// <summary>
-        /// Fresnel equation used by Disney.
-        /// </summary>
-        /// <param name="cosTheta">Cos theta angle</param>
-        /// <param name="f0">Fresnel term</param>
-        /// <param name="f90">90 degree fresnel term</param>
-        /// <returns>Fresnel value</returns>
-        private static float FresnelSchlick90(float cosTheta, float f0, float f90)
-        {
-            return f0 + (f90 - f0) * Hlsl.Pow(1f - cosTheta, 5f);
-        }
-
-        /// <summary>
-        /// Calculates the diffuse factor for the BRDF using Disney's method.
-        /// </summary>
-        /// <param name="NoV">Normal dot View</param>
-        /// <param name="NoL">Normal dot Light</param>
-        /// <param name="VoH">View dot Halfway</param>
-        /// <param name="alpha">Roughness value squared</param>
-        /// <returns>Disney diffuse factor for BRDF</returns>
-        private static float DisneyDiffuseFactor(float NoV, float NoL, float VoH, float alpha)
-        {
-            float f90 = 0.5f + 2f * alpha * VoH * VoH;
-            float F_In = FresnelSchlick90(NoL, 1f, f90);
-            float F_Out = FresnelSchlick90(NoV, 1f, f90);
-            return F_In * F_Out;
-        }
-
         private void SampleSurfaceMaterial(
             float3 hitPoint, float3 geoNormal, SDFObjectDTO sdf,
             out float3 localPos, out float3 blend, out float3 albedo,
             out float metallic, out float roughness, out float3 finalNormal)
         {
-            localPos = InverseRotateVector(hitPoint - sdf.position, sdf.rotation);
-            float3 localGeoNormal = Hlsl.Normalize(InverseRotateVector(geoNormal, sdf.rotation));
+            localPos = ShaderMath.InverseRotateVector(hitPoint - sdf.position, sdf.rotation);
+            float3 localGeoNormal = Hlsl.Normalize(ShaderMath.InverseRotateVector(geoNormal, sdf.rotation));
             blend = TriplanarWeights(localGeoNormal, 4f);
             float scale = 1f / Hlsl.Max(sdf.texTilingOffset.X, EPSILON);
 
@@ -761,101 +460,7 @@ namespace DivisionEngine
             roughness = Hlsl.Max(SampleTriplanarScalar(sdf.roughTexMetaID, localPos, blend, scale, sdf.roughness), 0.045f);
 
             float3 localFinalNormal = SampleNormalTriplanarLocal(sdf.normalTexMetaID, localPos, localGeoNormal, blend, scale, sdf.normalStrength);
-            finalNormal = Hlsl.Normalize(RotateVector(localFinalNormal, sdf.rotation));
-        }
-
-        /// <summary>
-        /// The bi-directional reflectance distributionfunction using Cook-Torrance.
-        /// </summary>
-        /// <param name="lightDir">Light direction</param>
-        /// <param name="viewDir">View direction</param>
-        /// <param name="finalNormal">Normal vector</param>
-        /// <param name="sdf">SDF object to sample</param>
-        /// <returns>BRDF output value</returns>
-        private float3 BRDFMicrofacetFunction(float3 lightDir, float3 viewDir, float3 finalNormal,
-            float3 baseCol, float metallic, float roughAlpha, float specular)
-        {
-            float NoV = Hlsl.Saturate(Hlsl.Dot(finalNormal, viewDir));
-            float NoL = Hlsl.Saturate(Hlsl.Dot(finalNormal, lightDir));
-            float3 halfwayDir = Hlsl.Normalize(viewDir + lightDir);
-            float VoH = Hlsl.Saturate(Hlsl.Dot(viewDir, halfwayDir));
-            float NoH = Hlsl.Saturate(Hlsl.Dot(finalNormal, halfwayDir));
-
-            float3 f0 = float3.One * 0.16f * specular * specular;
-            f0 = Hlsl.Lerp(f0, baseCol, new float3(metallic, metallic, metallic));
-
-            float3 F = FresnelSchlick(VoH, f0);
-            float D = D_GGX(NoH, roughAlpha);
-            float G = GSmith(NoV, NoL, roughAlpha);
-
-            // Add epsilon to denominator to prevent division by near-zero
-            float denominator = 4f * Hlsl.Max(NoV * NoL, EPSILON);
-            float3 specularTerm = Hlsl.Min(F * D * G / denominator, 20f); // Clamp specular to prevent fireflies
-
-            float3 rhoD = baseCol * DisneyDiffuseFactor(NoV, NoL, VoH, roughAlpha); // alternative: rhoD *= 1f - metallic;
-            float3 diff = rhoD * RECIPROCAL_PI;
-
-            // Hard cap to prevent explosions
-            return Hlsl.Min(diff + specularTerm, 100f);
-        }
-
-        /// <summary>
-        /// Calculates fresnel reflectance for dielectrics (glass, water, etc.)
-        /// </summary>
-        private static float SimpleFresnelDielectric(float cosθ, float f0)
-        {
-            // Schlick approximation (close enough for most cases)
-            return f0 + (1.0f - f0) * Hlsl.Pow(1.0f - cosθ, 5.0f);
-        }
-
-        // Reflections functions:
-
-        private static uint HaltonHash(uint x)
-        {
-            x = x ^ 61 ^ (x >> 16);
-            x += x << 3;
-            x ^= x >> 4;
-            x *= 0x27d4eb2d;
-            x ^= x >> 15;
-            return x;
-        }
-
-        // Halton sequence generator
-        private static float HaltonSequence(int index, int baseNum)
-        {
-            float result = 0.0f;
-            float f = 1.0f;
-            int i = index;
-            while (i > 0)
-            {
-                f /= baseNum;
-                result += f * (i % baseNum);
-                i /= baseNum;
-            }
-            return result;
-        }
-
-        // Generate 2D Halton sample
-        private static float2 Halton2D(int index)
-        {
-            return new float2(HaltonSequence(index, 2), HaltonSequence(index, 3));
-        }
-
-        // Importance sample GGX distribution for specular reflections, alpha = roughness * roughness
-        private static float3 ImportanceSampleGGX(float2 u, float3 normal, float alpha)
-        {
-            float phi = 2f * PI * u.X;
-            float cosTheta = Hlsl.Sqrt((1f - u.Y) / (1f + (alpha * alpha - 1f) * u.Y));
-            float sinTheta = Hlsl.Sqrt(1f - cosTheta * cosTheta);
-
-            // Spherical to cartesian
-            float3 h = new float3(Hlsl.Cos(phi) * sinTheta, Hlsl.Sin(phi) * sinTheta, cosTheta);
-
-            // Tangent space to world space
-            float3 up = Hlsl.Abs(normal.Z) < 0.999f ? new float3(0, 0, 1) : new float3(1, 0, 0);
-            float3 tangent = Hlsl.Normalize(Hlsl.Cross(up, normal));
-            float3 bitangent = Hlsl.Cross(normal, tangent);
-            return Hlsl.Normalize(tangent * h.X + bitangent * h.Y + normal * h.Z);
+            finalNormal = Hlsl.Normalize(ShaderMath.RotateVector(localFinalNormal, sdf.rotation));
         }
 
         private float3 DebugBRDF(int2 pixel, float3 rayDir, float3 hitpoint)
@@ -878,7 +483,8 @@ namespace DivisionEngine
                     if (NoL > 0f)
                     {
                         if (debugMode == 6)
-                            outputVec = BRDFMicrofacetFunction(-worldData[0].mainLightDir, viewDir, finalNormal, albedo, metallic, roughAlpha, sdf.specular);
+                            outputVec = PBR.BRDFMicrofacetFunction(-worldData[0].mainLightDir, viewDir,
+                                finalNormal, albedo, metallic, roughAlpha, sdf.specular, RECIPROCAL_PI, EPSILON);
                         else if (debugMode == 7)
                         {
                             float3 halfwayDir = Hlsl.Normalize(viewDir + -worldData[0].mainLightDir);
@@ -886,16 +492,16 @@ namespace DivisionEngine
                             float NoH = Hlsl.Saturate(Hlsl.Dot(finalNormal, halfwayDir));
                             float VoH = Hlsl.Saturate(Hlsl.Dot(viewDir, halfwayDir));
                             float3 f0 = Hlsl.Lerp(float3.One * 0.16f * sdf.specular * sdf.specular, albedo, new float3(metallic, metallic, metallic));
-                            float3 F = FresnelSchlick(VoH, f0);
-                            float D = D_GGX(NoH, roughAlpha);
-                            float G = GSmith(NoV, NoL, roughAlpha);
+                            float3 F = PBR.FresnelSchlick(VoH, f0);
+                            float D = PBR.D_GGX(NoH, roughAlpha, RECIPROCAL_PI);
+                            float G = PBR.GSmith(NoV, NoL, roughAlpha, EPSILON);
                             outputVec = F * D * G / (4f * Hlsl.Max(NoV * NoL, EPSILON));
                         }
                         else if (debugMode == 8)
                         {
                             float NoV = Hlsl.Saturate(Hlsl.Dot(finalNormal, viewDir));
                             float VoH = Hlsl.Saturate(Hlsl.Dot(viewDir, Hlsl.Normalize(viewDir + -worldData[0].mainLightDir)));
-                            outputVec = albedo * DisneyDiffuseFactor(NoV, NoL, VoH, roughAlpha) * RECIPROCAL_PI;
+                            outputVec = albedo * PBR.DisneyDiffuseFactor(NoV, NoL, VoH, roughAlpha) * RECIPROCAL_PI;
                         }
                     }
                 }
@@ -987,7 +593,7 @@ namespace DivisionEngine
                 }
 
                 // Use fixed epsilon near surface, adaptive only for early termination
-                float hitEps = (depth < 10f) ? EPSILON : AdaptiveEpsilon(depth);
+                float hitEps = (depth < 10f) ? EPSILON : ShaderMath.AdaptiveEpsilon(depth, width, height, worldData[0].camScreenDist, EPSILON);
                 if (worldDist < hitEps) break;
 
                 depth += worldDist;
@@ -1047,7 +653,8 @@ namespace DivisionEngine
                         if (currentlyInsideObject != nowInside)
                         {
                             // Binary search for the actual surface crossing
-                            float3 tMin3 = p - refractDir * Hlsl.Max(Hlsl.Abs(d), AdaptiveEpsilon(travelDistance));
+                            float3 tMin3 = p - refractDir * Hlsl.Max(Hlsl.Abs(d), 
+                                ShaderMath.AdaptiveEpsilon(travelDistance, width, height, worldData[0].camScreenDist, EPSILON));
                             float3 tMax3 = p;
                             const float REFRACT_BISECT_EPS = EPSILON * 20f;
 
@@ -1069,7 +676,7 @@ namespace DivisionEngine
 
                             // tMin3 is now on the side we WERE on — safe for normal sampling
                             exitPt = tMin3;
-                            exitNorm = FastNormal(exitPt);
+                            exitNorm = FastNormalSingleObject(exitPt, sdfObjects[closestObj]);
                             int exitClosestObj = closestObj;
 
                             if (Hlsl.Dot(exitNorm, refractDir) > 0f) exitNorm = -exitNorm;
@@ -1088,7 +695,8 @@ namespace DivisionEngine
                             break;
                         }
 
-                        float stepSize = Hlsl.Max(Hlsl.Abs(d), AdaptiveEpsilon(travelDistance));
+                        float stepSize = Hlsl.Max(Hlsl.Abs(d), 
+                            ShaderMath.AdaptiveEpsilon(travelDistance, width, height, worldData[0].camScreenDist, EPSILON));
                         p += refractDir * stepSize;
                         travelDistance += stepSize;
                     }
@@ -1157,21 +765,22 @@ namespace DivisionEngine
                 finalColor += backgroundCol;
                 return finalColor;
             }
-
-            // Hit surface
+            
+            SDFObjectDTO sdf = sdfObjects[closestObjIndex];
             normal = FastNormal(hitPoint);
             float3 viewDir = -rayDir;
 
-            // Calculate ambient occlusion for the hit point
-            SDFObjectDTO sdf = sdfObjects[closestObjIndex];
+            // Sample the surface material for the sdf that was hit
             SampleSurfaceMaterial(hitPoint, normal, sdf, out _, out _, out float3 albedo, out float metallic, out float roughness, out float3 finalNormal);
             float roughAlpha = roughness * roughness;
 
+            // Calculate ambient occlusion for the hit point
             float aoValue = 1f;
             if (sdf.aoValues.X > 0f)
-                aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf), sdf.aoValues.X);
+                aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityId, sdf.aoValues), sdf.aoValues.X);
 
-            float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir, sdf, albedo, metallic, roughAlpha);
+            float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir,
+                sdf.shadowEffects, sdf.shadowDistances, sdf.specular, albedo, metallic, roughAlpha);
             float3 ambientLight = ambientBase * aoValue;
             finalColor += ambientLight + directLight;
             return finalColor;
@@ -1222,11 +831,10 @@ namespace DivisionEngine
                     break;
                 }
 
+                SDFObjectDTO sdf = sdfObjects[closestObjIndex];
                 float3 normal = FastNormal(hitPoint);
                 if (Hlsl.Dot(normal, rayDir) > 0f) normal = -normal;
                 float3 viewDir = -rayDir;
-
-                SDFObjectDTO sdf = sdfObjects[closestObjIndex];
 
                 SampleSurfaceMaterial(hitPoint, normal, sdf,
                     out _, out _, out float3 albedo, out float metallic, out float roughness, out float3 finalNormal);
@@ -1244,19 +852,20 @@ namespace DivisionEngine
 
                     ambientBase = Hlsl.Lerp(albedo, worldData[0].backgroundColor.RGB, worldData[0].ambientStrength) * worldData[0].ambientStrength;
                     if (aoStrength > 0f)
-                        aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf), aoStrength);
+                        aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityId, sdf.aoValues), aoStrength);
 
                     if (sdf.hasRefraction == 1)
                     {
                         isRefractive = true;
-                        fresnelFactor = SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
+                        fresnelFactor = PBR.SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
                         refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, worldData[0].backgroundColor.RGB, normal, sdf, out tracedSteps);
                         steps += tracedSteps;
                     }
                     firstHit = false;
                 }
 
-                float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir, sdf, albedo, metallic, roughAlpha);
+                float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir,
+                    sdf.shadowEffects, sdf.shadowDistances, sdf.specular, albedo, metallic, roughAlpha);
                 if (Hlsl.Length(directLight) > 0.001f) aoValue = 1f;
                 float3 ambientLight = ambientBase * aoValue;
 
@@ -1270,7 +879,7 @@ namespace DivisionEngine
 
                 // Metallic/roughness maps now actually drive this:
                 float3 f0Refl = Hlsl.Lerp(sdf.f0_reflectance, albedo, new float3(metallic, metallic, metallic));
-                float3 F = FresnelSchlick(Hlsl.Max(Hlsl.Dot(finalNormal, viewDir), 0f), f0Refl);
+                float3 F = PBR.FresnelSchlick(Hlsl.Max(Hlsl.Dot(finalNormal, viewDir), 0f), f0Refl);
                 float reflectionChance = Hlsl.Lerp(F.X, 1f, metallic);
 
                 if (bounce == 0 && isRefractive) reflectionChance = fresnelFactor;
@@ -1281,9 +890,9 @@ namespace DivisionEngine
                 if (contribution.X + contribution.Y + contribution.Z < MIN_THROUGHPUT) break;
 
                 int reflectionSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sampleIndexInPixel * 3271 + bounce * 997;
-                float2 u = Halton2D(reflectionSampleIndex);
+                float2 u = PBR.Halton2D(reflectionSampleIndex);
                 // Perturb with the bumped normal, not the geometric one -> normal maps now visible in reflections
-                float3 halfVector = ImportanceSampleGGX(u, finalNormal, roughAlpha);
+                float3 halfVector = PBR.ImportanceSampleGGX(u, finalNormal, roughAlpha, PI);
                 float3 reflectDir = Hlsl.Normalize(Hlsl.Reflect(rayDir, halfVector));
                 if (Hlsl.Dot(reflectDir, normal) < 0.01f) break; // test vs geometric normal, avoids self-intersection
 
@@ -1346,9 +955,10 @@ namespace DivisionEngine
                 if (SAMPLES_PER_PIXEL > 1)
                 {
                     int cameraSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sample;
-                    float2 jitter = (Halton2D(cameraSampleIndex) - 0.5f) / new float2(width, height);
+                    float2 jitter = (PBR.Halton2D(cameraSampleIndex) - 0.5f) / new float2(width, height);
                     float2 jitteredUV = uv + jitter * 2f;
-                    rayDir = GetCameraRayDirNew(jitteredUV);
+                    rayDir = ShaderMath.GetCameraRayDirNew(aspect, jitteredUV,
+                        worldData[0].camScreenDist, worldData[0].camForward, worldData[0].camRight, worldData[0].camUp);
                 }
                 //else
                 //{
@@ -1388,7 +998,7 @@ namespace DivisionEngine
                     texture[pixel] = new float4(depthNormals[pixel].GBA, 1);
                 else if (debugMode == 3) // Object ID buffer
                 {
-                    float3 objColor = IntToColor(entityIdBuffer[pixel.X + pixel.Y * (int)width].X);
+                    float3 objColor = ShaderMath.IntToColor(entityIdBuffer[pixel.X + pixel.Y * (int)width].X);
                     texture[pixel] = new float4(objColor, 1);
                 }
                 else if (debugMode == 4) // Ray steps
@@ -1416,7 +1026,7 @@ namespace DivisionEngine
                             float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
                             float shadow = SoftShadow2(shadowOrigin, worldData[0].mainLightDir,
                                 sdf.shadowDistances.X, sdf.shadowDistances.Y, out int shadowObj);
-                            float3 sdfColor = IntToColor(entityIdBuffer[shadowObj].X);
+                            float3 sdfColor = ShaderMath.IntToColor(entityIdBuffer[shadowObj].X);
                             shadowColor = new float3(shadow, sdfColor.G, sdfColor.B);
                         }
                     }

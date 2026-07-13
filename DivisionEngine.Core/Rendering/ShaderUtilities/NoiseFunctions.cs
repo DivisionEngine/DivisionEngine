@@ -7,10 +7,10 @@
 //
 using ComputeSharp;
 
-namespace DivisionEngine.Rendering
+namespace DivisionEngine.Rendering.ShaderUtilities
 {
     /// <summary>
-    /// Gradient noise functions (use on GPU only).
+    /// Gradient noise functions for shaders exclusively.
     /// </summary>
     public static class GradientNoise
     {

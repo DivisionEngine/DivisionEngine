@@ -715,8 +715,6 @@ namespace DivisionEngine.Rendering
                                 source,
                                 target,
                                 depthNormalsTex,
-                                objectIdBuffer,
-                                sdfObjBuffer,
                                 worldDTO);
                             Device?.For(texWidth, texHeight, dofShader);
                         }

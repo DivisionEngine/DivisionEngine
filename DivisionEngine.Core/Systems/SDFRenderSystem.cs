@@ -250,7 +250,6 @@ namespace DivisionEngine.Systems
                         Math.Lerp(f0.X, mat.albedoColor.X, mat.metallic),
                         Math.Lerp(f0.Y, mat.albedoColor.Y, mat.metallic),
                         Math.Lerp(f0.Z, mat.albedoColor.Z, mat.metallic));
-                    curSDF.roughSquare = mat.roughness * mat.roughness;
                     if (curSDF.hasRefraction == 1) curSDF.f0_dielectric = Math.Pow((mat.ior - 1.0f) / (mat.ior + 1.0f), 2.0f);
                 }
 
