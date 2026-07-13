@@ -71,6 +71,8 @@ namespace DivisionEngine.Rendering
         public int albedoTexMetaID; // 4b
         public int normalTexMetaID; // 4b
         public float normalStrength; // 4b
+        public int displaceTexMetaID; // 4b
+        public float displaceStrength; // 4b
         public int roughTexMetaID; // 4b
         public int metalTexMetaID; // 4b
         public int emissionTexMetaID; // 4b
@@ -86,6 +88,7 @@ namespace DivisionEngine.Rendering
         // Precalculated Material Properties
         public float3 f0_reflectance; // 12b
         public float f0_dielectric; // 4b
+        public float roughSquare; // 4b
 
         // Effect Properties
         public float2 shadowDistances; // 8b

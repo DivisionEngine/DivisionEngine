@@ -12,7 +12,8 @@ namespace DivisionEngine.Rendering
     /// </summary>
     public struct TextureMetadata
     {
-        public int2 resolution;  // Width, Height
-        public int bufferOffset;  // Starting index in the big buffer
+        public int2 resolution; // Width, Height
+        public int bufferOffset; // Starting index in the big buffer
+        public int mipCount; // Mip levels in texture
     }
 }

@@ -42,7 +42,9 @@ namespace DivisionEngine.Components.SDFs
         [Header("Textures")]
         public AssetRef<TextureAsset> albedoMap = default;
         public AssetRef<TextureAsset> normalMap = default;
-        [Min(0f)] public float normalStrength = 1f;
+        public float normalStrength = 1f;
+        public AssetRef<TextureAsset> heightMap = default;
+        public float displaceStrength = 1f;
         public AssetRef<TextureAsset> roughnessMap = default;
         public AssetRef<TextureAsset> metallicMap = default;
         public AssetRef<TextureAsset> emissiveMap = default;
@@ -60,18 +62,13 @@ namespace DivisionEngine.Components.SDFs
 
         [Tooltip("Index of refraction")]
         [Range(1f, 3f)] public float ior = 1.0f;
-
         [Range(0f, 1f)] public float ambientOcclusion = 0.7f;
-
         [Tooltip("Ambient occlusion maximum falloff distance")]
-        [Range(0f, 10f)] public float ambientRange = 1f;
-
+        [Min(0f)] public float ambientRange = 1f;
         [Tooltip("Ambient occlusion falloff curve, higher value = faster falloff")]
-        [Range(0f, 10f)] public float ambientFalloff = 2f;
-
+        [Min(0f)] public float ambientFalloff = 2f;
         [Tooltip("Raymarched reflection intensity, useful for combining with refractions")]
-        [Range(0f, 10f)] public float reflectance = 2f;
-
+        [Min(0f)] public float reflectance = 2f;
         [Tooltip("A multiplier given to any SDF that can modify the step size to it")]
         [Range(0.1f, 1.5f)] public float stepBias = 1f;
 
@@ -80,6 +77,8 @@ namespace DivisionEngine.Components.SDFs
             albedoMap = albedoMap,
             normalMap = normalMap,
             normalStrength = normalStrength,
+            heightMap = heightMap,
+            displaceStrength = displaceStrength,
             roughnessMap = roughnessMap,
             metallicMap = metallicMap,
             emissiveMap = emissiveMap,

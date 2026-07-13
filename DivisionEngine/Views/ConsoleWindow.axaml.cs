@@ -37,6 +37,11 @@ public partial class ConsoleWindow : EditorWindow
     private readonly MaterialIcon searchIcon;
     private bool autoScroll;
     private string searchFilter = string.Empty;
+    private LogEntry? selectedLogEntry;
+
+    // Context menu
+    private ContextMenu? logContextMenu;
+    private ContextMenu? windowContextMenu;
 
     /// <summary>
     /// Builds a new console window.

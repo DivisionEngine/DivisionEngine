@@ -226,6 +226,8 @@ namespace DivisionEngine.Systems
                     curSDF.albedoTexMetaID = mat.albedoMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.albedoMap.ID) : -1;
                     curSDF.normalTexMetaID = mat.normalMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.normalMap.ID) : -1;
                     curSDF.normalStrength = mat.normalStrength;
+                    curSDF.displaceTexMetaID = mat.heightMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.heightMap.ID) : -1;
+                    curSDF.displaceStrength = mat.displaceStrength;
                     curSDF.roughTexMetaID = mat.roughnessMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.roughnessMap.ID) : -1;
                     curSDF.metalTexMetaID = mat.metallicMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.metallicMap.ID) : -1;
                     curSDF.emissionTexMetaID = mat.emissiveMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.emissiveMap.ID) : -1;
@@ -248,6 +250,7 @@ namespace DivisionEngine.Systems
                         Math.Lerp(f0.X, mat.albedoColor.X, mat.metallic),
                         Math.Lerp(f0.Y, mat.albedoColor.Y, mat.metallic),
                         Math.Lerp(f0.Z, mat.albedoColor.Z, mat.metallic));
+                    curSDF.roughSquare = mat.roughness * mat.roughness;
                     if (curSDF.hasRefraction == 1) curSDF.f0_dielectric = Math.Pow((mat.ior - 1.0f) / (mat.ior + 1.0f), 2.0f);
                 }
 
