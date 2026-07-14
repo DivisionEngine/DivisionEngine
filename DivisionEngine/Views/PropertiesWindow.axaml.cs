@@ -1642,6 +1642,11 @@ public partial class PropertiesWindow : EditorWindow
             FormatString = "0.##",
             ShowButtonSpinner = hasSpinner,
         };
+        numericBox.LostFocus += (s, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(numericBox.Text) || !decimal.TryParse(numericBox.Text, out _))
+                numericBox.Value = 0;
+        };
         numericBox.ValueChanged += (s, e) =>
         {
             try
@@ -1683,6 +1688,11 @@ public partial class PropertiesWindow : EditorWindow
             VerticalContentAlignment = VerticalAlignment.Center,
             HorizontalContentAlignment = HorizontalAlignment.Center,
             ShowButtonSpinner = hasSpinner,
+        };
+        numericBox.LostFocus += (s, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(numericBox.Text) || !decimal.TryParse(numericBox.Text, out _))
+                numericBox.Value = 0;
         };
         numericBox.ValueChanged += (s, e) =>
         {
