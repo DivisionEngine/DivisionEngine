@@ -1644,7 +1644,11 @@ public partial class PropertiesWindow : EditorWindow
         };
         numericBox.ValueChanged += (s, e) =>
         {
-            try { onValueChanged((float)(double)numericBox.Value); }
+            try
+            {
+                if (numericBox.Value.HasValue)
+                    onValueChanged((float)(double)numericBox.Value);
+            }
             catch (Exception ex) { Debug.Error("Numeric Box Error", ex); }
         };
         return numericBox;
@@ -1684,7 +1688,8 @@ public partial class PropertiesWindow : EditorWindow
         {
             try
             {
-                onValueChanged((int)numericBox.Value);
+                if (numericBox.Value.HasValue)
+                    onValueChanged((int)numericBox.Value);
             }
             catch (Exception ex) { Debug.Error("Numeric Box Error", ex); }
         };
