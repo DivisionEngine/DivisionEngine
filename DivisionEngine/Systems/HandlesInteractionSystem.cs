@@ -156,6 +156,28 @@ namespace DivisionEngine.Editor.Systems
                     );
                     Debug.Info($"HandleInteraction: Started scaling on handle {handleId}, scale {currentScale}");
                 }
+                // Rotation
+                else if (handleId >= 8 && handleId <= 10 && draggedEntity != uint.MaxValue)
+                {
+                    isDragging = true;
+                    selectedHandle = handleId;
+                    lastMousePos = mousePos;
+
+                    rotationAxis = handleId switch
+                    {
+                        8 => new float3(-1, 0, 0),
+                        9 => new float3(0, -1, 0),
+                        _ => new float3(0, 0, -1)
+                    };
+                    originalRotation = entityTransform!.rotation;
+
+                    var (planeU, planeV) = GetRingBasis(handleId);
+                    float3 rayDir = GetMouseRayDir(mousePos, camTransform, GetMainCameraComponent());
+                    float angle = ComputeRingAngle(cameraPosition, rayDir, entityTransform.position, rotationAxis, planeU, planeV);
+                    if (!float.IsNaN(angle)) lastAngle = angle;
+
+                    Debug.Info($"HandleInteraction: Started rotation on handle {selectedHandle}");
+                }
             }
 
             // Dragging
@@ -230,6 +252,31 @@ namespace DivisionEngine.Editor.Systems
                         if (scaleDelta != 0)
                             Debug.Info($"HandleInteraction: Scaling {selectedHandle}: {newScale}");
                     }
+                    // Rotation
+                    else if (selectedHandle >= 8 && selectedHandle <= 10)
+                    {
+                        Camera? cam = GetMainCameraComponent();
+                        if (cam != null)
+                        {
+                            var (planeU, planeV) = GetRingBasis(selectedHandle);
+                            float3 rayDir = GetMouseRayDir(mousePos, GetMainCamera()!, cam);
+                            float currentAngle = ComputeRingAngle(cameraPosition, rayDir, transform.position, rotationAxis, planeU, planeV);
+
+                            if (!float.IsNaN(currentAngle))
+                            {
+                                float angleDelta = currentAngle - lastAngle;
+                                if (angleDelta > 3.14159265f) angleDelta -= 6.28318530718f;
+                                else if (angleDelta < -3.14159265f) angleDelta += 6.28318530718f;
+
+                                // Verify against your actual Quaternion API (name/order may differ)
+                                float4 deltaRot = Quaternion.CreateFromAxisAngle(rotationAxis, angleDelta);
+                                transform.rotation = Quaternion.Normalize(Quaternion.Multiply(deltaRot, transform.rotation));
+
+                                PropertiesRefreshSystem.OnFieldChanged(draggedEntity, typeof(Transform).ToString());
+                                lastAngle = currentAngle;
+                            }
+                        }
+                    }
                 }
 
                 lastMousePos = mousePos;
@@ -246,17 +293,15 @@ namespace DivisionEngine.Editor.Systems
 
         private static float3 GetAxisMovement(float2 delta)
         {
-            // Get the world axis direction for the selected handle
             float3 axisDirection = selectedHandle switch
             {
-                1 => new float3(1, 0, 0), // X axis
-                2 => new float3(0, 1, 0), // Y axis
-                3 => new float3(0, 0, 1), // Z axis
+                1 => new float3(1, 0, 0),
+                2 => new float3(0, 1, 0),
+                3 => new float3(0, 0, 1),
                 _ => float3.Zero
             };
 
             // Project the axis direction onto camera's screen plane
-            // 2D vector representing how the axis appears on screen
             float2 screenAxis = new float2(
                 Vector.Dot(axisDirection, cameraRight),
                 Vector.Dot(axisDirection, cameraUp)
@@ -266,16 +311,10 @@ namespace DivisionEngine.Editor.Systems
             float screenAxisLength = Math.Sqrt(screenAxis.X * screenAxis.X + screenAxis.Y * screenAxis.Y);
             if (screenAxisLength > 0.001f)
                 screenAxis = new float2(screenAxis.X / screenAxisLength, screenAxis.Y / screenAxisLength);
-            else
-                // Axis is perpendicular to view direction (looking straight down the axis)
-                // Fall back to using camera right/up
-                screenAxis = selectedHandle == 1 ? new float2(1, 0) : new float2(0, 1);
-
-            // Project mouse delta onto the screen-space axis direction
+            else screenAxis = selectedHandle == 1 ? new float2(1, 0) : new float2(0, 1);
             float projection = delta.X * screenAxis.X + delta.Y * screenAxis.Y;
 
             // Convert back to world movement
-            // The movement is positive when dragging along the positive screen direction
             return new float3(
                 axisDirection.X * projection,
                 axisDirection.Y * projection,
@@ -289,6 +328,64 @@ namespace DivisionEngine.Editor.Systems
                 if (camera.isActive)
                     return transform;
             return null;
+        }
+
+        private static (float3 u, float3 v) GetRingBasis(uint handleId) => handleId switch
+        {
+            8 => (new float3(0, 1, 0), new float3(0, 0, 1)),
+            9 => (new float3(0, 0, 1), new float3(1, 0, 0)),
+            10 => (new float3(1, 0, 0), new float3(0, 1, 0)),
+            _ => (new float3(1, 0, 0), new float3(0, 1, 0))
+        };
+
+        private static Camera? GetMainCameraComponent()
+        {
+            foreach (var (_, camera) in W.QueryData<Camera>())
+                if (camera.isActive) return camera;
+            return null;
+        }
+
+        private static float3 GetMouseRayDir(float2 mousePos, Transform camTransform, Camera? camera)
+        {
+            if (camera == null || RenderPipeline.Instance?.RendererWindow == null) return new float3(0, 0, 1);
+
+            int screenW = RenderPipeline.Instance.RendererWindow.Size.X;
+            int screenH = RenderPipeline.Instance.RendererWindow.Size.Y;
+            float aspect = screenW / (float)screenH;
+            float camScreenDist = DivisionEngine.Systems.CameraSystem.FovToScreenDistance(camera);
+
+            float flippedY = screenH - 1 - mousePos.Y;
+            float uvX = mousePos.X / screenW * 2f - 1f;
+            float uvY = flippedY / screenH * 2f - 1f;
+
+            float px = uvX * aspect * camScreenDist;
+            float py = uvY * camScreenDist;
+
+            float3 dir = new float3(
+                camTransform.Forward.X + camTransform.Right.X * px + camTransform.Up.X * py,
+                camTransform.Forward.Y + camTransform.Right.Y * px + camTransform.Up.Y * py,
+                camTransform.Forward.Z + camTransform.Right.Z * px + camTransform.Up.Z * py);
+
+            float len = Math.Sqrt(dir.X * dir.X + dir.Y * dir.Y + dir.Z * dir.Z);
+            if (len > 0.0001f) dir = new float3(dir.X / len, dir.Y / len, dir.Z / len);
+            return dir;
+        }
+
+        private static float ComputeRingAngle(float3 rayOrigin, float3 rayDir, float3 center, float3 axis, float3 planeU, float3 planeV)
+        {
+            float denom = Vector.Dot(rayDir, axis);
+            if (Math.Abs(denom) < 0.0001f) return float.NaN;
+
+            float3 toCenter = new float3(center.X - rayOrigin.X, center.Y - rayOrigin.Y, center.Z - rayOrigin.Z);
+            float t = Vector.Dot(toCenter, axis) / denom;
+            if (t < 0f) return float.NaN;
+
+            float3 hitPoint = new float3(rayOrigin.X + rayDir.X * t, rayOrigin.Y + rayDir.Y * t, rayOrigin.Z + rayDir.Z * t);
+            float3 rel = new float3(hitPoint.X - center.X, hitPoint.Y - center.Y, hitPoint.Z - center.Z);
+
+            float u = Vector.Dot(rel, planeU);
+            float v = Vector.Dot(rel, planeV);
+            return Math.Atan2(v, u);
         }
     }
 }

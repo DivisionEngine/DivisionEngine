@@ -32,6 +32,8 @@ namespace DivisionEngine.Rendering
         float handleScale,
         uint hoveredHandle) : IComputeShader
     {
+        private const int ROTATION_RING_SEGMENTS = 48;
+
         /// <summary>
         /// Projects a 3D world position to 2D screen pixel coordinates.
         /// </summary>
@@ -56,7 +58,7 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Returns the signed distance to a line segment.
         /// </summary>
-        private float LineSegmentSDF(float2 p, float2 a, float2 b)
+        private static float LineSegmentSDF(float2 p, float2 a, float2 b)
         {
             float2 pa = p - a;
             float2 ba = b - a;
@@ -67,7 +69,7 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Returns the signed distance to a circle.
         /// </summary>
-        private float CircleOutlineSDF(float2 p, float2 center, float radius, float thickness)
+        private static float CircleOutlineSDF(float2 p, float2 center, float radius, float thickness)
         {
             float d = Hlsl.Length(p - center) - radius;
             if (d < 0) return float.MaxValue;
@@ -77,7 +79,7 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Returns the signed distance to a square (axis-aligned rectangle).
         /// </summary>
-        private float SquareSDF(float2 p, float2 center, float size, float thickness)
+        private static float SquareSDF(float2 p, float2 center, float size, float thickness)
         {
             float2 halfSize = new float2(size * 0.5f, size * 0.5f);
             float2 d = Hlsl.Abs(p - center) - halfSize;
@@ -89,7 +91,7 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Returns the final color of a handle SDF.
         /// </summary>
-        private float3 DrawSDF(float distance, float thickness, float3 color, float3 currentColor, bool isHovered)
+        private static float3 DrawSDF(float distance, float thickness, float3 color, float3 currentColor, bool isHovered)
         {
             float alpha = Hlsl.Saturate(1.0f - Hlsl.Abs(distance) / thickness);
             if (isHovered)
@@ -98,6 +100,25 @@ namespace DivisionEngine.Rendering
                 color *= 1.5f;
             }
             return Hlsl.Lerp(currentColor, color, alpha);
+        }
+
+        private float RotationRingDistance(float2 pixelUV, float3 center, float3 planeU, float3 planeV, float radius)
+        {
+            float minDist = float.MaxValue;
+            float3 prevWorld = center + planeU * radius;
+            float3 prevScreen = WorldToScreen(prevWorld);
+            for (int i = 1; i <= ROTATION_RING_SEGMENTS; i++)
+            {
+                float angle = i / (float)ROTATION_RING_SEGMENTS * 6.28318530718f;
+                float3 dir = Hlsl.Cos(angle) * planeU + Hlsl.Sin(angle) * planeV;
+                float3 curWorld = center + dir * radius;
+                float3 curScreen = WorldToScreen(curWorld);
+
+                float d = LineSegmentSDF(pixelUV, prevScreen.XY, curScreen.XY);
+                if (d < minDist) minDist = d;
+                prevScreen = curScreen;
+            }
+            return minDist;
         }
 
         public void Execute()
@@ -143,7 +164,7 @@ namespace DivisionEngine.Rendering
             float2 zPerp = new float2(-zDir.Y, zDir.X);
 
             // Arrow wing endpoints
-            float arrowSize = 15.0f;
+            float arrowSize = 12f;
             float2 xArrow1 = xEndScreen.XY - xDir * arrowSize * 0.8f + xPerp * arrowSize * 0.5f;
             float2 xArrow2 = xEndScreen.XY - xDir * arrowSize * 0.8f - xPerp * arrowSize * 0.5f;
             float2 yArrow1 = yEndScreen.XY - yDir * arrowSize * 0.8f + yPerp * arrowSize * 0.5f;
@@ -151,11 +172,11 @@ namespace DivisionEngine.Rendering
             float2 zArrow1 = zEndScreen.XY - zDir * arrowSize * 0.8f + zPerp * arrowSize * 0.5f;
             float2 zArrow2 = zEndScreen.XY - zDir * arrowSize * 0.8f - zPerp * arrowSize * 0.5f;
 
-            float lineThickness = 2f;
-            float hoveredLineThickness = 4.0f;
-            float circleRadius = 4.0f;
+            float lineThickness = 1.5f;
+            float hoveredLineThickness = 3f;
+            float circleRadius = 2f;
             float circleThickness = 1.5f;
-            float squareSize = 5.0f; // Screen-space pixel size for scale squares
+            float squareSize = 4f; // Screen-space pixel size for scale squares
 
             // Use thicker lines when hovered
             float xThickness = (hoveredHandle == 1) ? hoveredLineThickness : lineThickness;
@@ -184,6 +205,21 @@ namespace DivisionEngine.Rendering
             float distYScale = (yScaleScreen.Z > 0) ? SquareSDF(uv, yScaleScreen.XY, squareSize, yScaleThickness) : float.MaxValue;
             float distZScale = (zScaleScreen.Z > 0) ? SquareSDF(uv, zScaleScreen.XY, squareSize, zScaleThickness) : float.MaxValue;
 
+            // Rotation
+            float rotRadius = axisLength * 1.333f;
+
+            float3 xRingU = new float3(0, 1, 0), xRingV = new float3(0, 0, 1);
+            float3 yRingU = new float3(0, 0, 1), yRingV = new float3(1, 0, 0);
+            float3 zRingU = new float3(1, 0, 0), zRingV = new float3(0, 1, 0);
+
+            float xRotThickness = (hoveredHandle == 8) ? hoveredLineThickness : lineThickness;
+            float yRotThickness = (hoveredHandle == 9) ? hoveredLineThickness : lineThickness;
+            float zRotThickness = (hoveredHandle == 10) ? hoveredLineThickness : lineThickness;
+
+            float distXRing = RotationRingDistance(uv, handlePosition, xRingU, xRingV, rotRadius);
+            float distYRing = RotationRingDistance(uv, handlePosition, yRingU, yRingV, rotRadius);
+            float distZRing = RotationRingDistance(uv, handlePosition, zRingU, zRingV, rotRadius);
+
             float distCenterCircle = CircleOutlineSDF(uv, centerScreen.XY, circleRadius, circleThicknessActual);
 
             float4 existingColor = renderTexture[pixel];
@@ -195,28 +231,49 @@ namespace DivisionEngine.Rendering
             {
                 handleId = 4;
                 bool isHovered = hoveredHandle == 4;
-                finalColor = DrawSDF(distCenterCircle, circleThicknessActual, new float3(1.0f, 1.0f, 1.0f), finalColor, isHovered);
+                finalColor = DrawSDF(distCenterCircle, circleThicknessActual, new float3(1f, 1f, 1f), finalColor, isHovered);
             }
             // X Scale Square
             else if (Hlsl.Abs(distXScale) <= xScaleThickness)
             {
                 handleId = 5;
                 bool isHovered = hoveredHandle == 5;
-                finalColor = DrawSDF(distXScale, xScaleThickness, new float3(1.0f, 0.2f, 0.2f), finalColor, isHovered);
+                finalColor = DrawSDF(distXScale, xScaleThickness, new float3(1f, 0.2f, 0.2f), finalColor, isHovered);
             }
             // Y Scale Square
             else if (Hlsl.Abs(distYScale) <= yScaleThickness)
             {
                 handleId = 6;
                 bool isHovered = hoveredHandle == 6;
-                finalColor = DrawSDF(distYScale, yScaleThickness, new float3(0.2f, 1.0f, 0.2f), finalColor, isHovered);
+                finalColor = DrawSDF(distYScale, yScaleThickness, new float3(0.2f, 1f, 0.2f), finalColor, isHovered);
             }
             // Z Scale Square
             else if (Hlsl.Abs(distZScale) <= zScaleThickness)
             {
                 handleId = 7;
                 bool isHovered = hoveredHandle == 7;
-                finalColor = DrawSDF(distZScale, zScaleThickness, new float3(0.2f, 0.6f, 1.0f), finalColor, isHovered);
+                finalColor = DrawSDF(distZScale, zScaleThickness, new float3(0.2f, 0.6f, 1f), finalColor, isHovered);
+            }
+            // X Rotation Ring
+            else if (distXRing <= xRotThickness)
+            {
+                handleId = 8;
+                bool isHovered = hoveredHandle == 8;
+                finalColor = DrawSDF(distXRing, xRotThickness, new float3(1f, 0.2f, 0.2f), finalColor, isHovered);
+            }
+            // Y Rotation Ring
+            else if (distYRing <= yRotThickness)
+            {
+                handleId = 9;
+                bool isHovered = hoveredHandle == 9;
+                finalColor = DrawSDF(distYRing, yRotThickness, new float3(0.2f, 1f, 0.2f), finalColor, isHovered);
+            }
+            // Z Rotation Ring
+            else if (distZRing <= zRotThickness)
+            {
+                handleId = 10;
+                bool isHovered = hoveredHandle == 10;
+                finalColor = DrawSDF(distZRing, zRotThickness, new float3(0.2f, 0.4f, 1f), finalColor, isHovered);
             }
             // X axis
             else if (distX <= xThickness || distXArrow1 <= xThickness || distXArrow2 <= xThickness)
@@ -224,11 +281,11 @@ namespace DivisionEngine.Rendering
                 handleId = 1;
                 bool isHovered = hoveredHandle == 1;
                 if (distX <= xThickness)
-                    finalColor = DrawSDF(distX, xThickness, new float3(1.0f, 0.2f, 0.2f), finalColor, isHovered);
+                    finalColor = DrawSDF(distX, xThickness, new float3(1f, 0.2f, 0.2f), finalColor, isHovered);
                 if (distXArrow1 <= xThickness)
-                    finalColor = DrawSDF(distXArrow1, xThickness, new float3(1.0f, 0.2f, 0.2f), finalColor, isHovered);
+                    finalColor = DrawSDF(distXArrow1, xThickness, new float3(1f, 0.2f, 0.2f), finalColor, isHovered);
                 if (distXArrow2 <= xThickness)
-                    finalColor = DrawSDF(distXArrow2, xThickness, new float3(1.0f, 0.2f, 0.2f), finalColor, isHovered);
+                    finalColor = DrawSDF(distXArrow2, xThickness, new float3(1f, 0.2f, 0.2f), finalColor, isHovered);
             }
             // Y axis
             else if (distY <= yThickness || distYArrow1 <= yThickness || distYArrow2 <= yThickness)
@@ -236,11 +293,11 @@ namespace DivisionEngine.Rendering
                 handleId = 2;
                 bool isHovered = hoveredHandle == 2;
                 if (distY <= yThickness)
-                    finalColor = DrawSDF(distY, yThickness, new float3(0.2f, 1.0f, 0.2f), finalColor, isHovered);
+                    finalColor = DrawSDF(distY, yThickness, new float3(0.2f, 1f, 0.2f), finalColor, isHovered);
                 if (distYArrow1 <= yThickness)
-                    finalColor = DrawSDF(distYArrow1, yThickness, new float3(0.2f, 1.0f, 0.2f), finalColor, isHovered);
+                    finalColor = DrawSDF(distYArrow1, yThickness, new float3(0.2f, 1f, 0.2f), finalColor, isHovered);
                 if (distYArrow2 <= yThickness)
-                    finalColor = DrawSDF(distYArrow2, yThickness, new float3(0.2f, 1.0f, 0.2f), finalColor, isHovered);
+                    finalColor = DrawSDF(distYArrow2, yThickness, new float3(0.2f, 1f, 0.2f), finalColor, isHovered);
             }
             // Z axis
             else if (distZ <= zThickness || distZArrow1 <= zThickness || distZArrow2 <= zThickness)
@@ -248,11 +305,11 @@ namespace DivisionEngine.Rendering
                 handleId = 3;
                 bool isHovered = hoveredHandle == 3;
                 if (distZ <= zThickness)
-                    finalColor = DrawSDF(distZ, zThickness, new float3(0.2f, 0.4f, 1.0f), finalColor, isHovered);
+                    finalColor = DrawSDF(distZ, zThickness, new float3(0.2f, 0.4f, 1f), finalColor, isHovered);
                 if (distZArrow1 <= zThickness)
-                    finalColor = DrawSDF(distZArrow1, zThickness, new float3(0.2f, 0.4f, 1.0f), finalColor, isHovered);
+                    finalColor = DrawSDF(distZArrow1, zThickness, new float3(0.2f, 0.4f, 1f), finalColor, isHovered);
                 if (distZArrow2 <= zThickness)
-                    finalColor = DrawSDF(distZArrow2, zThickness, new float3(0.2f, 0.4f, 1.0f), finalColor, isHovered);
+                    finalColor = DrawSDF(distZArrow2, zThickness, new float3(0.2f, 0.4f, 1f), finalColor, isHovered);
             }
 
             handleIdBuffer[pixel.X + pixel.Y * (int)width] = handleId;
