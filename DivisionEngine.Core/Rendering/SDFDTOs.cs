@@ -83,6 +83,7 @@ namespace DivisionEngine.Rendering
         public int metalTexMetaID; // 4b
         public int emissionTexMetaID; // 4b
         public float4 texTilingOffset; // 16b - xy is tiling, zw is offsets
+        public float triplanarBlend; // 4b
         public float4 color; // 16b
         public float metallic; // 4b
         public float roughness; // 4b

@@ -52,6 +52,7 @@ namespace DivisionEngine.Components.SDFs
         [Header("UV Scale / Offset")]
         public float2 uvScale = new float2(1f, 1f);
         public float2 uvOffset = float2.Zero;
+        public float triplanarBlend = 4f;
 
         [Space(10f)]
         [Header("Material Properties")]
@@ -84,6 +85,7 @@ namespace DivisionEngine.Components.SDFs
             emissiveMap = emissiveMap,
             uvScale = uvScale,
             uvOffset = uvOffset,
+            triplanarBlend = triplanarBlend,
 
             albedoColor = albedoColor,
             metallic = metallic,

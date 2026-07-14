@@ -240,6 +240,7 @@ namespace DivisionEngine.Systems
                     curSDF.metalTexMetaID = mat.metallicMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.metallicMap.ID) : -1;
                     curSDF.emissionTexMetaID = mat.emissiveMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.emissiveMap.ID) : -1;
                     curSDF.texTilingOffset = new float4(mat.uvScale.X, mat.uvScale.Y, mat.uvOffset.X, mat.uvOffset.Y);
+                    curSDF.triplanarBlend = mat.triplanarBlend;
 
                     // Material properties
                     curSDF.color = mat.albedoColor;

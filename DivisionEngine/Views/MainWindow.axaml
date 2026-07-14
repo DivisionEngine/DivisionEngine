@@ -41,7 +41,7 @@
     <!--Main Menu-->
     <StackPanel DockPanel.Dock="Top" Background="#444" Orientation="Horizontal">
       <TextBlock Text="Division Engine" FontWeight="Bold" FontSize="16" Margin="5" VerticalAlignment="Center"/>
-        <Menu Foreground="#ccc">
+        <Menu Foreground="#ccc" IsTextSearchEnabled="True">
             <!--File / Edit Menu-->
         <MenuItem x:Name="FileMenu" Header="File" Foreground="#ccc">
             <MenuItem Header="Open" Command="{Binding OpenProjectCommand}" Foreground="#ccc"/>

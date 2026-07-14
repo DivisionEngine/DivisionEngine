@@ -344,21 +344,21 @@ namespace DivisionEngine
                     dist *= EvaluatePrimitiveDistanceFast(curSDF.type, curSDF.parameters, curPoint);
 
                 // Cheap displacement texture mapping
-                if (curSDF.displaceTexMetaID >= 0)
-                {
-                    // Cheap pseudo-normal for triplanar blend weights (exact for sphere-like shapes,
-                    // a reasonable approximation for box/rounded-box; less accurate for torus/plane/cylinder)
-                    float3 pseudoNormal = Hlsl.Normalize(curPoint + EPSILON);
-                    float3 dispBlend = TriplanarWeights(pseudoNormal, 4f);
-                    float dispScale = 1f / Hlsl.Max(curSDF.texTilingOffset.X, EPSILON);
+                //if (curSDF.displaceTexMetaID >= 0)
+                //{
+                //    // Cheap pseudo-normal for triplanar blend weights (exact for sphere-like shapes,
+                //    // a reasonable approximation for box/rounded-box; less accurate for torus/plane/cylinder)
+                //    float3 pseudoNormal = Hlsl.Normalize(curPoint + EPSILON);
+                //    float3 dispBlend = TriplanarWeights(pseudoNormal, curSDF.triplanarBlend);
+                //    float dispScale = 1f / Hlsl.Max(curSDF.texTilingOffset.X, EPSILON);
 
-                    float height = SampleTriplanarScalar(curSDF.displaceTexMetaID, curPoint, dispBlend, dispScale, 0.5f) - 0.5f;
-                    dist -= height * curSDF.displaceStrength;
+                //    float height = SampleTriplanarScalar(curSDF.displaceTexMetaID, curPoint, dispBlend, dispScale, 0.5f) - 0.5f;
+                //    dist -= height * curSDF.displaceStrength;
 
-                    // Displacement breaks the 1-Lipschitz guarantee the marcher relies on for safe step sizes,
-                    // so shrink the step conservatively to avoid punching through fine detail
-                    dist *= 0.5f;
-                }
+                //    // Displacement breaks the 1-Lipschitz guarantee the marcher relies on for safe step sizes,
+                //    // so shrink the step conservatively to avoid punching through fine detail
+                //    dist *= 0.5f;
+                //}
 
                 dist *= curSDF.stepBias;
                 if (Hlsl.Abs(dist) < minDist)
@@ -557,7 +557,7 @@ namespace DivisionEngine
         {
             localPos = ShaderMath.RotateVector(hitPoint - sdf.position, sdf.rotation);
             float3 localGeoNormal = Hlsl.Normalize(ShaderMath.RotateVector(geoNormal, sdf.rotation));
-            blend = TriplanarWeights(localGeoNormal, 4f);
+            blend = TriplanarWeights(localGeoNormal, sdf.triplanarBlend);
             float scale = 1f / Hlsl.Max(sdf.texTilingOffset.X, EPSILON);
 
             float mipLevel = 0f;
@@ -581,10 +581,10 @@ namespace DivisionEngine
         private float3 GetSkyColor(float3 viewDir)
         {
             SDFWorldDTO world = worldData[0];
-            if (world.skyType == 0) return world.skyColor.RGB * world.skyIntensity;
-            else if (world.skyType == 1) return GetGradientSkyColor(viewDir, world);
+            if (world.skyType == 0) return AddAtmosphericScattering(viewDir, world.skyColor.RGB * world.skyIntensity, world.mainLightDir);
+            else if (world.skyType == 1) return AddAtmosphericScattering(viewDir, GetGradientSkyColor(viewDir, world), world.mainLightDir);
             else if (world.skyType == 2) return GetHDRISkyColor(viewDir, world);
-            return AddAtmosphericScattering(viewDir, world.skyColor.RGB * world.skyIntensity, world.mainLightDir);
+            return world.skyColor.RGB * world.skyIntensity;
         }
 
         /// <summary>
@@ -630,7 +630,7 @@ namespace DivisionEngine
         /// <summary>
         /// Gets HDRI sky color (placeholder for now).
         /// </summary>
-        private float3 GetHDRISkyColor(float3 viewDir, SDFWorldDTO world)
+        private static float3 GetHDRISkyColor(float3 viewDir, SDFWorldDTO world)
         {
             // Placeholder - just return a neutral color with a hint of blue
             // This will be replaced with actual HDRI sampling later
@@ -655,7 +655,7 @@ namespace DivisionEngine
         /// <summary>
         /// Adds atmospheric scattering to the sky (optional enhancement).
         /// </summary>
-        private float3 AddAtmosphericScattering(float3 viewDir, float3 skyColor, float3 sunDir)
+        private static float3 AddAtmosphericScattering(float3 viewDir, float3 skyColor, float3 sunDir)
         {
             // Simple Rayleigh scattering approximation
             float sunDot = Hlsl.Max(Hlsl.Dot(viewDir, sunDir), 0.0f);
