@@ -12,7 +12,9 @@ using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
 using DivisionEngine.MathLib;
+using DivisionEngine.Projects.Assets;
 using DivisionEngine.Rendering;
+using Silk.NET.Input;
 using System.Diagnostics.CodeAnalysis;
 using Environment = DivisionEngine.Components.Environment;
 using Math = DivisionEngine.MathLib.Math;
@@ -110,10 +112,16 @@ namespace DivisionEngine.Systems
             // Gather environment data
             foreach (var (_, environment) in W.QueryData<Environment>())
             {
-                worldData.backgroundColor = environment.backgroundColor;
+                worldData.skyColor = environment.skyColor;
+                worldData.bottomSkyColor = environment.bottomSkyColor;
+                worldData.middleSkyColor = environment.middleSkyColor;
+                worldData.topSkyColor = environment.topSkyColor;
+                worldData.hdriTexMetaID = environment.hdriMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(environment.hdriMap.ID) : -1;
                 worldData.ambientStrength = environment.ambientStrength;
                 worldData.mainLightDir = new float3(1, 0, 0);
                 worldData.shadowScale = environment.shadowScale;
+                worldData.skyType = (int)environment.skyType;
+                worldData.skyIntensity = environment.skyIntensity;
                 break; // Use first environment
             }
 
@@ -223,7 +231,7 @@ namespace DivisionEngine.Systems
                     SDFMaterial mat = W.GetComponent<SDFMaterial>(id)!;
 
                     // Textures
-                    curSDF.albedoTexMetaID = mat.albedoMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.albedoMap.ID) : -1;
+                    curSDF.albedoTexMetaID = GetTexMetaID(mat.albedoMap);
                     curSDF.normalTexMetaID = mat.normalMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.normalMap.ID) : -1;
                     curSDF.normalStrength = mat.normalStrength;
                     curSDF.displaceTexMetaID = mat.heightMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(mat.heightMap.ID) : -1;
@@ -336,6 +344,9 @@ namespace DivisionEngine.Systems
 
             return (worldData, sdfObjects.ToArray(), sdfLights.ToArray());
         }
+
+        private static int GetTexMetaID(AssetRef<TextureAsset> assetRef) =>
+            assetRef.IsLoaded ? TextureSystem.GetTextureMetadataIndex(assetRef.ID) : -1;
 
         [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
         public static void UploadWorldData(GraphicsDevice device)

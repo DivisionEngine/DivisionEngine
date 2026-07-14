@@ -22,7 +22,13 @@ namespace DivisionEngine.Rendering
         public float camScreenDist; // 4b
 
         // Environment Properties
-        public float4 backgroundColor; // 16b
+        public float4 skyColor; // 16b
+        public float4 bottomSkyColor; // 16b
+        public float4 middleSkyColor; // 16b
+        public float4 topSkyColor; // 16b
+        public int hdriTexMetaID; // 4b
+        public int skyType; // 4b
+        public float skyIntensity; // 4b
         public float ambientStrength; // 4b
         public int maxRaySteps; // 4b
         public int maxShadowRaySteps; // 4b

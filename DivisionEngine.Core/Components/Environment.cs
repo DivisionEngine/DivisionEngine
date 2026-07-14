@@ -16,16 +16,39 @@ namespace DivisionEngine.Components
     /// </summary>
     public class Environment : IComponent
     {
-        [Color(true)] public float4 backgroundColor = ColorPalette.SkyBlue;
+        public enum SkyType
+        {
+            Solid = 0, Gradient = 1, HDRI = 2
+        }
+
+        [Header("Lighting")]
         [Range(0f, 1f)] public float ambientStrength = 0.15f;
         [Tooltip("Shadow penumbra range in meters")] public float shadowScale = 20f;
-        public AssetRef<AudioAsset> hdriMap = default; // Testing this for now
+        public SkyType skyType = SkyType.Solid;
+        [Min(0f)] public float skyIntensity = 1f;
+
+        [Header("Single Color Sky")]
+        [Color(false)] public float4 skyColor = ColorPalette.SkyBlue;
+
+        [Header("Gradient Sky")]
+        [Color(false)] public float4 topSkyColor = ColorPalette.DeepSkyBlue;
+        [Color(false)] public float4 middleSkyColor = ColorPalette.SkyBlue;
+        [Color(false)] public float4 bottomSkyColor = ColorPalette.SandyBrown;
+
+        [Header("HDRI Sky")]
+        public AssetRef<TextureAsset> hdriMap = default;
 
         public IComponent Clone() => new Environment
         {
-            backgroundColor = backgroundColor,
             ambientStrength = ambientStrength,
             shadowScale = shadowScale,
+            skyType = skyType,
+            skyIntensity = skyIntensity,
+
+            skyColor = skyColor,
+            bottomSkyColor = bottomSkyColor,
+            middleSkyColor = middleSkyColor,
+            topSkyColor = topSkyColor,
             hdriMap = hdriMap,
         };
     }

@@ -573,6 +573,100 @@ namespace DivisionEngine
         }
 
         #endregion pbr_workflow
+        #region sky
+
+        /// <summary>
+        /// Gets the sky color based on the configured sky mode.
+        /// </summary>
+        private float3 GetSkyColor(float3 viewDir)
+        {
+            SDFWorldDTO world = worldData[0];
+            if (world.skyType == 0) return world.skyColor.RGB * world.skyIntensity;
+            else if (world.skyType == 1) return GetGradientSkyColor(viewDir, world);
+            else if (world.skyType == 2) return GetHDRISkyColor(viewDir, world);
+            return AddAtmosphericScattering(viewDir, world.skyColor.RGB * world.skyIntensity, world.mainLightDir);
+        }
+
+        /// <summary>
+        /// Computes gradient sky color based on view direction.
+        /// </summary>
+        private static float3 GetGradientSkyColor(float3 viewDir, SDFWorldDTO world)
+        {
+            float3 dir = Hlsl.Normalize(viewDir);
+            float y = dir.Y;
+
+            // Map to 0-1 range
+            float t = y * 0.5f + 0.5f;
+            t = Hlsl.Saturate(t);
+
+            // Sample the gradient
+            float3 bottom = world.bottomSkyColor.RGB;
+            float3 middle = world.middleSkyColor.RGB;
+            float3 top = world.topSkyColor.RGB;
+
+            float3 color;
+            if (t < 0.5f)
+            {
+                // Bottom to middle
+                float u = t / 0.5f;
+                color = Hlsl.Lerp(bottom, middle, u);
+            }
+            else
+            {
+                // Middle to top
+                float u = (t - 0.5f) / 0.5f;
+                color = Hlsl.Lerp(middle, top, u);
+            }
+
+            // Optional: Add horizon glow
+            float horizonGlow = 1f - Hlsl.Pow(Hlsl.Abs(y), 4f);
+            float3 horizonColor = new float3(1f, 0.8f, 0.5f) * 0.3f;
+            color += horizonColor * horizonGlow * 0.2f;
+
+            // Apply intensity
+            return color * world.skyIntensity;
+        }
+
+        /// <summary>
+        /// Gets HDRI sky color (placeholder for now).
+        /// </summary>
+        private float3 GetHDRISkyColor(float3 viewDir, SDFWorldDTO world)
+        {
+            // Placeholder - just return a neutral color with a hint of blue
+            // This will be replaced with actual HDRI sampling later
+            float3 dir = Hlsl.Normalize(viewDir);
+
+            // Simple fake HDRI: gradient with some variation
+            float y = dir.Y * 0.5f + 0.5f;
+            float3 color = Hlsl.Lerp(
+                new float3(0.3f, 0.2f, 0.1f), // Bottom
+                new float3(0.4f, 0.6f, 1.0f), // Top
+                y
+            );
+
+            // Add some directional variation
+            float sunAngle = Hlsl.Max(Hlsl.Dot(dir, world.mainLightDir), 0.0f);
+            float3 sunColor = new float3(1.0f, 0.8f, 0.4f) * Hlsl.Pow(sunAngle, 64.0f) * 2.0f;
+            color += sunColor;
+
+            return color * world.skyIntensity;
+        }
+
+        /// <summary>
+        /// Adds atmospheric scattering to the sky (optional enhancement).
+        /// </summary>
+        private float3 AddAtmosphericScattering(float3 viewDir, float3 skyColor, float3 sunDir)
+        {
+            // Simple Rayleigh scattering approximation
+            float sunDot = Hlsl.Max(Hlsl.Dot(viewDir, sunDir), 0.0f);
+            float scattering = Hlsl.Pow(sunDot, 3.0f) * 0.5f;
+
+            // Add warm sun color to scattering
+            float3 sunColor = new float3(1.0f, 0.7f, 0.3f);
+            return skyColor + sunColor * scattering * 0.3f;
+        }
+
+        #endregion sky
         #region raymarching
 
         // -----------
@@ -875,9 +969,12 @@ namespace DivisionEngine
                     out int closestObjIndex, out float depth, out int tracedSteps);
                 steps += tracedSteps;
 
+                // Calc sky color
+                float3 sky = GetSkyColor(rayDir);
+
                 if (closestObjIndex == -1 || depth > farClipPlane)
                 {
-                    finalColor += contribution * worldData[0].backgroundColor.XYZ;
+                    finalColor += contribution * sky;
                     if (firstHit) totalDist = depth;
                     break;
                 }
@@ -901,7 +998,7 @@ namespace DivisionEngine
                     entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2((uint)closestObjIndex, sdf.entityId);
                     mainMat = sdf;
 
-                    ambientBase = Hlsl.Lerp(albedo, worldData[0].backgroundColor.RGB, worldData[0].ambientStrength) * worldData[0].ambientStrength;
+                    ambientBase = Hlsl.Lerp(albedo, worldData[0].skyColor.RGB, worldData[0].ambientStrength) * worldData[0].ambientStrength;
                     if (aoStrength > 0f)
                         aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityId, sdf.aoValues), aoStrength);
 
@@ -909,7 +1006,7 @@ namespace DivisionEngine
                     {
                         isRefractive = true;
                         fresnelFactor = PBR.SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
-                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, worldData[0].backgroundColor.RGB, normal, sdf, out tracedSteps);
+                        refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, sky, normal, sdf, out tracedSteps);
                         steps += tracedSteps;
                     }
                     firstHit = false;
