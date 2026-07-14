@@ -756,7 +756,7 @@ public partial class PropertiesWindow : EditorWindow
             if (defaultValue != null)
             {
                 field.SetValue(component, defaultValue);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             }
         };
         fieldContextMenu.Items.Add(resetMenuItem);
@@ -777,13 +777,13 @@ public partial class PropertiesWindow : EditorWindow
                 NumericUpDown floatBox = CreateFloatNumericBox(value, (f) =>
                 {
                     field.SetValue(component, f);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 }, false, minAttr != null ? minAttr.Min : -2000000000f, maxAttr != null ? maxAttr.Max : 2000000000f);
                 StackPanel floatSlider = CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, (f) =>
                 {
                     field.SetValue(component, f);
                     floatBox.Value = (decimal)f;
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 });
                 floatControl.Children.Add(floatSlider);
                 floatControl.Children.Add(floatBox);
@@ -792,7 +792,7 @@ public partial class PropertiesWindow : EditorWindow
             else editorControl = CreateFloatNumericBox(value, (f) =>
             {
                 field.SetValue(component, f);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             }, true, minAttr != null ? minAttr.Min : -2000000000f, maxAttr != null ? maxAttr.Max : 2000000000f);
         }
         else if (fieldValue != null && fieldType == typeof(int))
@@ -807,13 +807,13 @@ public partial class PropertiesWindow : EditorWindow
                 NumericUpDown intBox = CreateIntegerNumericBox(value, (f) =>
                 {
                     field.SetValue(component, f);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 }, false, minAttr != null ? (int)minAttr.Min : int.MinValue, maxAttr != null ? (int)maxAttr.Max : int.MaxValue);
                 StackPanel intSlider = CreateIntegerSlider(value, (int)rangeAttr.Min, (int)rangeAttr.Max, (i) =>
                 {
                     field.SetValue(component, i);
                     intBox.Value = i;
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 });
                 intControl.Children.Add(intSlider);
                 intControl.Children.Add(intBox);
@@ -822,7 +822,7 @@ public partial class PropertiesWindow : EditorWindow
             else editorControl = CreateIntegerNumericBox(value, (f) =>
             {
                 field.SetValue(component, f);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             }, true, minAttr != null ? (int)minAttr.Min : int.MinValue, maxAttr != null ? (int)maxAttr.Max : int.MaxValue);
         }
         else if (fieldValue != null && fieldType == typeof(string))
@@ -845,7 +845,7 @@ public partial class PropertiesWindow : EditorWindow
                 if (e.Property == TextBox.TextProperty)
                 {
                     field.SetValue(component, textBox.Text);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 }
             };
             editorControl = textBox;
@@ -864,7 +864,7 @@ public partial class PropertiesWindow : EditorWindow
             checkBox.IsCheckedChanged += (s, e) =>
             {
                 field.SetValue(component, checkBox.IsChecked);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             };
             editorControl = checkBox;
         }
@@ -881,13 +881,13 @@ public partial class PropertiesWindow : EditorWindow
             {
                 value.X = val;
                 field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             });
             NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) =>
             {
                 value.Y = val;
                 field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             });
 
             vectorPanel.Children.Add(new TextBlock
@@ -923,19 +923,19 @@ public partial class PropertiesWindow : EditorWindow
             {
                 value.X = val;
                 field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             });
             NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) =>
             {
                 value.Y = val;
                 field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             });
             NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) =>
             {
                 value.Z = val;
                 field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             });
 
             vectorPanel.Children.Add(new TextBlock {
@@ -983,25 +983,25 @@ public partial class PropertiesWindow : EditorWindow
                 {
                     value.X = val;
                     field.SetValue(component, value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 });
                 NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) =>
                 {
                     value.Y = val;
                     field.SetValue(component, value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 });
                 NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) =>
                 {
                     value.Z = val;
                     field.SetValue(component, value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 });
                 NumericUpDown wBox = CreateFloatNumericBox(value.W, (val) =>
                 {
                     value.W = val;
                     field.SetValue(component, value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 });
 
                 vectorPanel.Children.Add(new TextBlock
@@ -1060,7 +1060,7 @@ public partial class PropertiesWindow : EditorWindow
             dateTimePicker.SelectedDateChanged += (s, e) =>
             {
                 field.SetValue(component, dateTimePicker.SelectedDate);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
             };
             editorControl = dateTimePicker;
         }
@@ -1189,7 +1189,7 @@ public partial class PropertiesWindow : EditorWindow
                 try
                 {
                     field.SetValue(component, selectedItem.Value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 }
                 catch (Exception ex) { Debug.Error($"Failed to set enum value for {field.Name}", ex); }
             }
@@ -1355,7 +1355,7 @@ public partial class PropertiesWindow : EditorWindow
                     float4x4 currentMatrix = (float4x4)field.GetValue(component)!;
                     currentMatrix.SetVal(r, c, val);
                     field.SetValue(component, currentMatrix);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 });
                 numBox.Width = 24;
                 numBox.Height = 20;
@@ -1459,7 +1459,7 @@ public partial class PropertiesWindow : EditorWindow
             Color selectedColor = colorPicker.Color;
             float4 newColor = new float4(selectedColor.R / 255f, selectedColor.G / 255f, selectedColor.B / 255f, selectedColor.A / 255f);
             field.SetValue(component, newColor); // Update component
-            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
         };
         fieldPanel.Children.Add(colorPicker);
         return fieldPanel;
@@ -1485,21 +1485,21 @@ public partial class PropertiesWindow : EditorWindow
             if (rotAttr.Degrees) val *= Math.Deg2Rad;
             eulerValue.X = val;
             field.SetValue(component, Math.EulerToQuaternion(eulerValue));
-            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
         });
         NumericUpDown yBox = CreateFloatNumericBox(eulerValue.Y, (val) =>
         {
             if (rotAttr.Degrees) val *= Math.Deg2Rad;
             eulerValue.Y = val;
             field.SetValue(component, Math.EulerToQuaternion(eulerValue));
-            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
         });
         NumericUpDown zBox = CreateFloatNumericBox(eulerValue.Z, (val) =>
         {
             if (rotAttr.Degrees) val *= Math.Deg2Rad;
             eulerValue.Z = val;
             field.SetValue(component, Math.EulerToQuaternion(eulerValue));
-            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name, field.Name);
+            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
         });
         MaterialIcon rotateTypeIcon = new MaterialIcon
         {

@@ -121,7 +121,7 @@ public partial class SettingsWindow : EditorWindow
         AddBoolSetting("Auto Save", settings.AutoSave, val => settings.AutoSave = val);
         AddIntSetting("Auto Save Interval (frames)", settings.AutoSaveInterval, 30, 600, val => settings.AutoSaveInterval = val);
         AddIntSetting("Max Recent Projects", settings.MaxRecentProjects, 2, 20, val => settings.MaxRecentProjects = val);
-        AddFloatSetting("Editor Handle Scale", settings.EditorHandleScale, 0.5f, 20f, val => settings.EditorHandleScale = val);
+        AddFloatSetting("Editor Handle Scale", settings.EditorHandleScale, 0.001f, 10f, val => settings.EditorHandleScale = val);
     }
     
     /// <summary>

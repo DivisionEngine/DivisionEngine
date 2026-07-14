@@ -114,7 +114,7 @@ namespace DivisionEngine.Editor.Settings
         [JsonIgnore]
         public float EditorHandleScale
         {
-            get => Get(nameof(EditorHandleScale), 3.0f);
+            get => Get(nameof(EditorHandleScale), 0.2f);
             set => Set(nameof(EditorHandleScale), value);
         }
 

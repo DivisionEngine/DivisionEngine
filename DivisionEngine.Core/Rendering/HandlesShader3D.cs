@@ -104,8 +104,9 @@ namespace DivisionEngine.Rendering
         {
             int2 pixel = ThreadIds.XY;
             float2 uv = new float2(pixel.X, pixel.Y);
+            float cameraDist = Hlsl.Distance(cameraOrigin, handlePosition);
 
-            float axisLength = 1.0f * handleScale;
+            float axisLength = handleScale * cameraDist;
             float scaleHandlePosition = axisLength * 0.6f; // Position of scale square (60% along the axis)
 
             // Calculate end points in world space

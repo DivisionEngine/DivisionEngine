@@ -190,8 +190,13 @@ namespace DivisionEngine.Editor.Systems
                             currentPosition.Y + movement.Y,
                             currentPosition.Z + movement.Z
                         );
+
+                        //if (currentPosition.X != transform.position.X || 
+                        //    currentPosition.Y != transform.position.Y || 
+                        //    currentPosition.Z != transform.position.Z)
+                            PropertiesRefreshSystem.OnFieldChanged(draggedEntity, typeof(Transform).ToString());
+
                         transform.position = currentPosition;
-                        PropertiesRefreshSystem.OnFieldChanged(draggedEntity, typeof(Transform).ToString(), "position");
                         RenderPipeline.Instance?.ShowHandles(transform.position, EditorSettings.Instance!.EditorHandleScale);
 
                         // Update distance as we move
@@ -223,7 +228,8 @@ namespace DivisionEngine.Editor.Systems
                         }
 
                         transform.scaling = newScale;
-                        PropertiesRefreshSystem.OnFieldChanged(draggedEntity, typeof(Transform).ToString(), "scaling");
+                        //if (currentScale.X != newScale.X || currentScale.Y != newScale.Y || currentScale.Z != newScale.Z)
+                            PropertiesRefreshSystem.OnFieldChanged(draggedEntity, typeof(Transform).ToString());
                         currentScale = newScale; // Update current scale for next frame
 
                         if (scaleDelta != 0)

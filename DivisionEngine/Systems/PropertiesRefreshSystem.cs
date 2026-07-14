@@ -7,15 +7,19 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace DivisionEngine.Editor.Systems
 {
+    /// <summary>
+    /// Allows the properties window to dynamically update component fields in the editor if entities are modified in the world.
+    /// </summary>
     public class PropertiesRefreshSystem : SystemBase
     {
         public override int Priority => -100;
 
         private static uint lastSelectedEntity = uint.MaxValue;
-        private static HashSet<Type> componentsToRefresh = [];
+        private static readonly HashSet<Type> componentsToRefresh = [];
         private static int framesSinceLastRefresh = 0;
         private static bool needsRefresh = false;
 
@@ -25,26 +29,23 @@ namespace DivisionEngine.Editor.Systems
             if (!needsRefresh && componentsToRefresh.Count == 0) return;
 
             framesSinceLastRefresh++;
-
-            // Refresh after 2 frames (allows multiple changes to batch together)
-            if (framesSinceLastRefresh >= 2)
+            if (framesSinceLastRefresh >= 2) // Refresh after 2 frames (allows multiple changes to batch together)
             {
                 framesSinceLastRefresh = 0;
                 needsRefresh = false;
 
                 // Make a copy to avoid modification during iteration
-                var refreshesToProcess = new HashSet<Type>(componentsToRefresh);
+                HashSet<Type> refreshesToProcess = [.. componentsToRefresh];
+                componentsToRefresh.Clear();
 
-                foreach (var compType in refreshesToProcess)
+                foreach (Type compType in refreshesToProcess)
                 {
-                    foreach (var window in PropertiesWindow.GetCurrentWindows())
+                    foreach (PropertiesWindow? window in PropertiesWindow.GetCurrentWindows())
                     {
                         window?.RefreshComponent(compType);
+                        Debug.Log("Update transform properties");
                     }
                 }
-
-                // Don't clear! Keep the components that still need refreshing for next frame
-                // Instead, we'll rely on new OnFieldChanged calls to keep them in the set
             }
         }
 
@@ -56,20 +57,24 @@ namespace DivisionEngine.Editor.Systems
             framesSinceLastRefresh = 0;
         }
 
-        public static void OnFieldChanged(uint entityId, string componentType, string fieldName)
+        /// <summary>
+        /// Call this to update the properties window for a specific component type.
+        /// </summary>
+        /// <param name="entityId">Entity to update properties for</param>
+        /// <param name="componentType">Component type to update properties for</param>
+        public static void OnFieldChanged(uint entityId, string componentType)
         {
             if (entityId != lastSelectedEntity) return;
 
             // Find the actual Type object
             Type? compType = null;
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 compType = assembly.GetType(componentType);
                 if (compType != null) break;
             }
 
             if (compType == null) return;
-
             componentsToRefresh.Add(compType);
             needsRefresh = true;
             framesSinceLastRefresh = 0; // Reset frame counter
