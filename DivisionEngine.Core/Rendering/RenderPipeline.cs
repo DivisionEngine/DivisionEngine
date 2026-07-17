@@ -182,7 +182,7 @@ namespace DivisionEngine.Rendering
 
         // Denoising
         private ReadOnlyBuffer<float>? kernelBuffer; // Reconstruction kernel
-        private ReadWriteTexture2D<float4>? denoisedTex;
+        private ReadWriteTexture2D<float4>? postProcessTex;
 
         // Input context
         private IInputContext? inputContext;
@@ -537,10 +537,10 @@ namespace DivisionEngine.Rendering
                     }
 
                     // Build denoised texture (for post-process)
-                    if (denoisedTex == null || denoisedTex.Width != texWidth || denoisedTex.Height != texHeight)
+                    if (postProcessTex == null || postProcessTex.Width != texWidth || postProcessTex.Height != texHeight)
                     {
-                        denoisedTex?.Dispose();
-                        denoisedTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        postProcessTex?.Dispose();
+                        postProcessTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
                     }
 
                     // Build test background texture
@@ -664,7 +664,6 @@ namespace DivisionEngine.Rendering
                         textureBuffer!,
                         textureMetaBuffer!);
                     Device?.For(dispatchWidth, dispatchHeight, shader);
-
                 }
 
                 // Rendering pipeline
@@ -672,7 +671,7 @@ namespace DivisionEngine.Rendering
 
                 // Division Denoising
                 if (worldDTO.enableDivisionDenoise == 1 && CurrentDebugMode == DebugMode.None &&
-                    currentTexture != null && denoisedTex != null && objectIdBuffer != null && depthNormalsTex != null)
+                    currentTexture != null && postProcessTex != null && objectIdBuffer != null && depthNormalsTex != null)
                 {
                     lock (SyncLock)
                     {
@@ -682,21 +681,21 @@ namespace DivisionEngine.Rendering
                             worldDTO.divisionThreshold,
                             worldDTO.divisionDomain,
                             currentTexture,
-                            denoisedTex,
+                            postProcessTex,
                             depthNormalsTex,
                             sdfObjBuffer,
                             objectIdBuffer);
                         Device?.For(texWidth, texHeight, denoiseShader);
                     }
-                    currentTexture = denoisedTex;
+                    currentTexture = postProcessTex;
                 }
 
                 // A-Trous denoising using wavelets
                 if (worldDTO.enableATrousDenoise == 1 && CurrentDebugMode == DebugMode.None &&
-                    currentTexture != null && denoisedTex != null && kernelBuffer != null && objectIdBuffer != null && depthNormalsTex != null)
+                    currentTexture != null && postProcessTex != null && kernelBuffer != null && objectIdBuffer != null && depthNormalsTex != null)
                 {
                     ReadWriteTexture2D<float4> ping = currentTexture;
-                    ReadWriteTexture2D<float4> pong = denoisedTex;
+                    ReadWriteTexture2D<float4> pong = postProcessTex;
                     int stepSize = 1;
 
                     for (int i = 0; i < worldDTO.aTrousStepCount; i++)
@@ -727,22 +726,23 @@ namespace DivisionEngine.Rendering
                 {
                     // Depth of field
                     if (CurrentDebugMode == DebugMode.None && camera.enableDepthOfField &&
-                        currentTexture != null && denoisedTex != null && objectIdBuffer != null && depthNormalsTex != null)
+                        currentTexture != null && postProcessTex != null && depthNormalsTex != null)
                     {
-                        ReadWriteTexture2D<float4> source = currentTexture;
-                        ReadWriteTexture2D<float4> target = denoisedTex;
+                        currentTexture?.CopyTo(postProcessTex);
                         lock (SyncLock)
                         {
                             FastDepthOfFieldShader dofShader = new FastDepthOfFieldShader(
                                 texWidth,
-                                texHeight, // Max blur radius
-                                source,
-                                target,
-                                depthNormalsTex,
-                                worldDTO);
+                                texHeight,
+                                camera.nearClip,
+                                camera.farClip,
+                                camera.focusDistance,
+                                camera.focalLength,
+                                postProcessTex,
+                                currentTexture!,
+                                depthNormalsTex);
                             Device?.For(texWidth, texHeight, dofShader);
                         }
-                        currentTexture = target;
                     }
 
                     if (camera.enableFxaa && CurrentDebugMode == DebugMode.None)
@@ -1000,7 +1000,7 @@ namespace DivisionEngine.Rendering
         private void CleanupResources()
         {
             renderTex?.Dispose();
-            denoisedTex?.Dispose();
+            postProcessTex?.Dispose();
             depthNormalsTex?.Dispose();
             objectIdBuffer?.Dispose();
             sdfObjBuffer?.Dispose();
@@ -1010,7 +1010,7 @@ namespace DivisionEngine.Rendering
             fxaaInputTex?.Dispose();
             
             renderTex = null;
-            denoisedTex = null;
+            postProcessTex = null;
             depthNormalsTex = null;
             objectIdBuffer = null;
             sdfObjBuffer = null;

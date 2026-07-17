@@ -124,6 +124,9 @@ namespace DivisionEngine.Components
         [Space(6f)]
         public FXAADebugMode debugFxaa = FXAADebugMode.Disabled;
 
+        [Header("Tonemapping")]
+        public bool enableAcesTonemapper = true;
+
         public IComponent Clone() => new Camera
         {
             isActive = isActive,
@@ -151,6 +154,8 @@ namespace DivisionEngine.Components
             fxaaStrength = fxaaStrength,
             fxaaKernelSize = fxaaKernelSize,
             debugFxaa = debugFxaa,
+
+            enableAcesTonemapper = enableAcesTonemapper,
         };
     }
 }

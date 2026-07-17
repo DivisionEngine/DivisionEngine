@@ -39,9 +39,7 @@ namespace DivisionEngine.Rendering.AntiAliasing
         {
             int2 pixel = ThreadIds.XY;
             if (pixel.X >= width || pixel.Y >= height) return;
-
             float4 center = inputTexture[pixel];
-            float centerLuma = Luminance(center);
 
             // Sample neighbors
             int count = 0;

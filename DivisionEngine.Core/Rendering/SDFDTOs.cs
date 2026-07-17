@@ -39,6 +39,12 @@ namespace DivisionEngine.Rendering
         public float focusDistance; // 4b
         public float focalLength; // 4b
 
+        // Tonemapping Properties
+        public int enableAces; // 4b
+
+        // Vingette Properties
+        
+
         // Denoise Properties
         public int enableDivisionDenoise; // 4b
         public int enableATrousDenoise; // 4b

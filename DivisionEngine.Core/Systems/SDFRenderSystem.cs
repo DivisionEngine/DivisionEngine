@@ -95,6 +95,10 @@ namespace DivisionEngine.Systems
                 worldData.divisionThreshold = camera.divisionDenoiseThreshold;
                 worldData.divisionDomain = camera.divisionDenoiseDomain;
                 worldData.aTrousStepCount = camera.aTrousStepCount;
+
+                // Post-processing effects
+                worldData.enableAces = camera.enableAcesTonemapper ? 1 : 0;
+
                 break; // Use first active camera
             }
 

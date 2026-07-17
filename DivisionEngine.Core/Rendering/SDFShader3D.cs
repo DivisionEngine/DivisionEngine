@@ -1177,7 +1177,7 @@ namespace DivisionEngine
 
             for (int sample = 0; sample < SAMPLES_PER_PIXEL; sample++)
             {
-                ShaderMath.GetCameraRayDirNew(aspect, uv,
+                rayDir = ShaderMath.GetCameraRayDirNew(aspect, uv,
                     worldData[0].camScreenDist, worldData[0].camForward, worldData[0].camRight, worldData[0].camUp);
 
                 // Automatically skip reflection bounces for non-reflective materials
@@ -1194,8 +1194,9 @@ namespace DivisionEngine
             float3 finalNormal = accumulatedNormal / SAMPLES_PER_PIXEL;
             float finalDist = accumulatedDistance / SAMPLES_PER_PIXEL;
 
-            // Optional ACES:
-            finalColor = Hlsl.Saturate(finalColor * (2.51f * finalColor + 0.03f) / (finalColor * (2.43f * finalColor + 0.59f) + 0.14f));
+            // ACES tonemapping
+            //if (worldData[0].enableAces == 1)
+                finalColor = Hlsl.Saturate(finalColor * (2.51f * finalColor + 0.03f) / (finalColor * (2.43f * finalColor + 0.59f) + 0.14f));
 
             // Final
             texture[pixel] = new float4(finalColor, 1f);
