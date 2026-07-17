@@ -461,7 +461,7 @@ namespace DivisionEngine
                 //if (shadow < 0f) break; // Already fully in shadow, stop early
 
                 shadow = Hlsl.Min(shadow, worldData[0].shadowScale * dist / depth);
-                depth += Hlsl.Clamp(dist, 0.05f, 10f); // Larger minimum step than 0.01
+                depth += Hlsl.Clamp(dist, 0.025f, 100f); // Larger minimum step than 0.01
             }
 
             shadow = Hlsl.Max(shadow, -1f);
@@ -1175,24 +1175,10 @@ namespace DivisionEngine
             float accumulatedDistance = 0f;
             int steps = 0;
 
-            // Test background image
-            //float3 backgroundCol = inputTestTexture[new int2((int)(uv.X * backgroundWidth), (int)(uv.Y * backgroundHeight))].RGB;
-
             for (int sample = 0; sample < SAMPLES_PER_PIXEL; sample++)
             {
-                // Add slight jitter using Halton for antialiasing
-                if (SAMPLES_PER_PIXEL > 1)
-                {
-                    int cameraSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sample;
-                    float2 jitter = (PBR.Halton2D(cameraSampleIndex) - 0.5f) / new float2(width, height);
-                    float2 jitteredUV = uv + jitter * 2f;
-                    rayDir = ShaderMath.GetCameraRayDirNew(aspect, jitteredUV,
-                        worldData[0].camScreenDist, worldData[0].camForward, worldData[0].camRight, worldData[0].camUp);
-                }
-                //else
-                //{
-                //    rayDir = GetCameraRayDirNew(uv);
-                //}
+                ShaderMath.GetCameraRayDirNew(aspect, uv,
+                    worldData[0].camScreenDist, worldData[0].camForward, worldData[0].camRight, worldData[0].camUp);
 
                 // Automatically skip reflection bounces for non-reflective materials
                 float3 color = TraceRay(pixel, rayOrigin, rayDir, sample,

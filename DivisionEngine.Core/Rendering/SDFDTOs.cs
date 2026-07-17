@@ -46,7 +46,7 @@ namespace DivisionEngine.Rendering
         public int divisionDomain; // 4b
         public int aTrousStepCount; // 4b
 
-        // Fog settings
+        // Fog Properties
         public float fogDensity; // 4b
         public float4 fogColor; // 16b
         public float fogAbsorption; // 4b

@@ -7,6 +7,7 @@
 //
 using ComputeSharp;
 using DivisionEngine.Components;
+using DivisionEngine.Rendering.AntiAliasing;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
 using DivisionEngine.Rendering.Terrains;
@@ -117,7 +118,9 @@ namespace DivisionEngine.Rendering
         /// </summary>
         public uint[]? CustomShapeIds { get; private set; }
 
-        // Render texture storage
+        // Rendering storage
+        private ReadWriteTexture2D<float>? lowResDepthTex;
+        private ReadWriteTexture2D<float4>? lowResRenderTex; // Optional, for debugging
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadWriteTexture2D<float4>? depthNormalsTex;
         private ReadOnlyTexture2D<float4>? testBackgroundTex;
@@ -133,6 +136,9 @@ namespace DivisionEngine.Rendering
         // Terrain storage
         private readonly ReadOnlyBuffer<TerrainData>? terrainHeightBuffer;
         private readonly ReadOnlyBuffer<TerrainMetadata>? terrainMetadataBuffer;
+
+        // Anti aliasing storage
+        private ReadWriteTexture2D<float4>? fxaaInputTex;
 
         /// <summary>
         /// Rendered pixels buffer.
@@ -467,7 +473,7 @@ namespace DivisionEngine.Rendering
 
             if (boundWorld == null) return;
             boundWorld.CallRender();
-            int texWidth = 0, texHeight = 0;
+            int texWidth = 0, texHeight = 0, lowResWidth = 0, lowResHeight = 0;
             IWindow? window;
             lock (SyncLock)
             {
@@ -483,6 +489,8 @@ namespace DivisionEngine.Rendering
             {
                 texWidth = window.Size.X;
                 texHeight = window.Size.Y;
+                lowResWidth = Math.Max(1, texWidth / 4);
+                lowResHeight = Math.Max(1, texHeight / 4);
                 if (texWidth < 1 || texHeight < 1) return;
             }
             catch (NullReferenceException ex)
@@ -512,6 +520,20 @@ namespace DivisionEngine.Rendering
                         renderTex?.Dispose();
                         renderTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
                         Pixels = new float4[texWidth * texHeight];
+                    }
+
+                    // Build low res depth prepass buffer
+                    if (lowResDepthTex == null || lowResDepthTex.Width != lowResWidth || lowResDepthTex.Height != lowResHeight)
+                    {
+                        lowResDepthTex?.Dispose();
+                        lowResDepthTex = Device!.AllocateReadWriteTexture2D<float>(lowResWidth, lowResHeight);
+                    }
+
+                    // Optional: For debugging the low-res pass
+                    if (lowResRenderTex == null || lowResRenderTex.Width != lowResWidth || lowResRenderTex.Height != lowResHeight)
+                    {
+                        lowResRenderTex?.Dispose();
+                        lowResRenderTex = Device!.AllocateReadWriteTexture2D<float4>(lowResWidth, lowResHeight);
                     }
 
                     // Build denoised texture (for post-process)
@@ -642,6 +664,7 @@ namespace DivisionEngine.Rendering
                         textureBuffer!,
                         textureMetaBuffer!);
                     Device?.For(dispatchWidth, dispatchHeight, shader);
+
                 }
 
                 // Rendering pipeline
@@ -720,6 +743,32 @@ namespace DivisionEngine.Rendering
                             Device?.For(texWidth, texHeight, dofShader);
                         }
                         currentTexture = target;
+                    }
+
+                    if (camera.enableFxaa && CurrentDebugMode == DebugMode.None)
+                    {
+                        // Ensure we have temporary textures for FXAA
+                        if (fxaaInputTex == null || fxaaInputTex.Width != texWidth || fxaaInputTex.Height != texHeight)
+                        {
+                            fxaaInputTex?.Dispose();
+                            fxaaInputTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        }
+
+                        currentTexture?.CopyTo(fxaaInputTex);
+                        lock (SyncLock)
+                        {
+                            FXAAShader fxaaShader = new FXAAShader(
+                                texWidth,
+                                texHeight,
+                                fxaaInputTex,
+                                currentTexture!,
+                                camera.fxaaThreshold,
+                                camera.fxaaStrength,
+                                camera.fxaaKernelSize,
+                                (int)camera.debugFxaa
+                            );
+                            Device?.For(texWidth, texHeight, fxaaShader);
+                        }
                     }
                     break; // Use first camera
                 }
@@ -958,7 +1007,8 @@ namespace DivisionEngine.Rendering
             lightsBuffer?.Dispose();
             kernelBuffer?.Dispose();
             inputContext?.Dispose(); // Rare null reference error here
-
+            fxaaInputTex?.Dispose();
+            
             renderTex = null;
             denoisedTex = null;
             depthNormalsTex = null;
@@ -967,6 +1017,7 @@ namespace DivisionEngine.Rendering
             lightsBuffer = null;
             kernelBuffer = null;
             inputContext = null;
+            fxaaInputTex = null;
         }
     }
 }
