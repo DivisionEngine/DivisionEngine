@@ -64,42 +64,44 @@ namespace DivisionEngine.Systems
             List<SDFLightDTO> sdfLights = [];
 
             // Gather camera data
-            foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
+            foreach (var (cameraId, transform, camera) in W.QueryData<Transform, Camera>())
             {
-                if (!camera.isActive) continue; // Skip inactive cameras
-
                 // Camera transform
-                worldData.cameraOrigin = transform.position;
-                worldData.camForward = transform.Forward;
-                worldData.camRight = transform.Right;
-                worldData.camUp = transform.Up;
+                if (camera.isActive)
+                {
+                    worldData.cameraOrigin = transform.position;
+                    worldData.camForward = transform.Forward;
+                    worldData.camRight = transform.Right;
+                    worldData.camUp = transform.Up;
+                }
 
-                // Camera distances
-                worldData.nearPlane = camera.nearClip;
-                worldData.farPlane = camera.farClip;
-                worldData.camScreenDist = CameraSystem.FovToScreenDistance(camera); // Calc camera screen distance
-                
-                // Depth of field
-                worldData.focusDistance = camera.focusDistance;
-                worldData.focalLength = camera.focalLength;
+                if (cameraId != EditorCamera.EditorCameraId)
+                {
+                    // Camera distances
+                    worldData.nearPlane = camera.nearClip;
+                    worldData.farPlane = camera.farClip;
+                    worldData.camScreenDist = CameraSystem.FovToScreenDistance(camera); // Calc camera screen distance
 
-                // Ray step counts
-                worldData.maxRaySteps = camera.maxRaySteps;
-                worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
+                    // Depth of field
+                    worldData.focusDistance = camera.focusDistance;
+                    worldData.focalLength = camera.focalLength;
 
-                // Denoising
-                if (camera.enableDivisionDenoise) worldData.enableDivisionDenoise = 1;
-                else worldData.enableDivisionDenoise = 0;
-                if (camera.enableATrousDenoise) worldData.enableATrousDenoise = 1;
-                else worldData.enableATrousDenoise = 0;
-                worldData.divisionThreshold = camera.divisionDenoiseThreshold;
-                worldData.divisionDomain = camera.divisionDenoiseDomain;
-                worldData.aTrousStepCount = camera.aTrousStepCount;
+                    // Ray step counts
+                    worldData.maxRaySteps = camera.maxRaySteps;
+                    worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
 
-                // Post-processing effects
-                worldData.enableAces = camera.enableAcesTonemapper ? 1 : 0;
+                    // Denoising
+                    if (camera.enableDivisionDenoise) worldData.enableDivisionDenoise = 1;
+                    else worldData.enableDivisionDenoise = 0;
+                    if (camera.enableATrousDenoise) worldData.enableATrousDenoise = 1;
+                    else worldData.enableATrousDenoise = 0;
+                    worldData.divisionThreshold = camera.divisionDenoiseThreshold;
+                    worldData.divisionDomain = camera.divisionDenoiseDomain;
+                    worldData.aTrousStepCount = camera.aTrousStepCount;
 
-                break; // Use first active camera
+                    // Post-processing effects
+                    worldData.enableAces = camera.enableAcesTonemapper ? 1 : 0;
+                }
             }
 
             // Gather fog data

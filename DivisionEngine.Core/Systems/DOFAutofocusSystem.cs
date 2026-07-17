@@ -33,45 +33,49 @@ namespace DivisionEngine.Systems
         /// </summary>
         public float MaxFocusDistance { get; set; } = 1000f;
 
-        public override void Update()
+        public override void EditorUpdate()
         {
-            ExecuteDOFIteration();
+            if (!EngineCore.IsInPlayMode)
+            {
+                foreach (var (cameraId, _, camera) in W.QueryData<Transform, Camera>())
+                    if (cameraId != EditorCamera.EditorCameraId)
+                        ExecuteDOFIteration(camera);
+            }
         }
 
-        private void ExecuteDOFIteration()
+        public override void Update()
+        {
+            foreach (var (_, _, camera) in W.QueryData<Transform, Camera>())
+                if (camera.isActive)
+                    ExecuteDOFIteration(camera);
+        }
+
+        private void ExecuteDOFIteration(Camera camera)
         {
             // Only update every N frames for performance
             framesSinceUpdate++;
             if (framesSinceUpdate < UpdateIntervalFrames) return;
             framesSinceUpdate = 0;
 
-            // Find the active camera
-            foreach (var (_, _, camera) in W.QueryData<Transform, Camera>())
-            {
-                if (camera.isActive)
-                {
-                    // Check the depth buffer from the render pipeline
-                    if (!camera.enableDepthOfField || !camera.enableAutofocus ||
-                        RenderPipeline.Instance?.DepthNormalPixels == null) return;
+            // Check the depth buffer from the render pipeline
+            if (!camera.enableDepthOfField || !camera.enableAutofocus ||
+                RenderPipeline.Instance?.DepthNormalPixels == null) return;
 
-                    // Sample the depth buffer
-                    var (focusDistance, focalLength) = AnalyzeDepthBuffer(
-                        RenderPipeline.Instance.DepthNormalPixels,
-                        RenderPipeline.Instance.RendererWindow?.Size.X ?? 1920,
-                        RenderPipeline.Instance.RendererWindow?.Size.Y ?? 1080,
-                        camera.nearClip,
-                        camera.farClip
-                    );
+            // Sample the depth buffer
+            var (focusDistance, focalLength) = AnalyzeDepthBuffer(
+                RenderPipeline.Instance.DepthNormalPixels,
+                RenderPipeline.Instance.RendererWindow?.Size.X ?? 1920,
+                RenderPipeline.Instance.RendererWindow?.Size.Y ?? 1080,
+                camera.nearClip,
+                camera.farClip
+            );
 
-                    camera.focusDistance = Math.Clamp(
-                        focusDistance,
-                        MinFocusDistance,
-                        MaxFocusDistance
-                    );
-                    camera.focalLength = Math.Max(focalLength, 1f);
-                    break;
-                }
-            }
+            camera.focusDistance = Math.Clamp(
+                focusDistance,
+                MinFocusDistance,
+                MaxFocusDistance
+            );
+            camera.focalLength = Math.Max(focalLength, 1f);
         }
 
         /// <summary>

@@ -1039,6 +1039,7 @@ namespace DivisionEngine
 
                 int reflectionSampleIndex = pixel.X * 73 + pixel.Y * 9277 + frameCount * 1973 + sampleIndexInPixel * 3271 + bounce * 997;
                 float2 u = PBR.Halton2D(reflectionSampleIndex);
+
                 // Perturb with the bumped normal, not the geometric one -> normal maps now visible in reflections
                 float3 halfVector = PBR.ImportanceSampleGGX(u, finalNormal, roughAlpha, PI);
                 float3 reflectDir = Hlsl.Normalize(Hlsl.Reflect(rayDir, halfVector));
@@ -1195,7 +1196,7 @@ namespace DivisionEngine
             float finalDist = accumulatedDistance / SAMPLES_PER_PIXEL;
 
             // ACES tonemapping
-            //if (worldData[0].enableAces == 1)
+            if (worldData[0].enableAces == 1)
                 finalColor = Hlsl.Saturate(finalColor * (2.51f * finalColor + 0.03f) / (finalColor * (2.43f * finalColor + 0.59f) + 0.14f));
 
             // Final
