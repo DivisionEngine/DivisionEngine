@@ -176,7 +176,7 @@ namespace DivisionEngine.Systems
 
         private static List<uint[]> BuildMipChain(uint[] baseLevel, int width, int height)
         {
-            List<uint[]> levels = new List<uint[]> { baseLevel };
+            List<uint[]> levels = [baseLevel];
             int w = width, h = height;
             uint[] prev = baseLevel;
 

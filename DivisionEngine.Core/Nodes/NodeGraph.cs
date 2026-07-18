@@ -20,7 +20,7 @@ namespace DivisionEngine.Nodes
         {
             Id = Guid.NewGuid().ToString();
             Name = name;
-            Nodes = new List<Node>();
+            Nodes = [];
         }
 
         public void AddNode(Node node)

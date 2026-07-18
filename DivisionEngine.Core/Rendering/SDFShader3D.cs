@@ -10,8 +10,6 @@
 using ComputeSharp;
 using DivisionEngine.Rendering;
 using DivisionEngine.Rendering.ShaderUtilities;
-using Silk.NET.GLFW;
-using System.Security.Cryptography;
 
 namespace DivisionEngine
 {

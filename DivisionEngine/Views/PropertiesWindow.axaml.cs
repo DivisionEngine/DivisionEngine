@@ -22,7 +22,6 @@ using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;

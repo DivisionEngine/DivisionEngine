@@ -2,10 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="DivisionEngine.Editor.App"
-             xmlns:vm="using:DivisionEngine.Editor"
              xmlns:local="using:DivisionEngine.Editor"
              RequestedThemeVariant="Dark"
-             xmlns:avalonia_controls="using:Avalonia.Controls"
              xmlns:avalonia_controls_presenters="using:Avalonia.Controls.Presenters">
 
     <Application.DataTemplates>

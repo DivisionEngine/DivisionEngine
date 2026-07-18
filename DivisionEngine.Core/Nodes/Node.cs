@@ -24,7 +24,7 @@ namespace DivisionEngine.Nodes
         {
             Id = Guid.NewGuid().ToString();
             Name = "Node";
-            Connections = new List<(string, string)>();
+            Connections = [];
         }
 
         public abstract object? Evaluate();

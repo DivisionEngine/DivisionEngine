@@ -11,7 +11,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Editor.Controls;
-using DivisionEngine.MathLib;
 using DivisionEngine.Rendering;
 using DivisionEngine.Systems;
 using System;

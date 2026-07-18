@@ -5,7 +5,6 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
-using DivisionEngine.Components.FieldAttributes;
 using DivisionEngine.Projects.Assets;
 using System.Reflection;
 using System.Runtime.CompilerServices;
