@@ -33,12 +33,10 @@ namespace DivisionEngine.Editor.Systems
         private static float distanceToCamera;
 
         // Rotation state
-        private static float4 originalRotation;
         private static float3 rotationAxis;
         private static float lastAngle;
 
         // Scaling state
-        private static float3 originalScale;
         private static float3 currentScale;
 
         public override void AppStart()
@@ -97,13 +95,10 @@ namespace DivisionEngine.Editor.Systems
 
             // Only update hover if mouse is within bounds
             if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height)
-            {
                 RenderPipeline.Instance!.UpdateHoveredHandle(pixelX, pixelY);
-            }
-
-            bool mouseDown = InputSystem.IsMousePressed(MouseCode.Left);
 
             // Start dragging
+            bool mouseDown = InputSystem.IsMousePressed(MouseCode.Left);
             if (mouseDown && !isDragging)
             {
                 uint handleId = 0;
@@ -169,7 +164,6 @@ namespace DivisionEngine.Editor.Systems
                     lastMousePos = mousePos;
 
                     currentScale = entityTransform!.scaling;
-                    originalScale = currentScale;
 
                     // Use the entity's position for distance calculation
                     float3 entityPos = entityTransform.position;
@@ -193,11 +187,10 @@ namespace DivisionEngine.Editor.Systems
                         9 => new float3(0, -1, 0),
                         _ => new float3(0, 0, -1)
                     };
-                    originalRotation = entityTransform!.rotation;
 
                     var (planeU, planeV) = GetRingBasis(handleId);
                     float3 rayDir = GetMouseRayDir(mousePos, camTransform, GetMainCameraComponent());
-                    float angle = ComputeRingAngle(cameraPosition, rayDir, entityTransform.position, rotationAxis, planeU, planeV);
+                    float angle = ComputeRingAngle(cameraPosition, rayDir, entityTransform!.position, rotationAxis, planeU, planeV);
                     if (!float.IsNaN(angle)) lastAngle = angle;
 
                     Debug.Info($"HandleInteraction: Started rotation on handle {selectedHandle}");

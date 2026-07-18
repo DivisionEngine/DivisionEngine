@@ -126,7 +126,7 @@ namespace DivisionEngine.Rendering.ShaderUtilities
         public static float SimpleFresnelDielectric(float cosθ, float f0)
         {
             // Schlick approximation (close enough for most cases)
-            return f0 + (1.0f - f0) * Hlsl.Pow(1.0f - cosθ, 5.0f);
+            return f0 + (1f - f0) * Hlsl.Pow(1f - cosθ, 5f);
         }
 
         // Reflections functions:
@@ -144,8 +144,8 @@ namespace DivisionEngine.Rendering.ShaderUtilities
         // Halton sequence generator
         public static float HaltonSequence(int index, int baseNum)
         {
-            float result = 0.0f;
-            float f = 1.0f;
+            float result = 0f;
+            float f = 1f;
             int i = index;
             while (i > 0)
             {

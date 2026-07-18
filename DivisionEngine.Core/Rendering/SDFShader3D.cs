@@ -10,6 +10,8 @@
 using ComputeSharp;
 using DivisionEngine.Rendering;
 using DivisionEngine.Rendering.ShaderUtilities;
+using Silk.NET.GLFW;
+using System.Security.Cryptography;
 
 namespace DivisionEngine
 {
@@ -293,6 +295,23 @@ namespace DivisionEngine
         #endregion triplanar
         #region sdf_sampling
 
+        private static float ObjectSDF(float3 point, SDFObjectDTO obj)
+        {
+            float3 curPoint = point - obj.position;
+            curPoint = ShaderMath.RotateVector(curPoint, obj.rotation);
+            curPoint *= obj.scaling;
+            float dist = Hlsl.Min(obj.scaling.X, Hlsl.Min(obj.scaling.Y, obj.scaling.Z));
+
+            if (obj.type == 9)
+                dist *= SDFPrimitives.TerrainEroded(curPoint, obj.parameters.X, obj.parameters.Y, obj.parameters.Z, obj.parameters.W,
+                    obj.parameters2.X, obj.parameters2.Y, obj.parameters2.Z, obj.parameters2.W,
+                    (int)obj.parameters3.X, obj.parameters3.Y, obj.parameters3.Z, obj.parameters3.W,
+                    obj.parameters4.X, (int)obj.parameters4.Y, obj.parameters5);
+            else
+                dist *= EvaluatePrimitiveDistanceFast(obj.type, obj.parameters, curPoint);
+            return dist * obj.stepBias;
+        }
+
         /// <summary>
         /// Single dispatch for a primitive's own local-space distance, excluding terrain.
         /// Takes only what it needs (type + one float4), not the full DTO, to keep
@@ -403,40 +422,15 @@ namespace DivisionEngine
         /// except at the measure-zero seam where two objects are exactly tied.
         /// Not used for terrain (type 9) — see ComputeSurfaceNormal below.
         /// </summary>
-        private float3 FastNormalSingleObject(float3 pos, SDFObjectDTO sdf)
+        private static float3 FastNormalSingleObject(float3 pos, SDFObjectDTO sdf)
         {
-            float h = EPSILON * 1000;
+            float h = EPSILON * 50;
             float2 k = new float2(1f, -1f);
-            return Hlsl.Normalize(k.XYY * EvaluatePrimitiveDistanceFast(sdf.type, sdf.parameters, pos + k.XYY * h) +
-                              k.YYX * EvaluatePrimitiveDistanceFast(sdf.type, sdf.parameters, pos + k.YYX * h) +
-                              k.YXY * EvaluatePrimitiveDistanceFast(sdf.type, sdf.parameters, pos + k.YXY * h) +
-                              k.XXX * EvaluatePrimitiveDistanceFast(sdf.type, sdf.parameters, pos + k.XXX * h));
+            return Hlsl.Normalize(k.XYY * ObjectSDF(pos + k.XYY * h, sdf) +
+                              k.YYX * ObjectSDF(pos + k.YYX * h, sdf) +
+                              k.YXY * ObjectSDF(pos + k.YXY * h, sdf) +
+                              k.XXX * ObjectSDF(pos + k.XXX * h, sdf));
         }
-
-        /// <summary>
-        /// Picks the cheap single-object normal for ordinary primitives, and falls back
-        /// to the full scene-aware WorldSDF path for terrain, which needs the erosion-
-        /// aware field and is usually one large object anyway (so the multi-object cost
-        /// matters less there).
-        /// </summary>
-        private float3 ComputeSurfaceNormal(float3 worldPos, SDFObjectDTO sdf)
-        {
-            if (sdf.type == 9) return FastNormal(worldPos);
-            return FastNormalSingleObject(worldPos, sdf);
-        }
-
-        // Platform compliant version
-        //private float3 FastNormal(float3 pos)
-        //{
-        //    float3 n = new float3(0f, 0f, 0f);
-        //    for (int i = 0; i < 4; i++)
-        //    {
-        //        float3 e = 0.5773f * (2f * new float3(((i + 3) >> 1) & 1, (i >> 1) & 1, i & 1) - 1f);
-        //        n += e * WorldSDF(pos + EPSILON * 50 * e, false, uint.MaxValue, out _);
-        //        if (n.X + n.Y + n.Z > 100f) break;
-        //    }
-        //    return Hlsl.Normalize(n);
-        //}
 
         #endregion normals
         #region lighting
@@ -781,7 +775,7 @@ namespace DivisionEngine
                 if (Refract(currentDir, currentNormal, currentEta, out float3 refractDir))
                 {
                     // Trace through the current medium
-                    float3 entryPt = currentOrigin - currentNormal * EPSILON * (currentlyInsideObject ? 1f : -1f);
+                    float3 entryPt = currentOrigin - currentNormal * EPSILON * 2f;
                     float3 p = entryPt;
                     float travelDistance = 0f;
                     bool foundExit = false;
@@ -874,7 +868,7 @@ namespace DivisionEngine
                         if (nextObjIndex >= 0 && nextObjIndex < sdfObjects.Length)
                         {
                             currentOrigin = hitPoint;
-                            currentNormal = FastNormal(hitPoint);
+                            currentNormal = FastNormalSingleObject(hitPoint, sdfObjects[nextObjIndex]);
                             if (Hlsl.Dot(currentNormal, currentDir) > 0) currentNormal = -currentNormal;
                             currentMat = sdfObjects[nextObjIndex];
                             currentlyInsideObject = true;
@@ -911,7 +905,7 @@ namespace DivisionEngine
             }
             
             SDFObjectDTO sdf = sdfObjects[closestObjIndex];
-            normal = FastNormal(hitPoint);
+            normal = FastNormalSingleObject(hitPoint, sdf);
             float3 viewDir = -rayDir;
 
             // Sample the surface material for the sdf that was hit
@@ -980,7 +974,7 @@ namespace DivisionEngine
                 }
 
                 SDFObjectDTO sdf = sdfObjects[closestObjIndex];
-                float3 normal = FastNormal(hitPoint);
+                float3 normal = FastNormalSingleObject(hitPoint, sdf);
                 if (Hlsl.Dot(normal, rayDir) > 0f) normal = -normal;
                 float3 viewDir = -rayDir;
 
@@ -1052,12 +1046,14 @@ namespace DivisionEngine
             float3 outputColor;
             if (isRefractive)
             {
-                float fresnel = PBR.SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
-                // Or if you want the full Schlick: PBR.FresnelSchlick(cosTheta, float3.One * mainMat.f0_dielectric).X
+                // Proper Fresnel using Schlick
+                float3 f0 = float3.One * mainMat.f0_dielectric;
+                float fresnel = PBR.FresnelSchlick(cosTheta, f0).X;
 
-                float3 reflectiveCol = finalColor;  // finalColor already includes the surface hit
-                                                    // Don't add surfaceColor again - it's already in finalColor from bounce==0
-                outputColor = reflectiveCol * fresnel + refractedLight * (1f - fresnel);
+                // finalColor already contains the lit surface (ambient + direct)
+                // refractedLight contains what we see through the object
+                // Blend based on Fresnel: more reflection at grazing angles
+                outputColor = finalColor * fresnel + refractedLight * (1f - fresnel);
             }
             else outputColor = finalColor + surfaceColor;
 
