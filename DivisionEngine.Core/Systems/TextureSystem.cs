@@ -39,6 +39,16 @@ namespace DivisionEngine.Systems
         }
 
         /// <summary>
+        /// How many textures were loaded on latest texture buffer rebuild.
+        /// </summary>
+        public static int LastLoadedTextureCount { get; private set; } = 0;
+
+        /// <summary>
+        /// The texture buffer size on the latest texture buffer rebuild.
+        /// </summary>
+        public static int LastLoadedTextureBufferSize { get; private set; } = 0;
+
+        /// <summary>
         /// Use this to determine when the texture data is changed.
         /// </summary>
         public static event Action? UpdatedTextureData;
@@ -112,6 +122,8 @@ namespace DivisionEngine.Systems
                 Debug.Info("TextureSystem: No textures found in project");
                 AllTextureData = [];
                 AllTextureMetadata = [];
+                LastLoadedTextureCount = 0;
+                LastLoadedTextureBufferSize = 0;
                 UpdatedTextureData?.Invoke();
                 loadingTextures = false;
                 return;
@@ -161,6 +173,8 @@ namespace DivisionEngine.Systems
                 Debug.Warning("TextureSystem: No textures loaded successfully");
                 AllTextureData = [];
                 AllTextureMetadata = [];
+                LastLoadedTextureCount = 0;
+                LastLoadedTextureBufferSize = 0;
                 UpdatedTextureData?.Invoke();
                 loadingTextures = false;
                 return;
@@ -168,6 +182,8 @@ namespace DivisionEngine.Systems
 
             AllTextureData = [.. allData];
             AllTextureMetadata = [.. metadataList];
+            LastLoadedTextureCount = AllTextureMetadata.Length;
+            LastLoadedTextureBufferSize = AllTextureData.Length;
 
             Debug.Info($"TextureSystem: Loaded {loadedTextures.Count} textures, {AllTextureData.Length} total pixels");
             UpdatedTextureData?.Invoke();

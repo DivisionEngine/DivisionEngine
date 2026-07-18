@@ -63,6 +63,72 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="6,4,6,4"/>
         </Style>
+
+        <!--Field Editor Control Styles (Properties Window) — applied via Classes="field-editor"-->
+        <Style Selector="NumericUpDown.field-editor">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Background" Value="#202020"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBox.field-editor">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Background" Value="#202020"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="ComboBox.field-editor">
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Background" Value="#202020"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="CheckBox.field-editor">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Slider.field-editor">
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#202020"/>
+            <Setter Property="Foreground" Value="#646464"/>
+            <Setter Property="BackgroundSizing" Value="OuterBorderEdge"/>
+        </Style>
+
+        <!--Small icon-only button, e.g. remove/close buttons on cards-->
+        <Style Selector="Button.icon-btn">
+            <Setter Property="Padding" Value="2,1"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="#111"/>
+            <Setter Property="Foreground" Value="#c8c8c8"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!--Full-width list/flyout row button, e.g. add-component list, asset picker list-->
+        <Style Selector="Button.menu-btn">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Background" Value="#141414"/>
+            <Setter Property="Foreground" Value="#c8c8c8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="Margin" Value="1"/>
+        </Style>
     </Application.Styles>
   
 </Application>

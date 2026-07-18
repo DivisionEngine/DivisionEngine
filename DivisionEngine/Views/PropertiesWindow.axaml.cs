@@ -9,15 +9,18 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components;
 using DivisionEngine.Components.FieldAttributes;
 using DivisionEngine.Components.Lights;
+using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Editor.Systems;
 using DivisionEngine.MathLib;
 using DivisionEngine.Projects.Assets;
+using DivisionEngine.Systems;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
@@ -45,11 +48,21 @@ public partial class PropertiesWindow : EditorWindow
 
     private readonly StackPanel propertiesPanel;
     private readonly ScrollViewer scrollViewer;
+    private readonly TabControl worldTabs;
+    private readonly StackPanel statsPanel, environmentPanel, renderingPanel;
     private readonly StackPanel header;
     private readonly TextBlock headerText;
     private readonly Button addComponentButton;
 
     private uint curEntityId;
+
+    // Keyed by (entity, component type) so a field's "Reset to Default" can rebuild exactly
+    // the card it lives in — whether that's the selected entity's panel or a World-view tab.
+    private readonly Dictionary<(uint EntityId, Type CompType), StackPanel> componentFieldPanels = [];
+
+    // Rendering-info tab: live system stats, refreshed on a timer while the World view is open.
+    private DispatcherTimer? renderInfoRefreshTimer;
+    private TextBlock? renderInfoTextureText, renderInfoSdfText, renderInfoLightText;
 
     /// <summary>
     /// Loads this entity when the properties window is opened.
@@ -61,72 +74,43 @@ public partial class PropertiesWindow : EditorWindow
         InitializeComponent();
         curEntityId = uint.MaxValue;
 
-        // Panel
-        propertiesPanel = new StackPanel
-        {
-            Orientation = Orientation.Vertical,
-            Margin = new Thickness(5),
-        };
+        propertiesPanel = new StackPanel { Margin = new Thickness(5) };
         scrollViewer = new ScrollViewer
         {
             Content = propertiesPanel,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalAlignment = VerticalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Top,
+            Background = EditorColor.FromRGB(34, 34, 34),
         };
 
+        TabItem statsTab = CreateWorldTab("World Stats", out statsPanel);
+        TabItem envTab = CreateWorldTab("Environment", out environmentPanel);
+        TabItem renderTab = CreateWorldTab("Rendering", out renderingPanel);
+        worldTabs = new TabControl
+        { 
+            IsVisible = false,
+            Items = { statsTab, envTab, renderTab },
+            Background = EditorColor.FromRGB(34, 34, 34),
+        };
+
+        Panel contentHost = new() { Children = { scrollViewer, worldTabs } };
+
         // Header
-        Border separator = new Border
-        {
-            Background = EditorColor.FromRGB(68, 68, 68),
-            Height = 1,
-        };
-        header = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Background = EditorColor.FromRGB(28, 28, 28),
-            VerticalAlignment = VerticalAlignment.Top,
-        };
-        headerText = new TextBlock
-        {
-            Text = "No Selection",
-            FontSize = 12,
-            FontWeight = FontWeight.Bold,
-            Foreground = Brushes.White,
-            Margin = new Thickness(5),
-            HorizontalAlignment = HorizontalAlignment.Left,
-        };
+        Border separator = new() { Background = EditorColor.FromRGB(68, 68, 68), Height = 1 };
+        header = new StackPanel { Orientation = Orientation.Horizontal, Background = EditorColor.FromRGB(28, 28, 28), 
+            VerticalAlignment = VerticalAlignment.Top };
+        headerText = new TextBlock { Text = "No Selection", FontSize = 12, FontWeight = FontWeight.Bold, 
+            Foreground = Brushes.White, Margin = new Thickness(5), HorizontalAlignment = HorizontalAlignment.Left };
         header.Children.Add(headerText);
 
         // Footer (add component button)
-        Border separator2 = new Border
-        {
-            Background = EditorColor.FromRGB(68, 68, 68),
-            Height = 1,
-        };
-        StackPanel footer = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Background = EditorColor.FromRGB(28, 28, 28),
-            VerticalAlignment = VerticalAlignment.Bottom,
-        };
-        DockPanel buttonContent = new DockPanel
-        {
-            VerticalAlignment = VerticalAlignment.Stretch,
-        };
-        MaterialIcon buttonIcon = new MaterialIcon
-        {
-            Kind = MaterialIconKind.BoxAdd,
-            Margin = new Thickness(4),
-            Foreground = EditorColor.FromRGB(200, 255, 200),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        TextBlock buttonText = new TextBlock
-        {
-            Text = "Add Component",
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
+        Border separator2 = new() { Background = EditorColor.FromRGB(68, 68, 68), Height = 1 };
+        DockPanel buttonContent = new() { VerticalAlignment = VerticalAlignment.Stretch };
+        MaterialIcon buttonIcon = new() { Kind = MaterialIconKind.BoxAdd, Margin = new Thickness(4), 
+            Foreground = EditorColor.FromRGB(200, 255, 200), VerticalAlignment = VerticalAlignment.Center };
+        TextBlock buttonText = new() { Text = "Add Component", VerticalAlignment = VerticalAlignment.Center, 
+            HorizontalAlignment = HorizontalAlignment.Center };
         DockPanel.SetDock(buttonIcon, Dock.Left);
         DockPanel.SetDock(buttonText, Dock.Top);
         buttonContent.Children.Add(buttonIcon);
@@ -140,21 +124,14 @@ public partial class PropertiesWindow : EditorWindow
             Background = EditorColor.FromRGB(20, 20, 20),
             BorderThickness = new Thickness(0),
             CornerRadius = new CornerRadius(3),
-
             Height = 26,
             Margin = new Thickness(12, 5),
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
-        Flyout addComponentFlyout = new Flyout
-        {
-            Placement = PlacementMode.Top,
-            ShowMode = FlyoutShowMode.Standard,
-            Content = CreateAddComponentMenu(), // Add padding adjustment
-        };
+        Flyout addComponentFlyout = new() { Placement = PlacementMode.Top, ShowMode = FlyoutShowMode.Standard, Content = CreateAddComponentMenu() };
         addComponentButton.Click += (_, _) => addComponentFlyout.ShowAt(addComponentButton);
 
-        // Assemble panel
-        Grid mainGrid = new Grid
+        Grid mainGrid = new()
         {
             RowDefinitions =
             {
@@ -165,27 +142,46 @@ public partial class PropertiesWindow : EditorWindow
                 new RowDefinition(GridLength.Auto),
             }
         };
-        header.SetValue(Grid.RowProperty, 0);
-        separator.SetValue(Grid.RowProperty, 1);
-        scrollViewer.SetValue(Grid.RowProperty, 2);
-        separator2.SetValue(Grid.RowProperty, 3);
-        addComponentButton.SetValue(Grid.RowProperty, 4);
+        Grid.SetRow(header, 0);
+        Grid.SetRow(separator, 1);
+        Grid.SetRow(contentHost, 2);
+        Grid.SetRow(separator2, 3);
+        Grid.SetRow(addComponentButton, 4);
         mainGrid.Children.Add(header);
         mainGrid.Children.Add(separator);
-        mainGrid.Children.Add(scrollViewer);
+        mainGrid.Children.Add(contentHost);
         mainGrid.Children.Add(separator2);
         mainGrid.Children.Add(addComponentButton);
         this.FindControl<Border>("MainBorder")!.Child = mainGrid;
         currentWindows.Add(this);
 
+        Unloaded += (_, _) => renderInfoRefreshTimer?.Stop();
+
         if (W.EntityExists(LastSelected)) DisplayEntityComponents(LastSelected);
         else CreateWorldEditor(WorldManager.CurrentWorld);
 
-        Selection.OnSelectionChanged += OnSelectedObject; // Add window to selection system
+        Selection.OnSelectionChanged += OnSelectedObject;
     }
+
     private void OnSelectedObject(object? selection)
     {
         if (Selection.SelectedType == SelectionType.Entity) LoadEntityComponents((uint)selection!);
+    }
+
+    private static TabItem CreateWorldTab(string title, out StackPanel content)
+    {
+        content = new StackPanel
+        {
+            Margin = new Thickness(0, 4, 0, 4),
+            Background = EditorColor.FromRGB(34, 34, 34),
+        };
+        var scrollViewer = new ScrollViewer
+        {
+            Content = content,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Background = EditorColor.FromRGB(34, 34, 34),
+        };
+        return new TabItem { Header = title, Content = scrollViewer };
     }
 
     /// <summary>
@@ -197,61 +193,29 @@ public partial class PropertiesWindow : EditorWindow
         return currentWindows;
     }
 
-    /// <summary>
-    /// Creates the add component flyout menu.
-    /// </summary>
-    /// <returns>Stack panel add component flyout menu</returns>
+    #region addComponentMenu
+
     private StackPanel CreateAddComponentMenu()
     {
-        StackPanel addComponentMenu = new StackPanel
+        TextBox searchBox = new()
         {
-            Spacing = 1,
-        };
-        TextBox searchBox = new TextBox
-        {
-            InnerLeftContent = new MaterialIcon
-            {
-                Kind = MaterialIconKind.Search,
-                Foreground = EditorColor.FromRGB(128, 128, 128),
-                Margin = new Thickness(6, 0, 0, 0),
-                Width = 12,
-                Height = 12,
-            },
-            Text = "",
+            Classes = { "field-editor" },
+            InnerLeftContent = new MaterialIcon { Kind = MaterialIconKind.Search, 
+                Foreground = EditorColor.FromRGB(128, 128, 128), Margin = new Thickness(6, 0, 0, 0), Width = 12, Height = 12 },
             PlaceholderText = "Search Components...",
-            FontSize = 12,
-            Foreground = EditorColor.FromRGB(220, 220, 220),
-            Background = EditorColor.FromRGB(17, 17, 17),
-            BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(0),
-            VerticalAlignment = VerticalAlignment.Center,
-            VerticalContentAlignment = VerticalAlignment.Center,
             MinWidth = 240,
-            Margin = new Thickness(0),
         };
-        addComponentMenu.Children.Add(searchBox);
 
-        StackPanel compListPanel = new StackPanel();
-        ScrollViewer addComponentScrollView = new ScrollViewer
-        {
-            Content = compListPanel,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            VerticalContentAlignment = VerticalAlignment.Top,
-            MaxHeight = 200,
-        };
-        addComponentMenu.Children.Add(addComponentScrollView);
+        StackPanel compListPanel = new();
+        ScrollViewer scroll = new() { Content = compListPanel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 200 };
 
         List<Type> componentTypes = GetComponentTypes();
         PopulateComponentList(compListPanel, componentTypes, "");
+        searchBox.TextChanged += (_, _) => PopulateComponentList(compListPanel, componentTypes, searchBox.Text ?? "");
 
-        searchBox.TextChanged += (s, e) => PopulateComponentList(compListPanel, componentTypes, searchBox.Text ?? "");
-        return addComponentMenu;
+        return new StackPanel { Spacing = 1, Children = { searchBox, scroll } };
     }
 
-    /// <summary>
-    /// Populates the component list with filtered types.
-    /// </summary>
     private void PopulateComponentList(StackPanel compListPanel, List<Type> componentTypes, string searchText)
     {
         compListPanel.Children.Clear();
@@ -261,62 +225,23 @@ public partial class PropertiesWindow : EditorWindow
         foreach (Type compType in componentTypes)
         {
             string displayName = FormatComponentName(compType.Name);
-            string searchableText = (compType.Name + " " + displayName).ToLowerInvariant();
+            if (hasFilter && !(compType.Name + " " + displayName).Contains(searchLower, StringComparison.InvariantCultureIgnoreCase)) continue;
 
-            // Filter by search text
-            if (hasFilter && !searchableText.Contains(searchLower)) continue;
-
-            Button compTypeButton = new Button
-            {
-                Content = displayName,
-                FontSize = 11,
-                Background = EditorColor.FromRGB(20, 20, 20),
-                Foreground = EditorColor.FromRGB(200, 200, 200),
-                BorderThickness = new Thickness(0),
-                CornerRadius = new CornerRadius(0),
-                MinWidth = 240,
-                HorizontalContentAlignment = HorizontalAlignment.Left,
-                Padding = new Thickness(8, 2),
-                Tag = compType, // Component type stored in tag
-            };
-
+            Button compTypeButton = new() { Classes = { "menu-btn" }, Content = displayName, MinWidth = 240, Tag = compType };
             compTypeButton.Click += (sender, _) =>
             {
-                if (sender is Button btn && btn.Tag is Type type)
-                {
-                    if (curEntityId != uint.MaxValue && !W.HasComponent(curEntityId, type))
-                    {
-                        IComponent? compInstance = (IComponent?)Activator.CreateInstance(type);
-                        if (compInstance != null && W.AddComponent(curEntityId, compInstance))
-                            LoadEntityComponents(curEntityId);
-                        else Debug.Warning($"Failed to add component | Null: {compInstance != null}");
-                    }
-                }
+                if (sender is not Button { Tag: Type type } || curEntityId == uint.MaxValue || W.HasComponent(curEntityId, type)) return;
+                if (Activator.CreateInstance(type) is IComponent instance && W.AddComponent(curEntityId, instance)) LoadEntityComponents(curEntityId);
+                else Debug.Warning($"Failed to add component of type {type.Name}");
             };
-
             compListPanel.Children.Add(compTypeButton);
         }
 
-        // No results if no matches
         if (compListPanel.Children.Count == 0)
-        {
-            TextBlock noResultsText = new TextBlock
-            {
-                Text = "No components found",
-                FontSize = 11,
-                Foreground = EditorColor.FromRGB(148, 148, 148),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 20, 0, 20),
-            };
-            compListPanel.Children.Add(noResultsText);
-        }
+            compListPanel.Children.Add(new TextBlock { Text = "No components found", FontSize = 11, 
+                Foreground = EditorColor.FromRGB(148, 148, 148), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 20, 0, 20) });
     }
 
-    /// <summary>
-    /// Formats a component type name.
-    /// </summary>
-    /// <param name="name">Name of component type to format</param>
-    /// <returns>Formatted component type name</returns>
     private static string FormatComponentName(string name)
     {
         string formatted = "";
@@ -332,34 +257,31 @@ public partial class PropertiesWindow : EditorWindow
     private static List<Type> GetComponentTypes()
     {
         List<Type> componentTypes = [];
-        foreach (Assembly? assembly in AppDomain.CurrentDomain.GetAssemblies())
+        foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
             try
             {
-                IEnumerable<Type> types = assembly.GetTypes()
-                    .Where(t => typeof(IComponent).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface && t != typeof(IComponent));
-                componentTypes.AddRange(types);
+                componentTypes.AddRange(assembly.GetTypes().Where(t => typeof(IComponent).IsAssignableFrom(t) &&
+                !t.IsAbstract && !t.IsInterface && t != typeof(IComponent)));
             }
             catch (ReflectionTypeLoadException ex)
             {
-                IEnumerable<Type> types = ex.Types // Get the types that were successfully loaded
-                    .Where(t => t != null && typeof(IComponent).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface && t != typeof(IComponent))
-                    .Cast<Type>();
-                componentTypes.AddRange(types);
+                componentTypes.AddRange(ex.Types.Where(t => t != null && typeof(IComponent).IsAssignableFrom(t) &&
+                !t.IsAbstract && !t.IsInterface && t != typeof(IComponent)).Cast<Type>());
                 Debug.Warning($"Could not load some component types from {assembly.FullName}");
             }
-            catch (Exception ex)
-            {
-                Debug.Warning($"Error loading component types from {assembly.FullName}", ex);
-            }
+            catch (Exception ex) { Debug.Warning($"Error loading component types from {assembly.FullName}", ex); }
         }
         return componentTypes;
     }
 
+    #endregion
+    #region routing
+
     /// <summary>
-    /// Has the properties window load the components for an entity.
+    /// Load properties for an entity.
     /// </summary>
-    /// <param name="entityId">Entity to load components for</param>
+    /// <param name="entityId">Entity ID to pull component data from</param>
     public static void LoadEntityComponents(uint entityId)
     {
         LastSelected = entityId;
@@ -368,9 +290,9 @@ public partial class PropertiesWindow : EditorWindow
     }
 
     /// <summary>
-    /// Displays data for a world into the properties editor.
+    /// Load properties for a world.
     /// </summary>
-    /// <param name="world">World data to pull from</param>
+    /// <param name="world">World to pull data from</param>
     public static void LoadWorldData(World? world)
     {
         LastSelected = uint.MaxValue;
@@ -378,21 +300,12 @@ public partial class PropertiesWindow : EditorWindow
         foreach (PropertiesWindow? window in currentWindows) Dispatcher.UIThread.Post(() => window!.CreateWorldEditor(world));
     }
 
-    /// <summary>
-    /// Makes sure all properties windows in current list are active.
-    /// </summary>
     private static void ValidatePropertiesWindows()
     {
-        foreach (PropertiesWindow? window in currentWindows.ToArray()) // Dont forget to create iterator copy
-        {
+        foreach (PropertiesWindow? window in currentWindows.ToArray())
             if (window == null || !window.IsLoaded) currentWindows.Remove(window);
-        }
     }
 
-    /// <summary>
-    /// Displays all components for an entity.
-    /// </summary>
-    /// <param name="entityId">Entity to display values for</param>
     private bool DisplayEntityComponents(uint entityId)
     {
         if (WorldManager.CurrentWorld == null || !W.EntityExists(entityId))
@@ -401,135 +314,171 @@ public partial class PropertiesWindow : EditorWindow
             return false;
         }
 
-        // Notify the refresh system of the selected entity
+        StopRenderInfoRefresh();
+        worldTabs.IsVisible = false;
+        scrollViewer.IsVisible = true;
+
         PropertiesRefreshSystem.OnEntitySelected(entityId);
         propertiesPanel.Children.Clear();
+        componentFieldPanels.Clear();
 
         string entityName = W.TryGetEntityName(entityId);
-        if (string.IsNullOrEmpty(entityName)) headerText.Text = $"Entity_{entityId}";
-        else headerText.Text = entityName;
+        headerText.Text = string.IsNullOrEmpty(entityName) ? $"Entity_{entityId}" : entityName;
         curEntityId = entityId;
 
-        List<IComponent> entityComps = W.GetAllComponents(entityId);
-        foreach (IComponent component in entityComps)
-            CreateComponentEditor(component.GetType(), component, entityId);
+        foreach (IComponent component in W.GetAllComponents(entityId))
+            CreateComponentEditor(propertiesPanel, component.GetType(), component, entityId);
         return true;
     }
 
+    #endregion
+    #region worldEditor
+
+    /// <summary>
+    /// Builds the editor view when nothing is selected.
+    /// </summary>
+    /// <param name="curWorld">World to pull data from</param>
     public void CreateWorldEditor(World? curWorld)
     {
         LastSelected = uint.MaxValue;
-        if (curWorld != null)
+        curEntityId = uint.MaxValue;
+        componentFieldPanels.Clear();
+        StopRenderInfoRefresh();
+
+        scrollViewer.IsVisible = false;
+        worldTabs.IsVisible = true;
+        headerText.Text = curWorld?.Name ?? "World";
+
+        statsPanel.Children.Clear();
+        environmentPanel.Children.Clear();
+        renderingPanel.Children.Clear();
+        if (curWorld == null) return;
+
+        BuildStatsTab(curWorld);
+        BuildEnvironmentTab();
+        BuildRenderingTab();
+        StartRenderInfoRefresh();
+    }
+
+    private void BuildStatsTab(World curWorld)
+    {
+        StackPanel fields = new() { Margin = new Thickness(8, 4, 4, 8) };
+        fields.Children.Add(new TextBlock { Text = $"Entities: {curWorld.entities.Count}", FontSize = 12, 
+            Foreground = EditorColor.FromRGB(200, 200, 200) });
+        fields.Children.Add(new TextBlock { Text = $"Next Entity ID: {curWorld.NextEntityId}", FontSize = 12, 
+            Foreground = EditorColor.FromRGB(200, 200, 200) });
+        statsPanel.Children.Add(BuildCard(curWorld.Name, MaterialIconKind.World, fields));
+    }
+
+    private void BuildEnvironmentTab()
+    {
+        foreach (var (entityId, env) in W.QueryData<Environment>())
+            CreateComponentEditor(environmentPanel, typeof(Environment), env, entityId, 
+                CardTitleFor("Environment", entityId), allowRemove: false);
+        foreach (var (entityId, fog) in W.QueryData<VolumetricFog>())
+            CreateComponentEditor(environmentPanel, typeof(VolumetricFog), fog, entityId, 
+                CardTitleFor("Volumetric Fog", entityId), allowRemove: false);
+        foreach (var (entityId, sun) in W.QueryData<DirectionalLight>())
+            CreateComponentEditor(environmentPanel, typeof(DirectionalLight), sun, entityId, 
+                CardTitleFor("Directional Light", entityId), allowRemove: false);
+        foreach (var (entityId, point) in W.QueryData<PointLight>())
+            CreateComponentEditor(environmentPanel, typeof(PointLight), point, entityId, 
+                CardTitleFor("Point Light", entityId), allowRemove: false);
+
+        if (environmentPanel.Children.Count == 0)
+            environmentPanel.Children.Add(new TextBlock { Text = "No environment or lighting components in this world.", 
+                Foreground = Brushes.Gray, FontStyle = FontStyle.Italic, Margin = new Thickness(8) });
+    }
+
+    private void BuildRenderingTab()
+    {
+        renderingPanel.Children.Add(BuildRenderInfoCard());
+        foreach (var (entityId, _, cam) in W.QueryData<Transform, Camera>())
         {
-            headerText.Text = curWorld.Name;
-            propertiesPanel.Children.Clear();
-
-            Border headerBorder = new Border
-            {
-                BorderThickness = new Thickness(0, 0, 1, 1),
-                BorderBrush = EditorColor.FromRGB(17, 17, 17),
-                Background = EditorColor.FromRGB(44, 44, 44),
-                CornerRadius = new CornerRadius(4, 4, 0, 0),
-                Margin = new Thickness(4, 8, 12, 0),
-                Padding = new Thickness(4, 4),
-            };
-            DockPanel headerPanel = new DockPanel();
-            MaterialIcon headerCompIcon = new MaterialIcon
-            {
-                Kind = MaterialIconKind.World,
-                Width = 16,
-                Height = 16,
-                Margin = new Thickness(6, 2, 6, 2),
-                Foreground = EditorColor.FromRGB(148, 148, 148),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            TextBlock componentName = new TextBlock
-            {
-                Text = curWorld.Name,
-                FontSize = 14,
-                Foreground = EditorColor.FromRGB(200, 200, 200),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-
-            DockPanel.SetDock(headerCompIcon, Dock.Left);
-            DockPanel.SetDock(componentName, Dock.Left);
-            headerPanel.Children.Add(headerCompIcon);
-            headerPanel.Children.Add(componentName);
-            headerBorder.Child = headerPanel;
-            propertiesPanel.Children.Add(headerBorder);
-
-            // Create fields editor
-            StackPanel fieldsPanel = new StackPanel
-            {
-                Orientation = Orientation.Vertical,
-                Margin = new Thickness(4, 0, 4, 0),
-            };
-            Border fieldsBorder = new Border
-            {
-                BorderThickness = new Thickness(0, 0, 1, 1),
-                BorderBrush = EditorColor.FromRGB(10, 10, 10),
-                Background = EditorColor.FromRGB(20, 20, 20),
-                CornerRadius = new CornerRadius(0, 0, 4, 4),
-                Margin = new Thickness(4, 0, 12, 0),
-                Padding = new Thickness(8, 4, 4, 4),
-            };
-            fieldsBorder.PointerEntered += (_, _) =>
-            {
-                fieldsBorder.BorderThickness = new Thickness(0, 0, 2, 2);
-                fieldsBorder.BorderBrush = EditorColor.FromRGB(12, 12, 12);
-                fieldsBorder.Background = Background = EditorColor.FromRGB(24, 24, 24);
-            };
-            fieldsBorder.PointerExited += (_, _) =>
-            {
-                fieldsBorder.BorderThickness = new Thickness(0, 0, 1, 1);
-                fieldsBorder.BorderBrush = EditorColor.FromRGB(10, 10, 10);
-                fieldsBorder.Background = Background = EditorColor.FromRGB(20, 20, 20);
-            };
-
-            TextBlock entitiesText = new TextBlock
-            {
-                Text = $"Entities: {curWorld.entities.Count}",
-                FontSize = 12,
-                Foreground = EditorColor.FromRGB(200, 200, 200),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            TextBlock nextEntityText = new TextBlock
-            {
-                Text = $"Next Entity ID: {curWorld.NextEntityId}",
-                FontSize = 12,
-                Foreground = EditorColor.FromRGB(200, 200, 200),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            fieldsPanel.Children.Add(entitiesText);
-            fieldsPanel.Children.Add(nextEntityText);
-
-            fieldsBorder.Child = fieldsPanel;
-            propertiesPanel.Children.Add(fieldsBorder);
-
-            foreach (var (entityId, env) in W.QueryData<Environment>())
-            {
-                CreateComponentEditor(typeof(Environment), env, entityId);
-                break; // Use first entity
-            }
-            foreach (var (entityId, sun) in W.QueryData<DirectionalLight>())
-            {
-                CreateComponentEditor(typeof(DirectionalLight), sun, entityId);
-                break; // Use first entity
-            }
-            foreach (var (entityId, _, cam) in W.QueryData<Transform, Camera>())
-            {
-                if (entityId != EditorCamera.EditorCameraId)
-                {
-                    CreateComponentEditor(typeof(Camera), cam, entityId);
-                    break; // Use first entity
-                }
-            }
+            if (entityId == EditorCamera.EditorCameraId) continue;
+            CreateComponentEditor(renderingPanel, typeof(Camera), cam, entityId, CardTitleFor("Camera", entityId), allowRemove: false);
+            break; // Use first non-editor camera
         }
     }
 
-    private void CreateComponentEditor(Type compType, IComponent instance, uint entityId)
+    private static string CardTitleFor(string componentLabel, uint entityId)
     {
-        Border headerBorder = new Border
+        string name = W.TryGetEntityName(entityId);
+        return string.IsNullOrEmpty(name) ? $"{componentLabel} — Entity_{entityId}" : $"{componentLabel} — {name}";
+    }
+
+    private StackPanel BuildRenderInfoCard()
+    {
+        StackPanel fields = new() { Margin = new Thickness(8, 4, 4, 8), Spacing = 2 };
+        renderInfoTextureText = new TextBlock { FontSize = 12, Foreground = EditorColor.FromRGB(200, 200, 200) };
+        renderInfoSdfText = new TextBlock { FontSize = 12, Foreground = EditorColor.FromRGB(200, 200, 200) };
+        renderInfoLightText = new TextBlock { FontSize = 12, Foreground = EditorColor.FromRGB(200, 200, 200) };
+        fields.Children.Add(renderInfoTextureText);
+        fields.Children.Add(renderInfoSdfText);
+        fields.Children.Add(renderInfoLightText);
+        RefreshRenderInfoLabels();
+        return BuildCard("Render System Info", MaterialIconKind.ChartBoxOutline, fields);
+    }
+
+    private void RefreshRenderInfoLabels()
+    {
+        int texCount = TextureSystem.LastLoadedTextureCount;
+        int texPixels = TextureSystem.LastLoadedTextureBufferSize;
+        long totalBytes = texPixels * 4;
+        string bytesText = EditorUI.FormatFileSize(totalBytes, 1);
+        if (renderInfoTextureText != null) renderInfoTextureText.Text = $"Textures: {texCount} ({texPixels:N0} px) ({bytesText})";
+        if (renderInfoSdfText != null) renderInfoSdfText.Text = $"SDF Objects: {SDFRenderSystem.PreparedSDFObjectsDTO.Length}";
+        if (renderInfoLightText != null) renderInfoLightText.Text = $"Lights: {SDFRenderSystem.PreparedLightsDTO.Length}";
+    }
+
+    private void StartRenderInfoRefresh()
+    {
+        renderInfoRefreshTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        renderInfoRefreshTimer.Tick -= RenderInfoRefreshTimer_Tick;
+        renderInfoRefreshTimer.Tick += RenderInfoRefreshTimer_Tick;
+        renderInfoRefreshTimer.Start();
+    }
+
+    private void RenderInfoRefreshTimer_Tick(object? sender, EventArgs e) => RefreshRenderInfoLabels();
+    private void StopRenderInfoRefresh() => renderInfoRefreshTimer?.Stop();
+
+    #endregion
+    #region componentCards
+
+    /// <summary>
+    /// Builds a foldout card for a component and registers its field panel so
+    /// "Reset to Default" (and any other targeted refresh) can rebuild it later.
+    /// </summary>
+    private void CreateComponentEditor(StackPanel targetPanel, Type compType, IComponent instance, 
+        uint entityId, string? cardTitle = null, bool allowRemove = true)
+    {
+        StackPanel fieldsPanel = new() { Margin = new Thickness(8, 4, 4, 8) };
+        foreach (FieldInfo field in compType.GetFields(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (field.GetCustomAttribute<HideInEditorAttribute>() != null) continue;
+            StackPanel? fieldEditor = CreateFieldEditor(field, instance, entityId, () => RefreshComponent(entityId, compType));
+            if (fieldEditor != null) fieldsPanel.Children.Add(fieldEditor);
+        }
+        if (fieldsPanel.Children.Count == 0) return;
+
+        componentFieldPanels[(entityId, compType)] = fieldsPanel;
+        Action? onRemove = allowRemove ? () =>
+        {
+            W.RemoveComponent(entityId, compType);
+            componentFieldPanels.Remove((entityId, compType));
+            LoadEntityComponents(entityId);
+        } : null;
+        targetPanel.Children.Add(BuildCard(cardTitle ?? compType.Name, MaterialIconKind.DataMatrixScan, fieldsPanel, onRemove));
+    }
+
+    /// <summary>
+    /// Builds a collapsible card. Used for component editors and for the World-view info cards.
+    /// </summary>
+    private static StackPanel BuildCard(string title, MaterialIconKind icon, Control content, Action? onRemove = null)
+    {
+        bool expanded = true;
+
+        Border headerBorder = new()
         {
             BorderThickness = new Thickness(0, 0, 1, 1),
             BorderBrush = EditorColor.FromRGB(17, 17, 17),
@@ -537,62 +486,59 @@ public partial class PropertiesWindow : EditorWindow
             CornerRadius = new CornerRadius(4, 4, 0, 0),
             Margin = new Thickness(4, 8, 12, 0),
             Padding = new Thickness(4, 4),
+            Cursor = new Cursor(StandardCursorType.Hand),
         };
-        DockPanel headerPanel = new DockPanel();
-        MaterialIcon headerCompIcon = new MaterialIcon
+        DockPanel headerPanel = new();
+        MaterialIcon headerCompIcon = new()
         {
-            Kind = MaterialIconKind.DataMatrixScan,
+            Kind = icon,
             Width = 16,
             Height = 16,
             Margin = new Thickness(6, 2, 6, 2),
             Foreground = EditorColor.FromRGB(148, 148, 148),
             VerticalAlignment = VerticalAlignment.Center,
         };
-        TextBlock componentName = new TextBlock
+        TextBlock titleText = new()
         {
-            Text = compType.Name,
+            Text = title,
             FontSize = 14,
             Foreground = EditorColor.FromRGB(200, 200, 200),
             VerticalAlignment = VerticalAlignment.Center,
         };
-        Button removeButton = new Button
+        MaterialIcon chevronIcon = new()
         {
-            Content = new MaterialIcon
-            {
-                Kind = MaterialIconKind.Remove,
-            },
-            Padding = new Thickness(2, 1),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            BorderThickness = new Thickness(0),
-            Background = EditorColor.FromRGB(17, 17, 17),
-            Foreground = EditorColor.FromRGB(200, 200, 200),
-            FontSize = 11,
-            CornerRadius = new CornerRadius(3),
-        };
-        removeButton.Click += (_, _) =>
-        {
-            W.RemoveComponent(entityId, compType);
-            LoadEntityComponents(entityId);
-        };
-
-        DockPanel.SetDock(headerCompIcon, Dock.Left);
-        DockPanel.SetDock(componentName, Dock.Left);
-        DockPanel.SetDock(removeButton, Dock.Right);
-        headerPanel.Children.Add(headerCompIcon);
-        headerPanel.Children.Add(componentName);
-        headerPanel.Children.Add(removeButton);
-        headerBorder.Child = headerPanel;
-        propertiesPanel.Children.Add(headerBorder);
-
-        // Create fields editor
-        StackPanel fieldsPanel = new StackPanel
-        {
-            Orientation = Orientation.Vertical,
+            Kind = MaterialIconKind.ChevronDown,
+            Width = 16,
+            Height = 16,
+            Foreground = EditorColor.FromRGB(148, 148, 148),
+            VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(4, 0, 4, 0),
-            Tag = compType // Store component type for reference
         };
 
-        Border fieldsBorder = new Border
+        // Same DockPanel arrangement as the original header (icon+name left, extras right) —
+        // just with the chevron slotted in before the remove button.
+        DockPanel.SetDock(headerCompIcon, Dock.Left);
+        DockPanel.SetDock(titleText, Dock.Left);
+        DockPanel.SetDock(chevronIcon, Dock.Left);
+        headerPanel.Children.Add(chevronIcon);
+        headerPanel.Children.Add(headerCompIcon);
+        headerPanel.Children.Add(titleText);
+
+        if (onRemove != null)
+        {
+            Button removeButton = new()
+            {
+                Classes = { "icon-btn" },
+                Content = new MaterialIcon { Kind = MaterialIconKind.Close }, // Use Close instead of Remove for X icon
+                HorizontalAlignment = HorizontalAlignment.Right // Ensure it's on the right
+            };
+            removeButton.Click += (_, _) => onRemove();
+            DockPanel.SetDock(removeButton, Dock.Right);
+            headerPanel.Children.Add(removeButton);
+        }
+        headerBorder.Child = headerPanel;
+
+        Border contentBorder = new()
         {
             BorderThickness = new Thickness(0, 0, 1, 1),
             BorderBrush = EditorColor.FromRGB(10, 10, 10),
@@ -600,187 +546,107 @@ public partial class PropertiesWindow : EditorWindow
             CornerRadius = new CornerRadius(0, 0, 4, 4),
             Margin = new Thickness(4, 0, 12, 0),
             Padding = new Thickness(8, 4, 4, 4),
-            Tag = compType,
-            Child = fieldsPanel
+            Child = content,
         };
-        fieldsBorder.PointerEntered += (_, _) =>
+        contentBorder.PointerEntered += (_, _) =>
         {
-            fieldsBorder.BorderThickness = new Thickness(0, 0, 2, 2);
-            fieldsBorder.BorderBrush = EditorColor.FromRGB(12, 12, 12);
-            fieldsBorder.Background = Background = EditorColor.FromRGB(24, 24, 24);
+            contentBorder.BorderThickness = new Thickness(0, 0, 2, 2);
+            contentBorder.BorderBrush = EditorColor.FromRGB(12, 12, 12);
+            contentBorder.Background = EditorColor.FromRGB(24, 24, 24);
         };
-        fieldsBorder.PointerExited += (_, _) =>
+        contentBorder.PointerExited += (_, _) =>
         {
-            fieldsBorder.BorderThickness = new Thickness(0, 0, 1, 1);
-            fieldsBorder.BorderBrush = EditorColor.FromRGB(10, 10, 10);
-            fieldsBorder.Background = Background = EditorColor.FromRGB(20, 20, 20);
+            contentBorder.BorderThickness = new Thickness(0, 0, 1, 1);
+            contentBorder.BorderBrush = EditorColor.FromRGB(10, 10, 10);
+            contentBorder.Background = EditorColor.FromRGB(20, 20, 20);
         };
 
-        FieldInfo[] fields = compType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-        foreach (FieldInfo field in fields)
+        headerBorder.Tapped += (_, _) =>
+        {
+            expanded = !expanded;
+            contentBorder.IsVisible = expanded;
+            chevronIcon.Kind = expanded ? MaterialIconKind.ChevronDown : MaterialIconKind.ChevronRight;
+            // Collapsed: the header stands alone, so round its bottom corners too instead of
+            // leaving them flush against a hidden content border.
+            headerBorder.CornerRadius = expanded ? new CornerRadius(4, 4, 0, 0) : new CornerRadius(4, 4, 4, 4);
+        };
+
+        return new StackPanel { Children = { headerBorder, contentBorder } };
+    }
+
+    /// <summary>
+    /// Rebuilds a single component's field editors from a fresh component instance.
+    /// Works for any (entity, component) pair — the selected entity's panel, or a card
+    /// in the World-view tabs — not just whatever entity happens to be "selected".
+    /// </summary>
+    public void RefreshComponent(uint entityId, Type compType)
+    {
+        if (WorldManager.CurrentWorld == null || !W.EntityExists(entityId)) return;
+        if (!componentFieldPanels.TryGetValue((entityId, compType), out StackPanel? fieldsPanel)) return;
+
+        IComponent? fresh = W.GetAllComponents(entityId).FirstOrDefault(c => c.GetType() == compType);
+        if (fresh == null) return;
+
+        fieldsPanel.Children.Clear();
+        foreach (FieldInfo field in compType.GetFields(BindingFlags.Public | BindingFlags.Instance))
         {
             if (field.GetCustomAttribute<HideInEditorAttribute>() != null) continue;
-
-            StackPanel? fieldEditor = CreateFieldEditor(field, instance, entityId);
+            StackPanel? fieldEditor = CreateFieldEditor(field, fresh, entityId, () => RefreshComponent(entityId, compType));
             if (fieldEditor != null) fieldsPanel.Children.Add(fieldEditor);
         }
-
-        fieldsBorder.Child = fieldsPanel;
-        if (fieldsPanel.Children.Count > 0) propertiesPanel.Children.Add(fieldsBorder);
     }
 
     /// <summary>
-    /// Refreshes only a specific component on the currently selected entity.
+    /// Refreshes a component on the currently selected entity. Kept for external callers.
     /// </summary>
-    /// <summary>
-    /// Refreshes only a specific component on the currently selected entity.
-    /// </summary>
-    public void RefreshComponent(Type compType)
-    {
-        if (curEntityId == uint.MaxValue) return;
-        if (WorldManager.CurrentWorld == null) return;
-        if (!W.EntityExists(curEntityId)) return;
+    public void RefreshComponent(Type compType) => RefreshComponent(curEntityId, compType);
 
-        // Get the FRESH component instance from the world
-        IComponent? freshComponent = null;
-        foreach (var comp in W.GetAllComponents(curEntityId))
-        {
-            if (comp.GetType() == compType)
-            {
-                freshComponent = comp;
-                break;
-            }
-        }
+    #endregion
+    #region fieldEditors
 
-        if (freshComponent == null) return;
-
-        // Find the existing component UI in the properties panel
-        foreach (var child in propertiesPanel.Children)
-        {
-            if (child is Border border && border.Tag is Type type && type == compType)
-            {
-                // Find the fields panel inside this component
-                if (border.Child is StackPanel fieldsPanel)
-                {
-                    // Clear existing field editors
-                    fieldsPanel.Children.Clear();
-
-                    // Recreate field editors with updated values using the FRESH component
-                    FieldInfo[] fields = compType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-                    foreach (FieldInfo field in fields)
-                    {
-                        if (field.GetCustomAttribute<HideInEditorAttribute>() != null) continue;
-
-                        StackPanel? fieldEditor = CreateFieldEditor(field, freshComponent, curEntityId);
-                        if (fieldEditor != null) fieldsPanel.Children.Add(fieldEditor);
-                    }
-                }
-                break;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Creates an editor for a FieldInfo field type.
-    /// </summary>
-    /// <param name="field">Field to pull data from</param>
-    /// <param name="component">Component this field resides on</param>
-    /// <param name="entityId">Entity the field resides on</param>
-    /// <returns>A StackPanel field editor object</returns>
-    private static StackPanel? CreateFieldEditor(FieldInfo field, IComponent component, uint entityId)
+    private static StackPanel? CreateFieldEditor(FieldInfo field, IComponent component, uint entityId, Action onReset)
     {
         Type fieldType = field.FieldType;
         object? fieldValue = field.GetValue(component);
+        void Notify() => PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
 
-        float topMargin = 0f;
-        SpaceAttribute? spaceAttr = field.GetCustomAttribute<SpaceAttribute>();
-        if (spaceAttr != null) topMargin = spaceAttr.Space;
-
-        // Setup field panel
-        StackPanel fieldPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            MinHeight = 20,
-            Margin = new Thickness(0, topMargin, 0, 0),
-        };
-
-        // If header exists
+        float topMargin = field.GetCustomAttribute<SpaceAttribute>()?.Space ?? 0f;
         HeaderAttribute? headerAttr = field.GetCustomAttribute<HeaderAttribute>();
-        StackPanel superFieldPanel = new StackPanel
-        {
-            Orientation = Orientation.Vertical,
-            MinHeight = 20,
-            Margin = new Thickness(0, topMargin, 0, 0f),
-        };
+
+        StackPanel fieldPanel = new() { Orientation = Orientation.Horizontal, MinHeight = 20, Margin = new Thickness(0, topMargin, 0, 0) };
+        StackPanel superFieldPanel = new() { Orientation = Orientation.Vertical, MinHeight = 20, Margin = new Thickness(0, topMargin, 0, 0) };
         if (headerAttr != null)
         {
-            TextBlock headerText = new TextBlock
-            {
-                Text = headerAttr.Header,
-                FontSize = 14,
-                Foreground = Brushes.White,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Margin = new Thickness(0f, 12f, 0f, 6f),
-            };
             fieldPanel.Margin = new Thickness(0);
-            superFieldPanel.Children.Add(headerText);
+            superFieldPanel.Children.Add(new TextBlock { Text = headerAttr.Header, FontSize = 14, 
+                Foreground = Brushes.White, Margin = new Thickness(0, 12, 0, 6) });
             superFieldPanel.Children.Add(fieldPanel);
         }
 
-        CultureInfo cultureInfo = Thread.CurrentThread.CurrentCulture;
-        TextInfo textInfo = cultureInfo.TextInfo;
-        string formattedFieldName = textInfo.ToTitleCase(FormattedFieldRegex().Replace(field.Name, "$1 $2"));
+        string formattedFieldName = Thread.CurrentThread.CurrentCulture.TextInfo.ToTitleCase(FormattedFieldRegex().Replace(field.Name, "$1 $2"));
+        TextBlock nameLabel = new() { Text = formattedFieldName, FontSize = 12, 
+            Foreground = Brushes.LightGray, VerticalAlignment = VerticalAlignment.Center };
+        fieldPanel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, 
+            Margin = new Thickness(0, 0, 4, 0), Children = { nameLabel } });
 
-        // Create name label container
-        StackPanel nameContainer = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 4, 0),
-        };
-        TextBlock nameLabel = new TextBlock
-        {
-            Text = formattedFieldName,
-            FontSize = 12,
-            Foreground = Brushes.LightGray,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        nameContainer.Children.Add(nameLabel);
-        fieldPanel.Children.Add(nameContainer);
-
-        Control? editorControl = new Control();
-        fieldPanel.Children.Add(editorControl);
-
-        // Create context menu for this field
-        ContextMenu fieldContextMenu = new ContextMenu
-        {
-            Background = EditorColor.FromRGB(68, 68, 68),
-            BorderBrush = EditorColor.FromRGB(128, 128, 128),
-        };
-        MenuItem resetMenuItem = new MenuItem
+        // Reset-to-default. onReset() rebuilds this field's owning card from a fresh component
+        // instance, so the on-screen control always ends up matching the model — this is the fix
+        // for reset not visibly updating the editor.
+        object? defaultValue = GetDefaultFieldValue(component.GetType(), field.Name);
+        ContextMenu fieldContextMenu = new();
+        MenuItem resetMenuItem = new()
         {
             Header = "Reset to Default",
-            Icon = new MaterialIcon
-            {
-                Kind = MaterialIconKind.Restore,
-                Width = 16,
-                Height = 16,
-                Foreground = EditorColor.FromRGB(200, 140, 120),
-            },
+            Icon = new MaterialIcon { Kind = MaterialIconKind.Restore, Width = 16, Height = 16, 
+                Foreground = EditorColor.FromRGB(200, 140, 120) },
             Foreground = Brushes.White,
         };
-
-        // Get default value from a fresh component instance
-        object? defaultValue = GetDefaultFieldValue(component.GetType(), field.Name);
-
-        resetMenuItem.Click += (s, e) =>
+        resetMenuItem.Click += (_, _) =>
         {
-            if (defaultValue != null)
-            {
-                field.SetValue(component, defaultValue);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            }
+            if (defaultValue == null) return;
+            field.SetValue(component, defaultValue);
+            Notify();
+            onReset();
         };
         fieldContextMenu.Items.Add(resetMenuItem);
         fieldPanel.ContextMenu = fieldContextMenu;
@@ -788,442 +654,173 @@ public partial class PropertiesWindow : EditorWindow
         MinAttribute? minAttr = field.GetCustomAttribute<MinAttribute>();
         MaxAttribute? maxAttr = field.GetCustomAttribute<MaxAttribute>();
         RangeAttribute? rangeAttr = field.GetCustomAttribute<RangeAttribute>();
+
+        Control editorControl = new();
         if (fieldValue != null && fieldType == typeof(float))
         {
             float value = (float)fieldValue;
+            float lo = minAttr?.Min ?? -2000000000f, hi = maxAttr?.Max ?? 2000000000f;
             if (rangeAttr != null)
             {
-                StackPanel floatControl = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                };
-                NumericUpDown floatBox = CreateFloatNumericBox(value, (f) =>
-                {
-                    field.SetValue(component, f);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                }, false, minAttr != null ? minAttr.Min : -2000000000f, maxAttr != null ? maxAttr.Max : 2000000000f);
-                StackPanel floatSlider = CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, (f) =>
-                {
-                    field.SetValue(component, f);
-                    floatBox.Value = (decimal)f;
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                });
-                floatControl.Children.Add(floatSlider);
-                floatControl.Children.Add(floatBox);
-                editorControl = floatControl;
+                NumericUpDown box = CreateFloatNumericBox(value, f => { field.SetValue(component, f); Notify(); }, false, lo, hi);
+                editorControl = new StackPanel { Orientation = Orientation.Horizontal, 
+                    Children = { CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, f => 
+                    { field.SetValue(component, f); box.Value = (decimal)f; Notify(); }), box } };
             }
-            else editorControl = CreateFloatNumericBox(value, (f) =>
-            {
-                field.SetValue(component, f);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            }, true, minAttr != null ? minAttr.Min : -2000000000f, maxAttr != null ? maxAttr.Max : 2000000000f);
+            else editorControl = CreateFloatNumericBox(value, f => { field.SetValue(component, f); Notify(); }, true, lo, hi);
         }
         else if (fieldValue != null && fieldType == typeof(int))
         {
             int value = (int)fieldValue;
+            int lo = minAttr != null ? (int)minAttr.Min : int.MinValue, hi = maxAttr != null ? (int)maxAttr.Max : int.MaxValue;
             if (rangeAttr != null)
             {
-                StackPanel intControl = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                };
-                NumericUpDown intBox = CreateIntegerNumericBox(value, (f) =>
-                {
-                    field.SetValue(component, f);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                }, false, minAttr != null ? (int)minAttr.Min : int.MinValue, maxAttr != null ? (int)maxAttr.Max : int.MaxValue);
-                StackPanel intSlider = CreateIntegerSlider(value, (int)rangeAttr.Min, (int)rangeAttr.Max, (i) =>
-                {
-                    field.SetValue(component, i);
-                    intBox.Value = i;
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                });
-                intControl.Children.Add(intSlider);
-                intControl.Children.Add(intBox);
-                editorControl = intControl;
+                NumericUpDown box = CreateIntegerNumericBox(value, f => { field.SetValue(component, f); Notify(); }, false, lo, hi);
+                editorControl = new StackPanel { Orientation = Orientation.Horizontal, 
+                    Children = { CreateIntegerSlider(value, (int)rangeAttr.Min, (int)rangeAttr.Max, i => 
+                    { field.SetValue(component, i); box.Value = i; Notify(); }), box } };
             }
-            else editorControl = CreateIntegerNumericBox(value, (f) =>
-            {
-                field.SetValue(component, f);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            }, true, minAttr != null ? (int)minAttr.Min : int.MinValue, maxAttr != null ? (int)maxAttr.Max : int.MaxValue);
+            else editorControl = CreateIntegerNumericBox(value, f => { field.SetValue(component, f); Notify(); }, true, lo, hi);
         }
         else if (fieldValue != null && fieldType == typeof(string))
         {
-            bool multiline = field.GetCustomAttribute<MultilineAttribute>() != null; // checks to see if multiline text field
-            string value = (string)fieldValue;
-            TextBox textBox = new TextBox
-            {
-                Text = value,
-                FontSize = 12,
-                AcceptsReturn = multiline,
-                Background = EditorColor.FromRGB(32, 32, 32),
-                BorderThickness = new Thickness(0),
-                Padding = new Thickness(4, 2),
-                VerticalAlignment = VerticalAlignment.Center,
-                VerticalContentAlignment = VerticalAlignment.Center,
-            };
-            textBox.PropertyChanged += (s, e) =>
-            {
-                if (e.Property == TextBox.TextProperty)
-                {
-                    field.SetValue(component, textBox.Text);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                }
-            };
+            TextBox textBox = new() { Classes = { "field-editor" }, Text = (string)fieldValue, 
+                AcceptsReturn = field.GetCustomAttribute<MultilineAttribute>() != null };
+            textBox.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) 
+                { field.SetValue(component, textBox.Text); Notify(); } };
             editorControl = textBox;
         }
         else if (fieldValue != null && fieldType == typeof(bool))
         {
-            bool value = (bool)fieldValue;
-            CheckBox checkBox = new CheckBox
-            {
-                IsChecked = value,
-                IsDefault = false,
-                BorderThickness = new Thickness(0),
-                VerticalAlignment = VerticalAlignment.Center,
-                VerticalContentAlignment = VerticalAlignment.Center,
-            };
-            checkBox.IsCheckedChanged += (s, e) =>
-            {
-                field.SetValue(component, checkBox.IsChecked);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            };
+            CheckBox checkBox = new() { Classes = { "field-editor" }, IsChecked = (bool)fieldValue, IsDefault = false };
+            checkBox.IsCheckedChanged += (_, _) => { field.SetValue(component, checkBox.IsChecked); Notify(); };
             editorControl = checkBox;
         }
         else if (fieldValue != null && fieldType == typeof(float2))
         {
-            float2 value = (float2)fieldValue;
-            StackPanel vectorPanel = new StackPanel
+            float2 state = (float2)fieldValue;
+            editorControl = BuildAxisRow(["X", "Y"], [state.X, state.Y], (axis, v) =>
             {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-
-            NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) =>
-            {
-                value.X = val;
-                field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            });
-            NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) =>
-            {
-                value.Y = val;
-                field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            });
-
-            vectorPanel.Children.Add(new TextBlock
-            {
-                Text = "X",
-                Foreground = Brushes.LightGray,
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0),
-            });
-            vectorPanel.Children.Add(xBox);
-            vectorPanel.Children.Add(new TextBlock
-            {
-                Text = "Y",
-                Foreground = Brushes.LightGray,
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0),
-            });
-            vectorPanel.Children.Add(yBox);
-            editorControl = vectorPanel;
+                if (axis == 0) state.X = v; else state.Y = v;
+                field.SetValue(component, state); Notify();
+            }, out _);
         }
         else if (fieldValue != null && fieldType == typeof(float3))
         {
-            float3 value = (float3)fieldValue;
-            StackPanel vectorPanel = new StackPanel
+            float3 state = (float3)fieldValue;
+            editorControl = BuildAxisRow(["X", "Y", "Z"], [state.X, state.Y, state.Z], (axis, v) =>
             {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-
-            NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) =>
-            {
-                value.X = val;
-                field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            });
-            NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) =>
-            {
-                value.Y = val;
-                field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            });
-            NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) =>
-            {
-                value.Z = val;
-                field.SetValue(component, value);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            });
-
-            vectorPanel.Children.Add(new TextBlock {
-                Text = "X",
-                Foreground = Brushes.LightGray,
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0),
-            });
-            vectorPanel.Children.Add(xBox);
-            vectorPanel.Children.Add(new TextBlock {
-                Text = "Y",
-                Foreground = Brushes.LightGray,
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0),
-            });
-            vectorPanel.Children.Add(yBox);
-            vectorPanel.Children.Add(new TextBlock {
-                Text = "Z",
-                Foreground = Brushes.LightGray,
-                FontSize = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0),
-            });
-            vectorPanel.Children.Add(zBox);
-            editorControl = vectorPanel;
+                if (axis == 0) state.X = v; else if (axis == 1) state.Y = v; else state.Z = v;
+                field.SetValue(component, state); Notify();
+            }, out _);
         }
         else if (fieldValue != null && fieldType == typeof(float4))
         {
-            ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>(); // This section tests for color or rotation editors
+            ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>();
             RotationAttribute? rotAttr = field.GetCustomAttribute<RotationAttribute>();
-            if (colorAttr != null) editorControl = CreateColorFieldEditor(field, component, colorAttr, entityId);
-            else if (rotAttr != null) editorControl = CreateRotationFieldEditor(field, component, rotAttr, entityId);
+            if (colorAttr != null) editorControl = CreateColorFieldEditor(field, component, colorAttr, entityId) ?? editorControl;
+            else if (rotAttr != null) editorControl = CreateRotationFieldEditor(field, component, rotAttr, entityId) ?? editorControl;
             else
             {
-                float4 value = (float4)fieldValue;
-                StackPanel vectorPanel = new StackPanel
+                float4 state = (float4)fieldValue;
+                editorControl = BuildAxisRow(["X", "Y", "Z", "W"], [state.X, state.Y, state.Z, state.W], (axis, v) =>
                 {
-                    Orientation = Orientation.Horizontal,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-
-                NumericUpDown xBox = CreateFloatNumericBox(value.X, (val) =>
-                {
-                    value.X = val;
-                    field.SetValue(component, value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                });
-                NumericUpDown yBox = CreateFloatNumericBox(value.Y, (val) =>
-                {
-                    value.Y = val;
-                    field.SetValue(component, value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                });
-                NumericUpDown zBox = CreateFloatNumericBox(value.Z, (val) =>
-                {
-                    value.Z = val;
-                    field.SetValue(component, value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                });
-                NumericUpDown wBox = CreateFloatNumericBox(value.W, (val) =>
-                {
-                    value.W = val;
-                    field.SetValue(component, value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                });
-
-                vectorPanel.Children.Add(new TextBlock
-                {
-                    Text = "X",
-                    Foreground = Brushes.LightGray,
-                    FontSize = 9,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(2, 0, 2, 0),
-                });
-                vectorPanel.Children.Add(xBox);
-                vectorPanel.Children.Add(new TextBlock
-                {
-                    Text = "Y",
-                    Foreground = Brushes.LightGray,
-                    FontSize = 9,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(2, 0, 2, 0),
-                });
-                vectorPanel.Children.Add(yBox);
-                vectorPanel.Children.Add(new TextBlock
-                {
-                    Text = "Z",
-                    Foreground = Brushes.LightGray,
-                    FontSize = 9,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(2, 0, 2, 0),
-                });
-                vectorPanel.Children.Add(zBox);
-                vectorPanel.Children.Add(new TextBlock
-                {
-                    Text = "W",
-                    Foreground = Brushes.LightGray,
-                    FontSize = 9,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(2, 0, 2, 0),
-                });
-                vectorPanel.Children.Add(wBox);
-                editorControl = vectorPanel;
+                    switch (axis) { case 0: state.X = v; break; case 1: state.Y = v; break; case 2: state.Z = v; break; default: state.W = v; break; }
+                    field.SetValue(component, state); Notify();
+                }, out _);
             }
         }
         else if (fieldValue != null && fieldType == typeof(DateTime))
         {
-            DateTime value = (DateTime)fieldValue;
-            CalendarDatePicker dateTimePicker = new CalendarDatePicker
+            CalendarDatePicker picker = new()
             {
-                SelectedDate = value,
+                SelectedDate = (DateTime)fieldValue,
                 BorderThickness = new Thickness(0),
-                VerticalAlignment = VerticalAlignment.Center,
                 CornerRadius = new CornerRadius(4),
                 FontSize = 11,
                 Background = EditorColor.FromRGB(32, 32, 32),
                 Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,
             };
-            dateTimePicker.SelectedDateChanged += (s, e) =>
-            {
-                field.SetValue(component, dateTimePicker.SelectedDate);
-                PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-            };
-            editorControl = dateTimePicker;
+            picker.SelectedDateChanged += (_, _) => { field.SetValue(component, picker.SelectedDate); Notify(); };
+            editorControl = picker;
         }
         else if (fieldValue != null && fieldType == typeof(float4x4))
-        {
-            float4x4 value = (float4x4)fieldValue;
-            editorControl = CreateMatrixEditor(value, field, component, entityId);
-        }
+            editorControl = CreateMatrixEditor((float4x4)fieldValue, field, component, entityId);
         else if (fieldType.IsEnum)
             editorControl = CreateEnumEditor(field, component, fieldType, fieldValue, entityId);
         else if (fieldType == typeof(AssetRef) || (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>)))
             editorControl = CreateAssetRefEditor(field, component);
 
-        ApplyTooltip(editorControl!, field);
-        fieldPanel.Children.Add(editorControl!);
+        ApplyTooltip(editorControl, field);
+        fieldPanel.Children.Add(editorControl);
 
-        // Add tooltip indicator if field has tooltip attribute
-        TooltipAttribute? tooltipAttr = field.GetCustomAttribute<TooltipAttribute>();
-        if (tooltipAttr != null)
+        if (field.GetCustomAttribute<TooltipAttribute>() != null)
         {
-            MaterialIcon tooltipIcon = new MaterialIcon
-            {
-                Kind = MaterialIconKind.InformationOutline,
-                Width = 12,
-                Height = 12,
-                Margin = new Thickness(4, 0, 0, 0),
-                Foreground = EditorColor.FromRGB(148, 148, 148),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
+            MaterialIcon tooltipIcon = new() { Kind = MaterialIconKind.InformationOutline, Width = 12, Height = 12, 
+                Margin = new Thickness(4, 0, 0, 0), Foreground = EditorColor.FromRGB(148, 148, 148), VerticalAlignment = VerticalAlignment.Center };
             ApplyTooltip(tooltipIcon, field);
             ApplyTooltip(nameLabel, field);
             fieldPanel.Children.Add(tooltipIcon);
         }
 
-        if (headerAttr != null) return superFieldPanel;
-        else return fieldPanel;
+        return headerAttr != null ? superFieldPanel : fieldPanel;
     }
 
     /// <summary>
-    /// Creates a ComboBox editor for enum types.
+    /// Builds a horizontal row of labeled NumericUpDown boxes — shared by float2/float3/float4/rotation.
     /// </summary>
+    private static StackPanel BuildAxisRow(string[] labels, float[] initial, Action<int, float> onAxisChanged, out NumericUpDown[] boxes)
+    {
+        StackPanel panel = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        boxes = new NumericUpDown[labels.Length];
+        for (int i = 0; i < labels.Length; i++)
+        {
+            int axis = i;
+            panel.Children.Add(new TextBlock { Text = labels[i], Foreground = Brushes.LightGray, FontSize = 9, 
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 2, 0) });
+            NumericUpDown box = CreateFloatNumericBox(initial[i], v => onAxisChanged(axis, v));
+            boxes[i] = box;
+            panel.Children.Add(box);
+        }
+        return panel;
+    }
+
+    #endregion
+    #region enumEditor
+
     private static StackPanel CreateEnumEditor(FieldInfo field, IComponent component, Type enumType, object? currentValue, uint entityId)
     {
-        StackPanel enumPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-            Spacing = 4,
-        };
-        Array enumValues = Enum.GetValues(enumType);
-        ComboBox enumComboBox = new ComboBox
-        {
-            MinWidth = 100,
-            MaxWidth = 200,
-            Height = 20,
-            FontSize = 11,
-            Background = EditorColor.FromRGB(32, 32, 32),
-            Foreground = Brushes.White,
-            BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(2),
-            Padding = new Thickness(4, 0, 4, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            PlaceholderText = "Select value...",
-        };
-
-        // Create enum items
         List<EnumItem> items = [];
-        int selectedIndex = 0;
-        int index = 0;
-        foreach (var enumValue in enumValues)
+        int selectedIndex = 0, index = 0;
+        foreach (object enumValue in Enum.GetValues(enumType))
         {
-            string displayName = FormatEnumName(enumValue.ToString()!);
-            items.Add(new EnumItem
-            {
-                Value = enumValue,
-                DisplayName = displayName,
-            });
+            items.Add(new EnumItem { Value = enumValue, DisplayName = FormatEnumName(enumValue.ToString()!) });
             if (currentValue != null && enumValue.Equals(currentValue)) selectedIndex = index;
             index++;
         }
-        enumComboBox.ItemsSource = items;
-        enumComboBox.SelectedIndex = selectedIndex;
 
-        // Build item template
-        enumComboBox.ItemTemplate = new FuncDataTemplate<EnumItem>((item, _) =>
+        ComboBox comboBox = new()
         {
-            DockPanel itemPanel = new DockPanel
-            {
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 2, 0),
-            };
-
-            // Optional: Add colored square for special enums (like flags)
-            /*if (IsFlagsEnum(enumType))
-            {
-                Border flagIndicator = new Border
-                {
-                    Width = 12,
-                    Height = 12,
-                    CornerRadius = new CornerRadius(2),
-                    Background = GetEnumColor(item.Value),
-                    Margin = new Thickness(0, 0, 6, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                DockPanel.SetDock(flagIndicator, Dock.Left);
-                itemPanel.Children.Add(flagIndicator);
-            }*/
-
-            // Main text
-            TextBlock nameText = new TextBlock
-            {
-                Text = item.DisplayName,
-                FontSize = 11,
-                FontWeight = FontWeight.Medium,
-                Foreground = Brushes.White,
-            };
-            itemPanel.Children.Add(nameText);
-            return itemPanel;
-        });
-
-        enumComboBox.SelectionChanged += (s, e) =>
-        {
-            if (enumComboBox.SelectedItem is EnumItem selectedItem)
-            {
-                try
-                {
-                    field.SetValue(component, selectedItem.Value);
-                    PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-                }
-                catch (Exception ex) { Debug.Error($"Failed to set enum value for {field.Name}", ex); }
-            }
+            Classes = { "field-editor" },
+            MinWidth = 100,
+            MaxWidth = 200,
+            PlaceholderText = "Select value...",
+            ItemsSource = items,
+            SelectedIndex = selectedIndex,
+            ItemTemplate = new FuncDataTemplate<EnumItem>((item, _) => new TextBlock { Text = item!.DisplayName, FontSize = 11, 
+                FontWeight = FontWeight.Medium, Foreground = Brushes.White, Margin = new Thickness(2, 0, 2, 0) }),
         };
-        enumPanel.Children.Add(enumComboBox);
-        return enumPanel;
+        comboBox.SelectionChanged += (_, _) =>
+        {
+            if (comboBox.SelectedItem is not EnumItem selected) return;
+            try { field.SetValue(component, selected.Value); PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name); }
+            catch (Exception ex) { Debug.Error($"Failed to set enum value for {field.Name}", ex); }
+        };
+        return new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Spacing = 4, Children = { comboBox } };
     }
 
-    /// <summary>
-    /// Scaffolding class for enum editor.
-    /// </summary>
     private class EnumItem
     {
         public object Value { get; set; } = null!;
@@ -1231,15 +828,11 @@ public partial class PropertiesWindow : EditorWindow
         public override string ToString() => DisplayName;
     }
 
-    /// <summary>
-    /// Formats enum name with spaces between words.
-    /// </summary>
     private static string FormatEnumName(string enumName)
     {
         if (string.IsNullOrEmpty(enumName)) return enumName;
-        StringBuilder? result = new StringBuilder();
+        StringBuilder result = new();
         result.Append(char.ToUpperInvariant(enumName[0]));
-
         for (int i = 1; i < enumName.Length; i++)
         {
             if ((char.IsUpper(enumName[i]) || char.IsDigit(enumName[i])) && !char.IsUpper(enumName[i - 1])) result.Append(' ');
@@ -1248,548 +841,269 @@ public partial class PropertiesWindow : EditorWindow
         return result.ToString();
     }
 
+    #endregion
+    #region matrixEditor
+
     private static Button CreateMatrixEditor(float4x4 initialValue, FieldInfo field, object component, uint entityId)
     {
-        Button matrixButton = new Button
+        Button matrixButton = new()
         {
             Content = CreateMatrixButtonContent(),
             Padding = new Thickness(8, 4),
-            BorderBrush = EditorColor.FromRGB(45, 45, 45),
             BorderThickness = new Thickness(0),
             Background = EditorColor.FromRGB(32, 32, 32),
             Foreground = Brushes.White,
             CornerRadius = new CornerRadius(4),
             HorizontalContentAlignment = HorizontalAlignment.Left,
         };
-        StackPanel mainPanel = new StackPanel
-        {
-            Spacing = 8,
-        };
-        Flyout flyout = new Flyout
-        {
-            Placement = PlacementMode.BottomEdgeAlignedLeft,
-            ShowMode = FlyoutShowMode.Standard,
-            Content = mainPanel,
-        };
 
-        // Header
-        DockPanel headerPanel = new DockPanel();
-        TextBlock headerText = new TextBlock
-        {
-            Text = "Edit Matrix",
-            FontSize = 14,
-            FontWeight = FontWeight.SemiBold,
-            Foreground = Brushes.White,
-            Margin = new Thickness(0, 0, 0, 4),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
+        StackPanel mainPanel = new() { Spacing = 8 };
+        Flyout flyout = new() { Placement = PlacementMode.BottomEdgeAlignedLeft, ShowMode = FlyoutShowMode.Standard, Content = mainPanel };
+
+        DockPanel headerPanel = new();
+        TextBlock headerText = new() { Text = "Edit Matrix", FontSize = 14, FontWeight = FontWeight.SemiBold, 
+            Foreground = Brushes.White, Margin = new Thickness(0, 0, 0, 4), VerticalAlignment = VerticalAlignment.Center };
         DockPanel.SetDock(headerText, Dock.Left);
-        headerPanel.Children.Add(headerText);
-        Button closeButton = new Button
-        {
-            Content = new MaterialIcon
-            {
-                Kind = MaterialIconKind.Close,
-            },
-            Padding = new Thickness(2, 1),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            BorderThickness = new Thickness(0),
-            Background = EditorColor.FromRGB(17, 17, 17),
-            Foreground = EditorColor.FromRGB(200, 200, 200),
-            FontSize = 11,
-            CornerRadius = new CornerRadius(3),
-        };
-        closeButton.Click += (s, e) => flyout.Hide();
+        Button closeButton = new() { Classes = { "icon-btn" }, Content = new MaterialIcon { Kind = MaterialIconKind.Close } };
+        closeButton.Click += (_, _) => flyout.Hide();
         DockPanel.SetDock(closeButton, Dock.Right);
+        headerPanel.Children.Add(headerText);
         headerPanel.Children.Add(closeButton);
         mainPanel.Children.Add(headerPanel);
 
-        // Create 4x4 grid of float box controls
-        Border gridBorder = new Border
-        {
-            BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(3),
-            Background = EditorColor.FromRGB(52, 52, 52),
-            Padding = new Thickness(2),
-        };
-        StackPanel gridContainer = new StackPanel
-        {
-            Spacing = 1,
-        };
-        StackPanel columnHeaders = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Margin = new Thickness(20, 0, 0, 2),
-        };
+        Border gridBorder = new() { CornerRadius = new CornerRadius(3), Background = EditorColor.FromRGB(52, 52, 52), Padding = new Thickness(2) };
+        StackPanel gridContainer = new() { Spacing = 1 };
+        StackPanel columnHeaders = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(20, 0, 0, 2) };
         for (int col = 0; col < 4; col++)
-        {
             columnHeaders.Children.Add(new Border
             {
-                Child = new TextBlock
-                {
-                    Text = $"C{col + 1}",
-                    Foreground = EditorColor.FromRGB(200, 200, 200),
-                    FontSize = 10,
-                    FontWeight = FontWeight.Medium,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                },
+                Child = new TextBlock { Text = $"C{col + 1}", Foreground = EditorColor.FromRGB(200, 200, 200), 
+                    FontSize = 10, FontWeight = FontWeight.Medium, HorizontalAlignment = HorizontalAlignment.Center, 
+                    VerticalAlignment = VerticalAlignment.Center },
                 Width = 32,
-                HorizontalAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(2, 0, 2, 0),
             });
-        }
-
         gridContainer.Children.Add(columnHeaders);
-        NumericUpDown[,] matrixBoxes = new NumericUpDown[4, 4];
 
-        // Create rows and fields
         for (int row = 0; row < 4; row++)
         {
-            DockPanel rowPanel = new DockPanel();
-            Border rowHeader = new Border
+            DockPanel rowPanel = new();
+            Border rowHeader = new()
             {
-                Child = new TextBlock
-                {
-                    Text = $"R{row + 1}",
-                    Foreground = EditorColor.FromRGB(200, 200, 200),
-                    FontSize = 10,
-                    FontWeight = FontWeight.Medium,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                },
+                Child = new TextBlock { Text = $"R{row + 1}", Foreground = EditorColor.FromRGB(200, 200, 200), 
+                    FontSize = 10, FontWeight = FontWeight.Medium, VerticalAlignment = VerticalAlignment.Center, 
+                    HorizontalAlignment = HorizontalAlignment.Right },
                 Width = 20,
                 VerticalAlignment = VerticalAlignment.Center,
             };
             DockPanel.SetDock(rowHeader, Dock.Left);
             rowPanel.Children.Add(rowHeader);
-            StackPanel rowCells = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-            };
 
+            StackPanel rowCells = new() { Orientation = Orientation.Horizontal };
             for (int col = 0; col < 4; col++)
             {
                 int r = row, c = col;
-                float initialCellValue = initialValue.GetVal(r, c);
-
-                NumericUpDown numBox = CreateFloatNumericBox(initialCellValue, (val) =>
+                NumericUpDown numBox = CreateFloatNumericBox(initialValue.GetVal(r, c), val =>
                 {
-                    float4x4 currentMatrix = (float4x4)field.GetValue(component)!;
-                    currentMatrix.SetVal(r, c, val);
-                    field.SetValue(component, currentMatrix);
+                    float4x4 current = (float4x4)field.GetValue(component)!;
+                    current.SetVal(r, c, val);
+                    field.SetValue(component, current);
                     PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
                 });
-                numBox.Width = 24;
-                numBox.Height = 20;
-                numBox.Margin = new Thickness(2);
-
-                matrixBoxes[row, col] = numBox;
+                numBox.Width = 24; numBox.Height = 20; numBox.Margin = new Thickness(2);
                 rowCells.Children.Add(numBox);
             }
-
             rowPanel.Children.Add(rowCells);
             gridContainer.Children.Add(rowPanel);
         }
 
         gridBorder.Child = gridContainer;
         mainPanel.Children.Add(gridBorder);
-
-        // Attach flyout to button
         matrixButton.Click += (_, _) => flyout.ShowAt(matrixButton);
         return matrixButton;
     }
 
     private static StackPanel CreateMatrixButtonContent()
     {
-        StackPanel previewPanel = new StackPanel
+        StackPanel textPanel = new() { Orientation = Orientation.Vertical, Spacing = 2, Children = { new TextBlock { Text = "4x4 Matrix", 
+            FontSize = 11, FontWeight = FontWeight.Medium, Foreground = EditorColor.FromRGB(220, 220, 220) } } };
+        return new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 2,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            Children =
+            {
+                new MaterialIcon { Kind = MaterialIconKind.Matrix, Width = 16, Height = 16, 
+                    Foreground = EditorColor.FromRGB(100, 200, 255), VerticalAlignment = VerticalAlignment.Center },
+                textPanel,
+                new MaterialIcon { Kind = MaterialIconKind.ChevronRight, Width = 12, Height = 12, Foreground = Brushes.Gray, 
+                    Margin = new Thickness(2, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center },
+            }
         };
-        previewPanel.Children.Add(new MaterialIcon
-        {
-            Kind = MaterialIconKind.Matrix,
-            Width = 16,
-            Height = 16,
-            Foreground = EditorColor.FromRGB(100, 200, 255),
-            VerticalAlignment = VerticalAlignment.Center,
-        });
-
-        // Matrix preview text
-        StackPanel textPanel = new StackPanel
-        {
-            Orientation = Orientation.Vertical,
-            Spacing = 2
-        };
-        textPanel.Children.Add(new TextBlock
-        {
-            Text = "4x4 Matrix",
-            FontSize = 11,
-            FontWeight = FontWeight.Medium,
-            VerticalAlignment = VerticalAlignment.Center,
-            Foreground = EditorColor.FromRGB(220, 220, 220),
-        });
-
-        previewPanel.Children.Add(textPanel);
-        previewPanel.Children.Add(new MaterialIcon
-        {
-            Kind = MaterialIconKind.ChevronRight,
-            Width = 12,
-            Height = 12,
-            Foreground = Brushes.Gray,
-            Margin = new Thickness(2, 0, 0, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-        });
-        return previewPanel;
     }
+
+    #endregion
+    #region colorRotationEditors
 
     private static StackPanel? CreateColorFieldEditor(FieldInfo field, IComponent component, ColorAttribute colorAttr, uint entityId)
     {
-        object? fieldValue = field.GetValue(component);
-        if (fieldValue == null) return null;
-        float4 colorValue = (float4)fieldValue;
+        if (field.GetValue(component) is not float4 colorValue) return null;
 
-        StackPanel fieldPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            MinHeight = 10,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        ColorPicker colorPicker = new ColorPicker
+        ColorPicker colorPicker = new()
         {
             Width = 150,
             Height = 20,
             Color = EditorColor.FromColor(colorValue).Color,
             Background = EditorColor.FromRGB(32, 32, 32),
             IsAlphaVisible = colorAttr.ShowAlpha,
-            IsColorSpectrumVisible = true, // Shows as a simple color button
+            IsAlphaEnabled = colorAttr.ShowAlpha,
+            IsColorSpectrumVisible = true,
             IsColorPreviewVisible = true,
             IsColorComponentsVisible = true,
             IsComponentTextInputVisible = false,
             IsComponentSliderVisible = true,
-            IsAlphaEnabled = colorAttr.ShowAlpha,
+            IsHexInputVisible = true,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Stretch,
-            IsHexInputVisible = true,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
             FontSize = 12,
         };
-        colorPicker.ColorChanged += (s, e) => // Update on color change
+        colorPicker.ColorChanged += (_, _) =>
         {
-            Color selectedColor = colorPicker.Color;
-            float4 newColor = new float4(selectedColor.R / 255f, selectedColor.G / 255f, selectedColor.B / 255f, selectedColor.A / 255f);
-            field.SetValue(component, newColor); // Update component
+            Color c = colorPicker.Color;
+            field.SetValue(component, new float4(c.R / 255f, c.G / 255f, c.B / 255f, c.A / 255f));
             PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
         };
-        fieldPanel.Children.Add(colorPicker);
-        return fieldPanel;
+        return new StackPanel { Orientation = Orientation.Horizontal, MinHeight = 10, 
+            VerticalAlignment = VerticalAlignment.Center, Children = { colorPicker } };
     }
 
     private static StackPanel? CreateRotationFieldEditor(FieldInfo field, IComponent component, RotationAttribute rotAttr, uint entityId)
     {
-        object? fieldValue = field.GetValue(component);
-        if (fieldValue == null) return null;
-        float4 quaternionValue = (float4)fieldValue;
+        if (field.GetValue(component) is not float4 quatValue) return null;
 
-        float3 eulerValue = Math.QuaternionToEuler(quaternionValue);
-        if (rotAttr.Degrees)
-            eulerValue = new float3(Math.Rad2Deg * eulerValue.X, Math.Rad2Deg * eulerValue.Y, Math.Rad2Deg * eulerValue.Z);
+        float3 eulerState = Math.QuaternionToEuler(quatValue);
+        if (rotAttr.Degrees) eulerState = new float3(eulerState.X * Math.Rad2Deg, eulerState.Y * Math.Rad2Deg, eulerState.Z * Math.Rad2Deg);
 
-        StackPanel eulerRotationPanel = new StackPanel
+        StackPanel panel = BuildAxisRow(["X", "Y", "Z"], [eulerState.X, eulerState.Y, eulerState.Z], (axis, v) =>
         {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        NumericUpDown xBox = CreateFloatNumericBox(eulerValue.X, (val) =>
-        {
-            if (rotAttr.Degrees) val *= Math.Deg2Rad;
-            eulerValue.X = val;
-            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
+            switch (axis) { case 0: eulerState.X = v; break; case 1: eulerState.Y = v; break; default: eulerState.Z = v; break; }
+            float3 radians = rotAttr.Degrees ? new float3(eulerState.X * Math.Deg2Rad, 
+                eulerState.Y * Math.Deg2Rad, eulerState.Z * Math.Deg2Rad) : eulerState;
+            field.SetValue(component, Math.EulerToQuaternion(radians));
             PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-        });
-        NumericUpDown yBox = CreateFloatNumericBox(eulerValue.Y, (val) =>
-        {
-            if (rotAttr.Degrees) val *= Math.Deg2Rad;
-            eulerValue.Y = val;
-            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
-            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-        });
-        NumericUpDown zBox = CreateFloatNumericBox(eulerValue.Z, (val) =>
-        {
-            if (rotAttr.Degrees) val *= Math.Deg2Rad;
-            eulerValue.Z = val;
-            field.SetValue(component, Math.EulerToQuaternion(eulerValue));
-            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
-        });
-        MaterialIcon rotateTypeIcon = new MaterialIcon
-        {
-            Kind = MaterialIconKind.Pi,
-            Foreground = Brushes.LightGray,
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0),
-        };
+        }, out NumericUpDown[] boxes);
 
-        if (rotAttr.Degrees)
-        {
-            rotateTypeIcon.Kind = MaterialIconKind.Rotate360;
-            xBox.Increment = 5;
-            yBox.Increment = 5;
-            zBox.Increment = 5;
-        }
+        if (rotAttr.Degrees) foreach (NumericUpDown b in boxes) b.Increment = 5;
 
-        eulerRotationPanel.Children.Add(new TextBlock
+        panel.Children.Add(new MaterialIcon
         {
-            Text = "X",
+            Kind = rotAttr.Degrees ? MaterialIconKind.Rotate360 : MaterialIconKind.Pi,
             Foreground = Brushes.LightGray,
-            FontSize = 9,
+            Width = 12,
+            Height = 12,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(2, 0, 2, 0),
         });
-        eulerRotationPanel.Children.Add(xBox);
-        eulerRotationPanel.Children.Add(new TextBlock
-        {
-            Text = "Y",
-            Foreground = Brushes.LightGray,
-            FontSize = 9,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0),
-        });
-        eulerRotationPanel.Children.Add(yBox);
-        eulerRotationPanel.Children.Add(new TextBlock
-        {
-            Text = "Z",
-            Foreground = Brushes.LightGray,
-            FontSize = 9,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(2, 0, 2, 0),
-        });
-        eulerRotationPanel.Children.Add(zBox);
-        eulerRotationPanel.Children.Add(rotateTypeIcon);
-        return eulerRotationPanel;
+        return panel;
     }
 
-    private static StackPanel CreateFloatSlider(float initialVal, float min, float max, Action<float> onValueChanged)
-    {
-        StackPanel sliderPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 4, 0),
-        };
-        Slider slider = new Slider
-        {
-            Minimum = min,
-            Maximum = max,
-            Value = initialVal,
-            Width = 100,
-            BackgroundSizing = BackgroundSizing.OuterBorderEdge,
-            Height = 20,
-            VerticalAlignment = VerticalAlignment.Center,
-            Background = EditorColor.FromRGB(32, 32, 32),
-            Foreground = EditorColor.FromRGB(100, 100, 100),
-        };
-        slider.ValueChanged += (s, e) =>
-        {
-            float newValue = (float)slider.Value;
-            onValueChanged(newValue);
-        };
-        sliderPanel.Children.Add(slider);
-        return sliderPanel;
-    }
+    #endregion
+    #region numericBoxesSliders
 
-    private static StackPanel CreateIntegerSlider(int initialVal, int min, int max, Action<int> onValueChanged)
-    {
-        StackPanel sliderPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 4, 0),
-        };
-        Slider slider = new Slider
-        {
-            Minimum = min,
-            Maximum = max,
-            Value = initialVal,
-            Width = 100,
-            BackgroundSizing = BackgroundSizing.OuterBorderEdge,
-            Height = 20,
-            VerticalAlignment = VerticalAlignment.Center,
-            Background = EditorColor.FromRGB(32, 32, 32),
-            Foreground = EditorColor.FromRGB(100, 100, 100),
-            TickFrequency = 1,
-            IsSnapToTickEnabled = true,
-        };
-        slider.ValueChanged += (s, e) =>
-        {
-            int newValue = (int)slider.Value;
-            onValueChanged(newValue);
-        };
-        sliderPanel.Children.Add(slider);
-        return sliderPanel;
-    }
-
-    /// <summary>
-    /// Creates a numeric float field box with optional addons.
-    /// </summary>
-    /// <param name="initialVal">Starting value</param>
-    /// <param name="onValueChanged">Called when the value of this is changed</param>
-    /// <param name="hasSpinner">Has a spinner next to the field</param>
-    /// <param name="min">Minimum float value</param>
-    /// <param name="max">Maximum float value</param>
-    /// <returns>NumericUpDown specialized stylized float box</returns>
-    private static NumericUpDown CreateFloatNumericBox(float initialVal, Action<float> onValueChanged,
+    private static NumericUpDown CreateFloatNumericBox(float initialVal, Action<float> onValueChanged, 
         bool hasSpinner = false, float min = -2000000000f, float max = 2000000000f)
     {
-        NumericUpDown numericBox = new NumericUpDown
+        NumericUpDown box = new()
         {
+            Classes = { "field-editor" },
+            FormatString = "0.##",
             Value = (decimal)initialVal,
             Minimum = (decimal)min,
             Maximum = (decimal)max,
             Increment = (decimal)Math.Max(initialVal / 10f, 0.1f),
-            FontSize = 11,
-            AllowSpin = true,
             ParsingNumberStyle = NumberStyles.Float,
-            Background = EditorColor.FromRGB(32, 32, 32),
-            Foreground = Brushes.White,
-            BorderThickness = new Thickness(0),
-            Padding = new Thickness(4),
-            VerticalAlignment = VerticalAlignment.Center,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            HorizontalContentAlignment = HorizontalAlignment.Center,
-            FormatString = "0.##",
             ShowButtonSpinner = hasSpinner,
         };
-        numericBox.LostFocus += (s, e) =>
+        box.LostFocus += (_, _) => { if (string.IsNullOrWhiteSpace(box.Text) || !decimal.TryParse(box.Text, out _)) box.Value = 0; };
+        box.ValueChanged += (_, _) =>
         {
-            if (string.IsNullOrWhiteSpace(numericBox.Text) || !decimal.TryParse(numericBox.Text, out _))
-                numericBox.Value = 0;
-        };
-        numericBox.ValueChanged += (s, e) =>
-        {
-            try
-            {
-                if (numericBox.Value.HasValue)
-                    onValueChanged((float)(double)numericBox.Value);
-            }
+            try { if (box.Value.HasValue) onValueChanged((float)(double)box.Value); }
             catch (Exception ex) { Debug.Error("Numeric Box Error", ex); }
         };
-        return numericBox;
+        return box;
     }
 
-    /// <summary>
-    /// Creates a numeric integer field box with optional addons.
-    /// </summary>
-    /// <param name="initialVal">Starting value</param>
-    /// <param name="onValueChanged">Called when the value of this is changed</param>
-    /// <param name="hasSpinner">Has a spinner next to the field</param>
-    /// <param name="min">Minimum integer value</param>
-    /// <param name="max">Maximum integer value</param>
-    /// <returns>NumericUpDown specialized stylized integer box</returns>
-    private static NumericUpDown CreateIntegerNumericBox(int initialVal, Action<int> onValueChanged,
+    private static NumericUpDown CreateIntegerNumericBox(int initialVal, Action<int> onValueChanged, 
         bool hasSpinner = false, int min = int.MinValue, int max = int.MaxValue)
     {
-        NumericUpDown numericBox = new NumericUpDown
+        NumericUpDown box = new()
         {
+            Classes = { "field-editor" },
             Value = initialVal,
             Minimum = min,
             Maximum = max,
             Increment = 1,
-            FontSize = 11,
-            AllowSpin = true,
             ParsingNumberStyle = NumberStyles.Integer,
-            Background = EditorColor.FromRGB(32, 32, 32),
-            Foreground = Brushes.White,
-            BorderThickness = new Thickness(0),
-            Padding = new Thickness(4),
-            VerticalAlignment = VerticalAlignment.Center,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            HorizontalContentAlignment = HorizontalAlignment.Center,
             ShowButtonSpinner = hasSpinner,
         };
-        numericBox.LostFocus += (s, e) =>
+        box.LostFocus += (_, _) => { if (string.IsNullOrWhiteSpace(box.Text) || !decimal.TryParse(box.Text, out _)) box.Value = 0; };
+        box.ValueChanged += (_, _) =>
         {
-            if (string.IsNullOrWhiteSpace(numericBox.Text) || !decimal.TryParse(numericBox.Text, out _))
-                numericBox.Value = 0;
-        };
-        numericBox.ValueChanged += (s, e) =>
-        {
-            try
-            {
-                if (numericBox.Value.HasValue)
-                    onValueChanged((int)numericBox.Value);
-            }
+            try { if (box.Value.HasValue) onValueChanged((int)box.Value); }
             catch (Exception ex) { Debug.Error("Numeric Box Error", ex); }
         };
-        return numericBox;
+        return box;
     }
 
-    /// <summary>
-    /// Gets the default value of a field from a newly created instance of the component.
-    /// </summary>
-    /// <param name="compType">Type of the component</param>
-    /// <param name="fieldName">Name of the field</param>
-    /// <returns>The default value, or null if not found</returns>
+    private static StackPanel CreateFloatSlider(float initialVal, float min, float max, Action<float> onValueChanged)
+    {
+        Slider slider = new() { Classes = { "field-editor" }, Minimum = min, Maximum = max, Value = initialVal, Width = 100 };
+        slider.ValueChanged += (_, _) => onValueChanged((float)slider.Value);
+        return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, 
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0), Children = { slider } };
+    }
+
+    private static StackPanel CreateIntegerSlider(int initialVal, int min, int max, Action<int> onValueChanged)
+    {
+        Slider slider = new() { Classes = { "field-editor" }, Minimum = min, Maximum = max, 
+            Value = initialVal, Width = 100, TickFrequency = 1, IsSnapToTickEnabled = true };
+        slider.ValueChanged += (_, _) => onValueChanged((int)slider.Value);
+        return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, 
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0), Children = { slider } };
+    }
+
     private static object? GetDefaultFieldValue(Type compType, string fieldName)
     {
         try
         {
-            // Create a fresh instance of the component to get default values
-            IComponent? freshInstance = (IComponent?)Activator.CreateInstance(compType);
-            if (freshInstance != null)
-            {
-                FieldInfo? field = compType.GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
-                return field?.GetValue(freshInstance);
-            }
+            if (Activator.CreateInstance(compType) is IComponent freshInstance)
+                return compType.GetField(fieldName, BindingFlags.Public | BindingFlags.Instance)?.GetValue(freshInstance);
         }
-        catch (Exception ex)
-        {
-            Debug.Warning($"Failed to get default value for {compType.Name}.{fieldName}", ex);
-        }
+        catch (Exception ex) { Debug.Warning($"Failed to get default value for {compType.Name}.{fieldName}", ex); }
         return null;
     }
 
-    #region AssetReferences
+    #endregion
+    #region assetReferences
 
     private static Control CreateAssetRefEditor(FieldInfo field, IComponent component)
     {
-        // Get current value
         object? fieldValue = field.GetValue(component);
         if (fieldValue == null) return new TextBlock { Text = "Error" };
 
-        // Determine asset type
         AssetType expectedType = GetExpectedTypeFromField(field, fieldValue);
         string currentId = GetAssetId(fieldValue);
+        AssetMetadata? currentMeta = string.IsNullOrEmpty(currentId) ? null : AssetDatabase.GetAssetMetadataByID(currentId);
+        string currentName = currentMeta != null ? Path.GetFileNameWithoutExtension(currentMeta.FileName) : (string.IsNullOrEmpty(currentId) ? "None" : "Missing");
 
-        // Get current asset name
-        string currentName = "None";
-        if (!string.IsNullOrEmpty(currentId))
+        TextBlock assetRefButtonText = new() { Text = currentName, FontSize = 12, Foreground = EditorColor.FromRGB(200, 200, 200) };
+        Button assetRefButton = new()
         {
-            AssetMetadata? metadata = AssetDatabase.GetAssetMetadataByID(currentId);
-            currentName = metadata != null ? Path.GetFileNameWithoutExtension(metadata.FileName) : "Missing";
-        }
-
-        StackPanel buttonContentPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 5,
-        };
-        TextBlock assetRefButtonText = new TextBlock
-        {
-            Text = currentName,
-            FontSize = 12,
-            Foreground = EditorColor.FromRGB(200, 200, 200),
-        };
-        buttonContentPanel.Children.Add(EditorUI.CreateAssetTypeIcon(expectedType, 12));
-        buttonContentPanel.Children.Add(assetRefButtonText);
-        Button assetRefButton = new Button
-        {
-            Content = buttonContentPanel,
+            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, 
+                Children = { EditorUI.CreateAssetTypeIcon(expectedType, 12), assetRefButtonText } },
             Background = EditorColor.FromRGB(17, 17, 17),
             BorderThickness = new Thickness(0),
             Padding = new Thickness(8, 4),
@@ -1797,76 +1111,51 @@ public partial class PropertiesWindow : EditorWindow
             HorizontalContentAlignment = HorizontalAlignment.Left,
         };
 
-        // Flyout with list
-        Flyout flyout = new Flyout();
+        Flyout flyout = new();
         assetRefButton.Click += (_, _) =>
         {
-            StackPanel panel = new StackPanel
-            {
-                MinWidth = 200,
-            };
-
-            // None option
-            Button noneBtn = new Button
-            {
-                Content = "None",
-                FontSize = 10,
-                Background = EditorColor.FromRGB(10, 10, 10),
-                BorderThickness = new Thickness(0),
-                CornerRadius = new CornerRadius(0),
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                Margin = new Thickness(1),
-            };
-            noneBtn.Click += (_, _) =>
-            {
-                SetAssetValue(field, component, null);
-                assetRefButtonText.Text = "None";
-                flyout.Hide();
-            };
-            panel.Children.Add(noneBtn);
-
-            // Asset options
+            StackPanel panel = new() { MinWidth = 200 };
+            panel.Children.Add(BuildAssetOptionButton("None", () => 
+                { SetAssetValue(field, component, null); assetRefButtonText.Text = "None"; flyout.Hide(); }));
             foreach (AssetMetadata? asset in AssetDatabase.GetAssetsByType(expectedType))
             {
                 if (asset == null) continue;
-                Button assetBtn = new Button
-                {
-                    Content = Path.GetFileNameWithoutExtension(asset.FileName),
-                    FontSize = 10,
-                    Background = EditorColor.FromRGB(10, 10, 10),
-                    BorderThickness = new Thickness(0),
-                    CornerRadius = new CornerRadius(0),
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    Margin = new Thickness(1),
-                };
-                assetBtn.Click += (_, _) =>
-                {
-                    SetAssetValue(field, component, asset.ID);
-                    assetRefButtonText.Text = $"{Path.GetFileNameWithoutExtension(asset.FileName)}";
-                    flyout.Hide();
-                };
-                panel.Children.Add(assetBtn);
+                string label = Path.GetFileNameWithoutExtension(asset.FileName);
+                panel.Children.Add(BuildAssetOptionButton(label, () => 
+                    { SetAssetValue(field, component, asset.ID); assetRefButtonText.Text = label; flyout.Hide(); }));
             }
-
             flyout.Content = panel;
             flyout.ShowAt(assetRefButton);
         };
         return assetRefButton;
     }
 
+    private static Button BuildAssetOptionButton(string label, Action onClick)
+    {
+        Button button = new()
+        {
+            Content = label,
+            FontSize = 10,
+            Background = EditorColor.FromRGB(10, 10, 10),
+            Foreground = EditorColor.FromRGB(200, 200, 200),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(8, 2),
+            Margin = new Thickness(1),
+        };
+        button.Click += (_, _) => onClick();
+        return button;
+    }
+
     private static AssetType GetExpectedTypeFromField(FieldInfo field, object fieldValue)
     {
         Type fieldType = field.FieldType;
         if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>))
-        {
-            Type assetType = fieldType.GetGenericArguments()[0];
-            return AssetDatabase.GetAssetType(assetType);
-        }
-        else if (fieldType == typeof(AssetRef))
-        {
-            PropertyInfo? typeProp = fieldType.GetProperty("ExpectedType");
-            return (AssetType)(typeProp?.GetValue(fieldValue) ?? AssetType.None);
-        }
+            return AssetDatabase.GetAssetType(fieldType.GetGenericArguments()[0]);
+        if (fieldType == typeof(AssetRef))
+            return (AssetType)(fieldType.GetProperty("ExpectedType")?.GetValue(fieldValue) ?? AssetType.None);
         return AssetType.None;
     }
 
@@ -1877,59 +1166,40 @@ public partial class PropertiesWindow : EditorWindow
         Type fieldType = field.FieldType;
         if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>))
         {
-            object? newValue = Activator.CreateInstance(fieldType, assetId ?? string.Empty);
-            field.SetValue(component, newValue);
+            field.SetValue(component, Activator.CreateInstance(fieldType, assetId ?? string.Empty));
         }
         else if (fieldType == typeof(AssetRef))
         {
             object? current = field.GetValue(component);
-            AssetType expectedType = AssetType.None;
-            if (current != null)
-            {
-                PropertyInfo? typeProp = fieldType.GetProperty("ExpectedType");
-                expectedType = (AssetType)(typeProp?.GetValue(current) ?? AssetType.None);
-            }
-            object? newValue = Activator.CreateInstance(fieldType, assetId ?? string.Empty, expectedType);
-            field.SetValue(component, newValue);
+            AssetType expectedType = current != null ? (AssetType)(fieldType.GetProperty("ExpectedType")?.GetValue(current) ?? AssetType.None) : AssetType.None;
+            field.SetValue(component, Activator.CreateInstance(fieldType, assetId ?? string.Empty, expectedType));
         }
     }
 
     #endregion AssetReferences
 
-    /// <summary>
-    /// Applies a tooltip to a control if the field has a TooltipAttribute.
-    /// </summary>
     private static void ApplyTooltip(Control control, FieldInfo field)
     {
         TooltipAttribute? tooltipAttr = field.GetCustomAttribute<TooltipAttribute>();
-        if (tooltipAttr != null)
+        if (tooltipAttr == null) return;
+
+        StackPanel tooltipContent = new()
         {
-            StackPanel tooltipContent = new StackPanel
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Margin = new Thickness(2),
+            Children =
             {
-                Orientation = Orientation.Horizontal,
-                Spacing = 4,
-                Margin = new Thickness(2),
-            };
-            tooltipContent.Children.Add(new MaterialIcon
-            {
-                Kind = MaterialIconKind.InformationOutline,
-                Width = 14,
-                Height = 14,
-                Foreground = EditorColor.FromRGB(148, 148, 148),
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-            tooltipContent.Children.Add(new TextBlock
-            {
-                Text = tooltipAttr.Tooltip,
-                FontSize = 11,
-                Foreground = Brushes.White,
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-            ToolTip.SetTip(control, tooltipContent);
-            ToolTip.SetPlacement(control, PlacementMode.Top);
-            ToolTip.SetShowDelay(control, 400);
-            ToolTip.SetVerticalOffset(control, 4);
-        }
+                new MaterialIcon { Kind = MaterialIconKind.InformationOutline, Width = 14, Height = 14, 
+                    Foreground = EditorColor.FromRGB(148, 148, 148), VerticalAlignment = VerticalAlignment.Center },
+                new TextBlock { Text = tooltipAttr.Tooltip, FontSize = 11, 
+                    Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center },
+            }
+        };
+        ToolTip.SetTip(control, tooltipContent);
+        ToolTip.SetPlacement(control, PlacementMode.Top);
+        ToolTip.SetShowDelay(control, 400);
+        ToolTip.SetVerticalOffset(control, 4);
     }
 
     [GeneratedRegex(@"(\p{Ll})(\p{Lu})")]
