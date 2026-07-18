@@ -76,5 +76,8 @@ Extreme Scale:
 High Quality Effects:
 <img width="1919" height="1029" alt="Screenshot 2026-02-12 015857" src="https://github.com/user-attachments/assets/7fe0f9b6-5a65-4160-ad74-874034a14ee6" />
 
+Texturing System:
+<img width="1919" height="1029" alt="Screenshot 2026-07-18 013607" src="https://github.com/user-attachments/assets/86c5ae53-8e12-4164-98dd-418f4ff5bae1" />
+
 Multiple Workflows:
 <img width="1919" height="1029" alt="Screenshot 2026-04-01 233041" src="https://github.com/user-attachments/assets/3be4a06a-af2d-4c01-a28d-12ccba969ecc" />
