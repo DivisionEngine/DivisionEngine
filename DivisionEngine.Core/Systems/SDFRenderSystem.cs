@@ -14,7 +14,6 @@ using DivisionEngine.Components.SDFs.Primitives;
 using DivisionEngine.MathLib;
 using DivisionEngine.Projects.Assets;
 using DivisionEngine.Rendering;
-using Silk.NET.Input;
 using System.Diagnostics.CodeAnalysis;
 using Environment = DivisionEngine.Components.Environment;
 using Math = DivisionEngine.MathLib.Math;
