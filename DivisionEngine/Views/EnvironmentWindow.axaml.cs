@@ -9,10 +9,14 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
+using DivisionEngine.Editor.Controls;
 using DivisionEngine.MathLib;
 using DivisionEngine.Rendering;
 using DivisionEngine.Systems;
+using System;
 using System.Collections.Generic;
+using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Editor;
 
@@ -27,8 +31,9 @@ public partial class EnvironmentWindow : EditorWindow
     private readonly StackPanel headerPanel;
     private readonly ComboBox debugMode;
     private readonly CheckBox? iconsToggle;
+    private readonly DispatcherTimer fpsUpdateTimer;
 
-    public readonly Panel renderVisualizerFrame;
+    public readonly DivisionRenderView renderVisualizerFrame;
     public readonly TextBlock widthHeightText;
 
     public EnvironmentWindow()
@@ -135,22 +140,22 @@ public partial class EnvironmentWindow : EditorWindow
         DockPanel.SetDock(separator, Dock.Top);
         mainPanel.Children.Add(separator);
 
-        renderVisualizerFrame = new Panel
+        // Set up FPS update timer
+        fpsUpdateTimer = new DispatcherTimer
         {
-            Children = {
-                new TextBlock
-                {
-                    Text = "Cannot have multiple environment windows",
-                    Foreground = Brushes.LightGray,
-                    FontSize = 14,
-                    FontWeight = FontWeight.Light,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                }
-            },
-            Background = EditorColor.FromRGB(12, 12, 12),
+            Interval = TimeSpan.FromMilliseconds(100) // Update 10 times per second for smooth display
+        };
+        fpsUpdateTimer.Tick += (s, e) => UpdateDisplayText();
+        fpsUpdateTimer.Start();
+
+        renderVisualizerFrame = new DivisionRenderView
+        {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
+        };
+        renderVisualizerFrame.SizeChanged += (s, e) =>
+        {
+            UpdateSizeAndFPS();
         };
         mainPanel.Children.Add(renderVisualizerFrame);
 
@@ -170,6 +175,42 @@ public partial class EnvironmentWindow : EditorWindow
         {
             for (int i = 0; i < currentWindows.Count; i++)
                 currentWindows[i]?.UpdateRendererDebugMode();
+        }
+    }
+
+    private void UpdateDisplayText()
+    {
+        if (widthHeightText != null && renderVisualizerFrame != null)
+        {
+            var bounds = renderVisualizerFrame.Bounds;
+            int width = (int)bounds.Width;
+            int height = (int)bounds.Height;
+            double fps = TimeSystem.FPS;
+
+            widthHeightText.Text = $"(Width {width}px,  Height {height}px,  FPS {Math.Round(fps)})";
+        }
+    }
+
+    public void UpdateSizeAndFPS()
+    {
+        if (renderVisualizerFrame != null)
+        {
+            // Get actual rendered size (considering DPI scaling)
+            var bounds = renderVisualizerFrame.Bounds;
+            var topLevel = TopLevel.GetTopLevel(renderVisualizerFrame);
+            double dpiScale = topLevel?.RenderScaling ?? 1.0;
+
+            int physicalWidth = (int)(bounds.Width * dpiScale);
+            int physicalHeight = (int)(bounds.Height * dpiScale);
+
+            // Update the renderer's embedded viewport size
+            if (App.Renderer != null && App.Renderer.Mode == RenderPipeline.RunMode.Embedded)
+            {
+                App.Renderer.SetEmbeddedViewportSize(physicalWidth, physicalHeight);
+            }
+
+            // Update display text
+            UpdateDisplayText();
         }
     }
 

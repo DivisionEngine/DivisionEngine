@@ -39,16 +39,15 @@ namespace DivisionEngine.Editor.Systems
         {
             if (!InputSystem.IsMousePressed(MouseCode.Left)) selectEnabled = true;
             else if (CanSelect && selectEnabled && InputSystem.IsMousePressed(MouseCode.Left) &&
-                RenderPipeline.Instance != null &&
-                RenderPipeline.Instance.ObjectIDs != null &&
-                RenderPipeline.Instance.RendererWindow != null)
+                RenderPipeline.Instance != null && RenderPipeline.Instance.ObjectIDs != null)
             {
-                int width = RenderPipeline.Instance.RendererWindow.Size.X,
-                    height = RenderPipeline.Instance.RendererWindow.Size.Y,
-                    pixelX = (int)InputSystem.MousePosition.X,
-                    pixelY = (int)InputSystem.MousePosition.Y;
+                int width = RenderPipeline.Instance.EmbeddedWidth;
+                int height = RenderPipeline.Instance.EmbeddedHeight;
+                int pixelX = (int)InputSystem.MousePosition.X;
+                int pixelY = (int)InputSystem.MousePosition.Y;
 
-                // Check if clicking on a handle
+                if (pixelX < 0 || pixelX >= width || pixelY < 0 || pixelY >= height) return;
+
                 uint handleAtClick = RenderPipeline.Instance.GetHandleAtPosition(pixelX, pixelY);
                 if (handleAtClick > 0)
                 {
@@ -57,8 +56,8 @@ namespace DivisionEngine.Editor.Systems
                     return;
                 }
 
-                // Only proceed with entity selection if NOT clicking on a handle
-                uint entitySelected = RenderPipeline.Instance.ObjectIDs[pixelX + (height - pixelY) * width].Y;
+                int bufferIndex = pixelX + (height - 1 - pixelY) * width;
+                uint entitySelected = RenderPipeline.Instance.ObjectIDs[bufferIndex].Y;
                 if (entitySelected != uint.MaxValue)
                 {
                     if (W.HasComponent<Transform>(entitySelected))
@@ -77,4 +76,60 @@ namespace DivisionEngine.Editor.Systems
             }
         }
     }
+
+    //public class EntitySelectionSystem : SystemBase
+    //{
+        
+    //    public static bool CanSelect { get; set; } = false;
+
+        
+    //    public static event Action<uint>? OnEntitySelected;
+
+        
+    //    public static event Action? OnNoEntityFound;
+
+    //    private bool selectEnabled = false;
+
+    //    public override void EditorUpdate()
+    //    {
+    //        if (!InputSystem.IsMousePressed(MouseCode.Left)) selectEnabled = true;
+    //        else if (CanSelect && selectEnabled && InputSystem.IsMousePressed(MouseCode.Left) &&
+    //            RenderPipeline.Instance != null &&
+    //            RenderPipeline.Instance.ObjectIDs != null &&
+    //            RenderPipeline.Instance.RendererWindow != null)
+    //        {
+    //            int width = RenderPipeline.Instance.RendererWindow.Size.X,
+    //                height = RenderPipeline.Instance.RendererWindow.Size.Y,
+    //                pixelX = (int)InputSystem.MousePosition.X,
+    //                pixelY = (int)InputSystem.MousePosition.Y;
+
+    //            // Check if clicking on a handle
+    //            uint handleAtClick = RenderPipeline.Instance.GetHandleAtPosition(pixelX, pixelY);
+    //            if (handleAtClick > 0)
+    //            {
+    //                Debug.Info($"EntitySelectionSystem: Click on handle {handleAtClick}, blocking selection");
+    //                selectEnabled = false;
+    //                return;
+    //            }
+
+    //            // Only proceed with entity selection if NOT clicking on a handle
+    //            uint entitySelected = RenderPipeline.Instance.ObjectIDs[pixelX + (height - pixelY) * width].Y;
+    //            if (entitySelected != uint.MaxValue)
+    //            {
+    //                if (W.HasComponent<Transform>(entitySelected))
+    //                {
+    //                    Transform? transform = W.GetComponent<Transform>(entitySelected);
+    //                    RenderPipeline.Instance?.ShowHandles(transform!.position, EditorSettings.Instance!.EditorHandleScale);
+    //                }
+    //                OnEntitySelected?.Invoke(entitySelected);
+    //            }
+    //            else
+    //            {
+    //                RenderPipeline.Instance?.HideHandles();
+    //                OnNoEntityFound?.Invoke();
+    //            }
+    //            selectEnabled = false;
+    //        }
+    //    }
+    //}
 }

@@ -77,57 +77,21 @@ namespace DivisionEngine.Editor
             if (rendering && !RendererVisible)
             {
                 if (Renderer == null) StartRenderer(); // If renderer doesn't exist yet, create it
-                else ShowRenderer();
+                else RendererVisible = true;
             }
-            else if (!rendering && RendererVisible) HideRenderer(); // Just hide the renderer, don't destroy it
+            else if (!rendering && RendererVisible) RendererVisible = false; // Just hide the renderer, don't destroy it
         }
 
-        /// <summary>
-        /// Starts the renderer if not already running.
-        /// </summary>
         public static void StartRenderer()
         {
             if (Renderer != null) return;
 
             Renderer = new RenderPipeline();
             Renderer.BindCurrentWorld();
-            Renderer.InputContextCreated += SetupInputHandlers;
-
-            _ = Task.Run(() => Renderer.Run(RequestedFPS, true));
-            Renderer.Close += () =>
-            {
-                EngineCore.Stop();
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (Current!.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-                        desktop.Shutdown();
-                    Environment.Exit(0);
-                });
-            };
+            Renderer.RunEmbedded(RequestedFPS); // no window, no Silk.NET input context needed
 
             RendererVisible = true;
             EnvironmentWindow.SyncToolValuesToRenderer();
-        }
-
-        /// <summary>
-        /// Hides the renderer (moves it far off screen).
-        /// </summary>
-        public static void HideRenderer()
-        {
-            if (!RendererVisible || Renderer?.RendererWindow == null) return;
-            RendererVisible = false;
-
-            // Move off screen to hide
-            Renderer.RendererWindow.Position = new Vector2D<int>(-10000, -10000);
-        }
-
-        /// <summary>
-        /// Shows the renderer (brings it back on screen).
-        /// </summary>
-        public static void ShowRenderer()
-        {
-            if (RendererVisible || Renderer?.RendererWindow == null) return;
-            RendererVisible = true;
         }
 
         /// <summary>

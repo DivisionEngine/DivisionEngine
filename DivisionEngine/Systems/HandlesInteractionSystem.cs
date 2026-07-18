@@ -347,10 +347,12 @@ namespace DivisionEngine.Editor.Systems
 
         private static float3 GetMouseRayDir(float2 mousePos, Transform camTransform, Camera? camera)
         {
-            if (camera == null || RenderPipeline.Instance?.RendererWindow == null) return new float3(0, 0, 1);
+            if (camera == null || RenderPipeline.Instance == null) return new float3(0, 0, 1);
 
-            int screenW = RenderPipeline.Instance.RendererWindow.Size.X;
-            int screenH = RenderPipeline.Instance.RendererWindow.Size.Y;
+            int screenW = RenderPipeline.Instance.EmbeddedWidth;
+            int screenH = RenderPipeline.Instance.EmbeddedHeight;
+            if (screenW < 1 || screenH < 1) return new float3(0, 0, 1);
+
             float aspect = screenW / (float)screenH;
             float camScreenDist = DivisionEngine.Systems.CameraSystem.FovToScreenDistance(camera);
 

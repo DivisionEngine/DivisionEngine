@@ -61,6 +61,8 @@ namespace DivisionEngine.MathLib
         /// <param name="value">The value to find the absolute of</param>
         /// <returns>The absolute of <paramref name="value"/></returns>
         public static float Abs(float value) => System.Math.Abs(value);
+        public static double Abs(double value) => System.Math.Abs(value);
+        public static int Abs(int value) => System.Math.Abs(value);
         /// <summary>
         /// Computes the sine of the specified <paramref name="angle"/>.
         /// </summary>
@@ -113,16 +115,22 @@ namespace DivisionEngine.MathLib
         /// <param name="x">Value to floor</param>
         /// <returns>Floored value</returns>
         public static float Floor(float x) => (float)System.Math.Floor(x);
+        public static double Floor(double x) => System.Math.Floor(x);
         /// <summary>
         /// Floors a value to an integer.
         /// </summary>
         /// <param name="x">Value to floor</param>
         /// <returns>Floored integer value</returns>
         public static int FloorToInt(float x) => (int)System.Math.Floor(x);
+        public static int FloorToInt(double x) => (int)System.Math.Floor(x);
         public static float Ceiling(float x) => (float)System.Math.Ceiling(x);
+        public static double Ceiling(double x) => System.Math.Ceiling(x);
         public static int CeilingToInt(float x) => (int)System.Math.Ceiling(x);
+        public static int CeilingToInt(double x) => (int)System.Math.Ceiling(x);
         public static float Round(float x) => (float)System.Math.Round(x);
+        public static double Round(double x) => System.Math.Round(x);
         public static int RoundToInt(float x) => (int)System.Math.Round(x);
+        public static int RoundToInt(double x) => (int)System.Math.Round(x);
         public static int Sign(float x) => System.Math.Sign(x);
         public static int Sign(int x) => System.Math.Sign(x);
         /// <summary>

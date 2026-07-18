@@ -282,5 +282,18 @@ namespace DivisionEngine.Input
         {
             lock (Instance!.syncLock) return Instance.pressedMouseKeys.Contains(key);
         }
+
+        /// <summary>
+        /// Accumulates the mouse UV delta over time. (Used in editor)
+        /// </summary>
+        /// <param name="uvDelta">UV delta to accumulate</param>
+        public void AccumulateMouseUVDelta(float2 uvDelta)
+        {
+            lock (syncLock)
+            {
+                mouseUVDelta = mouseUVDelta.Add(uvDelta);
+                mouseUV = mouseUV.Add(uvDelta); // keep mouseUV consistent for anything else reading it
+            }
+        }
     }
 }

@@ -16,8 +16,11 @@ using DivisionEngine.Systems;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using Window = Silk.NET.Windowing.Window;
+using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Rendering
 {
@@ -118,6 +121,21 @@ namespace DivisionEngine.Rendering
         /// </summary>
         public uint[]? CustomShapeIds { get; private set; }
 
+        public enum RunMode { Windowed, Embedded }
+        public RunMode Mode { get; private set; } = RunMode.Windowed;
+
+        // Embedded-mode state
+        private byte[]? embeddedBgraBuffer;
+        private readonly Lock embeddedBufferLock = new();
+        public int EmbeddedWidth { get; private set; } = 1;
+        public int EmbeddedHeight { get; private set; } = 1;
+        public event Action? FrameAvailable;
+
+        private Thread? embeddedThread;
+        private volatile bool embeddedRunning;
+        private int embeddedBufferWidth = 0;
+        private int embeddedBufferHeight = 0;
+
         // Rendering storage
         private ReadWriteTexture2D<float>? lowResDepthTex;
         private ReadWriteTexture2D<float4>? lowResRenderTex; // Optional, for debugging
@@ -193,7 +211,11 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Create a new render pipeline.
         /// </summary>
-        public RenderPipeline() => Instance = this;
+        public RenderPipeline()
+        {
+            Instance = this;
+            TextureSystem.UpdatedTextureData += () => rebuildTextureBuffer = true;
+        }
 
         /// <summary>
         /// Binds the WorldManager.CurrentWorld to this render pipeline.
@@ -308,6 +330,93 @@ namespace DivisionEngine.Rendering
         }
 
         #endregion editorDrawing
+        #region embeddedRendering
+
+        /// <summary>
+        /// Starts the render pipeline in embedded mode: no window, no OpenGL —
+        /// runs a background compute loop and exposes frames via FrameAvailable.
+        /// </summary>
+        public void RunEmbedded(double targetFps)
+        {
+            Mode = RunMode.Embedded;
+            Device = GraphicsDevice.GetDefault();
+            Device.DeviceLost += Device_DeviceLost;
+
+            embeddedRunning = true;
+            embeddedThread = new Thread(() => EmbeddedLoop(targetFps))
+            {
+                IsBackground = true,
+                Name = "DivisionEmbeddedRenderer"
+            };
+            embeddedThread.Start();
+        }
+
+        public void StopEmbedded()
+        {
+            embeddedRunning = false;
+            embeddedThread?.Join(500);
+        }
+
+        /// <summary>
+        /// Called by the hosting control whenever its size changes.
+        /// </summary>
+        public void SetEmbeddedViewportSize(int width, int height)
+        {
+            lock (SyncLock)
+            {
+                EmbeddedWidth = Math.Max(1, width);
+                EmbeddedHeight = Math.Max(1, height);
+            }
+        }
+
+        private void EmbeddedLoop(double targetFps)
+        {
+            Stopwatch sw = Stopwatch.StartNew();
+            double last = sw.Elapsed.TotalSeconds;
+            int frameCount = 0;
+            double fpsUpdateTimer = 0;
+
+            while (embeddedRunning)
+            {
+                double fps = EngineSettings.Instance?.MaxFPS > 0 ? EngineSettings.Instance.MaxFPS : targetFps;
+                double frameBudget = 1.0 / fps;
+                double now = sw.Elapsed.TotalSeconds;
+                double delta = now - last;
+
+                if (delta < frameBudget)
+                {
+                    Thread.Sleep(1);
+                    continue;
+                }
+
+                last = now;
+                frameCount++;
+                fpsUpdateTimer += delta;
+
+                // Update FPS counter every second
+                if (fpsUpdateTimer >= 1.0)
+                {
+                    // This will be picked up by TimeSystem's Render() method
+                    frameCount = 0;
+                    fpsUpdateTimer = 0;
+                }
+
+                // Snapshot ONCE per frame
+                int frameWidth, frameHeight;
+                lock (SyncLock)
+                {
+                    frameWidth = EmbeddedWidth;
+                    frameHeight = EmbeddedHeight;
+                }
+
+                // IMPORTANT: This will set DeltaTime and Time for the TimeSystem
+                RenderFrame(delta, frameWidth, frameHeight, presentToGL: false);
+                ConvertPixelsToBgra(frameWidth, frameHeight);
+                FrameAvailable?.Invoke();
+            }
+        }
+
+        #endregion embeddedRendering
 
         /// <summary>
         /// Initializes and runs the render window.
@@ -347,8 +456,7 @@ namespace DivisionEngine.Rendering
                 RendererWindow.Closing += OnClosing;
                 RendererWindow.FocusChanged += (f) => { if (RenderWindowFocusd != null) RenderWindowFocusd!(f); };
 
-                // Handle texture updates
-                TextureSystem.UpdatedTextureData += () => rebuildTextureBuffer = true;
+                // Ensure texture buffer rebuild
                 rebuildTextureBuffer = true;
 
                 Debug.Info("Renderer: Starting window run loop");
@@ -456,11 +564,30 @@ namespace DivisionEngine.Rendering
             }
         }
 
+        #region rendering
+
+        private void OnRender(double delta)
+        {
+            if (RendererWindow == null || RendererWindow.IsClosing) return;
+            lock (SyncLock) // Apply render window settings
+            {
+                RendererWindow!.VSync = EngineSettings.Instance.VSync;
+                RendererWindow.FramesPerSecond = EngineSettings.Instance.MaxFPS;
+            }
+
+            int texWidth = RendererWindow.Size.X;
+            int texHeight = RendererWindow.Size.Y;
+            if (texWidth < 1 || texHeight < 1) return;
+
+            RenderFrame(delta, texWidth, texHeight, presentToGL: true);
+        }
+
+
         /// <summary>
         /// Executes the render pipeline frame.
         /// </summary>
         /// <param name="delta">Travel delta between frames in seconds</param>
-        private void OnRender(double delta)
+        private void RenderFrame(double delta, int texWidth, int texHeight, bool presentToGL)
         {
             DeltaTime = delta; // Track frame time
             Time += delta;
@@ -473,31 +600,8 @@ namespace DivisionEngine.Rendering
 
             if (boundWorld == null) return;
             boundWorld.CallRender();
-            int texWidth = 0, texHeight = 0, lowResWidth = 0, lowResHeight = 0;
-            IWindow? window;
-            lock (SyncLock)
-            {
-                if (RendererWindow == null || RendererWindow.IsClosing) return;
-
-                // Apply render window settings
-                RendererWindow.VSync = EngineSettings.Instance.VSync;
-                RendererWindow.FramesPerSecond = EngineSettings.Instance.MaxFPS;
-                window = RendererWindow;
-            }
-
-            try
-            {
-                texWidth = window.Size.X;
-                texHeight = window.Size.Y;
-                lowResWidth = Math.Max(1, texWidth / 4);
+            int lowResWidth = Math.Max(1, texWidth / 4),
                 lowResHeight = Math.Max(1, texHeight / 4);
-                if (texWidth < 1 || texHeight < 1) return;
-            }
-            catch (NullReferenceException ex)
-            {
-                Debug.Warning($"Renderer: Render window lost, skipping rendering", ex);
-                return;
-            }
 
             SDFWorldDTO worldDTO;
             SDFObjectDTO[] sdfObjDTO;
@@ -867,6 +971,66 @@ namespace DivisionEngine.Rendering
             }
 
             // Push final texture to OpenGL
+            if (presentToGL) PresentToGL(texWidth, texHeight);
+        }
+
+        private void ConvertPixelsToBgra(int w, int h)
+        {
+            if (Pixels == null) return;
+            lock (embeddedBufferLock)
+            {
+                // Guard against Pixels having been reallocated at a different size mid-flight
+                // (shouldn't happen now that w/h are a snapshot, but this is a cheap, cheap-to-keep safety net)
+                if (Pixels.Length != w * h) return;
+
+                int needed = w * h * 4;
+                if (embeddedBgraBuffer == null || embeddedBgraBuffer.Length != needed)
+                    embeddedBgraBuffer = new byte[needed];
+
+                Parallel.For(0, h, y =>
+                {
+                    int srcRowStart = (h - 1 - y) * w;
+                    int dstRowStart = y * w;
+                    for (int x = 0; x < w; x++)
+                    {
+                        float4 p = Pixels[srcRowStart + x];
+                        int o = (dstRowStart + x) * 4;
+                        embeddedBgraBuffer[o + 0] = (byte)Math.Clamp(p.Z * 255f, 0, 255);
+                        embeddedBgraBuffer[o + 1] = (byte)Math.Clamp(p.Y * 255f, 0, 255);
+                        embeddedBgraBuffer[o + 2] = (byte)Math.Clamp(p.X * 255f, 0, 255);
+                        embeddedBgraBuffer[o + 3] = 255;
+                    }
+                });
+
+                // Record the ACTUAL dimensions this buffer holds — this is what TryCopyEmbeddedFrame
+                // must check against, not the live (possibly already-changed-again) EmbeddedWidth/Height
+                embeddedBufferWidth = w;
+                embeddedBufferHeight = h;
+            }
+        }
+
+        /// <summary>
+        /// Blits the latest converted frame into an already-locked, correctly-sized
+        /// WriteableBitmap buffer. Returns false if sizes don't match (a resize is pending).
+        /// </summary>
+        public bool TryCopyEmbeddedFrame(IntPtr destAddress, int destWidth, int destHeight)
+        {
+            lock (embeddedBufferLock)
+            {
+                if (embeddedBgraBuffer == null) return false;
+                if (destWidth != embeddedBufferWidth || destHeight != embeddedBufferHeight) return false;
+                if (embeddedBgraBuffer.Length != destWidth * destHeight * 4) return false; // final belt-and-suspenders check
+
+                Marshal.Copy(embeddedBgraBuffer, 0, destAddress, embeddedBgraBuffer.Length);
+                return true;
+            }
+        }
+
+        #endregion rendering
+        #region openGlWindowing
+
+        private void PresentToGL(int texWidth, int texHeight)
+        {
             unsafe
             {
                 fixed (float4* dataPtr = Pixels)
@@ -993,6 +1157,8 @@ namespace DivisionEngine.Rendering
             }
             else Debug.Info("Shader Program Linked Successfully");
         }
+
+        #endregion openGLWindowing
 
         /// <summary>
         /// Disposes of all managed memory and sets to null.
