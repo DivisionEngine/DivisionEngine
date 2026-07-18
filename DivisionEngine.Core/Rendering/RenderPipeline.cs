@@ -261,16 +261,21 @@ namespace DivisionEngine.Rendering
         public uint GetHandleAtPosition(int screenX, int screenY)
         {
             // Check if we're in embedded mode
+            int flippedY, index;
             if (Mode == RunMode.Embedded)
             {
                 if (HandleIds == null || screenX < 0 || screenY < 0 ||
                     screenX >= EmbeddedWidth || screenY >= EmbeddedHeight)
                     return 0;
 
-                // In embedded mode, the buffer is stored row-major from top-left
-                // but our shader writes bottom-left origin. We need to flip Y.
-                int flippedY = EmbeddedHeight - 1 - screenY;
-                return HandleIds[screenX + flippedY * EmbeddedWidth];
+                flippedY = EmbeddedHeight - 1 - screenY;
+                index = screenX + flippedY * EmbeddedWidth;
+
+                // Validate index bounds
+                if (index < 0 || index >= HandleIds.Length)
+                    return 0;
+
+                return HandleIds[index];
             }
 
             // Original windowed mode
@@ -279,19 +284,31 @@ namespace DivisionEngine.Rendering
                 return 0;
 
             int width = RendererWindow!.Size.X;
-            return HandleIds[screenX + (RendererWindow.Size.Y - screenY) * width];
+            flippedY = RendererWindow.Size.Y - screenY;
+            index = screenX + flippedY * width;
+
+            if (index < 0 || index >= HandleIds.Length)
+                return 0;
+
+            return HandleIds[index];
         }
 
         public uint GetIconAtPosition(int screenX, int screenY)
         {
+            int flippedY, index;
             if (Mode == RunMode.Embedded)
             {
                 if (iconIdBuffer == null || IconIds == null || screenX < 0 || screenY < 0 ||
                     screenX >= EmbeddedWidth || screenY >= EmbeddedHeight)
                     return 0;
 
-                int flippedY = EmbeddedHeight - 1 - screenY;
-                return IconIds[screenX + flippedY * EmbeddedWidth];
+                flippedY = EmbeddedHeight - 1 - screenY;
+                index = screenX + flippedY * EmbeddedWidth;
+
+                if (index < 0 || index >= IconIds.Length)
+                    return 0;
+
+                return IconIds[index];
             }
 
             if (RendererWindow == null || iconIdBuffer == null || IconIds == null || screenX < 0 || screenY < 0 ||
@@ -300,19 +317,31 @@ namespace DivisionEngine.Rendering
 
             int width = RendererWindow.Size.X;
             int height = RendererWindow.Size.Y;
-            return IconIds[screenX + (height - 1 - screenY) * width];
+            flippedY = height - 1 - screenY;
+            index = screenX + flippedY * width;
+
+            if (index < 0 || index >= IconIds.Length)
+                return 0;
+
+            return IconIds[index];
         }
 
         public uint GetCustomShapeAtPosition(int screenX, int screenY)
         {
+            int flippedY, index;
             if (Mode == RunMode.Embedded)
             {
                 if (customShapeIdBuffer == null || CustomShapeIds == null || screenX < 0 || screenY < 0 ||
                     screenX >= EmbeddedWidth || screenY >= EmbeddedHeight)
                     return 0;
 
-                int flippedY = EmbeddedHeight - 1 - screenY;
-                return CustomShapeIds[screenX + flippedY * EmbeddedWidth];
+                flippedY = EmbeddedHeight - 1 - screenY;
+                index = screenX + flippedY * EmbeddedWidth;
+
+                if (index < 0 || index >= CustomShapeIds.Length)
+                    return 0;
+
+                return CustomShapeIds[index];
             }
 
             if (RendererWindow == null || customShapeIdBuffer == null || CustomShapeIds == null || screenX < 0 || screenY < 0 ||
@@ -321,7 +350,13 @@ namespace DivisionEngine.Rendering
 
             int width = RendererWindow.Size.X;
             int height = RendererWindow.Size.Y;
-            return CustomShapeIds[screenX + (height - 1 - screenY) * width];
+            flippedY = height - 1 - screenY;
+            index = screenX + flippedY * width;
+
+            if (index < 0 || index >= CustomShapeIds.Length)
+                return 0;
+
+            return CustomShapeIds[index];
         }
 
         public void UpdateHoveredHandle(int mouseX, int mouseY)
@@ -343,12 +378,26 @@ namespace DivisionEngine.Rendering
                 }
                 else return;
 
-                if (mouseX >= 0 && mouseX < width && mouseY >= 0 && mouseY < height)
+                // Validate coordinates first
+                if (mouseX < 0 || mouseX >= width || mouseY < 0 || mouseY >= height)
                 {
-                    int flippedY = height - 1 - mouseY;
-                    currentHoveredHandle = HandleIds[mouseX + flippedY * width];
+                    currentHoveredHandle = 0;
+                    return;
                 }
-                else currentHoveredHandle = 0;
+
+                int flippedY = height - 1 - mouseY;
+                int index = mouseX + flippedY * width;
+
+                // CRITICAL: Validate the index is within the array bounds
+                if (index < 0 || index >= HandleIds.Length)
+                {
+                    // This can happen if HandleIds hasn't been allocated yet or
+                    // is from a different resolution
+                    currentHoveredHandle = 0;
+                    return;
+                }
+
+                currentHoveredHandle = HandleIds[index];
             }
         }
 

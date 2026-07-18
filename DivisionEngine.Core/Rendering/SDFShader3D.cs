@@ -1052,8 +1052,11 @@ namespace DivisionEngine
             float3 outputColor;
             if (isRefractive)
             {
-                float fresnel = Hlsl.Lerp(0.04f, 1.0f, Hlsl.Pow(1.0f - cosTheta, mainMat.reflectance));
-                float3 reflectiveCol = finalColor + surfaceColor;
+                float fresnel = PBR.SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
+                // Or if you want the full Schlick: PBR.FresnelSchlick(cosTheta, float3.One * mainMat.f0_dielectric).X
+
+                float3 reflectiveCol = finalColor;  // finalColor already includes the surface hit
+                                                    // Don't add surfaceColor again - it's already in finalColor from bounce==0
                 outputColor = reflectiveCol * fresnel + refractedLight * (1f - fresnel);
             }
             else outputColor = finalColor + surfaceColor;

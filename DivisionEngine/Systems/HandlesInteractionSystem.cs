@@ -80,13 +80,37 @@ namespace DivisionEngine.Editor.Systems
             float2 mousePos = InputSystem.MousePosition;
             int pixelX = (int)mousePos.X;
             int pixelY = (int)mousePos.Y;
+
+            // Validate mouse position is within render area before using it
+            int width, height;
+            if (RenderPipeline.Instance?.Mode == RenderPipeline.RunMode.Embedded)
+            {
+                width = RenderPipeline.Instance.EmbeddedWidth;
+                height = RenderPipeline.Instance.EmbeddedHeight;
+            }
+            else if (RenderPipeline.Instance?.RendererWindow != null)
+            {
+                width = RenderPipeline.Instance.RendererWindow.Size.X;
+                height = RenderPipeline.Instance.RendererWindow.Size.Y;
+            }
+            else return;
+
+            // Only update hover if mouse is within bounds
+            if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height)
+            {
+                RenderPipeline.Instance!.UpdateHoveredHandle(pixelX, pixelY);
+            }
+
             bool mouseDown = InputSystem.IsMousePressed(MouseCode.Left);
-            RenderPipeline.Instance!.UpdateHoveredHandle((int)mousePos.X, (int)mousePos.Y);
 
             // Start dragging
             if (mouseDown && !isDragging)
             {
-                uint handleId = RenderPipeline.Instance.GetHandleAtPosition(pixelX, pixelY);
+                uint handleId = 0;
+                if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height)
+                {
+                    handleId = RenderPipeline.Instance.GetHandleAtPosition(pixelX, pixelY);
+                }
 
                 // Get camera data first (needed for all operations)
                 Transform? camTransform = GetMainCamera();
