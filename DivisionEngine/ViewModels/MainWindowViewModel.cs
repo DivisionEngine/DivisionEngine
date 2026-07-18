@@ -256,6 +256,30 @@ namespace DivisionEngine.Editor.ViewModels
         }
 
         [RelayCommand]
+        private async Task NewProject()
+        {
+            try
+            {
+                await App.SetEditorRenderingAsync(false);
+
+                ConfirmationDialog confirmDialog = new ConfirmationDialog("New Project",
+                        $"Would you like to create a new project?");
+                if (await confirmDialog.ShowDialog<bool>(mainWindow))
+                {
+                    ProjectManager.CloseProject();
+                    WorldManager.CreateDefaultWorld(true);
+                }
+
+                await App.SetEditorRenderingAsync(true);
+            }
+            catch (Exception ex)
+            {
+                Debug.Error($"Error opening project", ex);
+                await App.SetEditorRenderingAsync(true);
+            }
+        }
+
+        [RelayCommand]
         private async Task OpenProject()
         {
             try

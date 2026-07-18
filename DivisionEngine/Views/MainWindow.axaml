@@ -44,6 +44,7 @@
         <Menu Foreground="#ccc" IsTextSearchEnabled="True">
             <!--File / Edit Menu-->
         <MenuItem x:Name="FileMenu" Header="File" Foreground="#ccc">
+            <MenuItem Header="New" Command="{Binding NewProjectCommand}" Foreground="#ccc"/>
             <MenuItem Header="Open" Command="{Binding OpenProjectCommand}" Foreground="#ccc"/>
 
             <!-- Recent Projects Submenu -->

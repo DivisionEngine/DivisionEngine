@@ -16,8 +16,6 @@ using DivisionEngine.Input;
 using DivisionEngine.Projects;
 using DivisionEngine.Rendering;
 using DivisionEngine.Settings;
-using Silk.NET.Input;
-using Silk.NET.Maths;
 using System;
 using System.Threading.Tasks;
 
@@ -171,43 +169,6 @@ namespace DivisionEngine.Editor
             // Avalonia input handling
             desktop.MainWindow!.KeyUp += (s, e) => UserInput?.SetKeyUp(EditorInput.AvaloniaToKeyCode(e.Key));
             desktop.MainWindow.KeyDown += (s, e) => UserInput?.SetKeyDown(EditorInput.AvaloniaToKeyCode(e.Key));
-        }
-
-        /// <summary>
-        /// Setup input handling for borderless Silk.NET threaded render GLFW window.
-        /// </summary>
-        private static void SetupInputHandlers(IInputContext input)
-        {
-            Debug.Info("Setup Input Handlers: Configuring input...");
-            foreach (IKeyboard keyboard in input.Keyboards)
-            {
-                keyboard.KeyDown += (kb, key, code) => UserInput?.SetKeyDown(EditorInput.SilkNetToKeyCode(key));
-                keyboard.KeyUp += (kb, key, code) => UserInput?.SetKeyUp(EditorInput.SilkNetToKeyCode(key));
-            }
-
-            foreach (IMouse mouse in input.Mice)
-            {
-                mouse.MouseDown += (m, code) => UserInput?.SetMouseKeyDown(EditorInput.SilkNetToMouseCode(code));
-                mouse.MouseUp += (m, code) => UserInput?.SetMouseKeyUp(EditorInput.SilkNetToMouseCode(code));
-
-                mouse.MouseMove += (m, pos) =>
-                {
-                    float2 posConverted = new float2(pos.X, pos.Y);
-                    UserInput?.SetMousePosition(posConverted);
-
-                    if (Renderer == null || Renderer.RendererWindow == null) return;
-                    Vector2D<int> screenSizeInt = Renderer.RendererWindow.Size;
-                    float2 screenSize = new float2(screenSizeInt.X, screenSizeInt.Y);
-                    UserInput?.SetRelativeMousePosition(posConverted, screenSize);
-                };
-
-                mouse.Scroll += (m, wheel) =>
-                {
-                    float2 posConverted = new float2(wheel.X, wheel.Y);
-                    UserInput?.SetMouseWheel(posConverted);
-                };
-            }
-            Debug.Info("Setup Input Handlers: Input configured successfully");
         }
     }
 }
