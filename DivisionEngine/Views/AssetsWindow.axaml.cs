@@ -18,7 +18,6 @@ using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using Material.Icons;
 using Material.Icons.Avalonia;
-using Silk.NET.Vulkan;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -288,7 +287,14 @@ public partial class AssetsWindow : EditorWindow
         CurrentView = ViewState.Tiles;
         currentPath = string.Empty;
         currentWindows.Add(this);
-        Dispatcher.UIThread.Post(LoadAssetsForCurrentProject);
+        Dispatcher.UIThread.Post(() => Setup(GetDefaultAssetsPath()));
+    }
+
+    private static string? GetDefaultAssetsPath()
+    {
+        if (!ProjectManager.IsCurrentLoaded) return null;
+        string assetsPath = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
+        return Directory.Exists(assetsPath) ? assetsPath : ProjectManager.CurrentProjectPath;
     }
 
     /// <summary>
@@ -533,9 +539,12 @@ public partial class AssetsWindow : EditorWindow
     /// </summary>
     public static void LoadAssetsForCurrentProject()
     {
-        Debug.Log($"Loading assets at cur proj: {ProjectManager.CurrentProjectPath}");
         ValidateWindows();
-        foreach (AssetsWindow? window in currentWindows) window!.Setup(ProjectManager.CurrentProjectPath);
+        foreach (AssetsWindow? window in currentWindows)
+        {
+            string? path = string.IsNullOrEmpty(window!.currentPath) ? GetDefaultAssetsPath() : window.currentPath;
+            window.Setup(path);
+        }
     }
 
     /// <summary>
@@ -598,7 +607,7 @@ public partial class AssetsWindow : EditorWindow
         if (string.IsNullOrEmpty(currentPath)) return false;
         DirectoryInfo dir = new DirectoryInfo(currentPath);
         if (dir.Parent == null) return false;
-        Dispatcher.UIThread.Post(() => LoadAssets(dir.Parent.FullName));
+        Dispatcher.UIThread.Post(() => Setup(dir.Parent.FullName));
         return true;
     }
 
@@ -837,7 +846,7 @@ public partial class AssetsWindow : EditorWindow
         folderStack.Children.Add(folderIcon);
         folderStack.Children.Add(folderNameText);
         folderBorder.Child = folderStack;
-        folderBorder.DoubleTapped += (s, e) => Dispatcher.UIThread.Post(() => LoadAssets(folder.FullName));
+        folderBorder.DoubleTapped += (s, e) => Dispatcher.UIThread.Post(() => Setup(folder.FullName));
 
         // Add context menu
         ContextMenu contextMenu = new ContextMenu
@@ -1652,14 +1661,20 @@ public partial class AssetsWindow : EditorWindow
     // Handle folder changes
     private void OnAssetFolderChanged(string folderPath)
     {
-        // Check if this folder is viewing or a parent of it
-        if (!string.IsNullOrEmpty(currentPath) && (folderPath.StartsWith(currentPath) || currentPath.StartsWith(folderPath)))
-        {
-            Dispatcher.UIThread.Post(async () =>
-            {
-                Debug.Log($"Current Path: {currentPath} | Folder Path: {folderPath}");
-                LoadAssets(currentPath); // Force reload of the current path
-            }, DispatcherPriority.Background);
-        }
+        if (string.IsNullOrEmpty(currentPath)) return;
+        if (!IsSameOrAncestorPath(currentPath, folderPath)) return;
+
+        Dispatcher.UIThread.Post(() => LoadAssetsAtPathNew(currentPath), DispatcherPriority.Background);
+    }
+
+    private static bool IsSameOrAncestorPath(string viewedPath, string changedPath)
+    {
+        string a = Path.TrimEndingDirectorySeparator(Path.GetFullPath(viewedPath));
+        string b = Path.TrimEndingDirectorySeparator(Path.GetFullPath(changedPath));
+
+        if (a.Equals(b, StringComparison.OrdinalIgnoreCase)) return true;
+
+        return b.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            || a.StartsWith(b + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 }
