@@ -12,7 +12,9 @@ using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using DivisionEngine.Components;
 using DivisionEngine.Components.FieldAttributes;
+using DivisionEngine.Components.Lights;
 using DivisionEngine.Editor.Systems;
 using DivisionEngine.MathLib;
 using DivisionEngine.Projects.Assets;
@@ -20,6 +22,7 @@ using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -28,7 +31,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Button = Avalonia.Controls.Button;
+using Environment = DivisionEngine.Components.Environment;
 using Math = DivisionEngine.MathLib.Math;
+using Transform = DivisionEngine.Components.Transform;
 
 namespace DivisionEngine.Editor;
 
@@ -500,7 +505,26 @@ public partial class PropertiesWindow : EditorWindow
             fieldsPanel.Children.Add(nextEntityText);
 
             fieldsBorder.Child = fieldsPanel;
-            if (fieldsPanel.Children.Count > 0) propertiesPanel.Children.Add(fieldsBorder);
+            propertiesPanel.Children.Add(fieldsBorder);
+
+            foreach (var (entityId, env) in W.QueryData<Environment>())
+            {
+                CreateComponentEditor(typeof(Environment), env, entityId);
+                break; // Use first entity
+            }
+            foreach (var (entityId, sun) in W.QueryData<DirectionalLight>())
+            {
+                CreateComponentEditor(typeof(DirectionalLight), sun, entityId);
+                break; // Use first entity
+            }
+            foreach (var (entityId, _, cam) in W.QueryData<Transform, Camera>())
+            {
+                if (entityId != EditorCamera.EditorCameraId)
+                {
+                    CreateComponentEditor(typeof(Camera), cam, entityId);
+                    break; // Use first entity
+                }
+            }
         }
     }
 

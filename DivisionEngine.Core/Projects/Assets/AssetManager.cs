@@ -7,46 +7,61 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
-    /// <summary>
-    /// Stores loaded assets and references.
-    /// </summary>
+    public enum AssetLoadState { Unloaded, Loading, Loaded }
+
     public class AssetManager
     {
         private readonly Dictionary<string, Asset> loadedAssets = [];
         private readonly Dictionary<string, int> referenceCounts = [];
+        private readonly Dictionary<string, AssetLoadState> loadStates = [];
+        private readonly Dictionary<string, Task> inFlightLoads = [];
+        private readonly Lock stateLock = new();
 
         /// <summary>
-        /// Gets an asset from a list of loaded assets.
+        /// Fired whenever an asset's load state changes (Unloaded/Loading/Loaded).
+        /// May be invoked from a background thread — subscribers must marshal to UI thread.
         /// </summary>
-        /// <param name="id">GUID of asset to find</param>
-        /// <returns>Loaded asset base type</returns>
+        public event Action<string, AssetLoadState>? AssetLoadStateChanged;
+
         public Asset? Get(string id) => loadedAssets.TryGetValue(id, out Asset? asset) ? asset : null;
-
-        /// <summary>
-        /// Gets an asset from a list of loaded assets.
-        /// </summary>
-        /// <typeparam name="T">Type of asset to find</typeparam>
-        /// <param name="id">GUID of asset to find</param>
-        /// <returns>Loaded asset</returns>
         public T? Get<T>(string id) where T : Asset => loadedAssets.TryGetValue(id, out Asset? asset) ? asset as T : null;
 
-        /// <summary>
-        /// Loads an asset asynchronously.
-        /// </summary>
-        /// <typeparam name="T">Type of asset to load</typeparam>
-        /// <param name="id">GUID of asset to load</param>
-        /// <returns>Asset loading task of type <typeparamref name="T"/></returns>
+        public AssetLoadState GetLoadState(string id) =>
+            loadStates.TryGetValue(id, out AssetLoadState state) ? state : AssetLoadState.Unloaded;
+
         public async Task<T?> LoadAssetAsync<T>(string id) where T : Asset
         {
-            if (loadedAssets.TryGetValue(id, out Asset? existing))
+            lock (stateLock)
             {
-                referenceCounts[id]++;
-                return existing as T;
+                if (loadedAssets.TryGetValue(id, out Asset? existing))
+                {
+                    referenceCounts[id]++;
+                    return existing as T;
+                }
+            }
+
+            // A concurrent call (e.g. two components referencing the same asset,
+            // or a watcher-triggered reload racing a manual load) may already be
+            // loading this ID — piggyback on it instead of loading it twice.
+            Task? existingLoad;
+            lock (stateLock) inFlightLoads.TryGetValue(id, out existingLoad);
+            if (existingLoad != null)
+            {
+                await existingLoad;
+                lock (stateLock)
+                {
+                    if (loadedAssets.TryGetValue(id, out Asset? loaded))
+                    {
+                        referenceCounts[id]++;
+                        return loaded as T;
+                    }
+                }
+                return null;
             }
 
             AssetMetadata? metadata = AssetDatabase.GetAssetMetadataByID(id);
-            if (metadata == null) return null; // Null validation
-            if (metadata.Type != AssetDatabase.GetAssetType<T>()) // Type validation
+            if (metadata == null) return null;
+            if (metadata.Type != AssetDatabase.GetAssetType<T>())
             {
                 Debug.Error($"Asset type mismatch: Expected {AssetDatabase.GetAssetType<T>()}, got {metadata.Type}");
                 return null;
@@ -54,51 +69,88 @@ namespace DivisionEngine.Projects.Assets
 
             Asset? asset = CreateAssetFromMetadata(metadata);
             if (asset == null) return null;
-            if (!await asset.LoadAsync()) return null;
 
-            Debug.Info($"Asset Manager: Loaded Asset:\n{metadata.FileName}");
-            loadedAssets[id] = asset;
-            referenceCounts[id] = 1;
-            return asset as T;
-        }
+            TaskCompletionSource loadTcs = new();
+            lock (stateLock) inFlightLoads[id] = loadTcs.Task;
+            SetLoadState(id, AssetLoadState.Loading);
 
-        /// <summary>
-        /// Unloads an asset.
-        /// </summary>
-        /// <param name="id">GUID of asset to unload</param>
-        public void UnloadAsset(string id)
-        {
-            if (!referenceCounts.TryGetValue(id, out int value)) return;
-            referenceCounts[id] = --value;
-
-            if (value <= 0)
+            try
             {
-                if (loadedAssets.TryGetValue(id, out Asset? asset))
+                bool success = await asset.LoadAsync();
+                if (!success)
                 {
-                    asset.Unload();
-                    Debug.Info($"Asset Manager: Unloaded Asset:\n{id}");
-                    loadedAssets.Remove(id);
+                    SetLoadState(id, AssetLoadState.Unloaded);
+                    return null;
                 }
-                referenceCounts.Remove(id);
+
+                Debug.Info($"Asset Manager: Loaded Asset:\n{metadata.FileName}");
+                lock (stateLock)
+                {
+                    loadedAssets[id] = asset;
+                    referenceCounts[id] = 1;
+                }
+                SetLoadState(id, AssetLoadState.Loaded);
+                return asset as T;
+            }
+            finally
+            {
+                lock (stateLock) inFlightLoads.Remove(id);
+                loadTcs.SetResult();
             }
         }
 
-        /// <summary>
-        /// Unloads all assets.
-        /// </summary>
+        public void UnloadAsset(string id)
+        {
+            bool shouldUnload = false;
+            Asset? assetToUnload = null;
+
+            lock (stateLock)
+            {
+                if (!referenceCounts.TryGetValue(id, out int value)) return;
+                referenceCounts[id] = --value;
+
+                if (value <= 0)
+                {
+                    loadedAssets.TryGetValue(id, out assetToUnload);
+                    loadedAssets.Remove(id);
+                    referenceCounts.Remove(id);
+                    shouldUnload = true;
+                }
+            }
+
+            if (shouldUnload)
+            {
+                assetToUnload?.Unload();
+                Debug.Info($"Asset Manager: Unloaded Asset:\n{id}");
+                SetLoadState(id, AssetLoadState.Unloaded);
+            }
+        }
+
         public void UnloadAll()
         {
             Debug.Info($"Asset Manager: Unloaded Assets");
-            foreach (Asset? asset in loadedAssets.Values) asset.Unload();
-            loadedAssets.Clear();
-            referenceCounts.Clear();
+            List<string> ids;
+            lock (stateLock) ids = [.. loadedAssets.Keys];
+
+            foreach (string id in ids)
+            {
+                loadedAssets[id].Unload();
+                SetLoadState(id, AssetLoadState.Unloaded);
+            }
+
+            lock (stateLock)
+            {
+                loadedAssets.Clear();
+                referenceCounts.Clear();
+            }
         }
 
-        /// <summary>
-        /// Creates an asset from metadata based on type.
-        /// </summary>
-        /// <param name="metadata">Loaded asset metadata</param>
-        /// <returns>Asset instance of metadata type</returns>
+        private void SetLoadState(string id, AssetLoadState state)
+        {
+            lock (stateLock) loadStates[id] = state;
+            AssetLoadStateChanged?.Invoke(id, state);
+        }
+
         private static Asset? CreateAssetFromMetadata(AssetMetadata metadata) => metadata.Type switch
         {
             AssetType.Texture => new TextureAsset(metadata),
@@ -106,7 +158,6 @@ namespace DivisionEngine.Projects.Assets
             AssetType.Script => new ScriptAsset(metadata),
             AssetType.SDF => new SDFAsset(metadata),
             AssetType.Audio => new AudioAsset(metadata),
-            // Add others as needed
             _ => null
         };
     }
