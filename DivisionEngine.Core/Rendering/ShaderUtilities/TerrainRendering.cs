@@ -6,9 +6,8 @@
 // project root for full license terms.
 //
 using ComputeSharp;
-using DivisionEngine.Rendering.ShaderUtilities;
 
-namespace DivisionEngine.Rendering.Terrains
+namespace DivisionEngine.Rendering.ShaderUtilities
 {
     /// <summary>
     /// Stores data for a single terrain cell.
@@ -88,7 +87,7 @@ namespace DivisionEngine.Rendering.Terrains
                 for (int j = -1; j <= 2; j++)
                 {
                     float2 gridOffset = new float2(i, j);
-                    float2 gridPoint = pInt + gridOffset; // FIX: hash the grid POINT not the offset
+                    float2 gridPoint = pInt + gridOffset;
                     float2 randomOffset = Hash(gridPoint) * 0.5f;
 
                     float2 vectorFromCellPoint = pFrac - gridOffset - randomOffset;
@@ -125,7 +124,7 @@ namespace DivisionEngine.Rendering.Terrains
             return n;
         }
 
-        // Main erosion filter
+        // Main erosion filter - FIXED Phacelle noise handling
         public static float4 ErosionFilter(
             float2 p,
             float3 heightAndSlope,
@@ -157,7 +156,6 @@ namespace DivisionEngine.Rendering.Terrains
             float roundingForInput = Hlsl.Lerp(rounding.Y, rounding.X, Hlsl.Saturate(fadeTarget + 0.5f)) * rounding.Z;
             float combiMask = EaseOut(SmoothStart(slopeLength * onset.X, roundingForInput * onset.X));
 
-            // Initialize ridgeMap
             float ridgeMapCombiMask = EaseOut(slopeLength * onset.Z);
             float ridgeMapFadeTarget = fadeTarget;
 
@@ -169,15 +167,16 @@ namespace DivisionEngine.Rendering.Terrains
             for (int i = 0; i < octaves; i++)
             {
                 float4 phacelle = PhacelleNoise(p * freq, SafeNormalize(gullySlope), cellScale, 0.25f, normalization);
-                phacelle.ZW *= -freq; // negate and scale derivative direction
 
+                // phacelle.ZW is the derivative direction scaled by -freq
+                float2 phacelleDeriv = new float2(phacelle.Z, phacelle.W);
+
+                // Fix: Update gullySlope correctly
                 float sloping = Hlsl.Abs(phacelle.Y);
+                gullySlope += Hlsl.Sign(phacelle.Y) * phacelleDeriv * strength * gullyWeight;
 
-                // FIX: gullySlope update — phacelle.ZW is already a float2 direction
-                gullySlope += Hlsl.Sign(phacelle.Y) * new float2(phacelle.Z, phacelle.W) * strength * gullyWeight;
-
-                // FIX: gullies — phacelle.Y * phacelle.ZW is a float2, not two separate floats
-                float2 gulliesDerivative = phacelle.Y * new float2(phacelle.Z, phacelle.W);
+                // Fix: Create proper derivatives for gullies
+                float2 gulliesDerivative = phacelle.Y * phacelleDeriv;
                 float3 gullies = new float3(phacelle.X, gulliesDerivative.X, gulliesDerivative.Y);
 
                 float3 fadedGullies = Hlsl.Lerp(new float3(fadeTarget, 0.0f, 0.0f), gullies * gullyWeight, combiMask);

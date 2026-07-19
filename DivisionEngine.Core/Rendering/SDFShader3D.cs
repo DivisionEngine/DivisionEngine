@@ -122,7 +122,7 @@ namespace DivisionEngine
             );
         }
 
-        private void GetMipInfo(TextureMetadata meta, int level, out int offset, out int2 res)
+        private static void GetMipInfo(TextureMetadata meta, int level, out int offset, out int2 res)
         {
             level = Hlsl.Clamp(level, 0, meta.mipCount - 1);
             offset = meta.bufferOffset;
@@ -300,11 +300,44 @@ namespace DivisionEngine
             curPoint *= obj.scaling;
             float dist = Hlsl.Min(obj.scaling.X, Hlsl.Min(obj.scaling.Y, obj.scaling.Z));
 
-            if (obj.type == 9)
-                dist *= SDFPrimitives.TerrainEroded(curPoint, obj.parameters.X, obj.parameters.Y, obj.parameters.Z, obj.parameters.W,
-                    obj.parameters2.X, obj.parameters2.Y, obj.parameters2.Z, obj.parameters2.W,
-                    (int)obj.parameters3.X, obj.parameters3.Y, obj.parameters3.Z, obj.parameters3.W,
-                    obj.parameters4.X, (int)obj.parameters4.Y, obj.parameters5);
+            if (obj.type == 9) // Terrain: many-parameter dispatch, kept separate
+            {
+                // Extract grass parameters from parameters4 and parameters5
+                float grassDensity = obj.parameters4.Z;
+                float grassHeight = obj.parameters4.W;
+                float grassRadius = obj.parameters5.X;
+                float grassBend = obj.parameters5.Y;
+
+                // Check if grass is enabled
+                if (grassDensity > 0f && grassHeight > 0f)
+                {
+                    dist *= SDFPrimitives.TerrainWithGrass(curPoint,
+                        obj.parameters.X,      // scale
+                        obj.parameters.Y,      // height
+                        obj.parameters.Z,      // baseGain
+                        obj.parameters.W,      // lacunarity
+                        (int)obj.parameters4.Y, // octaves
+                        grassDensity,
+                        grassHeight,
+                        grassRadius,
+                        grassBend);
+                }
+                else
+                {
+                    dist *= SDFPrimitives.TerrainEroded(curPoint,
+                        obj.parameters.X, obj.parameters.Y,
+                        obj.parameters.Z, obj.parameters.W,
+                        obj.parameters2.X, obj.parameters2.Y,
+                        obj.parameters2.Z, obj.parameters2.W,
+                        (int)obj.parameters3.X,
+                        (int)obj.parameters3.Y,
+                        (int)obj.parameters3.Z,
+                        (int)obj.parameters3.W,
+                        obj.parameters4.X,
+                        (int)obj.parameters4.Y,
+                        obj.parameters5);
+                }
+            }
             else
                 dist *= EvaluatePrimitiveDistanceFast(obj.type, obj.parameters, curPoint);
             return dist * obj.stepBias;
@@ -353,10 +386,43 @@ namespace DivisionEngine
                 // Scale distance function
                 float dist = Hlsl.Min(scaling.X, Hlsl.Min(scaling.Y, scaling.Z));
                 if (curSDF.type == 9) // Terrain: many-parameter dispatch, kept separate
-                    dist *= SDFPrimitives.TerrainEroded(curPoint, curSDF.parameters.X, curSDF.parameters.Y, curSDF.parameters.Z, curSDF.parameters.W,
-                        curSDF.parameters2.X, curSDF.parameters2.Y, curSDF.parameters2.Z, curSDF.parameters2.W,
-                        (int)curSDF.parameters3.X, curSDF.parameters3.Y, curSDF.parameters3.Z, curSDF.parameters3.W,
-                        curSDF.parameters4.X, (int)curSDF.parameters4.Y, curSDF.parameters5);
+                {
+                    // Extract grass parameters from parameters4 and parameters5
+                    float grassDensity = curSDF.parameters4.Z;
+                    float grassHeight = curSDF.parameters4.W;
+                    float grassRadius = curSDF.parameters5.X;
+                    float grassBend = curSDF.parameters5.Y;
+
+                    // Check if grass is enabled
+                    if (grassDensity > 0f && grassHeight > 0f)
+                    {
+                        dist *= SDFPrimitives.TerrainWithGrass(curPoint,
+                            curSDF.parameters.X,      // scale
+                            curSDF.parameters.Y,      // height
+                            curSDF.parameters.Z,      // baseGain
+                            curSDF.parameters.W,      // lacunarity
+                            (int)curSDF.parameters4.Y, // octaves
+                            grassDensity,
+                            grassHeight,
+                            grassRadius,
+                            grassBend);
+                    }
+                    else
+                    {
+                        dist *= SDFPrimitives.TerrainEroded(curPoint,
+                            curSDF.parameters.X, curSDF.parameters.Y,
+                            curSDF.parameters.Z, curSDF.parameters.W,
+                            curSDF.parameters2.X, curSDF.parameters2.Y,
+                            curSDF.parameters2.Z, curSDF.parameters2.W,
+                            (int)curSDF.parameters3.X,
+                            (int)curSDF.parameters3.Y,
+                            (int)curSDF.parameters3.Z,
+                            (int)curSDF.parameters3.W,
+                            curSDF.parameters4.X,
+                            (int)curSDF.parameters4.Y,
+                            curSDF.parameters5);
+                    }
+                }
                 else
                     dist *= EvaluatePrimitiveDistanceFast(curSDF.type, curSDF.parameters, curPoint);
 
@@ -1283,144 +1349,5 @@ namespace DivisionEngine
         #endregion main
     }
 }
-
-// ----------------------------
-// Functions and code obseleted
-// ----------------------------
-
-/* Calculates shadows
-// Adapted: https://www.shadertoy.com/view/lsKcDD
-private float SoftShadow(float3 rayOrigin, float3 rayDir, float minDist, float maxDist)
-{
-    float res = 1.0f;
-    float rayDist = minDist;
-
-    for (int i = 0; i < 100 && rayDist < maxDist; i++)
-    {
-        float sceneSDF = WorldSDF(rayOrigin + rayDist * rayDir, true).X;
-        res = Hlsl.Min(res, sceneSDF / (0.5f * rayDist));
-        rayDist += Hlsl.Clamp(sceneSDF, 0.005f, 0.05f);
-
-        if (res < -1.0f || rayDist > maxDist)
-            break;
-    }
-
-    res = Hlsl.Max(res, -1.0f);
-    return 0.25f * (1.0f + res) * (1.0f + res) * (2.0f - res);
-}*/
-
-/*private float2 SoftShadowCambridge(float3 lightPos, float3 hitPoint, float renderDepth)
-{
-    float3 lightDir = Hlsl.Normalize(lightPos - hitPoint);
-    float kd = 1f;
-    float lastObj = -1;
-    int step = 0;
-    for (float t = 0.1f; t < Hlsl.Length(lightPos - hitPoint) && step < renderDepth && kd > 0.001f; )
-    {
-        float2 worldSDF = WorldSDF(hitPoint + t * lightDir, true);
-        lastObj = worldSDF.Y;
-        float d = Hlsl.Abs(worldSDF.X);
-        if (d < 0.001f)
-        {
-            kd = 0;
-        }
-        else
-        {
-            kd = Hlsl.Min(kd, 16 * d / t);
-        }
-        t += d;
-        step++;
-    }
-    return new float2(kd, lastObj);
-}*/
-
-/*private float3 RIS_SampleReflection(
-    int2 pixel,
-    float3 hitPoint,
-    float3 normal,
-    float3 viewDir,
-    float roughness,
-    float metallic,
-    float3 f0,
-    int frameCount,
-    int bounce,
-    out float misWeight)
-{
-    // Reservoir for RIS
-    Reservoir reservoir = new Reservoir
-    {
-        sumWeights = 0f,
-        M = 0,
-        sampleDirection = float3.Zero,
-        sourcePDF = 0f,
-        targetPDF = 0f
-    };
-
-    const int M_CANDIDATES = 32;  // Generate 32 candidates
-    float alpha = roughness * roughness;
-
-    for (int i = 0; i < M_CANDIDATES; i++)
-    {
-        // Get unique seed for this candidate
-        uint seed = GetSeed(pixel, i, bounce, frameCount);
-
-        // Generate candidate using GGX importance sampling
-        float2 u = Halton2DScrambled(i, seed);
-        float3 candidateDir = ImportanceSampleGGX(u, normal, roughness);
-
-        // Ensure candidate is above surface
-        float NdotL = Hlsl.Max(Hlsl.Dot(normal, candidateDir), 0f);
-        if (NdotL < 0.001f) continue;
-
-        // Evaluate source PDF (BRDF PDF)
-        float3 H = Hlsl.Normalize(viewDir + candidateDir);
-        float NoH = Hlsl.Max(Hlsl.Dot(normal, H), 0f);
-        float VoH = Hlsl.Max(Hlsl.Dot(viewDir, H), 0f);
-
-        // GGX PDF
-        float D = D_GGX(NoH, roughness);
-        float sourcePDF = D * NoH / (4.0f * VoH);
-
-        if (sourcePDF < 1e-6f) continue;
-
-        // Estimate incoming radiance for target PDF
-        // Simple approximation: could be improved with radiance cache
-        float estimatedRadiance = 1.0f;  // Placeholder - you'll improve this
-
-        // For now, use BRDF value as target PDF
-        float3 F = FresnelSchlick(VoH, f0);
-        float G = GSmith(Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f),
-                        NdotL, roughness);
-
-        float3 brdfValue = F * D * G / (4.0f * NdotL * Hlsl.Max(Hlsl.Dot(normal, viewDir), 0f));
-        float targetPDF = Hlsl.Length(brdfValue) * estimatedRadiance * NdotL;
-
-        // Get random for reservoir update
-        float random = ScrambledHalton(i, 5, seed) % 1.0f;
-
-        // Update reservoir
-        reservoir = UpdateReservoir(reservoir, candidateDir, sourcePDF, targetPDF, random);
-    }
-
-    // Calculate MIS weight
-    float misWeight = 1.0f;
-    if (reservoir.M > 0 && reservoir.sumWeights > 0f && reservoir.sourcePDF > 0f)
-    {
-        misWeight = reservoir.targetPDF / (reservoir.sourcePDF * reservoir.sumWeights / reservoir.M);
-    }
-
-    return (reservoir.sampleDirection, float3.One, misWeight);
-}*/
-
-// Old lighting
-//float3 ambientLightAmt = ambientBase * ao;
-//float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
-//float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness * roughness, albedoColor, specular);
-//float3 directLight = Hlsl.Lerp(ambientLightAmt, brdf, /*shadowValue * */NoL);
-
-// Old direct lighting
-//float NoL = Hlsl.Max(Hlsl.Dot(normal, lightDir), 0f);
-//float3 brdf = BRDFMicrofacetFunction(lightDir, viewDir, normal, metallic, roughness * roughness, albedoColor, specular);
-//float3 directLight = Hlsl.Lerp(ambientBase * ao, brdf, shadowValue * NoL);
 
 #pragma warning restore CA1416 // Validate platform compatibility

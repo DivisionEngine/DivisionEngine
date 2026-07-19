@@ -10,7 +10,6 @@ using DivisionEngine.Components;
 using DivisionEngine.Rendering.AntiAliasing;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
-using DivisionEngine.Rendering.Terrains;
 using DivisionEngine.Settings;
 using DivisionEngine.Systems;
 using Silk.NET.Input;
@@ -21,6 +20,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Window = Silk.NET.Windowing.Window;
 using Math = DivisionEngine.MathLib.Math;
+using DivisionEngine.Rendering.ShaderUtilities;
 
 namespace DivisionEngine.Rendering
 {

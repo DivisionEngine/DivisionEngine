@@ -6,7 +6,6 @@
 // project root for full license terms.
 //
 using ComputeSharp;
-using DivisionEngine.Rendering.Terrains;
 
 namespace DivisionEngine.Rendering.ShaderUtilities
 {
@@ -99,6 +98,31 @@ namespace DivisionEngine.Rendering.ShaderUtilities
 
         #region terrain
 
+        /// <summary>
+        /// Tapered capsule SDF with bend - ideal for grass blades
+        /// </summary>
+        public static float TaperedCapsuleBend(float3 pt, float rBottom, float rTop, float height, float bendAmount)
+        {
+            // Bend the point
+            float bendFactor = Hlsl.Saturate(pt.Y / height);
+            float3 bentPt = pt;
+            bentPt.X += bendFactor * bendAmount * bendFactor;
+            bentPt.Z += bendFactor * bendAmount * 0.5f * bendFactor;
+
+            // Tapered capsule
+            float t = Hlsl.Clamp(bentPt.Y / height, 0.0f, 1.0f);
+            float radius = Hlsl.Lerp(rBottom, rTop, t);
+
+            // Get distance to capsule centerline
+            float2 horizontal = new float2(bentPt.X, bentPt.Z);
+            float dist = Hlsl.Length(horizontal) - radius;
+
+            // Add vertical clipping
+            float vertical = Hlsl.Abs(bentPt.Y - height * 0.5f) - height * 0.5f;
+
+            return Hlsl.Max(dist, vertical);
+        }
+
         public static float Terrain(float3 pt, float size, float heightScale, float persistence, float lacunarity, int octaves)
         {
             float height = GradientNoise.FBMNoised(pt.XZ / size, octaves, persistence, lacunarity, out float2 deriv);
@@ -134,18 +158,16 @@ namespace DivisionEngine.Rendering.ShaderUtilities
             float erosionStrength, float gullyWeight, float erosionDetail, float erosionScale, int erosionOctaves,
             float erosionLacunarity, float erosionGain, float cellScale, float normalization, int baseOctaves, float4 rounding)
         {
-            // Base terrain using your existing FBM (or use the new noised function)
+            // Base terrain using FBM
             float2 uv = pt.XZ / size;
 
-            // Calculate base height and slope using the noised function (requires derivatives)
+            // Calculate base height using the noised function
             float3 baseTerrain = TerrainRendering.FractalNoiseWithDerivatives(uv, 3.0f, baseOctaves, lacunarity, baseGain);
-            float baseHeightNorm = baseTerrain.X * 0.5f + 0.5f; // [-1,1] -> [0,1]
-            float2 slope = new float2(baseTerrain.Y, baseTerrain.Z); // derivatives stay unscaled
+            float baseHeightNorm = baseTerrain.X * 0.5f + 0.5f;
+            float2 slope = new float2(baseTerrain.Y, baseTerrain.Z);
 
-            // Prepare erosion parameters
-            float fadeTarget = Hlsl.Clamp(baseTerrain.X / 0.6f, -1.0f, 1.0f); // use raw [-1,1] value
-
-            // Erosion parameters (tweak these for different looks)
+            // Erosion filter
+            float fadeTarget = Hlsl.Clamp(baseTerrain.X / 0.6f, -1.0f, 1.0f);
             float4 onset = new float4(1.25f, 1.25f, 2.8f, 1.5f);
             float2 assumedSlope = new float2(0.7f, 1.0f);
 
@@ -159,16 +181,74 @@ namespace DivisionEngine.Rendering.ShaderUtilities
                 erosionGain, cellScale, normalization,
                 out ridgeMap, out debug);
 
-            // Apply height offset based on erosion (optional: mix with base)
-            float heightOffset = -0.65f; // push down to avoid raising terrain
-            float offset = heightOffset * erosionResult.W; // W is magnitude
+            // Apply height offset
+            float heightOffset = -0.65f;
+            float offset = heightOffset * erosionResult.W;
             float erodedHeightNorm = baseHeightNorm + erosionResult.X + offset;
+            float erodedHeight = (erodedHeightNorm - 0.5f) * heightScale;
 
-            // Scale to world units
-            float erodedHeight = (erodedHeightNorm - 0.5f) * heightScale; // [0,1] -> world space
+            return pt.Y - erodedHeight;
+        }
 
-            float terrain = pt.Y - erodedHeight;
-            return terrain;
+        /// <summary>
+        /// Combines terrain with grass blades using repeating SDFs
+        /// </summary>
+        public static float TerrainWithGrass(float3 pt, float size, float heightScale, float persistence, float lacunarity,
+            int octaves, float grassDensity, float grassHeight, float grassRadius, float bendAmount)
+        {
+            // Get terrain height
+            float terrainDist = Terrain(pt, size, heightScale, persistence, lacunarity, octaves);
+
+            // Check if we're near the surface (within grass height)
+            if (terrainDist > grassHeight * 0.5f) return terrainDist;
+
+            // Calculate terrain surface position
+            float3 terrainPos = pt;
+            terrainPos.Y -= terrainDist;
+
+            // Grass cell system - infinite repeating using modulo
+            float cellSize = 1.0f / grassDensity;
+            float2 cellPos = new float2(
+                Hlsl.Fmod(terrainPos.X + cellSize * 0.5f, cellSize) - cellSize * 0.5f,
+                Hlsl.Fmod(terrainPos.Z + cellSize * 0.5f, cellSize) - cellSize * 0.5f
+            );
+
+            // Add jitter to cell position for natural look
+            float2 cellIndex = new float2(
+                Hlsl.Floor((terrainPos.X + cellSize * 0.5f) / cellSize),
+                Hlsl.Floor((terrainPos.Z + cellSize * 0.5f) / cellSize)
+            );
+
+            // Use cell index as seed for random offset
+            float2 randomOffset = new float2(
+                SimplexNoise.Noise2D(cellIndex * 13.7f + new float2(0.5f, 0.5f)) * 2.0f - 1.0f,
+                SimplexNoise.Noise2D(cellIndex * 29.3f + new float2(0.5f, 0.5f)) * 2.0f - 1.0f
+            ) * cellSize * 0.4f;
+
+            cellPos += randomOffset;
+
+            // Skip grass if too far from cell center
+            float cellDist = Hlsl.Length(cellPos);
+            if (cellDist > cellSize * 0.7f) return terrainDist;
+
+            // Random grass height and bend variation
+            float randomHeight = SimplexNoise.Noise2D(cellIndex * 7.1f + new float2(0.3f, 0.7f)) * 0.5f + 0.5f;
+            float randomBend = SimplexNoise.Noise2D(cellIndex * 11.3f + new float2(0.7f, 0.3f)) * 0.5f + 0.5f;
+            float randomRadius = SimplexNoise.Noise2D(cellIndex * 19.7f + new float2(0.1f, 0.9f)) * 0.5f + 0.5f;
+
+            // Calculate grass blade local position
+            float3 grassLocal = new float3(cellPos.X, pt.Y - terrainPos.Y, cellPos.Y);
+
+            // Tapered capsule with bend
+            float rBottom = grassRadius * (0.8f + randomRadius * 0.4f);
+            float rTop = grassRadius * 0.1f * randomRadius;
+            float h = grassHeight * (0.5f + randomHeight * 0.5f);
+            float bend = bendAmount * randomBend;
+
+            float grassDist = TaperedCapsuleBend(grassLocal, rBottom, rTop, h, bend);
+
+            // Return the minimum of terrain and grass
+            return Hlsl.Min(terrainDist, grassDist);
         }
 
         #endregion terrain

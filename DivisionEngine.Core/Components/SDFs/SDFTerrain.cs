@@ -5,6 +5,8 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using DivisionEngine.Components.FieldAttributes;
+
 namespace DivisionEngine.Components.SDFs
 {
     /// <summary>
@@ -12,23 +14,30 @@ namespace DivisionEngine.Components.SDFs
     /// </summary>
     public class SDFTerrain : IComponent
     {
-        public float scale = 2500f;
-        public float height = 1000f;
-        public float baseGain = 0.1f;
-        public float lacunarity = 2f;
-        public int octaves = 2;
+        [Header("Terrain Settings")]
+        [Range(1f, 1000f)] public float scale = 100f;
+        [Range(0f, 500f)] public float height = 20f;
+        [Range(0f, 1f)] public float baseGain = 0.5f;
+        [Range(0.5f, 4f)] public float lacunarity = 2f;
+        [Range(1, 8)] public int octaves = 4;
 
-        public float erosionStrength = 0.22f;
-        public float gullyWeight = 0.5f;
-        public float erosionDetail = 1.5f;
-        public float erosionScale = 0.15f;
-        public int erosionOctaves = 4;
-        public float erosionLacunarity = 2.0f;
-        public float erosionGain = 0.5f;
-        public float cellScale = 0.7f;
-        public float normalization = 0.5f;
-
+        [Header("Erosion Settings")]
+        [Range(0f, 2f)] public float erosionStrength = 0f;
+        [Range(0f, 1f)] public float gullyWeight = 0.5f;
+        [Range(0f, 1f)] public float erosionDetail = 0.5f;
+        [Range(0.1f, 10f)] public float erosionScale = 1f;
+        [Range(1, 6)] public int erosionOctaves = 3;
+        [Range(0.5f, 4f)] public float erosionLacunarity = 2f;
+        [Range(0f, 1f)] public float erosionGain = 0.5f;
+        [Range(0.1f, 2f)] public float cellScale = 0.5f;
+        [Range(0f, 2f)] public float normalization = 1f;
         public float4 rounding = new float4(1f, 1f, 1f, 1f);
+
+        [Header("Grass Settings")]
+        [Range(0f, 20f)] public float grassDensity = 3f;
+        [Range(0f, 5f)] public float grassHeight = 0.5f;
+        [Range(0f, 0.5f)] public float grassRadius = 0.02f;
+        [Range(0f, 2f)] public float grassBend = 0.3f;
 
         public IComponent Clone() => new SDFTerrain
         {
@@ -49,6 +58,11 @@ namespace DivisionEngine.Components.SDFs
             normalization = normalization,
 
             rounding = rounding,
+
+            grassDensity = grassDensity,
+            grassHeight = grassHeight,
+            grassRadius = grassRadius,
+            grassBend = grassBend,
         };
     }
 }

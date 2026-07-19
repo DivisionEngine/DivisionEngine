@@ -340,8 +340,8 @@ namespace DivisionEngine.Systems
                     curSDF.parameters = new float4(terrain.scale, terrain.height, terrain.baseGain, terrain.lacunarity);
                     curSDF.parameters2 = new float4(terrain.erosionStrength, terrain.gullyWeight, terrain.erosionDetail, terrain.erosionScale);
                     curSDF.parameters3 = new float4(terrain.erosionOctaves, terrain.erosionLacunarity, terrain.erosionGain, terrain.cellScale);
-                    curSDF.parameters4 = new float4(terrain.normalization, terrain.octaves, 0, 0);
-                    curSDF.parameters5 = terrain.rounding;
+                    curSDF.parameters4 = new float4(terrain.normalization, terrain.octaves, terrain.grassDensity, terrain.grassHeight);
+                    curSDF.parameters5 = new float4(terrain.grassRadius, terrain.grassBend, terrain.rounding.X, terrain.rounding.Y);
                     sdfObjects.Add(curSDF);
                 }
 
