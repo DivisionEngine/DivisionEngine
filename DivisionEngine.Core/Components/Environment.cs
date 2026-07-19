@@ -38,6 +38,11 @@ namespace DivisionEngine.Components
         [Header("HDRI Sky")]
         public AssetRef<TextureAsset> hdriMap = default;
 
+        [Header("Wind")]
+        public float2 windDirection = new float2(0.5f, 0.5f);
+        [Range(0f, 1f)] public float windStrength = 0.3f;
+        [Range(0f, 10f)] public float windFrequency = 1.6f;
+
         public IComponent Clone() => new Environment
         {
             ambientStrength = ambientStrength,
@@ -50,6 +55,10 @@ namespace DivisionEngine.Components
             middleSkyColor = middleSkyColor,
             topSkyColor = topSkyColor,
             hdriMap = hdriMap,
+
+            windDirection = windDirection,
+            windStrength = windStrength,
+            windFrequency = windFrequency,
         };
     }
 }

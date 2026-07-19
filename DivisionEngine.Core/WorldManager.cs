@@ -91,7 +91,7 @@ namespace DivisionEngine
             uint terrainEntity = newDefaultWorld.CreateEntity("Terrain");
             newDefaultWorld.AddComponent(terrainEntity, new Transform
             {
-                position = new float3(0, -20, 0),
+                position = new float3(0, -30, 0),
             });
             newDefaultWorld.AddComponent(terrainEntity, new SDFTerrain());
             newDefaultWorld.AddComponent(terrainEntity, new SDFMaterial

@@ -10,6 +10,7 @@
 using ComputeSharp;
 using DivisionEngine.Rendering;
 using DivisionEngine.Rendering.ShaderUtilities;
+using Silk.NET.OpenGL;
 
 namespace DivisionEngine
 {
@@ -29,7 +30,9 @@ namespace DivisionEngine
         ReadOnlyBuffer<SDFObjectDTO> sdfObjects,
         ReadOnlyBuffer<SDFLightDTO> lights,
         ReadOnlyBuffer<uint> textureData,
-        ReadOnlyBuffer<TextureMetadata> textureMetadata) : IComputeShader
+        ReadOnlyBuffer<TextureMetadata> textureMetadata,
+        ReadOnlyBuffer<float> terrainHeightData,       // NEW
+        ReadOnlyBuffer<TerrainDTO> terrainMetadata) : IComputeShader
     {
         // Main constants
         const float EPSILON = 0.0001f;
@@ -293,54 +296,64 @@ namespace DivisionEngine
         #endregion triplanar
         #region sdf_sampling
 
-        private static float ObjectSDF(float3 point, SDFObjectDTO obj)
+        private float SampleTerrainHeight(TerrainDTO meta, float2 worldXZ)
+        {
+            // Calculate UV coordinates in the heightmap
+            float2 uv = (worldXZ / meta.size) * 0.5f + 0.5f;
+            uv = Hlsl.Saturate(uv);
+
+            // Get pixel coordinates with bilinear interpolation
+            float u = uv.X * (meta.resolution.X - 1);
+            float v = uv.Y * (meta.resolution.Y - 1);
+            int x0 = (int)u, y0 = (int)v;
+            int x1 = Hlsl.Min(x0 + 1, meta.resolution.X - 1);
+            int y1 = Hlsl.Min(y0 + 1, meta.resolution.Y - 1);
+            float fx = u - x0, fy = v - y0;
+
+            // Sample from the height buffer
+            int idx00 = meta.bufferOffset + y0 * meta.resolution.X + x0;
+            int idx10 = meta.bufferOffset + y0 * meta.resolution.X + x1;
+            int idx01 = meta.bufferOffset + y1 * meta.resolution.X + x0;
+            int idx11 = meta.bufferOffset + y1 * meta.resolution.X + x1;
+
+            float h00 = terrainHeightData[idx00];
+            float h10 = terrainHeightData[idx10];
+            float h01 = terrainHeightData[idx01];
+            float h11 = terrainHeightData[idx11];
+
+            float h0 = Hlsl.Lerp(h00, h10, fx);
+            float h1 = Hlsl.Lerp(h01, h11, fx);
+            float height = Hlsl.Lerp(h0, h1, fy);
+
+            return height;
+        }
+
+        private float ObjectSDF(float3 point, SDFObjectDTO obj)
         {
             float3 curPoint = point - obj.position;
             curPoint = ShaderMath.RotateVector(curPoint, obj.rotation);
             curPoint *= obj.scaling;
-            float dist = Hlsl.Min(obj.scaling.X, Hlsl.Min(obj.scaling.Y, obj.scaling.Z));
 
-            if (obj.type == 9) // Terrain: many-parameter dispatch, kept separate
+            if (obj.type == 9) // Get terrain height at this point
             {
-                // Extract grass parameters from parameters4 and parameters5
-                float grassDensity = obj.parameters4.Z;
-                float grassHeight = obj.parameters4.W;
-                float grassRadius = obj.parameters5.X;
-                float grassBend = obj.parameters5.Y;
-
-                // Check if grass is enabled
-                if (grassDensity > 0f && grassHeight > 0f)
+                float height = 0f;
+                TerrainDTO meta = new TerrainDTO();
+                meta.heightScale = 20f;
+                if (obj.terrainDataIndex >= 0 && obj.terrainDataIndex < terrainMetadata.Length)
                 {
-                    dist *= SDFPrimitives.TerrainWithGrass(curPoint,
-                        obj.parameters.X,      // scale
-                        obj.parameters.Y,      // height
-                        obj.parameters.Z,      // baseGain
-                        obj.parameters.W,      // lacunarity
-                        (int)obj.parameters4.Y, // octaves
-                        grassDensity,
-                        grassHeight,
-                        grassRadius,
-                        grassBend);
+                    meta = terrainMetadata[obj.terrainDataIndex];
+                    height = Hlsl.Abs(SampleTerrainHeight(meta, curPoint.XZ));
                 }
-                else
-                {
-                    dist *= SDFPrimitives.TerrainEroded(curPoint,
-                        obj.parameters.X, obj.parameters.Y,
-                        obj.parameters.Z, obj.parameters.W,
-                        obj.parameters2.X, obj.parameters2.Y,
-                        obj.parameters2.Z, obj.parameters2.W,
-                        (int)obj.parameters3.X,
-                        (int)obj.parameters3.Y,
-                        (int)obj.parameters3.Z,
-                        (int)obj.parameters3.W,
-                        obj.parameters4.X,
-                        (int)obj.parameters4.Y,
-                        obj.parameters5);
-                }
+                float halfSize = obj.parameters.X * 0.5f;
+                return SDFPrimitives.Box(new float3(curPoint.X, curPoint.Y - height, curPoint.Z), 
+                    new float3(halfSize, meta.heightScale + height, halfSize));
             }
             else
+            {
+                float dist = Hlsl.Min(obj.scaling.X, Hlsl.Min(obj.scaling.Y, obj.scaling.Z));
                 dist *= EvaluatePrimitiveDistanceFast(obj.type, obj.parameters, curPoint);
-            return dist * obj.stepBias;
+                return dist * obj.stepBias;
+            }
         }
 
         /// <summary>
@@ -371,79 +384,17 @@ namespace DivisionEngine
         private float WorldSDF(float3 point, bool shadowCastCheck, uint excludeID, out int closest)
         {
             float minDist = MIN_TRAVERSE_DIST;
-
             closest = -1;
+
             for (int i = 0; i < sdfObjects.Length; i++)
             {
                 SDFObjectDTO curSDF = sdfObjects[i];
                 if (shadowCastCheck && !curSDF.shadowEffects.X) continue;
                 if (sdfObjects[i].entityId == excludeID) continue; // Exclude to get second-closest object
-                float3 scaling = curSDF.scaling;
-                float3 curPoint = point - curSDF.position; // Transform SDF
-                curPoint = ShaderMath.RotateVector(curPoint, curSDF.rotation); // Rotate SDF
-                curPoint *= scaling;
 
-                // Scale distance function
-                float dist = Hlsl.Min(scaling.X, Hlsl.Min(scaling.Y, scaling.Z));
-                if (curSDF.type == 9) // Terrain: many-parameter dispatch, kept separate
-                {
-                    // Extract grass parameters from parameters4 and parameters5
-                    float grassDensity = curSDF.parameters4.Z;
-                    float grassHeight = curSDF.parameters4.W;
-                    float grassRadius = curSDF.parameters5.X;
-                    float grassBend = curSDF.parameters5.Y;
+                // Use ObjectSDF for ALL objects including terrain
+                float dist = ObjectSDF(point, curSDF);
 
-                    // Check if grass is enabled
-                    if (grassDensity > 0f && grassHeight > 0f)
-                    {
-                        dist *= SDFPrimitives.TerrainWithGrass(curPoint,
-                            curSDF.parameters.X,      // scale
-                            curSDF.parameters.Y,      // height
-                            curSDF.parameters.Z,      // baseGain
-                            curSDF.parameters.W,      // lacunarity
-                            (int)curSDF.parameters4.Y, // octaves
-                            grassDensity,
-                            grassHeight,
-                            grassRadius,
-                            grassBend);
-                    }
-                    else
-                    {
-                        dist *= SDFPrimitives.TerrainEroded(curPoint,
-                            curSDF.parameters.X, curSDF.parameters.Y,
-                            curSDF.parameters.Z, curSDF.parameters.W,
-                            curSDF.parameters2.X, curSDF.parameters2.Y,
-                            curSDF.parameters2.Z, curSDF.parameters2.W,
-                            (int)curSDF.parameters3.X,
-                            (int)curSDF.parameters3.Y,
-                            (int)curSDF.parameters3.Z,
-                            (int)curSDF.parameters3.W,
-                            curSDF.parameters4.X,
-                            (int)curSDF.parameters4.Y,
-                            curSDF.parameters5);
-                    }
-                }
-                else
-                    dist *= EvaluatePrimitiveDistanceFast(curSDF.type, curSDF.parameters, curPoint);
-
-                // Cheap displacement texture mapping
-                //if (curSDF.displaceTexMetaID >= 0)
-                //{
-                //    // Cheap pseudo-normal for triplanar blend weights (exact for sphere-like shapes,
-                //    // a reasonable approximation for box/rounded-box; less accurate for torus/plane/cylinder)
-                //    float3 pseudoNormal = Hlsl.Normalize(curPoint + EPSILON);
-                //    float3 dispBlend = TriplanarWeights(pseudoNormal, curSDF.triplanarBlend);
-                //    float dispScale = 1f / Hlsl.Max(curSDF.texTilingOffset.X, EPSILON);
-
-                //    float height = SampleTriplanarScalar(curSDF.displaceTexMetaID, curPoint, dispBlend, dispScale, 0.5f) - 0.5f;
-                //    dist -= height * curSDF.displaceStrength;
-
-                //    // Displacement breaks the 1-Lipschitz guarantee the marcher relies on for safe step sizes,
-                //    // so shrink the step conservatively to avoid punching through fine detail
-                //    dist *= 0.5f;
-                //}
-
-                dist *= curSDF.stepBias;
                 if (Hlsl.Abs(dist) < minDist)
                 {
                     closest = i;
@@ -451,7 +402,6 @@ namespace DivisionEngine
                 }
             }
 
-            // Return packaged minimum SDF distance and closest object index
             return minDist;
         }
 
@@ -486,7 +436,7 @@ namespace DivisionEngine
         /// except at the measure-zero seam where two objects are exactly tied.
         /// Not used for terrain (type 9) — see ComputeSurfaceNormal below.
         /// </summary>
-        private static float3 FastNormalSingleObject(float3 pos, SDFObjectDTO sdf)
+        private float3 FastNormalSingleObject(float3 pos, SDFObjectDTO sdf)
         {
             float h = EPSILON * 50;
             float2 k = new float2(1f, -1f);

@@ -6,33 +6,13 @@
 // project root for full license terms.
 //
 using ComputeSharp;
+using DivisionEngine.Rendering.ShaderUtilities;
 
-namespace DivisionEngine.Rendering.ShaderUtilities
+namespace DivisionEngine.Rendering.Terrain
 {
     /// <summary>
-    /// Stores data for a single terrain cell.
+    /// Functions useful for terrain rendering (on the GPU only).
     /// </summary>
-    public struct TerrainData
-    {
-        public float height;
-        public float2 slope;
-    }
-
-    /// <summary>
-    /// Metadata for a precomputed terrain heightfield.
-    /// </summary>
-    public struct TerrainMetadata
-    {
-        public float3 worldMin;
-        public float3 worldMax;
-        public int2 resolution;  // Width, Height
-        public int bufferOffset;  // Starting index in the big buffer
-        public float heightScale;
-        public float heightOffset;
-        public int terrainIndex;  // Which terrain this is
-        public float size;        // Original terrain scale
-    }
-
     public static class TerrainRendering
     {
         // Constants
@@ -168,8 +148,10 @@ namespace DivisionEngine.Rendering.ShaderUtilities
             {
                 float4 phacelle = PhacelleNoise(p * freq, SafeNormalize(gullySlope), cellScale, 0.25f, normalization);
 
-                // phacelle.ZW is the derivative direction scaled by -freq
-                float2 phacelleDeriv = new float2(phacelle.Z, phacelle.W);
+                // Matches GLSL's `phacelle.zw *= -freq` — p was scaled by freq, and slope
+                // directions point down, hence the negation. Everything below this line
+                // must use the transformed derivative, not the raw PhacelleNoise output.
+                float2 phacelleDeriv = new float2(phacelle.Z, phacelle.W) * -freq;
 
                 // Fix: Update gullySlope correctly
                 float sloping = Hlsl.Abs(phacelle.Y);

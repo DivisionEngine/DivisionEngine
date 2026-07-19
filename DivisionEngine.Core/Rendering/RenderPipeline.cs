@@ -141,7 +141,6 @@ namespace DivisionEngine.Rendering
         private ReadWriteTexture2D<float4>? lowResRenderTex; // Optional, for debugging
         private ReadWriteTexture2D<float4>? renderTex;
         private ReadWriteTexture2D<float4>? depthNormalsTex;
-        private ReadOnlyTexture2D<float4>? testBackgroundTex;
         private ReadWriteBuffer<uint2>? objectIdBuffer;
         private ReadWriteBuffer<uint>? handleIdBuffer;
 
@@ -152,8 +151,9 @@ namespace DivisionEngine.Rendering
         private ReadOnlyBuffer<TextureMetadata>? textureMetaBuffer;
 
         // Terrain storage
-        private readonly ReadOnlyBuffer<TerrainData>? terrainHeightBuffer;
-        private readonly ReadOnlyBuffer<TerrainMetadata>? terrainMetadataBuffer;
+        private ReadOnlyBuffer<float>? terrainHeightBuffer;
+        private ReadOnlyBuffer<TerrainDTO>? terrainMetadataBuffer;
+        private bool rebuildTerrainBuffer = true;
 
         // Anti aliasing storage
         private ReadWriteTexture2D<float4>? fxaaInputTex;
@@ -215,6 +215,7 @@ namespace DivisionEngine.Rendering
         {
             Instance = this;
             TextureSystem.UpdatedTextureData += () => rebuildTextureBuffer = true;
+            TerrainSystem.UpdatedTerrainData += () => rebuildTerrainBuffer = true;
         }
 
         /// <summary>
@@ -293,6 +294,12 @@ namespace DivisionEngine.Rendering
             return HandleIds[index];
         }
 
+        /// <summary>
+        /// Returns an icon index if there is one at a specified screen point.
+        /// </summary>
+        /// <param name="screenX">Rendered pixel X coord</param>
+        /// <param name="screenY">Rendered pixel Y coord</param>
+        /// <returns>Icon index</returns>
         public uint GetIconAtPosition(int screenX, int screenY)
         {
             int flippedY, index;
@@ -326,6 +333,12 @@ namespace DivisionEngine.Rendering
             return IconIds[index];
         }
 
+        /// <summary>
+        /// Returns a custom shape index if there is one at a specified screen point.
+        /// </summary>
+        /// <param name="screenX">Rendered pixel X coord</param>
+        /// <param name="screenY">Rendered pixel Y coord</param>
+        /// <returns>Custom shape index</returns>
         public uint GetCustomShapeAtPosition(int screenX, int screenY)
         {
             int flippedY, index;
@@ -388,19 +401,24 @@ namespace DivisionEngine.Rendering
                 int flippedY = height - 1 - mouseY;
                 int index = mouseX + flippedY * width;
 
-                // CRITICAL: Validate the index is within the array bounds
+                // Validate the index is within the array bounds
                 if (index < 0 || index >= HandleIds.Length)
                 {
-                    // This can happen if HandleIds hasn't been allocated yet or
-                    // is from a different resolution
                     currentHoveredHandle = 0;
                     return;
                 }
-
                 currentHoveredHandle = HandleIds[index];
             }
         }
 
+        /// <summary>
+        /// Shows an icon at a position in the world.
+        /// </summary>
+        /// <remarks>(editor only)</remarks>
+        /// <param name="position">3D icon world position</param>
+        /// <param name="icon">Icon type to display</param>
+        /// <param name="direction">Diretion the icon points in</param>
+        /// <param name="entityId">Entity ID icon is attached to</param>
         public void ShowIcon(float3 position, IconType icon, float3 direction, uint entityId)
         {
             lock (SyncLock)
@@ -409,6 +427,10 @@ namespace DivisionEngine.Rendering
             }
         }
 
+        /// <summary>
+        /// Hides an icon from view in the editor.
+        /// </summary>
+        /// <param name="entityId">Entity ID to hide icon for</param>
         public void HideIcon(uint entityId)
         {
             lock (SyncLock)
@@ -417,6 +439,9 @@ namespace DivisionEngine.Rendering
             }
         }
 
+        /// <summary>
+        /// Clears all rendered icons in the editor.
+        /// </summary>
         public void ClearIcons()
         {
             lock (SyncLock)
@@ -429,9 +454,9 @@ namespace DivisionEngine.Rendering
         #region embeddedRendering
 
         /// <summary>
-        /// Starts the render pipeline in embedded mode: no window, no OpenGL —
-        /// runs a background compute loop and exposes frames via FrameAvailable.
+        /// Starts the render pipeline in embedded mode.
         /// </summary>
+        /// <param name="targetFps">Target frames per second to run at</param>
         public void RunEmbedded(double targetFps)
         {
             Mode = RunMode.Embedded;
@@ -447,6 +472,9 @@ namespace DivisionEngine.Rendering
             embeddedThread.Start();
         }
 
+        /// <summary>
+        /// Stops the embedded renderer.
+        /// </summary>
         public void StopEmbedded()
         {
             embeddedRunning = false;
@@ -683,6 +711,9 @@ namespace DivisionEngine.Rendering
         /// Executes the render pipeline frame.
         /// </summary>
         /// <param name="delta">Travel delta between frames in seconds</param>
+        /// <param name="texWidth">Rendered frame width</param>
+        /// <param name="texWidth">Rendered frame height</param>
+        /// <param name="presentToGL">Whether or not to render to a Silk.NET OpenGL target</param>
         private void RenderFrame(double delta, int texWidth, int texHeight, bool presentToGL)
         {
             DeltaTime = delta; // Track frame time
@@ -741,13 +772,6 @@ namespace DivisionEngine.Rendering
                     {
                         postProcessTex?.Dispose();
                         postProcessTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
-                    }
-
-                    // Build test background texture
-                    if (testBackgroundTex == null)
-                    {
-                        testBackgroundTex?.Dispose();
-                        testBackgroundTex = Device!.AllocateReadOnlyTexture2D<float4>(texWidth, texHeight);
                     }
 
                     // Build depth and normal texture
@@ -828,6 +852,15 @@ namespace DivisionEngine.Rendering
                         rebuildTextureBuffer = false;
                     }
 
+                    if (rebuildTerrainBuffer && TerrainSystem.AllTerrainData != null && TerrainSystem.AllTerrainMetadata != null)
+                    {
+                        terrainHeightBuffer?.Dispose();
+                        terrainHeightBuffer = Device?.AllocateReadOnlyBuffer(TerrainSystem.AllTerrainData);
+                        terrainMetadataBuffer?.Dispose();
+                        terrainMetadataBuffer = Device?.AllocateReadOnlyBuffer(TerrainSystem.AllTerrainMetadata);
+                        rebuildTerrainBuffer = false;
+                    }
+
                     // Dispatch SDF compute shader
                     int outputMode = 0;
                     if ((int)CurrentDebugMode > 3) outputMode = (int)CurrentDebugMode - 3;
@@ -862,7 +895,9 @@ namespace DivisionEngine.Rendering
                         sdfObjBuffer,
                         lightsBuffer,
                         textureBuffer!,
-                        textureMetaBuffer!);
+                        textureMetaBuffer!,
+                        terrainHeightBuffer!,
+                        terrainMetadataBuffer!);
                     Device?.For(dispatchWidth, dispatchHeight, shader);
                 }
 

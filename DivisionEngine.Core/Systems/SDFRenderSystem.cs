@@ -62,6 +62,9 @@ namespace DivisionEngine.Systems
             List<SDFObjectDTO> sdfObjects = [];
             List<SDFLightDTO> sdfLights = [];
 
+            // Time
+            worldData.time = (float)TimeSystem.Time;
+
             // Gather camera data
             foreach (var (cameraId, transform, camera) in W.QueryData<Transform, Camera>())
             {
@@ -127,6 +130,11 @@ namespace DivisionEngine.Systems
                 worldData.shadowScale = environment.shadowScale;
                 worldData.skyType = (int)environment.skyType;
                 worldData.skyIntensity = environment.skyIntensity;
+
+                // Wind
+                worldData.windDirection = environment.windDirection;
+                worldData.windStrength = environment.windStrength;
+                worldData.windFrequency = environment.windFrequency;
                 break; // Use first environment
             }
 
@@ -333,15 +341,12 @@ namespace DivisionEngine.Systems
                 }
 
                 // Terrains
-                if (W.HasComponent<SDFTerrain>(id)) // Check terrain SDF
+                if (W.HasComponent<SDFTerrain>(id))
                 {
                     SDFTerrain terrain = W.GetComponent<SDFTerrain>(id)!;
-                    curSDF.type = 9; // Terrain type
-                    curSDF.parameters = new float4(terrain.scale, terrain.height, terrain.baseGain, terrain.lacunarity);
-                    curSDF.parameters2 = new float4(terrain.erosionStrength, terrain.gullyWeight, terrain.erosionDetail, terrain.erosionScale);
-                    curSDF.parameters3 = new float4(terrain.erosionOctaves, terrain.erosionLacunarity, terrain.erosionGain, terrain.cellScale);
-                    curSDF.parameters4 = new float4(terrain.normalization, terrain.octaves, terrain.grassDensity, terrain.grassHeight);
-                    curSDF.parameters5 = new float4(terrain.grassRadius, terrain.grassBend, terrain.rounding.X, terrain.rounding.Y);
+                    curSDF.type = 9;
+                    curSDF.terrainDataIndex = TerrainSystem.GetTerrainMetadataIndex(id);
+                    curSDF.parameters = new float4(terrain.scale, terrain.height, terrain.frequency, terrain.lacunarity);
                     sdfObjects.Add(curSDF);
                 }
 

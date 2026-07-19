@@ -15,54 +15,36 @@ namespace DivisionEngine.Components.SDFs
     public class SDFTerrain : IComponent
     {
         [Header("Terrain Settings")]
-        [Range(1f, 1000f)] public float scale = 100f;
-        [Range(0f, 500f)] public float height = 20f;
-        [Range(0f, 1f)] public float baseGain = 0.5f;
-        [Range(0.5f, 4f)] public float lacunarity = 2f;
-        [Range(1, 8)] public int octaves = 4;
+        [Range(16f, 8192f)] public int heightmapSize = 2048;
+        [Range(1f, 10000f)] public float scale = 500f;
+        [Range(0f, 500f)] public float height = 12f;
+        [Range(0.01f, 1f)] public float frequency = 0.01f;
+        [Range(1, 16)] public int octaves = 6;
+        [Range(1.1f, 4f)] public float lacunarity = 2f;
+        [Range(0f, 1f)] public float persistence = 0.5f;
+        public bool worldSpace = false;
 
-        [Header("Erosion Settings")]
-        [Range(0f, 2f)] public float erosionStrength = 0f;
-        [Range(0f, 1f)] public float gullyWeight = 0.5f;
-        [Range(0f, 1f)] public float erosionDetail = 0.5f;
-        [Range(0.1f, 10f)] public float erosionScale = 1f;
-        [Range(1, 6)] public int erosionOctaves = 3;
-        [Range(0.5f, 4f)] public float erosionLacunarity = 2f;
-        [Range(0f, 1f)] public float erosionGain = 0.5f;
-        [Range(0.1f, 2f)] public float cellScale = 0.5f;
-        [Range(0f, 2f)] public float normalization = 1f;
-        public float4 rounding = new float4(1f, 1f, 1f, 1f);
+        [Header("Ridge Noise")]
+        [Range(0f, 1f)] public float ridgeBlend = 0f;
+        [Range(0f, 2f)] public float ridgeWeight = 0.5f;
 
-        [Header("Grass Settings")]
-        [Range(0f, 20f)] public float grassDensity = 3f;
-        [Range(0f, 5f)] public float grassHeight = 0.5f;
-        [Range(0f, 0.5f)] public float grassRadius = 0.02f;
-        [Range(0f, 2f)] public float grassBend = 0.3f;
+        [Header("Edge Falloff")]
+        [Range(0f, 1f)] public float edgeFalloff = 0.1f;
 
         public IComponent Clone() => new SDFTerrain
         {
+            heightmapSize = heightmapSize,
             scale = scale,
             height = height,
-            baseGain = baseGain,
-            lacunarity = lacunarity,
+            frequency = frequency,
             octaves = octaves,
+            lacunarity = lacunarity,
+            persistence = persistence,
+            worldSpace = worldSpace,
 
-            erosionStrength = erosionStrength,
-            gullyWeight = gullyWeight,
-            erosionDetail = erosionDetail,
-            erosionScale = erosionScale,
-            erosionOctaves = erosionOctaves,
-            erosionLacunarity = erosionLacunarity,
-            erosionGain = erosionGain,
-            cellScale = cellScale,
-            normalization = normalization,
-
-            rounding = rounding,
-
-            grassDensity = grassDensity,
-            grassHeight = grassHeight,
-            grassRadius = grassRadius,
-            grassBend = grassBend,
+            ridgeBlend = ridgeBlend,
+            ridgeWeight = ridgeWeight,
+            edgeFalloff = edgeFalloff,
         };
     }
 }

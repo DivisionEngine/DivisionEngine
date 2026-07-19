@@ -35,6 +35,14 @@ namespace DivisionEngine.Rendering
         public float shadowScale; // 4b
         public float3 mainLightDir; // 12b - precalculate main light direction
 
+        // Misc Properties
+        public float time; // 4b
+
+        // Wind Properties
+        public float2 windDirection; // 8b
+        public float windStrength; // 4b
+        public float windFrequency; // 4b
+
         // DoF Properties
         public float focusDistance; // 4b
         public float focalLength; // 4b
@@ -72,12 +80,8 @@ namespace DivisionEngine.Rendering
         public float4 rotation; // 16b
         public float3 scaling; // 12b
         public float4 parameters; // 16b
-        public float4 parameters2; // 16b
-        public float4 parameters3; // 16b
-        public float4 parameters4; // 16b
-        public float4 parameters5; // 16b
-        public float4 parameters6; // 16b
         public float stepBias; // 4b
+        public int terrainDataIndex; // 4b
 
         // Material Properties
         public int albedoTexMetaID; // 4b
@@ -129,5 +133,21 @@ namespace DivisionEngine.Rendering
 
         // Point Light Properties
         public float radius; // 4b
+    }
+
+    /// <summary>
+    /// Metadata for a precomputed terrain heightfield.
+    /// </summary>
+    public struct TerrainDTO
+    {
+        public float3 worldMin;
+        public float3 worldMax;
+        public int2 resolution;   // Width, Height
+        public int bufferOffset;  // Starting index in the big buffer
+        public float heightScale;
+        public float heightOffset;
+        public int worldSpace;    // Is terrain in world space (infinite)
+        public int terrainIndex;  // Which terrain this is
+        public float size;        // Original terrain scale
     }
 }
