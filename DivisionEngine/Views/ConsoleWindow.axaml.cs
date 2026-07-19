@@ -15,6 +15,7 @@ using DivisionEngine.MathLib;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Math = DivisionEngine.MathLib.Math;
 
@@ -31,17 +32,27 @@ public partial class ConsoleWindow : EditorWindow
     private readonly StackPanel controlsPanel;
     private readonly ScrollViewer scrollViewer;
     private readonly CheckBox autoscrollCheckbox;
+    private readonly CheckBox collapseCheckbox;
     private readonly ComboBox filterLogTypeBox;
     private readonly Button clearButton;
     private readonly TextBox searchBox;
     private readonly MaterialIcon searchIcon;
     private bool autoScroll;
+    private bool collapseEnabled;
     private string searchFilter = string.Empty;
-    private LogEntry? selectedLogEntry;
 
-    // Context menu
-    private ContextMenu? logContextMenu;
-    private ContextMenu? windowContextMenu;
+    // Grouped log entries for collapse feature
+    private readonly Dictionary<string, GroupedLogEntry> groupedLogs = [];
+
+    /// <summary>
+    /// Represents a group of identical log entries.
+    /// </summary>
+    private class GroupedLogEntry
+    {
+        public LogEntry FirstLog { get; set; } = null!;
+        public int Count { get; set; } = 1;
+        public Border? Control { get; set; }
+    }
 
     /// <summary>
     /// Builds a new console window.
@@ -52,6 +63,8 @@ public partial class ConsoleWindow : EditorWindow
 
         // Create header controls
         autoScroll = true;
+        collapseEnabled = false;
+
         clearButton = new Button
         {
             Content = "Clear",
@@ -65,6 +78,7 @@ public partial class ConsoleWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
         clearButton.Click += ClearButton_Click;
+
         autoscrollCheckbox = new CheckBox
         {
             Content = "Auto Scroll",
@@ -74,6 +88,22 @@ public partial class ConsoleWindow : EditorWindow
             Margin = new Thickness(8, 0, 0, 0)
         };
         autoscrollCheckbox.IsCheckedChanged += (s, e) => { autoScroll = autoscrollCheckbox.IsChecked.Value; };
+
+        // Collapse checkbox (like Unity)
+        collapseCheckbox = new CheckBox
+        {
+            Content = "Collapse",
+            Foreground = Brushes.White,
+            IsChecked = collapseEnabled,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        collapseCheckbox.IsCheckedChanged += (s, e) =>
+        {
+            collapseEnabled = collapseCheckbox.IsChecked.Value;
+            ReloadLogs();
+        };
+
         searchIcon = new MaterialIcon
         {
             Kind = MaterialIconKind.Search,
@@ -82,6 +112,7 @@ public partial class ConsoleWindow : EditorWindow
             Width = 12,
             Height = 12,
         };
+
         searchBox = new TextBox
         {
             InnerLeftContent = searchIcon,
@@ -99,23 +130,29 @@ public partial class ConsoleWindow : EditorWindow
         };
         searchBox.TextChanged += SearchBox_TextChanged;
 
-        StackPanel allLogTypes = new StackPanel {
+        // Log type filter dropdown
+        StackPanel allLogTypes = new StackPanel
+        {
             Orientation = Orientation.Horizontal,
             Spacing = 4,
         };
-        StackPanel debugLogType = new StackPanel {
+        StackPanel debugLogType = new StackPanel
+        {
             Orientation = Orientation.Horizontal,
             Spacing = 4,
         };
-        StackPanel infoLogType = new StackPanel {
+        StackPanel infoLogType = new StackPanel
+        {
             Orientation = Orientation.Horizontal,
             Spacing = 4,
         };
-        StackPanel warnLogType = new StackPanel {
+        StackPanel warnLogType = new StackPanel
+        {
             Orientation = Orientation.Horizontal,
             Spacing = 4,
         };
-        StackPanel errorLogType = new StackPanel {
+        StackPanel errorLogType = new StackPanel
+        {
             Orientation = Orientation.Horizontal,
             Spacing = 4,
         };
@@ -130,6 +167,7 @@ public partial class ConsoleWindow : EditorWindow
         warnLogType.Children.Add(new TextBlock { Text = "Warning" });
         errorLogType.Children.Add(new MaterialIcon { Kind = MaterialIconKind.Error, Foreground = EditorColor.FromRGB(200, 0, 0) });
         errorLogType.Children.Add(new TextBlock { Text = "Error" });
+
         filterLogTypeBox = new ComboBox
         {
             Items =
@@ -147,13 +185,14 @@ public partial class ConsoleWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0, 0, 0),
         };
-        filterLogTypeBox.SelectionChanged += (s, e) => LoadAllCurrentLogs();
+        filterLogTypeBox.SelectionChanged += (s, e) => ReloadLogs();
 
         // Create panels
         logList = new StackPanel
         {
             Orientation = Orientation.Vertical
         };
+
         controlsPanel = new StackPanel
         {
             Background = EditorColor.FromRGB(28, 28, 28),
@@ -162,6 +201,7 @@ public partial class ConsoleWindow : EditorWindow
             Height = 30,
             VerticalAlignment = VerticalAlignment.Top
         };
+
         scrollViewer = new ScrollViewer
         {
             Content = logList,
@@ -170,6 +210,7 @@ public partial class ConsoleWindow : EditorWindow
 
         controlsPanel.Children.Add(clearButton);
         controlsPanel.Children.Add(autoscrollCheckbox);
+        controlsPanel.Children.Add(collapseCheckbox);
         controlsPanel.Children.Add(searchBox);
         controlsPanel.Children.Add(filterLogTypeBox);
 
@@ -180,9 +221,97 @@ public partial class ConsoleWindow : EditorWindow
 
         Debug.OnLogUpdate += Debug_OnLogUpdate;
 
-        LoadAllCurrentLogs();
+        ReloadLogs();
         Border? border = this.FindControl<Border>("MainBorder");
         if (border != null) border.Child = mainPanel;
+    }
+
+    /// <summary>
+    /// Gets the collapse key for a log entry (based on caller info and message).
+    /// </summary>
+    private static string GetCollapseKey(LogEntry log)
+    {
+        // Use the caller info + message as the key for collapsing
+        // This matches Unity's behavior of grouping by identical call stack + message
+        return $"{log.CallerInfo}|{log.Message}|{log.Level}";
+    }
+
+    /// <summary>
+    /// Reloads all logs with current filters and collapse settings.
+    /// </summary>
+    private void ReloadLogs()
+    {
+        logList.Children.Clear();
+        groupedLogs.Clear();
+
+        if (collapseEnabled)
+        {
+            // First, group all logs by their collapse key
+            foreach (LogEntry log in Debug.Logs)
+            {
+                string key = GetCollapseKey(log);
+                if (!groupedLogs.TryGetValue(key, out GroupedLogEntry? group))
+                {
+                    group = new GroupedLogEntry { FirstLog = log, Count = 1 };
+                    groupedLogs[key] = group;
+                }
+                else
+                {
+                    group.Count++;
+                }
+            }
+
+            // Then display each group
+            foreach (GroupedLogEntry group in groupedLogs.Values)
+            {
+                if (ShouldShowLog(group.FirstLog))
+                {
+                    Border control = CreateLogControl(group.FirstLog, group.Count);
+                    group.Control = control;
+                    logList.Children.Add(control);
+                }
+            }
+        }
+        else
+        {
+            // Normal display - one entry per log
+            foreach (LogEntry log in Debug.Logs)
+            {
+                if (ShouldShowLog(log))
+                {
+                    logList.Children.Add(CreateLogControl(log, 1));
+                }
+            }
+        }
+
+        // Auto-scroll to end if enabled
+        if (autoScroll)
+        {
+            Dispatcher.UIThread.Post(() => scrollViewer.ScrollToEnd(), DispatcherPriority.Background);
+        }
+    }
+
+    /// <summary>
+    /// Determines if a log should be shown based on filters.
+    /// </summary>
+    private bool ShouldShowLog(LogEntry log)
+    {
+        // Level filter
+        bool matchesLevel = filterLogTypeBox.SelectedIndex == 0 ||
+                           log.Level == (LogLevel)(filterLogTypeBox.SelectedIndex - 1);
+
+        if (!matchesLevel) return false;
+
+        // Search filter
+        if (!string.IsNullOrWhiteSpace(searchFilter))
+        {
+            return log.Message.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
+                   log.Timestamp.ToString().Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
+                   log.Level.ToString().Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
+                   log.CallerInfo.Contains(searchFilter, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -191,14 +320,99 @@ public partial class ConsoleWindow : EditorWindow
     private void ClearButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         logList.Children.Clear();
+        groupedLogs.Clear();
         Debug.ClearLogs();
     }
 
     /// <summary>
     /// Called when debug log is updated.
     /// </summary>
-    /// <param name="obj">Log entry from update</param>
-    private void Debug_OnLogUpdate(LogEntry obj) => Dispatcher.UIThread.Post(() => CreateLogEntry(obj, autoScroll));
+    private void Debug_OnLogUpdate(LogEntry obj)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (collapseEnabled)
+            {
+                // Update the grouped log entry
+                string key = GetCollapseKey(obj);
+                if (groupedLogs.TryGetValue(key, out GroupedLogEntry? group))
+                {
+                    // Update count
+                    group.Count++;
+
+                    // Refresh the control if it exists
+                    if (group.Control != null && ShouldShowLog(obj))
+                    {
+                        // Update the count display
+                        UpdateLogCount(group.Control, group.Count);
+
+                        // Move to end if auto-scroll is enabled
+                        if (autoScroll)
+                        {
+                            scrollViewer.ScrollToEnd();
+                        }
+                    }
+                }
+                else if (ShouldShowLog(obj))
+                {
+                    // New group - create control
+                    GroupedLogEntry newGroup = new GroupedLogEntry { FirstLog = obj, Count = 1 };
+                    Border control = CreateLogControl(obj, 1);
+                    newGroup.Control = control;
+                    groupedLogs[key] = newGroup;
+                    logList.Children.Add(control);
+
+                    if (autoScroll)
+                    {
+                        scrollViewer.ScrollToEnd();
+                    }
+                }
+            }
+            else
+            {
+                // Normal mode - just add the log
+                if (ShouldShowLog(obj))
+                {
+                    Border control = CreateLogControl(obj, 1);
+                    logList.Children.Add(control);
+
+                    if (autoScroll)
+                    {
+                        scrollViewer.ScrollToEnd();
+                    }
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Updates the count display on a grouped log entry.
+    /// </summary>
+    private void UpdateLogCount(Border control, int count)
+    {
+        if (control.Child is StackPanel mainPanel && mainPanel.Children.Count > 0)
+        {
+            // Find the count badge in the header
+            foreach (var child in mainPanel.Children)
+            {
+                if (child is Grid headerGrid)
+                {
+                    foreach (var gridChild in headerGrid.Children)
+                    {
+                        if (gridChild is Border badgeBorder && badgeBorder.Classes.Contains("count-badge"))
+                        {
+                            if (badgeBorder.Child is TextBlock badgeText)
+                            {
+                                badgeText.Text = count.ToString();
+                            }
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Called when the search field is edited.
@@ -206,105 +420,18 @@ public partial class ConsoleWindow : EditorWindow
     private void SearchBox_TextChanged(object? sender, TextChangedEventArgs e)
     {
         searchFilter = searchBox.Text?.Trim() ?? string.Empty;
-        ApplySearchFilter();
+        ReloadLogs();
     }
 
     /// <summary>
-    /// Applies the search field and log level filters to the log list.
+    /// Creates a log entry control with optional count badge for collapsed logs.
     /// </summary>
-    private void ApplySearchFilter()
+    private Border CreateLogControl(LogEntry log, int count)
     {
-        if (string.IsNullOrWhiteSpace(searchFilter))
-        {
-            foreach (Control? child in logList.Children) // Show all logs that match the current level filter
-            {
-                if (child is Border border)
-                {
-                    LogEntry? logEntry = GetLogEntryFromControl(border);
-                    if (logEntry != null)
-                        border.IsVisible = filterLogTypeBox.SelectedIndex == 0 ||
-                            logEntry.Level == (LogLevel)(filterLogTypeBox.SelectedIndex - 1);
-                }
-            }
-        }
-        else
-        {
-            foreach (Control? child in logList.Children) // Filter by both level and search text
-            {
-                if (child is Border border)
-                {
-                    LogEntry? logEntry = GetLogEntryFromControl(border);
-                    if (logEntry != null)
-                    {
-                        bool matchesLevel = filterLogTypeBox.SelectedIndex == 0 ||
-                                           logEntry.Level == (LogLevel)(filterLogTypeBox.SelectedIndex - 1);
-                        bool matchesSearch = logEntry.Message.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
-                                            logEntry.Timestamp.ToString().Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
-                                            logEntry.Level.ToString().Contains(searchFilter, StringComparison.OrdinalIgnoreCase);
-                        border.IsVisible = matchesLevel && matchesSearch;
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Gets a log entry from a log control in avalonia.
-    /// </summary>
-    /// <param name="logControl">Log control to sift through</param>
-    /// <returns>LogEntry value associated with control</returns>
-    private static LogEntry? GetLogEntryFromControl(Border logControl)
-    {
-        // Try to find the log entry in Debug.Logs that matches this control
-        if (logControl.Child is StackPanel mainPanel && mainPanel.Children.Count > 0 && mainPanel.Children[0] is Grid headerGrid)
-        {
-            foreach (Control child in headerGrid.Children)
-            {
-                if (child is SelectableTextBlock messageText)
-                    return Debug.Logs.FirstOrDefault(log => // Primitive log search, modify this in the future to improve search algorithm
-                        messageText.Text!.Contains(log.Message) ||
-                        log.Message.Contains(messageText.Text));
-            }
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Loads all the current logs in the Debug.Logs list.
-    /// </summary>
-    private void LoadAllCurrentLogs()
-    {
-        logList.Children.Clear();
-        foreach (LogEntry log in Debug.Logs)
-            Dispatcher.UIThread.Post(() => CreateLogEntry(log, false));
-    }
-
-    /// <summary>
-    /// Creates a log entry in the log list view.
-    /// </summary>
-    /// <param name="log">Log entry to build</param>
-    /// <param name="scrollToEnd">Whether to scroll to the end when done</param>
-    private void CreateLogEntry(LogEntry log, bool scrollToEnd)
-    {
-        if (filterLogTypeBox.SelectedIndex == 0 || log.Level == (LogLevel)(filterLogTypeBox.SelectedIndex - 1))
-        {
-            Border logContainer = CreateLogControl(log);
-            logList.Children.Add(logContainer);
-            if (scrollToEnd) scrollViewer.ScrollToEnd();
-            if (logList.Children.Count > MaxDisplayedLogEntries)
-                logList.Children.RemoveAt(0);
-        }
-    }
-
-    /// <summary>
-    /// Builds the control for a long entry in the console window.
-    /// </summary>
-    /// <param name="log">Log entry to build</param>
-    /// <returns>Log entry container element</returns>
-    private Border CreateLogControl(LogEntry log)
-    {
-        // Check if the message contains newlines or is too long
         bool isMultiLine = log.Message.Contains('\n') || log.Message.Length > 100;
+        bool hasCallerInfo = !string.IsNullOrEmpty(log.CallerInfo);
+        bool isGrouped = count > 1;
+
         Border logBorder = new Border()
         {
             BorderBrush = new SolidColorBrush(Color.FromRgb(10, 10, 10)),
@@ -313,16 +440,21 @@ public partial class ConsoleWindow : EditorWindow
             CornerRadius = new CornerRadius(4),
             Margin = new Thickness(6, 2, 6, 2),
             Background = EditorColor.FromRGB(17, 17, 17),
+            Tag = log,
         };
+
         StackPanel mainPanel = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Spacing = 4,
+            Spacing = 2,
         };
-        Grid headerGrid = new Grid // Header row
+
+        // Header row
+        Grid headerGrid = new Grid
         {
             ColumnDefinitions =
             {
+                new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
@@ -356,8 +488,9 @@ public partial class ConsoleWindow : EditorWindow
             Grid.SetColumn(expandButton, 0);
         }
 
-        // Timestamp
         int columnOffset = isMultiLine ? 1 : 0;
+
+        // Timestamp
         headerGrid.Children.Add(new TextBlock
         {
             Text = $"[{log.Timestamp.TimeOfDay:hh':'mm':'ss'.'fff}]",
@@ -379,11 +512,34 @@ public partial class ConsoleWindow : EditorWindow
         });
         Grid.SetColumn(headerGrid.Children[^1], columnOffset + 1);
 
+        // Count badge for collapsed logs (like Unity)
+        if (isGrouped)
+        {
+            Border countBadge = new Border
+            {
+                Classes = { "count-badge" },
+                Background = EditorColor.FromRGB(68, 68, 68),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(6, 1),
+                Margin = new Thickness(0, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = count.ToString(),
+                    FontSize = 10,
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeight.Medium,
+                }
+            };
+            headerGrid.Children.Add(countBadge);
+            Grid.SetColumn(headerGrid.Children[^1], columnOffset + 2);
+        }
+
         // Truncated message
         string displayMessage = log.Message;
         if (isMultiLine)
         {
-            int firstNewline = log.Message.IndexOf('\n'); // Get first line or truncate
+            int firstNewline = log.Message.IndexOf('\n');
             if (firstNewline >= 0)
                 displayMessage = string.Concat(log.Message.AsSpan(0, Math.Min(firstNewline, 100)), "...");
             else if (log.Message.Length > 100)
@@ -400,7 +556,7 @@ public partial class ConsoleWindow : EditorWindow
             TextWrapping = TextWrapping.NoWrap,
         };
         headerGrid.Children.Add(messageText);
-        Grid.SetColumn(headerGrid.Children[^1], columnOffset + 2);
+        Grid.SetColumn(headerGrid.Children[^1], columnOffset + 3);
 
         // Delete button
         Button deleteButton = new Button
@@ -410,11 +566,12 @@ public partial class ConsoleWindow : EditorWindow
                 Kind = MaterialIconKind.Delete,
                 Width = 12,
                 Height = 12,
-                Foreground = Brushes.White,
+                Foreground = EditorColor.FromRGB(200, 200, 200),
             },
-            Background = EditorColor.FromRGB(68, 68, 68),
+            Background = EditorColor.FromRGB(10, 10, 10),
             Padding = new Thickness(2),
             Margin = new Thickness(4, 0, 0, 0),
+            BorderThickness = new Thickness(0),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
             Width = 24,
@@ -422,15 +579,28 @@ public partial class ConsoleWindow : EditorWindow
         };
         deleteButton.Click += (e, s) => ClickDeleteButton(log);
         headerGrid.Children.Add(deleteButton);
-        Grid.SetColumn(headerGrid.Children[^1], columnOffset + 3);
+        Grid.SetColumn(headerGrid.Children[^1], columnOffset + 4);
 
         mainPanel.Children.Add(headerGrid);
 
-        // Expanded content area
-        Border? expandedContent = null;
+        // Caller info as small gray text underneath
+        if (hasCallerInfo)
+        {
+            TextBlock callerBlock = new TextBlock
+            {
+                Text = $"└─ {log.CallerInfo}",
+                FontSize = 10,
+                Foreground = EditorColor.FromRGB(80, 80, 80),
+                Margin = new Thickness(isMultiLine ? 24 : 0, 0, 0, 2),
+                FontFamily = FontFamily.Parse("Consolas, Courier New, monospace"),
+            };
+            mainPanel.Children.Add(callerBlock);
+        }
+
+        // Expanded content area for multi-line messages
         if (isMultiLine)
         {
-            expandedContent = new Border
+            Border expandedContent = new Border
             {
                 Background = EditorColor.FromRGB(6, 6, 6),
                 BorderBrush = EditorColor.FromRGB(28, 28, 28),
@@ -441,7 +611,9 @@ public partial class ConsoleWindow : EditorWindow
                 IsVisible = false,
             };
 
-            // Full message with proper formatting
+            StackPanel expandedPanel = new StackPanel { Spacing = 4 };
+
+            // Full message
             SelectableTextBlock fullMessage = new SelectableTextBlock
             {
                 Text = log.Message,
@@ -450,18 +622,12 @@ public partial class ConsoleWindow : EditorWindow
                 TextWrapping = TextWrapping.Wrap,
                 FontFamily = FontFamily.Parse("Consolas, Courier New, monospace"),
             };
+            expandedPanel.Children.Add(fullMessage);
 
-            // If there's a stack trace, format it nicely
-            if (log.Message.Contains("StackTrace:") || log.Message.Contains("at "))
-            {
-                // You could parse and format stack traces here
-                // For now, just use the full message
-            }
-
-            expandedContent.Child = fullMessage;
+            expandedContent.Child = expandedPanel;
             mainPanel.Children.Add(expandedContent);
 
-            // Set up expand/collapse functionality
+            // Expand/collapse functionality
             bool isExpanded = false;
             expandButton!.Click += (s, e) =>
             {
@@ -470,17 +636,6 @@ public partial class ConsoleWindow : EditorWindow
 
                 if (expandButton.Content is MaterialIcon icon)
                     icon.Kind = isExpanded ? MaterialIconKind.ChevronDown : MaterialIconKind.ChevronRight;
-
-                // Work on improving auto scroll when expanded for a less-janky experience
-
-                // Adjust auto-scroll if enabled
-                /*if (isExpanded && autoScroll)
-                {
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        scrollViewer.ScrollToEnd();
-                    }, DispatcherPriority.Background);
-                }*/
             };
         }
 
@@ -491,18 +646,48 @@ public partial class ConsoleWindow : EditorWindow
     /// <summary>
     /// Called when a log delete button is clicked.
     /// </summary>
-    /// <param name="logEntry">Log entry to delete</param>
     private void ClickDeleteButton(LogEntry logEntry)
     {
-        Debug.ClearLog(logEntry);
-        LoadAllCurrentLogs();
+        if (collapseEnabled)
+        {
+            // Find and remove the group
+            string key = GetCollapseKey(logEntry);
+            if (groupedLogs.TryGetValue(key, out GroupedLogEntry? group))
+            {
+                if (group.Control != null)
+                {
+                    logList.Children.Remove(group.Control);
+                }
+                groupedLogs.Remove(key);
+            }
+
+            // Remove all matching logs from the debug list
+            var logsToRemove = Debug.Logs.Where(l => GetCollapseKey(l) == key).ToList();
+            foreach (var log in logsToRemove)
+            {
+                Debug.ClearLog(log);
+            }
+        }
+        else
+        {
+            // Normal mode - remove single log
+            Debug.ClearLog(logEntry);
+
+            // Find and remove the corresponding UI element
+            foreach (Control? child in logList.Children)
+            {
+                if (child is Border border && border.Tag == logEntry)
+                {
+                    logList.Children.Remove(border);
+                    break;
+                }
+            }
+        }
     }
 
     /// <summary>
     /// Gets the correct log level color.
     /// </summary>
-    /// <param name="level">Log level</param>
-    /// <returns>Color for log level</returns>
     private static IBrush GetLogColor(LogLevel level) => level switch
     {
         LogLevel.Debug => Brushes.White,

@@ -155,6 +155,13 @@ namespace DivisionEngine.MathLib
         /// <returns>Min between a and b</returns>
         public static float Min(float a, float b) => (a < b) ? a : b;
         /// <summary>
+        /// Finds the min between two values.
+        /// </summary>
+        /// <param name="a">Value a</param>
+        /// <param name="b">Value b</param>
+        /// <returns>Min between a and b</returns>
+        public static double Min(double a, double b) => (a < b) ? a : b;
+        /// <summary>
         /// Finds the min between two integers.
         /// </summary>
         /// <param name="a">Integer a</param>
