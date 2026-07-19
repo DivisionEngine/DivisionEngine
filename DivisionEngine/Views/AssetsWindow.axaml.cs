@@ -135,8 +135,8 @@ public partial class AssetsWindow : EditorWindow
         {
             Setters =
             {
-                new Setter(TemplatedControl.BackgroundProperty, new Binding(nameof(AssetRowItem.RowBackground))),
-                new Setter(Control.ContextMenuProperty, new Binding(nameof(AssetRowItem.RowContextMenu))),
+                new Setter(BackgroundProperty, new Binding(nameof(AssetRowItem.RowBackground))),
+                new Setter(ContextMenuProperty, new Binding(nameof(AssetRowItem.RowContextMenu))),
             }
         });
         tableView.DoubleTapped += TableView_DoubleTapped;

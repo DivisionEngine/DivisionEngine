@@ -10,7 +10,6 @@
 using ComputeSharp;
 using DivisionEngine.Rendering;
 using DivisionEngine.Rendering.ShaderUtilities;
-using Silk.NET.OpenGL;
 
 namespace DivisionEngine
 {

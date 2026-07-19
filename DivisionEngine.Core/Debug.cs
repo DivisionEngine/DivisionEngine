@@ -14,46 +14,68 @@ namespace DivisionEngine
     /// </summary>
     public enum LogLevel
     {
+        /// <summary>
+        /// General info log.
+        /// </summary>
         Info = 0,
+
+        /// <summary>
+        /// Debug log (default).
+        /// </summary>
         Debug = 1,
+
+        /// <summary>
+        /// Warning log.
+        /// </summary>
+        /// <remarks>Can be from exception</remarks>
         Warning = 2,
+
+        /// <summary>
+        /// Error log.
+        /// </summary>
+        /// <remarks>Can be from exception</remarks>
         Error = 3,
     }
 
     /// <summary>
     /// Represents a single log entry in the debug log.
     /// </summary>
-    public class LogEntry
+    public class LogEntry(
+        string message,
+        LogLevel level,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string methodName = "",
+        [CallerLineNumber] int lineNumber = 0)
     {
         /// <summary>
         /// Time log was created.
         /// </summary>
-        public DateTime Timestamp { get; }
+        public DateTime Timestamp { get; } = DateTime.Now;
 
         /// <summary>
         /// Log message.
         /// </summary>
-        public string Message { get; }
+        public string Message { get; } = message;
 
         /// <summary>
         /// Log level.
         /// </summary>
-        public LogLevel Level { get; }
+        public LogLevel Level { get; } = level;
 
         /// <summary>
         /// File path where the log was called from.
         /// </summary>
-        public string? FilePath { get; }
+        public string? FilePath { get; } = filePath;
 
         /// <summary>
         /// Method name where the log was called from.
         /// </summary>
-        public string? MethodName { get; }
+        public string? MethodName { get; } = methodName;
 
         /// <summary>
         /// Line number where the log was called from.
         /// </summary>
-        public int LineNumber { get; }
+        public int LineNumber { get; } = lineNumber;
 
         /// <summary>
         /// Full caller info string (file:line method).
@@ -61,21 +83,6 @@ namespace DivisionEngine
         public string CallerInfo =>
             string.IsNullOrEmpty(FilePath) ? string.Empty :
             $"{System.IO.Path.GetFileName(FilePath)}:{LineNumber} {MethodName}()";
-
-        public LogEntry(
-            string message,
-            LogLevel level,
-            [CallerFilePath] string filePath = "",
-            [CallerMemberName] string methodName = "",
-            [CallerLineNumber] int lineNumber = 0)
-        {
-            Timestamp = DateTime.Now;
-            Message = message;
-            Level = level;
-            FilePath = filePath;
-            MethodName = methodName;
-            LineNumber = lineNumber;
-        }
 
         public override string ToString() =>
             $"[{Level}] {Timestamp}: {Message} ({CallerInfo})";
@@ -100,6 +107,9 @@ namespace DivisionEngine
         /// </summary>
         public static event Action<LogEntry>? OnLogUpdate;
 
+        /// <summary>
+        /// Read only list of all logs stored in the debug system.
+        /// </summary>
         public static IReadOnlyList<LogEntry> Logs => instance.debugLog;
 
         public Debug()

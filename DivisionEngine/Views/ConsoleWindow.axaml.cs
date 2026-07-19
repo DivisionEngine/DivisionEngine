@@ -73,7 +73,8 @@ public partial class ConsoleWindow : EditorWindow
             FontStretch = FontStretch.SemiExpanded,
             Background = EditorColor.FromRGB(17, 17, 17),
             Foreground = EditorColor.FromColor(ColorPalette.White),
-            BorderThickness = new Thickness(0),
+            BorderBrush = EditorColor.FromRGB(28, 28, 28),
+            BorderThickness = new Thickness(1, 1, 0, 0),
             Margin = new Thickness(4, 0),
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -85,7 +86,7 @@ public partial class ConsoleWindow : EditorWindow
             Foreground = Brushes.White,
             IsChecked = autoScroll,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(8, 0, 0, 0)
+            Margin = new Thickness(8, 0, 0, 0),
         };
         autoscrollCheckbox.IsCheckedChanged += (s, e) => { autoScroll = autoscrollCheckbox.IsChecked.Value; };
 
@@ -96,7 +97,7 @@ public partial class ConsoleWindow : EditorWindow
             Foreground = Brushes.White,
             IsChecked = collapseEnabled,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(8, 0, 0, 0)
+            Margin = new Thickness(8, 0, 0, 0),
         };
         collapseCheckbox.IsCheckedChanged += (s, e) =>
         {
@@ -112,7 +113,6 @@ public partial class ConsoleWindow : EditorWindow
             Width = 12,
             Height = 12,
         };
-
         searchBox = new TextBox
         {
             InnerLeftContent = searchIcon,
@@ -122,7 +122,7 @@ public partial class ConsoleWindow : EditorWindow
             Foreground = EditorColor.FromRGB(220, 220, 220),
             Background = EditorColor.FromRGB(17, 17, 17),
             BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(0),
+            CornerRadius = new CornerRadius(4),
             VerticalAlignment = VerticalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
             MinWidth = 150,
@@ -190,22 +190,20 @@ public partial class ConsoleWindow : EditorWindow
         // Create panels
         logList = new StackPanel
         {
-            Orientation = Orientation.Vertical
+            Orientation = Orientation.Vertical,
         };
-
         controlsPanel = new StackPanel
         {
             Background = EditorColor.FromRGB(28, 28, 28),
             Orientation = Orientation.Horizontal,
             Spacing = 0,
             Height = 30,
-            VerticalAlignment = VerticalAlignment.Top
+            VerticalAlignment = VerticalAlignment.Top,
         };
-
         scrollViewer = new ScrollViewer
         {
             Content = logList,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         };
 
         controlsPanel.Children.Add(clearButton);
@@ -255,10 +253,7 @@ public partial class ConsoleWindow : EditorWindow
                     group = new GroupedLogEntry { FirstLog = log, Count = 1 };
                     groupedLogs[key] = group;
                 }
-                else
-                {
-                    group.Count++;
-                }
+                else group.Count++;
             }
 
             // Then display each group
@@ -276,19 +271,12 @@ public partial class ConsoleWindow : EditorWindow
         {
             // Normal display - one entry per log
             foreach (LogEntry log in Debug.Logs)
-            {
                 if (ShouldShowLog(log))
-                {
                     logList.Children.Add(CreateLogControl(log, 1));
-                }
-            }
         }
 
         // Auto-scroll to end if enabled
-        if (autoScroll)
-        {
-            Dispatcher.UIThread.Post(() => scrollViewer.ScrollToEnd(), DispatcherPriority.Background);
-        }
+        if (autoScroll) Dispatcher.UIThread.Post(() => scrollViewer.ScrollToEnd(), DispatcherPriority.Background);
     }
 
     /// <summary>
@@ -310,7 +298,6 @@ public partial class ConsoleWindow : EditorWindow
                    log.Level.ToString().Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
                    log.CallerInfo.Contains(searchFilter, StringComparison.OrdinalIgnoreCase);
         }
-
         return true;
     }
 
@@ -341,17 +328,7 @@ public partial class ConsoleWindow : EditorWindow
                     group.Count++;
 
                     // Refresh the control if it exists
-                    if (group.Control != null && ShouldShowLog(obj))
-                    {
-                        // Update the count display
-                        UpdateLogCount(group.Control, group.Count);
-
-                        // Move to end if auto-scroll is enabled
-                        if (autoScroll)
-                        {
-                            scrollViewer.ScrollToEnd();
-                        }
-                    }
+                    if (group.Control != null && ShouldShowLog(obj)) UpdateLogCount(group.Control, group.Count);
                 }
                 else if (ShouldShowLog(obj))
                 {
@@ -362,10 +339,7 @@ public partial class ConsoleWindow : EditorWindow
                     groupedLogs[key] = newGroup;
                     logList.Children.Add(control);
 
-                    if (autoScroll)
-                    {
-                        scrollViewer.ScrollToEnd();
-                    }
+                    if (autoScroll) scrollViewer.ScrollToEnd();
                 }
             }
             else
@@ -376,10 +350,7 @@ public partial class ConsoleWindow : EditorWindow
                     Border control = CreateLogControl(obj, 1);
                     logList.Children.Add(control);
 
-                    if (autoScroll)
-                    {
-                        scrollViewer.ScrollToEnd();
-                    }
+                    if (autoScroll) scrollViewer.ScrollToEnd();
                 }
             }
         });
@@ -388,7 +359,7 @@ public partial class ConsoleWindow : EditorWindow
     /// <summary>
     /// Updates the count display on a grouped log entry.
     /// </summary>
-    private void UpdateLogCount(Border control, int count)
+    private static void UpdateLogCount(Border control, int count)
     {
         if (control.Child is StackPanel mainPanel && mainPanel.Children.Count > 0)
         {
@@ -571,7 +542,8 @@ public partial class ConsoleWindow : EditorWindow
             Background = EditorColor.FromRGB(10, 10, 10),
             Padding = new Thickness(2),
             Margin = new Thickness(4, 0, 0, 0),
-            BorderThickness = new Thickness(0),
+            BorderBrush = EditorColor.FromRGB(28, 28, 28),
+            BorderThickness = new Thickness(1, 1, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
             Width = 24,
