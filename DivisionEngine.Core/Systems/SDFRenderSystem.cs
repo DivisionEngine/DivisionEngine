@@ -127,7 +127,6 @@ namespace DivisionEngine.Systems
                 worldData.hdriTexMetaID = environment.hdriMap.IsLoaded ? TextureSystem.GetTextureMetadataIndex(environment.hdriMap.ID) : -1;
                 worldData.ambientStrength = environment.ambientStrength;
                 worldData.mainLightDir = new float3(1, 0, 0);
-                worldData.shadowScale = environment.shadowScale;
                 worldData.skyType = (int)environment.skyType;
                 worldData.skyIntensity = environment.skyIntensity;
 
@@ -209,7 +208,11 @@ namespace DivisionEngine.Systems
                         Math.Max(1f / transform.scaling.Z, EPSILON)),
                     color = new float4(1f, 0f, 1f, 1f), // Default render color if no material active
                     stepBias = 1f,
-                    shadowEffects = new bool2(true, true) // enable shadows by default
+
+                    // Shadows
+                    shadowType = 1,
+                    shadowEffects = new bool2(true, true),
+                    shadowDistances = new float3(0f, 100f, 40f),
                 };
 
                 // Effects
@@ -218,7 +221,7 @@ namespace DivisionEngine.Systems
                     Shadows shadows = W.GetComponent<Shadows>(id)!;
                     curSDF.shadowType = (int)shadows.shadowStyle;
                     curSDF.shadowEffects = new bool2(shadows.shadowCaster, shadows.shadowReceiver);
-                    curSDF.shadowDistances = new float2(shadows.minDistance, shadows.maxDistance);
+                    curSDF.shadowDistances = new float3(shadows.minDistance, shadows.maxDistance, shadows.penumbraDistance);
                 }
                 if (W.HasComponent<Reflections>(id))
                 {

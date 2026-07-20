@@ -32,7 +32,6 @@ namespace DivisionEngine.Rendering
         public float ambientStrength; // 4b
         public int maxRaySteps; // 4b
         public int maxShadowRaySteps; // 4b
-        public float shadowScale; // 4b
         public float3 mainLightDir; // 12b - precalculate main light direction
 
         // Misc Properties
@@ -108,7 +107,7 @@ namespace DivisionEngine.Rendering
 
         // Effect Properties
         public int shadowType; // 4b
-        public float2 shadowDistances; // 8b
+        public float3 shadowDistances; // 12b
         public bool2 shadowEffects; // 8b
         public float4 absorptionColor; // 16b
         public int hasReflection; // 4b - must use integer type when in DTO

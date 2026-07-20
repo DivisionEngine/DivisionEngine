@@ -448,19 +448,19 @@ namespace DivisionEngine
         // New soft-shadow technique:
         // Reference: https://iquilezles.org/articles/rmshadows/
         // New Version: https://www.shadertoy.com/view/tscSRS
-        private float SoftShadow(float3 point, float3 dir, float start, float end)
+        private float SoftShadow(float3 point, float3 dir)
         {
             float depth, dist, shadow = 1f;
             for (int k = 0; k < sdfObjects.Length; k++)
             {
-                depth = start;
                 SDFObjectDTO sdf = sdfObjects[k];
+                depth = sdf.shadowDistances.X;
                 if (!sdf.shadowEffects.X) continue;
                 for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
                 {
                     dist = ObjectSDF(point + depth * dir, sdf);
-                    if (depth > end) break;
-                    shadow = Hlsl.Min(shadow, worldData[0].shadowScale * dist / depth);
+                    if (depth > sdf.shadowDistances.Y) break;
+                    shadow = Hlsl.Min(shadow, sdf.shadowDistances.Z * dist / depth);
                     depth += Hlsl.Clamp(dist, 0.025f, 100f); // Larger minimum step than 0.01
                 }
             }
@@ -472,19 +472,19 @@ namespace DivisionEngine
         /// Hard shadow - returns 1.0 for fully lit, 0.0 for fully shadowed.
         /// Fast and sharp, no penumbra.
         /// </summary>
-        private float HardShadow(float3 point, float3 dir, float start, float end)
+        private float HardShadow(float3 point, float3 dir)
         {
             float depth, dist;
             for (int k = 0; k < sdfObjects.Length; k++)
             {
-                depth = start;
                 SDFObjectDTO sdf = sdfObjects[k];
+                depth = sdf.shadowDistances.X;
                 if (!sdf.shadowEffects.X) continue;
                 for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
                 {
                     dist = ObjectSDF(point + depth * dir, sdf);
                     if (dist < EPSILON) return 0f;
-                    if (depth >= end) break;
+                    if (depth >= sdf.shadowDistances.Y) break;
                     depth += dist;
                 }
             }
@@ -494,18 +494,17 @@ namespace DivisionEngine
         /// <summary>
         /// Unified shadow function that selects the appropriate shadow type.
         /// </summary>
-        private float CalculateShadow(float3 hitPoint, float3 normal, float3 lightDir,
-            float2 shadowDistances, int shadowType)
+        private float CalculateShadow(float3 hitPoint, float3 normal, float3 lightDir, int shadowType)
         {
             float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
             switch (shadowType)
             {
                 case 0: // Hard shadows
-                    return HardShadow(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
+                    return HardShadow(shadowOrigin, lightDir);
                 case 1: // Soft shadows
-                    return SoftShadow(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
+                    return SoftShadow(shadowOrigin, lightDir);
                 default:
-                    return SoftShadow(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
+                    return SoftShadow(shadowOrigin, lightDir);
             }
         }
 
@@ -513,7 +512,7 @@ namespace DivisionEngine
         /// Calculate lighting contribution from all lights
         /// </summary>
         private float3 CalculateLighting(float3 hitPoint, float3 geoNormal, float3 finalNormal, float3 viewDir,
-            bool2 shadowEffects, float2 shadowDistances, int shadowType, float specular,
+            bool2 shadowEffects, int shadowType, float specular,
             float3 baseCol, float metallic, float roughAlpha)
         {
             float3 totalLight = float3.Zero;
@@ -530,19 +529,13 @@ namespace DivisionEngine
                     float NoL = Hlsl.Max(Hlsl.Dot(finalNormal, lightDir), 0f);
                     if (NoL <= 0f) continue;
 
-                    // Calculate shadow ONCE per light
-                    if (shadowEffects.Y)
-                    {
-                        lightShadow = CalculateShadow(hitPoint, geoNormal, lightDir,
-                            shadowDistances, shadowType);
-                    }
-
+                    // Shadows
+                    if (shadowEffects.Y) lightShadow = CalculateShadow(hitPoint, geoNormal, lightDir, shadowType);
                     float3 brdf = PBR.BRDFMicrofacetFunction(lightDir, viewDir,
                         finalNormal, baseCol, metallic, roughAlpha, specular, RECIPROCAL_PI, EPSILON);
 
                     // Apply shadow to the entire lighting contribution
-                    float3 lightContrib = brdf * lightColor * NoL;
-                    totalLight += lightContrib * lightShadow; // Shadow multiplies the whole contribution
+                    totalLight += brdf * lightColor * NoL * lightShadow;
                 }
                 else if (light.type == 1) // Point
                 {
@@ -555,22 +548,16 @@ namespace DivisionEngine
 
                     float NoL = Hlsl.Max(Hlsl.Dot(finalNormal, lightDir), 0f);
                     if (NoL <= 0f || attenuation <= 0f) continue;
-
                     float3 lightColor = light.color.RGB * light.intensity * attenuation;
 
                     // Calculate shadow for point light
                     if (shadowEffects.Y && distance < light.radius * 2f)
-                    {
-                        lightShadow = CalculateShadow(hitPoint, geoNormal, lightDir,
-                            shadowDistances, shadowType);
-                    }
+                        lightShadow = CalculateShadow(hitPoint, geoNormal, lightDir, shadowType);
 
                     // Apply shadow to the entire BRDF result
                     float3 brdf = PBR.BRDFMicrofacetFunction(lightDir, viewDir,
                         finalNormal, baseCol, metallic, roughAlpha, specular, RECIPROCAL_PI, EPSILON);
-
-                    float3 lightContrib = brdf * lightColor * NoL;
-                    totalLight += lightContrib * lightShadow;
+                    totalLight += brdf * lightColor * NoL * lightShadow;
                 }
             }
 
@@ -981,7 +968,7 @@ namespace DivisionEngine
                 aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityID, sdf.aoValues), sdf.aoValues.X);
 
             float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir,
-                sdf.shadowEffects, sdf.shadowDistances, sdf.shadowType, sdf.specular, albedo, metallic, roughAlpha);
+                sdf.shadowEffects, sdf.shadowType, sdf.specular, albedo, metallic, roughAlpha);
             float3 ambientLight = ambientBase * aoValue;
             finalColor += ambientLight + directLight;
             return finalColor;
@@ -1069,7 +1056,7 @@ namespace DivisionEngine
                 }
 
                 float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir,
-                    sdf.shadowEffects, sdf.shadowDistances, sdf.shadowType, sdf.specular, albedo, metallic, roughAlpha);
+                    sdf.shadowEffects, sdf.shadowType, sdf.specular, albedo, metallic, roughAlpha);
                 if (Hlsl.Length(directLight) > 0.001f) aoValue = 1f;
                 float3 ambientLight = ambientBase * aoValue;
 
@@ -1299,8 +1286,7 @@ namespace DivisionEngine
                         if (Hlsl.Length(worldData[0].mainLightDir) > 0f)
                         {
                             float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                            float shadow = SoftShadow(shadowOrigin, worldData[0].mainLightDir,
-                                sdf.shadowDistances.X, sdf.shadowDistances.Y);
+                            float shadow = SoftShadow(shadowOrigin, worldData[0].mainLightDir);
                             shadowColor = new float3(shadow, 0f, 0f);
                         }
                     }

@@ -23,7 +23,6 @@ namespace DivisionEngine.Components
 
         [Header("Lighting")]
         [Range(0f, 1f)] public float ambientStrength = 0.15f;
-        [Tooltip("Shadow penumbra range in meters")] public float shadowScale = 20f;
         public SkyType skyType = SkyType.Solid;
         [Min(0f)] public float skyIntensity = 1f;
 
@@ -46,7 +45,6 @@ namespace DivisionEngine.Components
         public IComponent Clone() => new Environment
         {
             ambientStrength = ambientStrength,
-            shadowScale = shadowScale,
             skyType = skyType,
             skyIntensity = skyIntensity,
 
