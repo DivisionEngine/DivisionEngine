@@ -549,7 +549,7 @@ namespace DivisionEngine
         /// Queries the world to find entities with component types and returns the component data.
         /// </summary>
         /// <typeparam name="T">Type of component to search for</typeparam>
-        /// <returns>Tuple of (entityId, T component)</returns>
+        /// <returns>Tuple of (entityID, T component)</returns>
         public IEnumerable<(uint, T)> QueryData<T>() where T : IComponent
         {
             foreach (uint entityId in Query<T>())
@@ -564,7 +564,7 @@ namespace DivisionEngine
         /// </summary>
         /// <typeparam name="T1">First type of component to search for</typeparam>
         /// <typeparam name="T2">Second type of component to search for</typeparam>
-        /// <returns>Tuple of (entityId, T1 component, T2 component)</returns>
+        /// <returns>Tuple of (entityID, T1 component, T2 component)</returns>
         public IEnumerable<(uint, T1, T2)> QueryData<T1, T2>()
             where T1 : IComponent where T2 : IComponent
         {

@@ -8,18 +8,25 @@
 namespace DivisionEngine.Components.SDFs.Effects
 {
     /// <summary>
-    /// Allows SDF objects to cast and receive shadows.
+    /// Allows SDF objects to cast and receive penumbra shadows.
     /// </summary>
-    public class SoftShadows : IComponent
+    public class Shadows : IComponent
     {
+        public enum ShadowType
+        {
+            Hard = 0, Soft = 1,
+        }
+
+        public ShadowType shadowStyle = ShadowType.Soft;
         public bool shadowCaster = true;
         public bool shadowReceiver = true;
 
         public float minDistance = 0.001f;
         public float maxDistance = 100f;
 
-        public IComponent Clone() => new SoftShadows
+        public IComponent Clone() => new Shadows
         {
+            shadowStyle = shadowStyle,
             shadowCaster = shadowCaster,
             shadowReceiver = shadowReceiver,
 

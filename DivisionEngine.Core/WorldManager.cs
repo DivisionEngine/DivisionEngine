@@ -81,7 +81,7 @@ namespace DivisionEngine
                         metallic = 1f, //1f - j / (float)(sphereCount - 1),
                         ior = 1.5f,
                     });
-                    newDefaultWorld.AddComponent(sphereEntity, new SoftShadows());
+                    newDefaultWorld.AddComponent(sphereEntity, new Shadows());
                     newDefaultWorld.AddComponent(sphereEntity, new Reflections());
                     newDefaultWorld.AddComponent(sphereEntity, new Refractions());
                 }
@@ -101,7 +101,7 @@ namespace DivisionEngine
                 metallic = 0f,
                 roughness = 1f,
             });
-            newDefaultWorld.AddComponent(terrainEntity, new SoftShadows());
+            newDefaultWorld.AddComponent(terrainEntity, new Shadows());
 
             // Rounded Box
             uint boxEntity = newDefaultWorld.CreateEntity("Rounded Box");
@@ -119,7 +119,7 @@ namespace DivisionEngine
             {
                 albedoColor = ColorPalette.Crimson,
             });
-            newDefaultWorld.AddComponent(boxEntity, new SoftShadows());
+            newDefaultWorld.AddComponent(boxEntity, new Shadows());
             newDefaultWorld.AddComponent(boxEntity, new Reflections());
 
             // Create world

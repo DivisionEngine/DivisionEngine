@@ -85,7 +85,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFSphere());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }
@@ -97,7 +97,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFBox());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }
@@ -109,7 +109,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFRoundedBox());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }
@@ -121,7 +121,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFTorus());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }
@@ -133,7 +133,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFPyramid());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }
@@ -145,7 +145,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFPlane());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }
@@ -157,7 +157,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFCylinder());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }
@@ -169,7 +169,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFCapsule());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }
@@ -181,7 +181,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFCone());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }
@@ -193,7 +193,7 @@ namespace DivisionEngine.Editor
             uint sdf = W.CreateTransformEntity(name);
             W.AddComponent(sdf, new SDFTerrain());
             W.AddComponent(sdf, new SDFMaterial());
-            W.AddComponent(sdf, new SoftShadows());
+            W.AddComponent(sdf, new Shadows());
             Selection.SelectEntity(sdf);
             return sdf;
         }

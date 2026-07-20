@@ -199,7 +199,7 @@ namespace DivisionEngine.Systems
                 // Setup
                 SDFObjectDTO curSDF = new SDFObjectDTO
                 {
-                    entityId = id,
+                    entityID = id,
                     type = -1,
                     position = transform.position,
                     rotation = transform.rotation,
@@ -209,12 +209,14 @@ namespace DivisionEngine.Systems
                         Math.Max(1f / transform.scaling.Z, EPSILON)),
                     color = new float4(1f, 0f, 1f, 1f), // Default render color if no material active
                     stepBias = 1f,
+                    shadowEffects = new bool2(true, true) // enable shadows by default
                 };
 
                 // Effects
-                if (W.HasComponent<SoftShadows>(id))
+                if (W.HasComponent<Shadows>(id))
                 {
-                    SoftShadows shadows = W.GetComponent<SoftShadows>(id)!;
+                    Shadows shadows = W.GetComponent<Shadows>(id)!;
+                    curSDF.shadowType = (int)shadows.shadowStyle;
                     curSDF.shadowEffects = new bool2(shadows.shadowCaster, shadows.shadowReceiver);
                     curSDF.shadowDistances = new float2(shadows.minDistance, shadows.maxDistance);
                 }

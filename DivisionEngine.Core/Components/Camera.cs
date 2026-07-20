@@ -73,7 +73,7 @@ namespace DivisionEngine.Components
         /// Max trace steps for shadows.
         /// </summary>
         [Tooltip("Max trace steps for shadows")]
-        public int maxShadowRaySteps = 32;
+        public int maxShadowRaySteps = 256;
 
         [Header("Denoising")]
         /// <summary>

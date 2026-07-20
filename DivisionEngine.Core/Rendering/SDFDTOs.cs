@@ -74,7 +74,7 @@ namespace DivisionEngine.Rendering
     public struct SDFObjectDTO
     {
         // Base Properties
-        public uint entityId; // 4b
+        public uint entityID; // 4b
         public int type; // 4b
         public float3 position; // 12b
         public float4 rotation; // 16b
@@ -107,6 +107,7 @@ namespace DivisionEngine.Rendering
         public float f0_dielectric; // 4b
 
         // Effect Properties
+        public int shadowType; // 4b
         public float2 shadowDistances; // 8b
         public bool2 shadowEffects; // 8b
         public float4 absorptionColor; // 16b

@@ -10,6 +10,8 @@
 using ComputeSharp;
 using DivisionEngine.Rendering;
 using DivisionEngine.Rendering.ShaderUtilities;
+using System.Drawing;
+using static DivisionEngine.Components.SDFs.Effects.Shadows;
 
 namespace DivisionEngine
 {
@@ -378,29 +380,20 @@ namespace DivisionEngine
         /// Calculates the SDF distance for the world at a point.
         /// </summary>
         /// <param name="point">World position to evaluate</param>
-        /// <param name="shadowCastCheck">Should the tracer verify shadow casters</param>
         /// <returns>Float2 representing the min distance, and closest object</returns>
-        private float WorldSDF(float3 point, bool shadowCastCheck, uint excludeID, out int closest)
+        private float WorldSDF(float3 point, out int closest)
         {
             float minDist = MIN_TRAVERSE_DIST;
             closest = -1;
-
             for (int i = 0; i < sdfObjects.Length; i++)
             {
-                SDFObjectDTO curSDF = sdfObjects[i];
-                if (shadowCastCheck && !curSDF.shadowEffects.X) continue;
-                if (sdfObjects[i].entityId == excludeID) continue; // Exclude to get second-closest object
-
-                // Use ObjectSDF for ALL objects including terrain
-                float dist = ObjectSDF(point, curSDF);
-
+                float dist = ObjectSDF(point, sdfObjects[i]);
                 if (Hlsl.Abs(dist) < minDist)
                 {
                     closest = i;
                     minDist = dist;
                 }
             }
-
             return minDist;
         }
 
@@ -420,10 +413,10 @@ namespace DivisionEngine
         {
             float h = EPSILON * 50; // replace by an appropriate value
             float2 k = new float2(1f, -1f);
-            return Hlsl.Normalize(k.XYY * WorldSDF(pos + k.XYY * h, false, uint.MaxValue, out _) +
-                              k.YYX * WorldSDF(pos + k.YYX * h, false, uint.MaxValue, out _) +
-                              k.YXY * WorldSDF(pos + k.YXY * h, false, uint.MaxValue, out _) +
-                              k.XXX * WorldSDF(pos + k.XXX * h, false, uint.MaxValue, out _));
+            return Hlsl.Normalize(k.XYY * WorldSDF(pos + k.XYY * h, out _) +
+                              k.YYX * WorldSDF(pos + k.YYX * h, out _) +
+                              k.YXY * WorldSDF(pos + k.YXY * h, out _) +
+                              k.XXX * WorldSDF(pos + k.XXX * h, out _));
         }
 
         /// <summary>
@@ -455,31 +448,73 @@ namespace DivisionEngine
         // New soft-shadow technique:
         // Reference: https://iquilezles.org/articles/rmshadows/
         // New Version: https://www.shadertoy.com/view/tscSRS
-        private float SoftShadow2(float3 point, float3 dir, float start, float end, out int closestObj)
+        private float SoftShadow(float3 point, float3 dir, float start, float end)
         {
-            float depth = start, dist;
-            float shadow = 1f;
-            closestObj = -1;
-
-            for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
+            float depth, dist, shadow = 1f;
+            for (int k = 0; k < sdfObjects.Length; k++)
             {
-                dist = WorldSDF(point + depth * dir, true, uint.MaxValue, out closestObj);
-                if (depth > end) break;
-                //if (shadow < 0f) break; // Already fully in shadow, stop early
-
-                shadow = Hlsl.Min(shadow, worldData[0].shadowScale * dist / depth);
-                depth += Hlsl.Clamp(dist, 0.025f, 100f); // Larger minimum step than 0.01
+                depth = start;
+                SDFObjectDTO sdf = sdfObjects[k];
+                if (!sdf.shadowEffects.X) continue;
+                for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
+                {
+                    dist = ObjectSDF(point + depth * dir, sdf);
+                    if (depth > end) break;
+                    shadow = Hlsl.Min(shadow, worldData[0].shadowScale * dist / depth);
+                    depth += Hlsl.Clamp(dist, 0.025f, 100f); // Larger minimum step than 0.01
+                }
             }
-
             shadow = Hlsl.Max(shadow, -1f);
             return Hlsl.SmoothStep(-1f, 0f, shadow);
+        }
+
+        /// <summary>
+        /// Hard shadow - returns 1.0 for fully lit, 0.0 for fully shadowed.
+        /// Fast and sharp, no penumbra.
+        /// </summary>
+        private float HardShadow(float3 point, float3 dir, float start, float end)
+        {
+            float depth, dist;
+            for (int k = 0; k < sdfObjects.Length; k++)
+            {
+                depth = start;
+                SDFObjectDTO sdf = sdfObjects[k];
+                if (!sdf.shadowEffects.X) continue;
+                for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
+                {
+                    dist = ObjectSDF(point + depth * dir, sdf);
+                    if (dist < EPSILON) return 0f;
+                    if (depth >= end) break;
+                    depth += dist;
+                }
+            }
+            return 1f; // Max iterations reached, assume no shadow
+        }
+
+        /// <summary>
+        /// Unified shadow function that selects the appropriate shadow type.
+        /// </summary>
+        private float CalculateShadow(float3 hitPoint, float3 normal, float3 lightDir,
+            float2 shadowDistances, int shadowType)
+        {
+            float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
+            switch (shadowType)
+            {
+                case 0: // Hard shadows
+                    return HardShadow(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
+                case 1: // Soft shadows
+                    return SoftShadow(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
+                default:
+                    return SoftShadow(shadowOrigin, lightDir, shadowDistances.X, shadowDistances.Y);
+            }
         }
 
         /// <summary>
         /// Calculate lighting contribution from all lights
         /// </summary>
         private float3 CalculateLighting(float3 hitPoint, float3 geoNormal, float3 finalNormal, float3 viewDir,
-            bool2 shadowEffects, float2 shadowDistances, float specular, float3 baseCol, float metallic, float roughAlpha)
+            bool2 shadowEffects, float2 shadowDistances, int shadowType, float specular,
+            float3 baseCol, float metallic, float roughAlpha)
         {
             float3 totalLight = float3.Zero;
             float lightShadow = 1f;
@@ -495,16 +530,19 @@ namespace DivisionEngine
                     float NoL = Hlsl.Max(Hlsl.Dot(finalNormal, lightDir), 0f);
                     if (NoL <= 0f) continue;
 
+                    // Calculate shadow ONCE per light
                     if (shadowEffects.Y)
                     {
-                        float3 shadowOrigin = hitPoint + geoNormal * EPSILON * REFLECTION_BIAS;
-                        lightShadow = Hlsl.Min(SoftShadow2(shadowOrigin, lightDir,
-                            shadowDistances.X, shadowDistances.Y, out _), lightShadow);
+                        lightShadow = CalculateShadow(hitPoint, geoNormal, lightDir,
+                            shadowDistances, shadowType);
                     }
 
                     float3 brdf = PBR.BRDFMicrofacetFunction(lightDir, viewDir,
                         finalNormal, baseCol, metallic, roughAlpha, specular, RECIPROCAL_PI, EPSILON);
-                    totalLight += brdf * lightColor * NoL * lightShadow;
+
+                    // Apply shadow to the entire lighting contribution
+                    float3 lightContrib = brdf * lightColor * NoL;
+                    totalLight += lightContrib * lightShadow; // Shadow multiplies the whole contribution
                 }
                 else if (light.type == 1) // Point
                 {
@@ -520,16 +558,19 @@ namespace DivisionEngine
 
                     float3 lightColor = light.color.RGB * light.intensity * attenuation;
 
+                    // Calculate shadow for point light
                     if (shadowEffects.Y && distance < light.radius * 2f)
                     {
-                        float3 shadowOrigin = hitPoint + geoNormal * EPSILON * REFLECTION_BIAS;
-                        lightShadow = Hlsl.Min(SoftShadow2(shadowOrigin, lightDir,
-                            shadowDistances.X, distance, out _), lightShadow);
+                        lightShadow = CalculateShadow(hitPoint, geoNormal, lightDir,
+                            shadowDistances, shadowType);
                     }
 
+                    // Apply shadow to the entire BRDF result
                     float3 brdf = PBR.BRDFMicrofacetFunction(lightDir, viewDir,
                         finalNormal, baseCol, metallic, roughAlpha, specular, RECIPROCAL_PI, EPSILON);
-                    totalLight += brdf * lightColor * NoL * lightShadow;
+
+                    float3 lightContrib = brdf * lightColor * NoL;
+                    totalLight += lightContrib * lightShadow;
                 }
             }
 
@@ -541,12 +582,20 @@ namespace DivisionEngine
         /// </summary>
         /// <param name="hitPoint">Initial hit point</param>
         /// <param name="normal">Initial hit normal</param>
-        /// <param name="sdf">Initial sdf hit</param>
         /// <returns>Occlusion value at hit point</returns>
-        private float CalculateAO(float3 hitPoint, float3 normal, uint entityId, float3 aoValues)
+        private float CalculateAO(float3 hitPoint, float3 normal, uint excludeID, float3 aoValues)
         {
             float3 samplePoint = hitPoint + normal * EPSILON; // Normal vector offset
-            float worldDist = WorldSDF(samplePoint, false, entityId, out _); // Get distance to the next closest object
+            float worldDist = MIN_TRAVERSE_DIST;
+            for (int i = 0; i < sdfObjects.Length; i++)
+            {
+                SDFObjectDTO curSDF = sdfObjects[i];
+                if (sdfObjects[i].entityID == excludeID) continue; // Exclude to get second-closest object
+
+                float dist = ObjectSDF(samplePoint, curSDF);
+                if (Hlsl.Abs(dist) < worldDist) worldDist = dist;
+            }
+
             float occlusionRadius = aoValues.Y;
             if (worldDist >= occlusionRadius) return 1f; // No object found within radius
             float occlusion = 1f - Hlsl.Saturate(worldDist / occlusionRadius);
@@ -708,7 +757,7 @@ namespace DivisionEngine
             for (steps = 0; steps < maxSteps && depth < farClipPlane; steps++)
             {
                 hitPoint = rayOrigin + rayDir * depth;
-                float worldDist = WorldSDF(hitPoint, false, uint.MaxValue, out closestObj);
+                float worldDist = WorldSDF(hitPoint, out closestObj);
 
                 if (worldDist > 0f) lastSafeDepth = depth;
                 else if (worldDist < 0f)
@@ -723,7 +772,7 @@ namespace DivisionEngine
                     {
                         float tMid = (tMin + tMax) * 0.5f;
                         float3 refinePoint = rayOrigin + rayDir * tMid;
-                        float refineDist = WorldSDF(refinePoint, false, uint.MaxValue, out int refinedObj);
+                        float refineDist = WorldSDF(refinePoint, out int refinedObj);
 
                         if (Hlsl.Abs(refineDist) < BISECT_EPS)
                         {
@@ -798,7 +847,7 @@ namespace DivisionEngine
 
                     for (int i = 0; i < currentMat.refractionMaxSteps; i++)
                     {
-                        float d = WorldSDF(p, false, uint.MaxValue, out int closestObj);
+                        float d = WorldSDF(p, out int closestObj);
                         bool nowInside = d < 0f;
 
                         if (currentlyInsideObject != nowInside)
@@ -812,7 +861,7 @@ namespace DivisionEngine
                             for (int b = 0; b < 12; b++)
                             {
                                 float3 mid = (tMin3 + tMax3) * 0.5f;
-                                float dMid = WorldSDF(mid, false, uint.MaxValue, out _);
+                                float dMid = WorldSDF(mid, out _);
 
                                 if (Hlsl.Abs(dMid) < REFRACT_BISECT_EPS)
                                 {
@@ -929,10 +978,10 @@ namespace DivisionEngine
             // Calculate ambient occlusion for the hit point
             float aoValue = 1f;
             if (sdf.aoValues.X > 0f)
-                aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityId, sdf.aoValues), sdf.aoValues.X);
+                aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityID, sdf.aoValues), sdf.aoValues.X);
 
             float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir,
-                sdf.shadowEffects, sdf.shadowDistances, sdf.specular, albedo, metallic, roughAlpha);
+                sdf.shadowEffects, sdf.shadowDistances, sdf.shadowType, sdf.specular, albedo, metallic, roughAlpha);
             float3 ambientLight = ambientBase * aoValue;
             finalColor += ambientLight + directLight;
             return finalColor;
@@ -1002,12 +1051,12 @@ namespace DivisionEngine
                 {
                     outputNormal = normal;
                     totalDist = depth;
-                    entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2((uint)closestObjIndex, sdf.entityId);
+                    entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2((uint)closestObjIndex, sdf.entityID);
                     mainMat = sdf;
 
                     ambientBase = Hlsl.Lerp(albedo, worldData[0].skyColor.RGB, worldData[0].ambientStrength) * worldData[0].ambientStrength;
                     if (aoStrength > 0f)
-                        aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityId, sdf.aoValues), aoStrength);
+                        aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityID, sdf.aoValues), aoStrength);
 
                     if (sdf.hasRefraction == 1)
                     {
@@ -1020,7 +1069,7 @@ namespace DivisionEngine
                 }
 
                 float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir,
-                    sdf.shadowEffects, sdf.shadowDistances, sdf.specular, albedo, metallic, roughAlpha);
+                    sdf.shadowEffects, sdf.shadowDistances, sdf.shadowType, sdf.specular, albedo, metallic, roughAlpha);
                 if (Hlsl.Length(directLight) > 0.001f) aoValue = 1f;
                 float3 ambientLight = ambientBase * aoValue;
 
@@ -1240,7 +1289,6 @@ namespace DivisionEngine
                 else if (debugMode == 5) // Shadows
                 {
                     float3 shadowColor = new float3(1, 0, 0);
-
                     uint2 idData = entityIdBuffer[pixel.X + pixel.Y * (int)width];
                     if (idData.X != uint.MaxValue)
                     {
@@ -1251,14 +1299,9 @@ namespace DivisionEngine
                         if (Hlsl.Length(worldData[0].mainLightDir) > 0f)
                         {
                             float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                            float shadow = SoftShadow2(shadowOrigin, worldData[0].mainLightDir,
-                                sdf.shadowDistances.X, sdf.shadowDistances.Y, out int shadowObj);
-
-                            float3 occluderColor = float3.Zero;
-                            if (shadowObj >= 0 && shadowObj < sdfObjects.Length)
-                                occluderColor = ShaderMath.IntToColor(sdfObjects[shadowObj].entityId);
-
-                            shadowColor = new float3(shadow, occluderColor.G, occluderColor.B);
+                            float shadow = SoftShadow(shadowOrigin, worldData[0].mainLightDir,
+                                sdf.shadowDistances.X, sdf.shadowDistances.Y);
+                            shadowColor = new float3(shadow, 0f, 0f);
                         }
                     }
                     texture[pixel] = new float4(shadowColor, 1);
