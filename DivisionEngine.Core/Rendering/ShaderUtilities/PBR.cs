@@ -14,9 +14,54 @@ namespace DivisionEngine.Rendering.ShaderUtilities
     /// </summary>
     public static class PBR
     {
-        public static float3 FresnelSchlick(float cosTheta, float3 f0)
+        /// <summary>
+        /// Calculates fresnel reflectance with manual reflectance control and proper clamping.
+        /// </summary>
+        /// <param name="cosTheta">Cosine of the angle between normal and view direction</param>
+        /// <param name="f0">Base Fresnel at normal incidence (0°)</param>
+        /// <param name="reflectance">Manual reflectance multiplier (0 = no reflection, 1 = standard, >1 = enhanced)</param>
+        /// <param name="f90">Optional grazing angle Fresnel value (default 1.0)</param>
+        /// <returns>Clamped Fresnel factor in [0, 1] range</returns>
+        public static float FresnelWithReflectance(float cosTheta, float f0, float reflectance, float f90)
         {
-            return f0 + (float3.One - f0) * Hlsl.Pow(1f - cosTheta, 5f);
+            // Clamp f0 to realistic values (minimum 2% reflection for dielectrics)
+            float clampedF0 = Hlsl.Clamp(f0, 0.02f, 1.0f);
+
+            // Apply reflectance as a multiplier to control Fresnel strength
+            // reflectance = 0 -> no Fresnel (fully transparent)
+            // reflectance = 1 -> standard Fresnel
+            // reflectance > 1 -> enhanced Fresnel (more reflective)
+            float effectiveF0 = Hlsl.Clamp(clampedF0 * reflectance, 0.02f, 1.0f);
+
+            // Clamp f90 to reasonable range
+            float effectiveF90 = Hlsl.Clamp(f90 * reflectance, 0.02f, 1.0f);
+
+            // Schlick approximation with f90 control
+            float fresnel = effectiveF0 + (effectiveF90 - effectiveF0) * Hlsl.Pow(1.0f - cosTheta, 5.0f);
+
+            // Clamp to [0, 1] range and ensure we never get pure reflection or pure refraction
+            return Hlsl.Clamp(fresnel, 0.02f, 0.98f);
+        }
+
+        public static float3 FresnelSchlick(float cosTheta, float3 f0, float reflectance, float f90)
+        {
+            // Clamp f0 to realistic values (minimum 2% reflection for dielectrics)
+            float3 clampedF0 = Hlsl.Clamp(f0, 0.02f, 1.0f);
+
+            // Apply reflectance as a multiplier to control Fresnel strength
+            // reflectance = 0 -> no Fresnel (fully transparent)
+            // reflectance = 1 -> standard Fresnel
+            // reflectance > 1 -> enhanced Fresnel (more reflective)
+            float3 effectiveF0 = Hlsl.Clamp(clampedF0 * reflectance, 0.02f, 1.0f);
+
+            // Clamp f90 to reasonable range
+            float3 effectiveF90 = Hlsl.Clamp(f90 * reflectance, 0.02f, 1.0f);
+
+            // Schlick approximation with f90 control
+            float3 fresnel = effectiveF0 + (effectiveF90 - effectiveF0) * Hlsl.Pow(1.0f - cosTheta, 5.0f);
+
+            // Clamp to [0, 1] range and ensure we never get pure reflection or pure refraction
+            return Hlsl.Clamp(fresnel, 0.02f, 0.98f);
         }
 
         /// <summary>
@@ -94,7 +139,7 @@ namespace DivisionEngine.Rendering.ShaderUtilities
         /// <param name="sdf">SDF object to sample</param>
         /// <returns>BRDF output value</returns>
         public static float3 BRDFMicrofacetFunction(float3 lightDir, float3 viewDir, float3 finalNormal,
-            float3 baseCol, float metallic, float roughAlpha, float specular, float RECIPROCAL_PI, float EPSILON)
+            float3 baseCol, float metallic, float roughAlpha, float specular, float reflectance, float RECIPROCAL_PI, float EPSILON)
         {
             float NoV = Hlsl.Saturate(Hlsl.Dot(finalNormal, viewDir));
             float NoL = Hlsl.Saturate(Hlsl.Dot(finalNormal, lightDir));
@@ -105,7 +150,7 @@ namespace DivisionEngine.Rendering.ShaderUtilities
             float3 f0 = float3.One * 0.16f * specular * specular;
             f0 = Hlsl.Lerp(f0, baseCol, new float3(metallic, metallic, metallic));
 
-            float3 F = FresnelSchlick(VoH, f0);
+            float3 F = FresnelSchlick(VoH, f0, specular, 1f);
             float D = D_GGX(NoH, roughAlpha, RECIPROCAL_PI);
             float G = GSmith(NoV, NoL, roughAlpha, EPSILON);
 
@@ -118,15 +163,6 @@ namespace DivisionEngine.Rendering.ShaderUtilities
 
             // Hard cap to prevent explosions
             return Hlsl.Min(diff + specularTerm, 100f);
-        }
-
-        /// <summary>
-        /// Calculates fresnel reflectance for dielectrics (glass, water, etc.)
-        /// </summary>
-        public static float SimpleFresnelDielectric(float cosθ, float f0)
-        {
-            // Schlick approximation (close enough for most cases)
-            return f0 + (1f - f0) * Hlsl.Pow(1f - cosθ, 5f);
         }
 
         // Reflections functions:

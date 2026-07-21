@@ -10,8 +10,6 @@
 using ComputeSharp;
 using DivisionEngine.Rendering;
 using DivisionEngine.Rendering.ShaderUtilities;
-using System.Drawing;
-using static DivisionEngine.Components.SDFs.Effects.Shadows;
 
 namespace DivisionEngine
 {
@@ -46,6 +44,8 @@ namespace DivisionEngine
         const float MIN_REFLECTION_CHANCE = 0.01f;
         const float MIN_THROUGHPUT = 0.01f;
         const float REFLECTION_BIAS = 2f; // Multiplier for normal offset
+
+        const int CAUSTIC_STEPS = 12;
 
         #region textures
 
@@ -448,9 +448,9 @@ namespace DivisionEngine
         // New soft-shadow technique:
         // Reference: https://iquilezles.org/articles/rmshadows/
         // New Version: https://www.shadertoy.com/view/tscSRS
-        private float SoftShadow(float3 point, float3 dir)
+        private float3 SoftShadow(float3 point, float3 dir)
         {
-            float depth, dist, shadow = 1f;
+            float depth, dist, shadow = 1;
             for (int k = 0; k < sdfObjects.Length; k++)
             {
                 SDFObjectDTO sdf = sdfObjects[k];
@@ -465,14 +465,44 @@ namespace DivisionEngine
                 }
             }
             shadow = Hlsl.Max(shadow, -1f);
-            return Hlsl.SmoothStep(-1f, 0f, shadow);
+            return Hlsl.SmoothStep(-1f, 0f, shadow) * float3.One;
+        }
+
+        private float3 SoftShadowColored(float3 point, float3 dir)
+        {
+            float shadow = 1f;
+            float3 tint = float3.One;
+            for (int k = 0; k < sdfObjects.Length; k++)
+            {
+                SDFObjectDTO sdf = sdfObjects[k];
+                if (!sdf.shadowEffects.X) continue;
+                bool isGlass = sdf.hasRefraction == 1;
+                float depth = sdf.shadowDistances.X;
+                float3 absorptionCoefficient = isGlass ? Hlsl.Log(Hlsl.Max(sdf.absorptionColor.RGB, 0.001f)) : float3.Zero;
+                for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
+                {
+                    if (depth > sdf.shadowDistances.Y) break;
+                    float dist = ObjectSDF(point + depth * dir, sdf);
+                    float stepSize = Hlsl.Clamp(dist, 0.025f, 100f);
+                    if (isGlass)
+                    {
+                        float coverage = Hlsl.Saturate(0.5f - dist * sdf.shadowDistances.Z);
+                        tint *= Hlsl.Exp(absorptionCoefficient * stepSize * coverage * sdf.absorptionColor.A * 5f);
+                    }
+                    else shadow = Hlsl.Min(shadow, sdf.shadowDistances.Z * dist / depth);
+                    depth += stepSize;
+                }
+            }
+            shadow = Hlsl.Max(shadow, -1f);
+            float occlusion = Hlsl.SmoothStep(-1f, 0f, shadow);
+            return occlusion * tint;
         }
 
         /// <summary>
         /// Hard shadow - returns 1.0 for fully lit, 0.0 for fully shadowed.
         /// Fast and sharp, no penumbra.
         /// </summary>
-        private float HardShadow(float3 point, float3 dir)
+        private float3 HardShadow(float3 point, float3 dir)
         {
             float depth, dist;
             for (int k = 0; k < sdfObjects.Length; k++)
@@ -494,7 +524,7 @@ namespace DivisionEngine
         /// <summary>
         /// Unified shadow function that selects the appropriate shadow type.
         /// </summary>
-        private float CalculateShadow(float3 hitPoint, float3 normal, float3 lightDir, int shadowType)
+        private float3 CalculateShadow(float3 hitPoint, float3 normal, float3 lightDir, int shadowType)
         {
             float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
             switch (shadowType)
@@ -503,6 +533,8 @@ namespace DivisionEngine
                     return HardShadow(shadowOrigin, lightDir);
                 case 1: // Soft shadows
                     return SoftShadow(shadowOrigin, lightDir);
+                case 2: // Colored shadows
+                    return SoftShadowColored(shadowOrigin, lightDir);
                 default:
                     return SoftShadow(shadowOrigin, lightDir);
             }
@@ -512,11 +544,11 @@ namespace DivisionEngine
         /// Calculate lighting contribution from all lights
         /// </summary>
         private float3 CalculateLighting(float3 hitPoint, float3 geoNormal, float3 finalNormal, float3 viewDir,
-            bool2 shadowEffects, int shadowType, float specular,
+            bool2 shadowEffects, int shadowType, float specular, float reflectance,
             float3 baseCol, float metallic, float roughAlpha)
         {
             float3 totalLight = float3.Zero;
-            float lightShadow = 1f;
+            float3 lightShadow = 1f;
 
             for (int i = 0; i < lights.Length; i++)
             {
@@ -532,7 +564,7 @@ namespace DivisionEngine
                     // Shadows
                     if (shadowEffects.Y) lightShadow = CalculateShadow(hitPoint, geoNormal, lightDir, shadowType);
                     float3 brdf = PBR.BRDFMicrofacetFunction(lightDir, viewDir,
-                        finalNormal, baseCol, metallic, roughAlpha, specular, RECIPROCAL_PI, EPSILON);
+                        finalNormal, baseCol, metallic, roughAlpha, specular, reflectance, RECIPROCAL_PI, EPSILON);
 
                     // Apply shadow to the entire lighting contribution
                     totalLight += brdf * lightColor * NoL * lightShadow;
@@ -556,7 +588,7 @@ namespace DivisionEngine
 
                     // Apply shadow to the entire BRDF result
                     float3 brdf = PBR.BRDFMicrofacetFunction(lightDir, viewDir,
-                        finalNormal, baseCol, metallic, roughAlpha, specular, RECIPROCAL_PI, EPSILON);
+                        finalNormal, baseCol, metallic, roughAlpha, specular, reflectance, RECIPROCAL_PI, EPSILON);
                     totalLight += brdf * lightColor * NoL * lightShadow;
                 }
             }
@@ -588,6 +620,116 @@ namespace DivisionEngine
             float occlusion = 1f - Hlsl.Saturate(worldDist / occlusionRadius);
             occlusion = Hlsl.Pow(occlusion, aoValues.Z);
             return 1f - occlusion;
+        }
+
+        /// <summary>
+        /// Bends a shadow ray through a single refractive object (entry + exit refraction),
+        /// returning the transmittance and the ray's new origin/direction on the far side.
+        /// This is a single-bounce approximation, not a full recursive trace - it's meant
+        /// to be cheap enough to call from inside a shadow loop.
+        /// </summary>
+        private float3 CausticTransmit(float3 point, float3 dir, SDFObjectDTO sdf, int traceDepth,
+            out float3 exitPoint, out float3 exitDir)
+        {
+            exitPoint = point;
+            exitDir = dir;
+
+            float3 entryNormal = FastNormalSingleObject(point, sdf);
+            if (Hlsl.Dot(entryNormal, dir) > 0f) entryNormal = -entryNormal; // oppose incident, like TraceRay's convention
+
+            float entryEta = 1f / Hlsl.Max(sdf.ior, EPSILON);
+            if (!Refract(dir, entryNormal, entryEta, out float3 innerDir))
+                return float3.Zero; // Total internal reflection right at entry - treat as opaque for shadow purposes
+
+            float3 p = point - entryNormal * EPSILON * 2f;
+            float travel = 0f;
+            bool foundExit = false;
+
+            for (int i = 0; i < 256; i++)
+            {
+                float d = ObjectSDF(p, sdf);
+                if (d >= 0f) // Stepped back outside -> this is our exit
+                {
+                    foundExit = true;
+                    exitPoint = p;
+                    break;
+                }
+                float stepSize = Hlsl.Max(Hlsl.Abs(d), EPSILON * 4f);
+                p += innerDir * stepSize;
+                travel += stepSize;
+            }
+
+            float3 absorptionCoefficient = Hlsl.Log(Hlsl.Max(sdf.absorptionColor.RGB, 0.001f));
+            float3 transmittance = Hlsl.Exp(absorptionCoefficient * travel * sdf.absorptionColor.A * 5f);
+
+            if (!foundExit) return float3.Zero; // Ran out of budget inside the object - treat as opaque
+
+            float3 exitNormal = FastNormalSingleObject(exitPoint, sdf);
+            if (Hlsl.Dot(exitNormal, innerDir) > 0f) exitNormal = -exitNormal;
+
+            if (Refract(innerDir, exitNormal, sdf.ior, out float3 bentDir))
+                exitDir = bentDir;
+            else
+                exitDir = Hlsl.Reflect(innerDir, exitNormal); // TIR at exit, fall back to reflection
+
+            return transmittance;
+        }
+
+        /// <summary>
+        /// Shadow ray that bends through refractive occluders instead of just stopping at them.
+        /// Recursion budget (how many glass objects it'll pass through) shrinks with traceDepth,
+        /// so this stays cheap when called from reflection/refraction bounces.
+        /// </summary>
+        private float3 CalculateCausticShadow(float3 hitPoint, float3 normal, float3 lightDir, int traceDepth)
+        {
+            float3 p = hitPoint + normal * EPSILON * REFLECTION_BIAS;
+            float3 dir = lightDir;
+            float3 attenuation = float3.One;
+
+            int maxRefractiveHits = Hlsl.Max(0, 2 - traceDepth); // depth 0: up to 2 panes of glass, depth 2+: none
+
+            for (int pass = 0; pass <= maxRefractiveHits; pass++)
+            {
+                int hitObj = -1;
+                float hitDepth = 0f;
+
+                for (int k = 0; k < sdfObjects.Length; k++)
+                {
+                    SDFObjectDTO sdf = sdfObjects[k];
+                    if (!sdf.shadowEffects.X) continue;
+
+                    float td = sdf.shadowDistances.X;
+                    for (int i = 0; i < worldData[0].maxShadowRaySteps; i++)
+                    {
+                        if (td > sdf.shadowDistances.Y) break;
+                        float dist = ObjectSDF(p + td * dir, sdf);
+                        if (dist < EPSILON)
+                        {
+                            hitObj = k;
+                            hitDepth = td;
+                            break;
+                        }
+                        td += Hlsl.Clamp(dist, 0.025f, 100f);
+                    }
+                    if (hitObj >= 0) break;
+                }
+
+                if (hitObj < 0) return attenuation; // Reached the light
+
+                SDFObjectDTO hitSdf = sdfObjects[hitObj];
+                if (hitSdf.hasRefraction == 0 || pass == maxRefractiveHits)
+                    return float3.Zero; // Opaque occluder, or out of refractive budget
+
+                float3 entryPoint = p + dir * hitDepth;
+                float3 segAtten = CausticTransmit(entryPoint, dir, hitSdf, traceDepth + pass, out float3 exitPoint, out float3 exitDir);
+                attenuation *= segAtten;
+                if (attenuation.X + attenuation.Y + attenuation.Z < MIN_THROUGHPUT) return float3.Zero;
+
+                p = exitPoint + exitDir * EPSILON * 4f;
+                dir = exitDir;
+            }
+
+            return attenuation;
         }
 
         #endregion lighting
@@ -865,7 +1007,6 @@ namespace DivisionEngine
                             exitPt = tMin3;
                             exitNorm = FastNormalSingleObject(exitPt, sdfObjects[closestObj]);
                             int exitClosestObj = closestObj;
-
                             if (Hlsl.Dot(exitNorm, refractDir) > 0f) exitNorm = -exitNorm;
                             foundExit = true;
 
@@ -964,11 +1105,10 @@ namespace DivisionEngine
 
             // Calculate ambient occlusion for the hit point
             float aoValue = 1f;
-            if (sdf.aoValues.X > 0f)
-                aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityID, sdf.aoValues), sdf.aoValues.X);
+            if (sdf.aoValues.X > 0f) aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityID, sdf.aoValues), sdf.aoValues.X);
 
             float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir,
-                sdf.shadowEffects, sdf.shadowType, sdf.specular, albedo, metallic, roughAlpha);
+                new bool2(sdf.shadowEffects.X, false), sdf.shadowType, sdf.specular, sdf.reflectance, albedo, metallic, roughAlpha);
             float3 ambientLight = ambientBase * aoValue;
             finalColor += ambientLight + directLight;
             return finalColor;
@@ -1041,14 +1181,15 @@ namespace DivisionEngine
                     entityIdBuffer[pixel.X + pixel.Y * (int)width] = new uint2((uint)closestObjIndex, sdf.entityID);
                     mainMat = sdf;
 
+                    // AO
                     ambientBase = Hlsl.Lerp(albedo, worldData[0].skyColor.RGB, worldData[0].ambientStrength) * worldData[0].ambientStrength;
-                    if (aoStrength > 0f)
-                        aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityID, sdf.aoValues), aoStrength);
+                    if (aoStrength > 0f) aoValue = Hlsl.Lerp(1f, CalculateAO(hitPoint, normal, sdf.entityID, sdf.aoValues), aoStrength);
 
+                    // Refraction
                     if (sdf.hasRefraction == 1)
                     {
                         isRefractive = true;
-                        fresnelFactor = PBR.SimpleFresnelDielectric(cosTheta, mainMat.f0_dielectric);
+                        fresnelFactor = PBR.FresnelWithReflectance(cosTheta, mainMat.f0_dielectric, mainMat.reflectance, 1f);
                         refractedLight = TraceRefractionRay(rayDir, hitPoint, ambientBase, sky, normal, sdf, out tracedSteps);
                         steps += tracedSteps;
                     }
@@ -1056,8 +1197,8 @@ namespace DivisionEngine
                 }
 
                 float3 directLight = CalculateLighting(hitPoint, normal, finalNormal, viewDir,
-                    sdf.shadowEffects, sdf.shadowType, sdf.specular, albedo, metallic, roughAlpha);
-                if (Hlsl.Length(directLight) > 0.001f) aoValue = 1f;
+                    sdf.shadowEffects, sdf.shadowType, sdf.specular, sdf.reflectance, albedo, metallic, roughAlpha);
+                if (Hlsl.Length(directLight) > 0.5f) aoValue = Hlsl.Length(directLight);
                 float3 ambientLight = ambientBase * aoValue;
 
                 if (bounce == 0) surfaceColor = directLight;
@@ -1070,7 +1211,7 @@ namespace DivisionEngine
 
                 // Metallic/roughness maps now actually drive this:
                 float3 f0Refl = Hlsl.Lerp(sdf.f0_reflectance, albedo, new float3(metallic, metallic, metallic));
-                float3 F = PBR.FresnelSchlick(Hlsl.Max(Hlsl.Dot(finalNormal, viewDir), 0f), f0Refl);
+                float3 F = PBR.FresnelSchlick(Hlsl.Max(Hlsl.Dot(finalNormal, viewDir), 0f), f0Refl, sdf.reflectance, 1f);
                 float reflectionChance = Hlsl.Lerp(F.X, 1f, metallic);
 
                 if (bounce == 0 && isRefractive) reflectionChance = fresnelFactor;
@@ -1097,11 +1238,7 @@ namespace DivisionEngine
             {
                 // Proper Fresnel using Schlick
                 float3 f0 = float3.One * mainMat.f0_dielectric;
-                float fresnel = PBR.FresnelSchlick(cosTheta, f0).X;
-
-                // finalColor already contains the lit surface (ambient + direct)
-                // refractedLight contains what we see through the object
-                // Blend based on Fresnel: more reflection at grazing angles
+                float3 fresnel = PBR.FresnelSchlick(cosTheta, f0, mainMat.reflectance, 1f).X;
                 outputColor = finalColor * fresnel + refractedLight * (1f - fresnel);
             }
             else outputColor = finalColor + surfaceColor;
@@ -1133,7 +1270,7 @@ namespace DivisionEngine
                     {
                         if (debugMode == 6)
                             outputVec = PBR.BRDFMicrofacetFunction(worldData[0].mainLightDir, viewDir,
-                                finalNormal, albedo, metallic, roughAlpha, sdf.specular, RECIPROCAL_PI, EPSILON);
+                                finalNormal, albedo, metallic, roughAlpha, sdf.specular, sdf.reflectance, RECIPROCAL_PI, EPSILON);
                         else if (debugMode == 7)
                         {
                             float3 halfwayDir = Hlsl.Normalize(viewDir + worldData[0].mainLightDir);
@@ -1141,7 +1278,7 @@ namespace DivisionEngine
                             float NoH = Hlsl.Saturate(Hlsl.Dot(finalNormal, halfwayDir));
                             float VoH = Hlsl.Saturate(Hlsl.Dot(viewDir, halfwayDir));
                             float3 f0 = Hlsl.Lerp(float3.One * 0.16f * sdf.specular * sdf.specular, albedo, new float3(metallic, metallic, metallic));
-                            float3 F = PBR.FresnelSchlick(VoH, f0);
+                            float3 F = PBR.FresnelSchlick(VoH, f0, sdf.reflectance, 1f);
                             float D = PBR.D_GGX(NoH, roughAlpha, RECIPROCAL_PI);
                             float G = PBR.GSmith(NoV, NoL, roughAlpha, EPSILON);
                             outputVec = F * D * G / (4f * Hlsl.Max(NoV * NoL, EPSILON));
@@ -1286,8 +1423,7 @@ namespace DivisionEngine
                         if (Hlsl.Length(worldData[0].mainLightDir) > 0f)
                         {
                             float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
-                            float shadow = SoftShadow(shadowOrigin, worldData[0].mainLightDir);
-                            shadowColor = new float3(shadow, 0f, 0f);
+                            shadowColor = SoftShadow(shadowOrigin, worldData[0].mainLightDir);
                         }
                     }
                     texture[pixel] = new float4(shadowColor, 1);

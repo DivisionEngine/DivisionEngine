@@ -16,11 +16,11 @@ namespace DivisionEngine.Components.SDFs.Effects
     {
         public enum ShadowType
         {
-            Hard = 0, Soft = 1,
+            Hard = 0, Soft = 1, Colored = 2,
         }
 
         [Header("Setup")]
-        public ShadowType shadowStyle = ShadowType.Soft;
+        public ShadowType shadowStyle = ShadowType.Colored;
         public bool shadowCaster = true;
         public bool shadowReceiver = true;
 
