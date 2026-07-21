@@ -472,6 +472,7 @@ namespace DivisionEngine
         {
             float shadow = 1f;
             float3 tint = float3.One;
+            float tintShadow = 1f;
             for (int k = 0; k < sdfObjects.Length; k++)
             {
                 SDFObjectDTO sdf = sdfObjects[k];
@@ -486,6 +487,7 @@ namespace DivisionEngine
                     float stepSize = Hlsl.Clamp(dist, 0.025f, 100f);
                     if (isGlass)
                     {
+                        tintShadow = Hlsl.Min(tintShadow, sdf.shadowDistances.Z * dist / depth);
                         float coverage = Hlsl.Saturate(0.5f - dist * sdf.shadowDistances.Z);
                         tint *= Hlsl.Exp(absorptionCoefficient * stepSize * coverage * sdf.absorptionColor.A * 5f);
                     }
@@ -493,9 +495,11 @@ namespace DivisionEngine
                     depth += stepSize;
                 }
             }
+
             shadow = Hlsl.Max(shadow, -1f);
             float occlusion = Hlsl.SmoothStep(-1f, 0f, shadow);
-            return occlusion * tint;
+            float occlusionTint = Hlsl.SmoothStep(-1f, 0f, tintShadow);
+            return occlusion * Hlsl.Lerp(tint, float3.One, occlusionTint);
         }
 
         /// <summary>
