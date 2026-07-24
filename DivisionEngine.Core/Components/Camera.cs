@@ -106,58 +106,6 @@ namespace DivisionEngine.Components
         [Space(6f)]
         public FXAADebugMode debugFxaa = FXAADebugMode.Disabled;
 
-        /// <summary>
-        /// Enable or disable depth of field on this camera.
-        /// </summary>
-        [Header("Post-Processing Effects")]
-        public bool enableDepthOfField = false;
-        /// <summary>
-        /// Attempts to calculate focal length and focus distance based on scene content.
-        /// </summary>
-        [Tooltip("Attempts to calculate focal length and focus distance based on scene content")]
-        public bool enableAutofocus = false;
-        /// <summary>
-        /// Distance at which DOF = 0.
-        /// </summary>
-        [Tooltip("Distance at which DOF = 0")]
-        public float focusDistance = 24f;
-        /// <summary>
-        /// Falloff distance for DOF.
-        /// </summary>
-        [Tooltip("Falloff distance for DOF")]
-        public float focalLength = 26f;
-
-        /// <summary>
-        /// Enables or disables the vignette effect.
-        /// </summary>
-        [Space(6f)]
-        [Tooltip("Enables or disables the vignette effect")]
-        public bool enableVignette = false;
-        [Range(0f, 1f)] public float vignetteIntensity = 0.5f;
-        [Range(0f, 2f)] public float vignetteRadius = 1f;
-        [Range(0f, 1f)] public float vignetteSmoothness = 0.7f;
-        [Range(0f, 1f)] public float vignetteRoundness = 0.8f;
-        [Color] public float3 vignetteColor = new float3(0f, 0f, 0f);
-
-        /// <summary>
-        /// Turns general blur on or off.
-        /// </summary>
-        [Space(6f)]
-        [Tooltip("Turns general blur on or off")]
-        public bool enableBlur = false;
-        /// <summary>
-        /// Radius of the blur effect.
-        /// </summary>
-        [Tooltip("Radius of the blur effect")]
-        [Range(0f, 50f)] public float blurRadius = 5f;
-
-        /// <summary>
-        /// Turns the ACES tonemapper on or off for this camera.
-        /// </summary>
-        [Space(6f)]
-        [Tooltip("Turns the ACES tonemapper on or off for this camera")]
-        public bool enableAcesTonemapper = true;
-
         public IComponent Clone() => new Camera
         {
             isActive = isActive,
@@ -165,11 +113,6 @@ namespace DivisionEngine.Components
             fieldOfView = fieldOfView,
             nearClip = nearClip,
             farClip = farClip,
-
-            enableDepthOfField = enableDepthOfField,
-            enableAutofocus = enableAutofocus,
-            focusDistance = focusDistance,
-            focalLength = focalLength,
 
             maxRaySteps = maxRaySteps,
             maxShadowRaySteps = maxShadowRaySteps,
@@ -185,17 +128,6 @@ namespace DivisionEngine.Components
             fxaaStrength = fxaaStrength,
             fxaaKernelSize = fxaaKernelSize,
             debugFxaa = debugFxaa,
-
-            enableAcesTonemapper = enableAcesTonemapper,
-
-            enableBlur = enableBlur,
-            blurRadius = blurRadius,
-
-            enableVignette = enableVignette,
-            vignetteIntensity = vignetteIntensity,
-            vignetteColor = vignetteColor,
-            vignetteRoundness = vignetteRoundness,
-            vignetteSmoothness = vignetteSmoothness,
         };
     }
 }

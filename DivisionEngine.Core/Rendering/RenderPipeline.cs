@@ -20,6 +20,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Window = Silk.NET.Windowing.Window;
 using Math = DivisionEngine.MathLib.Math;
+using DivisionEngine.Components.SDFs.Effects;
 
 namespace DivisionEngine.Rendering
 {
@@ -901,69 +902,71 @@ namespace DivisionEngine.Rendering
                     Device?.For(dispatchWidth, dispatchHeight, shader);
                 }
 
-                // Rendering pipeline
                 ReadWriteTexture2D<float4>? currentTexture = renderTex;
+                #region postProcessing
 
-                // Division Denoising
-                if (worldDTO.enableDivisionDenoise == 1 && CurrentDebugMode == DebugMode.None &&
-                    currentTexture != null && postProcessTex != null && objectIdBuffer != null && depthNormalsTex != null)
+                // Denoising
+                foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
                 {
-                    lock (SyncLock)
-                    {
-                        DivisionDenoiseShader denoiseShader = new DivisionDenoiseShader(
-                            texWidth,
-                            texHeight,
-                            worldDTO.divisionThreshold,
-                            worldDTO.divisionDomain,
-                            currentTexture,
-                            postProcessTex,
-                            depthNormalsTex,
-                            sdfObjBuffer,
-                            objectIdBuffer);
-                        Device?.For(texWidth, texHeight, denoiseShader);
-                    }
-                    currentTexture = postProcessTex;
-                }
-
-                // A-Trous denoising using wavelets
-                if (worldDTO.enableATrousDenoise == 1 && CurrentDebugMode == DebugMode.None &&
-                    currentTexture != null && postProcessTex != null && kernelBuffer != null && objectIdBuffer != null && depthNormalsTex != null)
-                {
-                    ReadWriteTexture2D<float4> ping = currentTexture;
-                    ReadWriteTexture2D<float4> pong = postProcessTex;
-                    int stepSize = 1;
-
-                    for (int i = 0; i < worldDTO.aTrousStepCount; i++)
+                    // Division Denoising
+                    if (camera.enableDivisionDenoise && CurrentDebugMode == DebugMode.None &&
+                        currentTexture != null && postProcessTex != null && objectIdBuffer != null && depthNormalsTex != null)
                     {
                         lock (SyncLock)
                         {
-                            ATrousDenoiseShader aTrousShader = new ATrousDenoiseShader(
+                            DivisionDenoiseShader denoiseShader = new DivisionDenoiseShader(
                                 texWidth,
                                 texHeight,
-                                stepSize,
-                                ping,
-                                pong,
+                                camera.divisionDenoiseThreshold,
+                                camera.divisionDenoiseDomain,
+                                currentTexture,
+                                postProcessTex,
                                 depthNormalsTex,
                                 sdfObjBuffer,
-                                objectIdBuffer,
-                                kernelBuffer);
-                            Device?.For(texWidth, texHeight, aTrousShader);
+                                objectIdBuffer);
+                            Device?.For(texWidth, texHeight, denoiseShader);
                         }
-
-                        // Swap buffers for next pass
-                        (ping, pong) = (pong, ping);
-                        stepSize *= 2;
+                        currentTexture = postProcessTex;
                     }
-                    currentTexture = ping; // Final result
+
+                    // A-Trous denoising using wavelets
+                    if (camera.enableATrousDenoise && CurrentDebugMode == DebugMode.None &&
+                        currentTexture != null && postProcessTex != null && kernelBuffer != null && objectIdBuffer != null && depthNormalsTex != null)
+                    {
+                        ReadWriteTexture2D<float4> ping = currentTexture;
+                        ReadWriteTexture2D<float4> pong = postProcessTex;
+                        int stepSize = 1;
+
+                        for (int i = 0; i < camera.aTrousStepCount; i++)
+                        {
+                            lock (SyncLock)
+                            {
+                                ATrousDenoiseShader aTrousShader = new ATrousDenoiseShader(
+                                    texWidth,
+                                    texHeight,
+                                    stepSize,
+                                    ping,
+                                    pong,
+                                    depthNormalsTex,
+                                    sdfObjBuffer,
+                                    objectIdBuffer,
+                                    kernelBuffer);
+                                Device?.For(texWidth, texHeight, aTrousShader);
+                            }
+
+                            // Swap buffers for next pass
+                            (ping, pong) = (pong, ping);
+                            stepSize *= 2;
+                        }
+                        currentTexture = ping; // Final result
+                    }
                 }
 
-                #region postProcessing
-
                 // Post-processing effects
-                foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
+                foreach (var (_, transform, camera, postProcess) in W.QueryData<Transform, Camera, PostProcessing>())
                 {
                     // Depth of field
-                    if (CurrentDebugMode == DebugMode.None && camera.enableDepthOfField &&
+                    if (CurrentDebugMode == DebugMode.None && postProcess.enableDepthOfField &&
                         currentTexture != null && postProcessTex != null && depthNormalsTex != null)
                     {
                         currentTexture?.CopyTo(postProcessTex);
@@ -974,8 +977,8 @@ namespace DivisionEngine.Rendering
                                 texHeight,
                                 camera.nearClip,
                                 camera.farClip,
-                                camera.focusDistance,
-                                camera.focalLength,
+                                postProcess.focusDistance,
+                                postProcess.focalLength,
                                 postProcessTex,
                                 currentTexture!,
                                 depthNormalsTex);
@@ -1010,7 +1013,7 @@ namespace DivisionEngine.Rendering
                     }
 
                     // Blur effect
-                    if (camera.enableBlur && currentTexture != null && postProcessTex != null)
+                    if (postProcess.enableBlur && currentTexture != null && postProcessTex != null)
                     {
                         if (blurTempTex == null || blurTempTex.Width != texWidth || blurTempTex.Height != texHeight)
                         {
@@ -1023,31 +1026,52 @@ namespace DivisionEngine.Rendering
                         {
                             // Horizontal pass
                             TwoPassBlurShader blurHorizontal = new TwoPassBlurShader(
-                                texWidth, texHeight, camera.blurRadius, 0,
+                                texWidth, texHeight, postProcess.blurRadius, 0,
                                 currentTexture, blurTempTex);
                             Device?.For(texWidth, texHeight, blurHorizontal);
 
                             // Vertical pass
                             TwoPassBlurShader blurVertical = new TwoPassBlurShader(
-                                texWidth, texHeight, camera.blurRadius, 1,
+                                texWidth, texHeight, postProcess.blurRadius, 1,
                                 blurTempTex, postProcessTex);
                             Device?.For(texWidth, texHeight, blurVertical);
                         }
                         currentTexture = postProcessTex;
                     }
 
+                    // HSL Color Grading effect
+                    if (postProcess.saturation != 1f || postProcess.hueShift != 0f || postProcess.lightness != 1f || postProcess.contrast != 1f)
+                    {
+                        if (currentTexture != null && postProcessTex != null)
+                        {
+                            lock (SyncLock)
+                            {
+                                HSLShader hslShader = new HSLShader(
+                                    texWidth, texHeight,
+                                    postProcess.hueShift,
+                                    postProcess.saturation,
+                                    postProcess.lightness,
+                                    postProcess.contrast,
+                                    currentTexture,
+                                    postProcessTex);
+                                Device?.For(texWidth, texHeight, hslShader);
+                            }
+                            currentTexture = postProcessTex;
+                        }
+                    }
+
                     // Vignette effect
-                    if (camera.enableVignette && currentTexture != null && postProcessTex != null)
+                    if (postProcess.enableVignette && currentTexture != null && postProcessTex != null)
                     {
                         lock (SyncLock)
                         {
                             VignetteShader vignetteShader = new VignetteShader(
                                 texWidth, texHeight,
-                                worldDTO.vignetteIntensity,
-                                worldDTO.vignetteSmoothness,
-                                worldDTO.vignetteRoundness,
-                                worldDTO.vignetteRadius,
-                                worldDTO.vignetteColor,
+                                postProcess.vignetteIntensity,
+                                postProcess.vignetteSmoothness,
+                                postProcess.vignetteRoundness,
+                                postProcess.vignetteRadius,
+                                postProcess.vignetteColor,
                                 currentTexture,
                                 postProcessTex);
                             Device?.For(texWidth, texHeight, vignetteShader);

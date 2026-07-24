@@ -36,37 +36,12 @@ namespace DivisionEngine.Rendering
 
         // Misc Properties
         public float time; // 4b
+        public int enableAces; // 4b
 
         // Wind Properties
         public float2 windDirection; // 8b
         public float windStrength; // 4b
         public float windFrequency; // 4b
-
-        // DoF Properties
-        public float focusDistance; // 4b
-        public float focalLength; // 4b
-
-        // Tonemapping Properties
-        public int enableAces; // 4b
-
-        // Vignette Properties
-        public float vignetteIntensity; // 4b
-        public float vignetteSmoothness; // 4b
-        public float vignetteRoundness; // 4b
-        public float vignetteRadius; // 4b
-        public float3 vignetteColor; // 12b
-        public int enableVignette; // 4b
-
-        // Blur Properties
-        public int enableBlur; // 4b
-        public float blurRadius; // 4b
-
-        // Denoise Properties
-        public int enableDivisionDenoise; // 4b
-        public int enableATrousDenoise; // 4b
-        public float divisionThreshold; // 4b
-        public int divisionDomain; // 4b
-        public int aTrousStepCount; // 4b
 
         // Fog Properties
         public float fogDensity; // 4b

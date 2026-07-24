@@ -45,6 +45,7 @@ namespace DivisionEngine
                 position = new float3(0, 2, 7),
             });
             newDefaultWorld.AddComponent(cameraEntity, new Camera());
+            newDefaultWorld.AddComponent(cameraEntity, new PostProcessing());
             newDefaultWorld.AddComponent(cameraEntity, new Player());
 
             // Environment

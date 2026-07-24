@@ -87,31 +87,15 @@ namespace DivisionEngine.Systems
                     // Ray step counts
                     worldData.maxRaySteps = camera.maxRaySteps;
                     worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
+                }
+            }
 
-                    // Denoising
-                    if (camera.enableDivisionDenoise) worldData.enableDivisionDenoise = 1;
-                    else worldData.enableDivisionDenoise = 0;
-                    if (camera.enableATrousDenoise) worldData.enableATrousDenoise = 1;
-                    else worldData.enableATrousDenoise = 0;
-                    worldData.divisionThreshold = camera.divisionDenoiseThreshold;
-                    worldData.divisionDomain = camera.divisionDenoiseDomain;
-                    worldData.aTrousStepCount = camera.aTrousStepCount;
-
-                    // Post-processing effects
-                    worldData.focusDistance = camera.focusDistance;
-                    worldData.focalLength = camera.focalLength;
-
-                    worldData.enableAces = camera.enableAcesTonemapper ? 1 : 0;
-
-                    worldData.enableVignette = camera.enableVignette ? 1 : 0;
-                    worldData.vignetteIntensity = camera.vignetteIntensity;
-                    worldData.vignetteRadius = camera.vignetteRadius;
-                    worldData.vignetteSmoothness = camera.vignetteSmoothness;
-                    worldData.vignetteRoundness = camera.vignetteRoundness;
-                    worldData.vignetteColor = camera.vignetteColor;
-
-                    worldData.enableBlur = camera.enableBlur ? 1 : 0;
-                    worldData.blurRadius = camera.blurRadius;
+            // Gather post-process data
+            foreach (var (cameraId, postProcess) in W.QueryData<PostProcessing>())
+            {
+                if (cameraId != EditorCamera.EditorCameraId)
+                {
+                    worldData.enableAces = postProcess.enableAcesTonemapper ? 1 : 0;
                 }
             }
 

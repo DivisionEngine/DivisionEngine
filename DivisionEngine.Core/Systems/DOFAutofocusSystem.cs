@@ -6,13 +6,14 @@
 // project root for full license terms.
 //
 using DivisionEngine.Components;
+using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Rendering;
 using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {
     /// <summary>
-    /// Automatically adjusts camera focus distance and focal length based on scene content.
+    /// Automatically adjusts postEffects focus distance and focal length based on scene content.
     /// </summary>
     public class DOFAutofocusSystem : SystemBase
     {
@@ -37,20 +38,20 @@ namespace DivisionEngine.Systems
         {
             if (!EngineCore.IsInPlayMode)
             {
-                foreach (var (cameraId, _, camera) in W.QueryData<Transform, Camera>())
+                foreach (var (cameraId, camera, postProcess) in W.QueryData<Camera, PostProcessing>())
                     if (cameraId != EditorCamera.EditorCameraId)
-                        ExecuteDOFIteration(camera);
+                        ExecuteDOFIteration(camera, postProcess);
             }
         }
 
         public override void Update()
         {
-            foreach (var (_, _, camera) in W.QueryData<Transform, Camera>())
+            foreach (var (_, camera, postProcess) in W.QueryData<Camera, PostProcessing>())
                 if (camera.isActive)
-                    ExecuteDOFIteration(camera);
+                    ExecuteDOFIteration(camera, postProcess);
         }
 
-        private void ExecuteDOFIteration(Camera camera)
+        private void ExecuteDOFIteration(Camera camera, PostProcessing postEffects)
         {
             // Only update every N frames for performance
             framesSinceUpdate++;
@@ -58,7 +59,7 @@ namespace DivisionEngine.Systems
             framesSinceUpdate = 0;
 
             // Check the depth buffer from the render pipeline
-            if (!camera.enableDepthOfField || !camera.enableAutofocus ||
+            if (!postEffects.enableDepthOfField || !postEffects.enableAutofocus ||
                 RenderPipeline.Instance?.DepthNormalPixels == null) return;
 
             // Sample the depth buffer
@@ -70,12 +71,12 @@ namespace DivisionEngine.Systems
                 camera.farClip
             );
 
-            camera.focusDistance = Math.Clamp(
+            postEffects.focusDistance = Math.Clamp(
                 focusDistance,
                 MinFocusDistance,
                 MaxFocusDistance
             );
-            camera.focalLength = Math.Max(focalLength, 1f);
+            postEffects.focalLength = Math.Max(focalLength, 1f);
         }
 
         /// <summary>
