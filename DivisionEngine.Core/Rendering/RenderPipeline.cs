@@ -1047,7 +1047,7 @@ namespace DivisionEngine.Rendering
                                 worldDTO.vignetteSmoothness,
                                 worldDTO.vignetteRoundness,
                                 worldDTO.vignetteRadius,
-                                worldDTO.vignetteColor.RGB,
+                                worldDTO.vignetteColor,
                                 currentTexture,
                                 postProcessTex);
                             Device?.For(texWidth, texHeight, vignetteShader);
