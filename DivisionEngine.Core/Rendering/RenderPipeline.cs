@@ -1012,14 +1012,13 @@ namespace DivisionEngine.Rendering
                     // Blur effect
                     if (camera.enableBlur && currentTexture != null && postProcessTex != null)
                     {
-                        // Create temp texture for two-pass blur if needed
                         if (blurTempTex == null || blurTempTex.Width != texWidth || blurTempTex.Height != texHeight)
                         {
                             blurTempTex?.Dispose();
                             blurTempTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
                         }
 
-                        // Two-pass blur (horizontal then vertical)
+                        // Two-pass blur
                         lock (SyncLock)
                         {
                             // Horizontal pass
@@ -1037,18 +1036,18 @@ namespace DivisionEngine.Rendering
                         currentTexture = postProcessTex;
                     }
 
-                    // Vignette effect (applied last)
+                    // Vignette effect
                     if (camera.enableVignette && currentTexture != null && postProcessTex != null)
                     {
-                        // Use postProcessTex as temporary if needed, or create another texture
                         lock (SyncLock)
                         {
                             VignetteShader vignetteShader = new VignetteShader(
                                 texWidth, texHeight,
-                                camera.vignetteIntensity,
-                                camera.vignetteSmoothness,
-                                camera.vignetteRoundness,
-                                camera.vignetteColor,
+                                worldDTO.vignetteIntensity,
+                                worldDTO.vignetteSmoothness,
+                                worldDTO.vignetteRoundness,
+                                worldDTO.vignetteRadius,
+                                worldDTO.vignetteColor.RGB,
                                 currentTexture,
                                 postProcessTex);
                             Device?.For(texWidth, texHeight, vignetteShader);

@@ -105,13 +105,13 @@ namespace DivisionEngine.Systems
 
                     worldData.enableVignette = camera.enableVignette ? 1 : 0;
                     worldData.vignetteIntensity = camera.vignetteIntensity;
+                    worldData.vignetteRadius = camera.vignetteRadius;
                     worldData.vignetteSmoothness = camera.vignetteSmoothness;
                     worldData.vignetteRoundness = camera.vignetteRoundness;
                     worldData.vignetteColor = camera.vignetteColor;
 
                     worldData.enableBlur = camera.enableBlur ? 1 : 0;
                     worldData.blurRadius = camera.blurRadius;
-                    worldData.blurPasses = camera.blurPasses;
                 }
             }
 

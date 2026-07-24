@@ -1,22 +1,29 @@
-﻿#pragma warning disable CA1416 // Validate platform compatibility
+﻿//
+// Copyright (c) 2025-2026 Rex Woodfield and Division Engine contributors
+//
+// This file is part of Division Engine and is subject to the terms
+// of the Division Engine License. See the LICENSE.txt file in the
+// project root for full license terms.
+//
+#pragma warning disable CA1416 // Validate platform compatibility
 
 using ComputeSharp;
 
 namespace DivisionEngine.Rendering.Effects
 {
     /// <summary>
-    /// Vignette post-processing effect.
-    /// Darkens the edges of the screen.
+    /// Darkens the edges of the screen with configurable radius.
     /// </summary>
     [GeneratedComputeShaderDescriptor]
     [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
     public readonly partial struct VignetteShader(
         float width,
         float height,
-        float vignetteIntensity,   // 0.0 - 1.0, how strong the effect is
-        float vignetteSmoothness,  // 0.0 - 1.0, how smooth the transition is
-        float vignetteRoundness,   // 0.0 - 1.0, roundness of the vignette (0 = rectangular, 1 = circular)
-        float3 vignetteColor,      // Color of the vignette (black by default)
+        float vignetteIntensity,
+        float vignetteSmoothness,
+        float vignetteRoundness,
+        float vignetteRadius,
+        float3 vignetteColor,
         ReadWriteTexture2D<float4> inputTexture,
         ReadWriteTexture2D<float4> outputTexture) : IComputeShader
     {
@@ -25,43 +32,37 @@ namespace DivisionEngine.Rendering.Effects
             int2 pixel = ThreadIds.XY;
             if (pixel.X >= width || pixel.Y >= height) return;
 
-            // Calculate UV coordinates (0-1 range)
             float2 uv = new float2(pixel.X / width, pixel.Y / height);
-
-            // Calculate distance from center with optional roundness
             float2 center = new float2(0.5f, 0.5f);
             float2 distVec = uv - center;
 
-            // Apply roundness (1 = circular, 0 = rectangular)
-            float2 distVecRounded = distVec;
-            if (vignetteRoundness < 1.0f)
+            // Calculate distance with roundness control
+            float distance;
+            if (vignetteRoundness >= 0.999f) distance = Hlsl.Length(distVec); // Perfect circle
+            else if (vignetteRoundness <= 0.001f) distance = Hlsl.Max(Hlsl.Abs(distVec.X), Hlsl.Abs(distVec.Y)); // perfect rectangle
+            else
             {
-                // Blend between circular and rectangular
-                float r = Hlsl.Length(distVec);
-                float rect = Hlsl.Max(Hlsl.Abs(distVec.X), Hlsl.Abs(distVec.Y));
-                float blend = Hlsl.Lerp(rect, r, vignetteRoundness);
-                distVecRounded = new float2(blend, blend);
+                float p = Hlsl.Lerp(8f, 2f, vignetteRoundness); // Higher p = more rectangular
+                float2 absDist = Hlsl.Abs(distVec);
+                distance = Hlsl.Pow(Hlsl.Pow(absDist.X, p) + Hlsl.Pow(absDist.Y, p), 1f / p);
             }
 
-            float distance = Hlsl.Length(distVecRounded);
+            // Max distance from center is ~0.707 for corners
+            float maxDistance = 0.7071f;
+            float scaledDistance = distance / (vignetteRadius * maxDistance);
 
             // Calculate vignette factor (1 at center, 0 at edges)
-            // Smoothness controls the falloff curve
-            float smoothness = Hlsl.Lerp(1.0f, 3.0f, vignetteSmoothness);
-            float vignetteFactor = 1.0f - Hlsl.Pow(distance * 2.0f, smoothness);
-            vignetteFactor = Hlsl.Clamp(vignetteFactor, 0.0f, 1.0f);
+            float smoothness = Hlsl.Lerp(1f, 4f, vignetteSmoothness);
+            float vignetteFactor = 1f - Hlsl.Pow(Hlsl.Saturate(scaledDistance), smoothness);
+            vignetteFactor = Hlsl.Lerp(1f, vignetteFactor, vignetteIntensity);
+            vignetteFactor = Hlsl.Clamp(vignetteFactor, 0f, 1f);
 
-            // Apply intensity
-            vignetteFactor = Hlsl.Lerp(1.0f, vignetteFactor, vignetteIntensity);
-
-            // Apply vignette color (black by default)
+            // Apply vignette
             float3 color = inputTexture[pixel].XYZ;
             float3 darkenedColor = color * vignetteFactor;
+            float3 finalColor = Hlsl.Lerp(darkenedColor, color * vignetteColor, (1f - vignetteFactor) * 0.5f);
 
-            // Blend with vignette color for artistic effect
-            float3 finalColor = Hlsl.Lerp(darkenedColor, vignetteColor * color, (1.0f - vignetteFactor) * 0.5f);
-
-            outputTexture[pixel] = new float4(finalColor, 1.0f);
+            outputTexture[pixel] = new float4(finalColor, 1f);
         }
     }
 }

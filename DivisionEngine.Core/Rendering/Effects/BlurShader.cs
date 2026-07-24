@@ -1,4 +1,11 @@
-﻿#pragma warning disable CA1416 // Validate platform compatibility
+﻿//
+// Copyright (c) 2025-2026 Rex Woodfield and Division Engine contributors
+//
+// This file is part of Division Engine and is subject to the terms
+// of the Division Engine License. See the LICENSE.txt file in the
+// project root for full license terms.
+//
+#pragma warning disable CA1416 // Validate platform compatibility
 
 using ComputeSharp;
 
@@ -24,7 +31,7 @@ namespace DivisionEngine.Rendering.Effects
         private static float GaussianWeight(float x, float sigma)
         {
             float sigma2 = sigma * sigma;
-            return (1f / Hlsl.Sqrt(2f * 3.141592654f * sigma2)) * Hlsl.Exp(-(x * x) / (2f * sigma2));
+            return 1f / Hlsl.Sqrt(2f * 3.141592654f * sigma2) * Hlsl.Exp(-(x * x) / (2f * sigma2));
         }
 
         /// <summary>
@@ -94,25 +101,11 @@ namespace DivisionEngine.Rendering.Effects
                 float4 horizontal = BlurHorizontal(pixel, sigma);
 
                 // Vertical pass (using the horizontal result)
-                // Store in temp texture if needed for multi-pass
-                if (pass < blurPasses - 1)
-                {
-                    tempTexture[pixel] = horizontal;
-                }
+                if (pass < blurPasses - 1) tempTexture[pixel] = horizontal;
 
                 // For the final pass, compute vertical directly
-                if (pass == blurPasses - 1)
-                {
-                    // Use the horizontal result as input for vertical pass
-                    // We need to temporarily swap input/output for this
-                    // For simplicity, we just apply vertical after horizontal
-                    finalColor = BlurVertical(pixel, sigma);
-                }
-                else
-                {
-                    // Store intermediate result
-                    tempTexture[pixel] = horizontal;
-                }
+                if (pass == blurPasses - 1) finalColor = BlurVertical(pixel, sigma);
+                else tempTexture[pixel] = horizontal;
             }
 
             outputTexture[pixel] = finalColor;

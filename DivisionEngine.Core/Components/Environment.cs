@@ -21,17 +21,48 @@ namespace DivisionEngine.Components
             Solid = 0, Gradient = 1, HDRI = 2
         }
 
+        /// <summary>
+        /// Strength of the ambient lighting.
+        /// </summary>
         [Header("Lighting")]
+        [Tooltip("Strength of the ambient lighting")]
         [Range(0f, 1f)] public float ambientStrength = 0.15f;
+        /// <summary>
+        /// Type of sky rendered in the background
+        /// </summary>
+        [Tooltip("Type of sky rendered in the background")]
         public SkyType skyType = SkyType.Solid;
+        /// <summary>
+        /// Intensity of the rendered sky.
+        /// </summary>
+        /// <remarks>Useful for night skies</remarks>
+        [Tooltip("This is useful for night skies")]
         [Min(0f)] public float skyIntensity = 1f;
 
+        /// <summary>
+        /// Color of the single color background sky.
+        /// </summary>
         [Header("Single Color Sky")]
         [Color(false)] public float4 skyColor = ColorPalette.SkyBlue;
 
+        /// <summary>
+        /// Top color for the gradient sky.
+        /// </summary>
+        /// <remarks>Look Up!</remarks>
         [Header("Gradient Sky")]
+        [Tooltip("Look Up!")]
         [Color(false)] public float4 topSkyColor = ColorPalette.DeepSkyBlue;
+        /// <summary>
+        /// Horizon color.
+        /// </summary>
+        /// <remarks>Zero Dawn</remarks>
+        [Tooltip("Horizon color")]
         [Color(false)] public float4 middleSkyColor = ColorPalette.SkyBlue;
+        /// <summary>
+        /// Bottom color for the gradient sky.
+        /// </summary>
+        /// <remarks>Don't Look Up!</remarks>
+        [Tooltip("Don't Look Up!")]
         [Color(false)] public float4 bottomSkyColor = ColorPalette.SandyBrown;
 
         [Header("HDRI Sky")]

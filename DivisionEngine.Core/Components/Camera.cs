@@ -25,10 +25,10 @@ namespace DivisionEngine.Components
         [Tooltip("Whether this camera is currently active for rendering")]
         public bool isActive = true;
 
-        [Header("Camera Setup")]
         /// <summary>
         /// The viewing angle of the camera.
         /// </summary>
+        [Header("Camera Setup")]
         [Tooltip("The viewing angle of the camera")]
         public float fieldOfView = 75f;
         /// <summary>
@@ -42,10 +42,10 @@ namespace DivisionEngine.Components
         [Tooltip("Far clip plane that the camera stops rendering at")]
         public float farClip = 10000f;
 
-        [Header("SDF Rendering")]
         /// <summary>
         /// Max number of trace steps.
         /// </summary>
+        [Header("SDF Rendering")]
         [Tooltip("Max number of trace steps")]
         public int maxRaySteps = 256;
         /// <summary>
@@ -54,10 +54,10 @@ namespace DivisionEngine.Components
         [Tooltip("Max trace steps for shadows")]
         public int maxShadowRaySteps = 256;
 
-        [Header("Denoising")]
         /// <summary>
         /// Enable built-in reflections denoiser.
         /// </summary>
+        [Header("Denoising")]
         public bool enableDivisionDenoise = true;
         /// <summary>
         /// Enable A-Trous wavelet denoising.
@@ -79,11 +79,11 @@ namespace DivisionEngine.Components
         /// </summary>
         [Range(1, 5)]
         public int aTrousStepCount = 2;
-        
-        [Header("Anti-Aliasing")]
+
         /// <summary>
         /// Enable Fast Approximate Anti-Aliasing.
         /// </summary>
+        [Header("Anti-Aliasing")]
         [Tooltip("Fast Approximate Anti-Aliasing")]
         public bool enableFxaa = true;
         /// <summary>
@@ -95,6 +95,9 @@ namespace DivisionEngine.Components
         /// Strength of the blur in the FXAA filter.
         /// </summary>
         public float fxaaStrength = 0.5f;
+        /// <summary>
+        /// The size of the area edge blur.
+        /// </summary>
         [Tooltip("The size of the area edge blur")]
         public int fxaaKernelSize = 2;
         /// <summary>
@@ -103,10 +106,10 @@ namespace DivisionEngine.Components
         [Space(6f)]
         public FXAADebugMode debugFxaa = FXAADebugMode.Disabled;
 
-        [Header("Post-Processing Effects")]
         /// <summary>
         /// Enable or disable depth of field on this camera.
         /// </summary>
+        [Header("Post-Processing Effects")]
         public bool enableDepthOfField = false;
         /// <summary>
         /// Attempts to calculate focal length and focus distance based on scene content.
@@ -124,22 +127,35 @@ namespace DivisionEngine.Components
         [Tooltip("Falloff distance for DOF")]
         public float focalLength = 26f;
 
+        /// <summary>
+        /// Enables or disables the vignette effect.
+        /// </summary>
         [Space(6f)]
+        [Tooltip("Enables or disables the vignette effect")]
         public bool enableVignette = false;
         [Range(0f, 1f)] public float vignetteIntensity = 0.5f;
+        [Range(0f, 2f)] public float vignetteRadius = 1f;
         [Range(0f, 1f)] public float vignetteSmoothness = 0.7f;
         [Range(0f, 1f)] public float vignetteRoundness = 0.8f;
         [Color] public float3 vignetteColor = new float3(0f, 0f, 0f);
 
+        /// <summary>
+        /// Turns general blur on or off.
+        /// </summary>
         [Space(6f)]
+        [Tooltip("Turns general blur on or off")]
         public bool enableBlur = false;
-        [Range(0f, 20f)] public float blurRadius = 5.0f;
-        [Range(1, 4)] public int blurPasses = 2;
+        /// <summary>
+        /// Radius of the blur effect.
+        /// </summary>
+        [Tooltip("Radius of the blur effect")]
+        [Range(0f, 50f)] public float blurRadius = 5f;
 
         /// <summary>
         /// Turns the ACES tonemapper on or off for this camera.
         /// </summary>
         [Space(6f)]
+        [Tooltip("Turns the ACES tonemapper on or off for this camera")]
         public bool enableAcesTonemapper = true;
 
         public IComponent Clone() => new Camera
@@ -174,7 +190,6 @@ namespace DivisionEngine.Components
 
             enableBlur = enableBlur,
             blurRadius = blurRadius,
-            blurPasses = blurPasses,
 
             enableVignette = enableVignette,
             vignetteIntensity = vignetteIntensity,

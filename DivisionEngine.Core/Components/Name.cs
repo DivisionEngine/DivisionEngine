@@ -5,6 +5,8 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
+using DivisionEngine.Components.FieldAttributes;
+
 namespace DivisionEngine.Components
 {
     /// <summary>
@@ -29,6 +31,11 @@ namespace DivisionEngine.Components
             this.name = name;
         }
 
+        /// <summary>
+        /// Names an entity.
+        /// </summary>
+        /// <remarks>Used throughout the engine to apply readable identifiers to entities</remarks>
+        [Tooltip("Name this object!")]
         public string? name = null;
 
         public IComponent Clone() => new Name

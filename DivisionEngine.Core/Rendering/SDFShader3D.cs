@@ -1467,5 +1467,3 @@ namespace DivisionEngine
         #endregion main
     }
 }
-
-#pragma warning restore CA1416 // Validate platform compatibility

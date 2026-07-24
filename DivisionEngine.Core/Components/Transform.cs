@@ -15,8 +15,20 @@ namespace DivisionEngine.Components
     /// </summary>
     public class Transform : IComponent
     {
+        /// <summary>
+        /// Position of this entity.
+        /// </summary>
+        [Tooltip("Position of this entity")]
         public float3 position = new float3(0f, 0f, 0f);
+        /// <summary>
+        /// Rotation of this entity.
+        /// </summary>
+        [Tooltip("Rotation of this entity")]
         [Rotation(true)] public float4 rotation = Quaternion.Identity;
+        /// <summary>
+        /// Scale of this entity.
+        /// </summary>
+        [Tooltip("Scale of this entity")]
         public float3 scaling = new float3(1f, 1f, 1f);
 
         public float3 Forward => rotation.RotateVector(new float3(0, 0, -1)).Normalize();

@@ -14,9 +14,22 @@ namespace DivisionEngine.Components.SDFs.Effects
     /// </summary>
     public class Refractions : IComponent
     {
+        /// <summary>
+        /// Turns refractions on and off for this material.
+        /// </summary>
         public bool hasRefractions = true;
+        /// <summary>
+        /// Represents the wavelengths that are absorbed when traveling through a refractive material.
+        /// </summary>
+        /// <remarks>Effectively the "inner glass color"</remarks>
         [Color(ShowAlpha = true)] public float4 absorptionColor = new float4(1f, 1f, 1f, 0.1f);
+        /// <summary>
+        /// Maximum number of refraction ray steps for this material.
+        /// </summary>
         public int maxRaySteps = 196;
+        /// <summary>
+        /// Maximum number of refraction objects included in the trace.
+        /// </summary>
         [Range(1, 16)] public int maxRecursionTraces = 4;
 
         public IComponent Clone() => new Refractions
