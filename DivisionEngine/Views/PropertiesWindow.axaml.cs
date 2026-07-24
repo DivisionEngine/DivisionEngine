@@ -656,7 +656,7 @@ public partial class PropertiesWindow : EditorWindow
         RangeAttribute? rangeAttr = field.GetCustomAttribute<RangeAttribute>();
 
         Control editorControl = new();
-        if (fieldValue != null && fieldType == typeof(float))
+        if (fieldValue != null && fieldType == typeof(float)) // Float fields and sliders
         {
             float value = (float)fieldValue;
             float lo = minAttr?.Min ?? -2000000000f, hi = maxAttr?.Max ?? 2000000000f;
@@ -669,7 +669,7 @@ public partial class PropertiesWindow : EditorWindow
             }
             else editorControl = CreateFloatNumericBox(value, f => { field.SetValue(component, f); Notify(); }, true, lo, hi);
         }
-        else if (fieldValue != null && fieldType == typeof(int))
+        else if (fieldValue != null && fieldType == typeof(int)) // Integer fields and sliders
         {
             int value = (int)fieldValue;
             int lo = minAttr != null ? (int)minAttr.Min : int.MinValue, hi = maxAttr != null ? (int)maxAttr.Max : int.MaxValue;
@@ -682,7 +682,7 @@ public partial class PropertiesWindow : EditorWindow
             }
             else editorControl = CreateIntegerNumericBox(value, f => { field.SetValue(component, f); Notify(); }, true, lo, hi);
         }
-        else if (fieldValue != null && fieldType == typeof(string))
+        else if (fieldValue != null && fieldType == typeof(string)) // Text fields
         {
             TextBox textBox = new() { Classes = { "field-editor" }, Text = (string)fieldValue, 
                 AcceptsReturn = field.GetCustomAttribute<MultilineAttribute>() != null };
@@ -690,13 +690,13 @@ public partial class PropertiesWindow : EditorWindow
                 { field.SetValue(component, textBox.Text); Notify(); } };
             editorControl = textBox;
         }
-        else if (fieldValue != null && fieldType == typeof(bool))
+        else if (fieldValue != null && fieldType == typeof(bool)) // Toggle fields
         {
             CheckBox checkBox = new() { Classes = { "field-editor" }, IsChecked = (bool)fieldValue, IsDefault = false };
             checkBox.IsCheckedChanged += (_, _) => { field.SetValue(component, checkBox.IsChecked); Notify(); };
             editorControl = checkBox;
         }
-        else if (fieldValue != null && fieldType == typeof(float2))
+        else if (fieldValue != null && fieldType == typeof(float2)) // 2D vector fields
         {
             float2 state = (float2)fieldValue;
             editorControl = BuildAxisRow(["X", "Y"], [state.X, state.Y], (axis, v) =>
@@ -705,24 +705,33 @@ public partial class PropertiesWindow : EditorWindow
                 field.SetValue(component, state); Notify();
             }, out _);
         }
-        else if (fieldValue != null && fieldType == typeof(float3))
+        else if (fieldValue != null && fieldType == typeof(float3)) // 3D vector fields and colors (no alpha)
         {
             float3 state = (float3)fieldValue;
-            editorControl = BuildAxisRow(["X", "Y", "Z"], [state.X, state.Y, state.Z], (axis, v) =>
+            ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>();
+
+            // Can be color or vector field
+            if (colorAttr != null) editorControl = CreateColorFieldEditorF3(field, component, colorAttr, entityId) ?? editorControl;
+            else
             {
-                if (axis == 0) state.X = v; else if (axis == 1) state.Y = v; else state.Z = v;
-                field.SetValue(component, state); Notify();
-            }, out _);
+                editorControl = BuildAxisRow(["X", "Y", "Z"], [state.X, state.Y, state.Z], (axis, v) =>
+                {
+                    if (axis == 0) state.X = v; else if (axis == 1) state.Y = v; else state.Z = v;
+                    field.SetValue(component, state); Notify();
+                }, out _);
+            }
         }
-        else if (fieldValue != null && fieldType == typeof(float4))
+        else if (fieldValue != null && fieldType == typeof(float4)) // 4D vector fields and colors and quaternions
         {
+            float4 state = (float4)fieldValue;
             ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>();
             RotationAttribute? rotAttr = field.GetCustomAttribute<RotationAttribute>();
+
+            // Can be color, rotation, or vector field
             if (colorAttr != null) editorControl = CreateColorFieldEditor(field, component, colorAttr, entityId) ?? editorControl;
             else if (rotAttr != null) editorControl = CreateRotationFieldEditor(field, component, rotAttr, entityId) ?? editorControl;
             else
             {
-                float4 state = (float4)fieldValue;
                 editorControl = BuildAxisRow(["X", "Y", "Z", "W"], [state.X, state.Y, state.Z, state.W], (axis, v) =>
                 {
                     switch (axis) { case 0: state.X = v; break; case 1: state.Y = v; break; case 2: state.Z = v; break; default: state.W = v; break; }
@@ -730,7 +739,7 @@ public partial class PropertiesWindow : EditorWindow
                 }, out _);
             }
         }
-        else if (fieldValue != null && fieldType == typeof(DateTime))
+        else if (fieldValue != null && fieldType == typeof(DateTime)) // Time and date fields
         {
             CalendarDatePicker picker = new()
             {
@@ -746,17 +755,17 @@ public partial class PropertiesWindow : EditorWindow
             picker.SelectedDateChanged += (_, _) => { field.SetValue(component, picker.SelectedDate); Notify(); };
             editorControl = picker;
         }
-        else if (fieldValue != null && fieldType == typeof(float4x4))
+        else if (fieldValue != null && fieldType == typeof(float4x4)) // 4D matrix fields
             editorControl = CreateMatrixEditor((float4x4)fieldValue, field, component, entityId);
-        else if (fieldType.IsEnum)
+        else if (fieldType.IsEnum) // Dropdown enum fields
             editorControl = CreateEnumEditor(field, component, fieldType, fieldValue, entityId);
-        else if (fieldType == typeof(AssetRef) || (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>)))
+        else if (fieldType == typeof(AssetRef) || (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>))) // Asset fields
             editorControl = CreateAssetRefEditor(field, component);
 
         ApplyTooltip(editorControl, field);
         fieldPanel.Children.Add(editorControl);
 
-        if (field.GetCustomAttribute<TooltipAttribute>() != null)
+        if (field.GetCustomAttribute<TooltipAttribute>() != null) // Adds tooltips to fields
         {
             MaterialIcon tooltipIcon = new() { Kind = MaterialIconKind.InformationOutline, Width = 12, Height = 12, 
                 Margin = new Thickness(4, 0, 0, 0), Foreground = EditorColor.FromRGB(148, 148, 148), VerticalAlignment = VerticalAlignment.Center };
@@ -978,6 +987,45 @@ public partial class PropertiesWindow : EditorWindow
         };
         return new StackPanel { Orientation = Orientation.Horizontal, MinHeight = 10, 
             VerticalAlignment = VerticalAlignment.Center, Children = { colorPicker } };
+    }
+
+    private static StackPanel? CreateColorFieldEditorF3(FieldInfo field, IComponent component, ColorAttribute colorAttr, uint entityId)
+    {
+        if (field.GetValue(component) is not float3 colorValue) return null;
+
+        ColorPicker colorPicker = new()
+        {
+            Width = 150,
+            Height = 20,
+            Color = EditorColor.FromColor(colorValue).Color,
+            Background = EditorColor.FromRGB(32, 32, 32),
+            IsAlphaVisible = false,
+            IsAlphaEnabled = false,
+            IsColorSpectrumVisible = true,
+            IsColorPreviewVisible = true,
+            IsColorComponentsVisible = true,
+            IsComponentTextInputVisible = false,
+            IsComponentSliderVisible = true,
+            IsHexInputVisible = true,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            FontSize = 12,
+        };
+        colorPicker.ColorChanged += (_, _) =>
+        {
+            Color c = colorPicker.Color;
+            field.SetValue(component, new float3(c.R / 255f, c.G / 255f, c.B / 255f));
+            PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
+        };
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            MinHeight = 10,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { colorPicker }
+        };
     }
 
     private static StackPanel? CreateRotationFieldEditor(FieldInfo field, IComponent component, RotationAttribute rotAttr, uint entityId)

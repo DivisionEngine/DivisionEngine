@@ -73,6 +73,16 @@ namespace DivisionEngine.Editor
             Convert.ToByte(color.Z * 255f)));
 
         /// <summary>
+        /// Creates a new color from a float3 color vector.
+        /// </summary>
+        /// <param name="color">Float3 color vector to apply to brush</param>
+        /// <returns>New SolidColorBrush with selected RGB values</returns>
+        public static SolidColorBrush FromColor(float3 color) => new SolidColorBrush(Color.FromRgb(
+            Convert.ToByte(color.X * 255f),
+            Convert.ToByte(color.Y * 255f),
+            Convert.ToByte(color.Z * 255f)));
+
+        /// <summary>
         /// Converts a hex string starting with '#' to a color.
         /// </summary>
         /// <param name="hex">Input hex string</param>

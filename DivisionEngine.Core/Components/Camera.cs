@@ -42,27 +42,6 @@ namespace DivisionEngine.Components
         [Tooltip("Far clip plane that the camera stops rendering at")]
         public float farClip = 10000f;
 
-        [Header("Depth Of Field")]
-        /// <summary>
-        /// Enable or disable depth of field on this camera.
-        /// </summary>
-        public bool enableDepthOfField = false;
-        /// <summary>
-        /// Attempts to calculate focal length and focus distance based on scene content.
-        /// </summary>
-        [Tooltip("Attempts to calculate focal length and focus distance based on scene content")]
-        public bool enableAutofocus = false;
-        /// <summary>
-        /// Distance at which DOF = 0.
-        /// </summary>
-        [Tooltip("Distance at which DOF = 0")]
-        public float focusDistance = 24f;
-        /// <summary>
-        /// Falloff distance for DOF.
-        /// </summary>
-        [Tooltip("Falloff distance for DOF")]
-        public float focalLength = 26f;
-
         [Header("SDF Rendering")]
         /// <summary>
         /// Max number of trace steps.
@@ -124,7 +103,43 @@ namespace DivisionEngine.Components
         [Space(6f)]
         public FXAADebugMode debugFxaa = FXAADebugMode.Disabled;
 
-        [Header("Tonemapping")]
+        [Header("Post-Processing Effects")]
+        /// <summary>
+        /// Enable or disable depth of field on this camera.
+        /// </summary>
+        public bool enableDepthOfField = false;
+        /// <summary>
+        /// Attempts to calculate focal length and focus distance based on scene content.
+        /// </summary>
+        [Tooltip("Attempts to calculate focal length and focus distance based on scene content")]
+        public bool enableAutofocus = false;
+        /// <summary>
+        /// Distance at which DOF = 0.
+        /// </summary>
+        [Tooltip("Distance at which DOF = 0")]
+        public float focusDistance = 24f;
+        /// <summary>
+        /// Falloff distance for DOF.
+        /// </summary>
+        [Tooltip("Falloff distance for DOF")]
+        public float focalLength = 26f;
+
+        [Space(6f)]
+        public bool enableVignette = false;
+        [Range(0f, 1f)] public float vignetteIntensity = 0.5f;
+        [Range(0f, 1f)] public float vignetteSmoothness = 0.7f;
+        [Range(0f, 1f)] public float vignetteRoundness = 0.8f;
+        [Color] public float3 vignetteColor = new float3(0f, 0f, 0f);
+
+        [Space(6f)]
+        public bool enableBlur = false;
+        [Range(0f, 20f)] public float blurRadius = 5.0f;
+        [Range(1, 4)] public int blurPasses = 2;
+
+        /// <summary>
+        /// Turns the ACES tonemapper on or off for this camera.
+        /// </summary>
+        [Space(6f)]
         public bool enableAcesTonemapper = true;
 
         public IComponent Clone() => new Camera
@@ -156,6 +171,16 @@ namespace DivisionEngine.Components
             debugFxaa = debugFxaa,
 
             enableAcesTonemapper = enableAcesTonemapper,
+
+            enableBlur = enableBlur,
+            blurRadius = blurRadius,
+            blurPasses = blurPasses,
+
+            enableVignette = enableVignette,
+            vignetteIntensity = vignetteIntensity,
+            vignetteColor = vignetteColor,
+            vignetteRoundness = vignetteRoundness,
+            vignetteSmoothness = vignetteSmoothness,
         };
     }
 }

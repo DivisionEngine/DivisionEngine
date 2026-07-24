@@ -49,8 +49,17 @@ namespace DivisionEngine.Rendering
         // Tonemapping Properties
         public int enableAces; // 4b
 
-        // Vingette Properties
-        
+        // Vignette Properties
+        public float vignetteIntensity; // 4b
+        public float vignetteSmoothness; // 4b
+        public float vignetteRoundness; // 4b
+        public float3 vignetteColor; // 12b
+        public int enableVignette; // 4b
+
+        // Blur Properties
+        public int enableBlur; // 4b
+        public float blurRadius; // 4b
+        public int blurPasses; // 4b
 
         // Denoise Properties
         public int enableDivisionDenoise; // 4b

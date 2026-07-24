@@ -40,6 +40,7 @@ namespace DivisionEngine.Components.SDFs
         const float IOR_POLYCARBONATE = 1.58f;
 
         [Header("Textures")]
+        [Tooltip("Base color texture of this material")]
         public AssetRef<TextureAsset> albedoMap = default;
         public AssetRef<TextureAsset> normalMap = default;
         public float normalStrength = 1f;
@@ -50,19 +51,27 @@ namespace DivisionEngine.Components.SDFs
         public AssetRef<TextureAsset> emissiveMap = default;
 
         [Header("UV Scale / Offset")]
+        [Tooltip("Texture pixel scale")]
         public float2 uvScale = new float2(1f, 1f);
+        [Tooltip("Texture pixel offset")]
         public float2 uvOffset = float2.Zero;
-        public float triplanarBlend = 4f;
+        [Tooltip("How smooth the blend is between each side of the texture")]
+        public float triplanarBlend = 1f;
 
         [Space(10f)]
         [Header("Material Properties")]
+        [Tooltip("Base color (overriden by albedo map)")]
         [Color(false)] public float4 albedoColor = ColorPalette.White;
+        [Tooltip("Metalness (overridden by metallic map)")]
         [Range(0f, 1f)] public float metallic = 0.8f;
+        [Tooltip("Roughness (overridden by roughness map)")]
         [Range(0f, 1f)] public float roughness = 0.2f;
+        [Tooltip("Intensity of specular highlights")]
         public float specular = 1f;
 
         [Tooltip("Index of refraction")]
         [Range(1f, 3f)] public float ior = 1.0f;
+        [Tooltip("Ambient occlusion amount")]
         [Range(0f, 1f)] public float ambientOcclusion = 0.7f;
         [Tooltip("Ambient occlusion maximum falloff distance")]
         [Min(0f)] public float ambientRange = 1f;

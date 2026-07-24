@@ -20,7 +20,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Window = Silk.NET.Windowing.Window;
 using Math = DivisionEngine.MathLib.Math;
-using DivisionEngine.Rendering.ShaderUtilities;
 
 namespace DivisionEngine.Rendering
 {
@@ -155,8 +154,9 @@ namespace DivisionEngine.Rendering
         private ReadOnlyBuffer<TerrainDTO>? terrainMetadataBuffer;
         private bool rebuildTerrainBuffer = true;
 
-        // Anti aliasing storage
+        // Post-processing storage
         private ReadWriteTexture2D<float4>? fxaaInputTex;
+        private ReadWriteTexture2D<float4>? blurTempTex;
 
         /// <summary>
         /// Rendered pixels buffer.
@@ -957,6 +957,9 @@ namespace DivisionEngine.Rendering
                     currentTexture = ping; // Final result
                 }
 
+                #region postProcessing
+
+                // Post-processing effects
                 foreach (var (_, transform, camera) in W.QueryData<Transform, Camera>())
                 {
                     // Depth of field
@@ -1005,8 +1008,58 @@ namespace DivisionEngine.Rendering
                             Device?.For(texWidth, texHeight, fxaaShader);
                         }
                     }
+
+                    // Blur effect
+                    if (camera.enableBlur && currentTexture != null && postProcessTex != null)
+                    {
+                        // Create temp texture for two-pass blur if needed
+                        if (blurTempTex == null || blurTempTex.Width != texWidth || blurTempTex.Height != texHeight)
+                        {
+                            blurTempTex?.Dispose();
+                            blurTempTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        }
+
+                        // Two-pass blur (horizontal then vertical)
+                        lock (SyncLock)
+                        {
+                            // Horizontal pass
+                            TwoPassBlurShader blurHorizontal = new TwoPassBlurShader(
+                                texWidth, texHeight, camera.blurRadius, 0,
+                                currentTexture, blurTempTex);
+                            Device?.For(texWidth, texHeight, blurHorizontal);
+
+                            // Vertical pass
+                            TwoPassBlurShader blurVertical = new TwoPassBlurShader(
+                                texWidth, texHeight, camera.blurRadius, 1,
+                                blurTempTex, postProcessTex);
+                            Device?.For(texWidth, texHeight, blurVertical);
+                        }
+                        currentTexture = postProcessTex;
+                    }
+
+                    // Vignette effect (applied last)
+                    if (camera.enableVignette && currentTexture != null && postProcessTex != null)
+                    {
+                        // Use postProcessTex as temporary if needed, or create another texture
+                        lock (SyncLock)
+                        {
+                            VignetteShader vignetteShader = new VignetteShader(
+                                texWidth, texHeight,
+                                camera.vignetteIntensity,
+                                camera.vignetteSmoothness,
+                                camera.vignetteRoundness,
+                                camera.vignetteColor,
+                                currentTexture,
+                                postProcessTex);
+                            Device?.For(texWidth, texHeight, vignetteShader);
+                        }
+                        currentTexture = postProcessTex;
+                    }
                     break; // Use first camera
                 }
+
+                #endregion postProcessing
+                #region handlesAndIcons
 
                 // Editor handles
                 if (editorHandlePosition.HasValue)
@@ -1079,6 +1132,8 @@ namespace DivisionEngine.Rendering
                         }
                     }
                 }
+
+                #endregion handlesAndIcons
 
                 // Copy final result for OpenGL display
                 depthNormalsTex?.CopyTo(DepthNormalPixels!);

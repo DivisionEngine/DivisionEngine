@@ -14,8 +14,9 @@ namespace DivisionEngine.Components.FieldAttributes
     public class ColorAttribute : Attribute
     {
         /// <summary>
-        /// Whether to show alpha channel.
+        /// Whether or not to show the alpha (transparency) channel.
         /// </summary>
+        /// <remarks>Only applies to float4</remarks>
         public bool ShowAlpha { get; set; } = true;
 
         /// <summary>

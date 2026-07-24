@@ -84,10 +84,6 @@ namespace DivisionEngine.Systems
                     worldData.farPlane = camera.farClip;
                     worldData.camScreenDist = CameraSystem.FovToScreenDistance(camera); // Calc camera screen distance
 
-                    // Depth of field
-                    worldData.focusDistance = camera.focusDistance;
-                    worldData.focalLength = camera.focalLength;
-
                     // Ray step counts
                     worldData.maxRaySteps = camera.maxRaySteps;
                     worldData.maxShadowRaySteps = camera.maxShadowRaySteps;
@@ -102,7 +98,20 @@ namespace DivisionEngine.Systems
                     worldData.aTrousStepCount = camera.aTrousStepCount;
 
                     // Post-processing effects
+                    worldData.focusDistance = camera.focusDistance;
+                    worldData.focalLength = camera.focalLength;
+
                     worldData.enableAces = camera.enableAcesTonemapper ? 1 : 0;
+
+                    worldData.enableVignette = camera.enableVignette ? 1 : 0;
+                    worldData.vignetteIntensity = camera.vignetteIntensity;
+                    worldData.vignetteSmoothness = camera.vignetteSmoothness;
+                    worldData.vignetteRoundness = camera.vignetteRoundness;
+                    worldData.vignetteColor = camera.vignetteColor;
+
+                    worldData.enableBlur = camera.enableBlur ? 1 : 0;
+                    worldData.blurRadius = camera.blurRadius;
+                    worldData.blurPasses = camera.blurPasses;
                 }
             }
 
