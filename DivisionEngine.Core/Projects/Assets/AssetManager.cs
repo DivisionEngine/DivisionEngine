@@ -7,8 +7,17 @@
 //
 namespace DivisionEngine.Projects.Assets
 {
-    public enum AssetLoadState { Unloaded, Loading, Loaded }
+    /// <summary>
+    /// Describes the load state for an asset.
+    /// </summary>
+    public enum AssetLoadState
+    {
+        Unloaded = 0, Loading = 1, Loaded = 2
+    }
 
+    /// <summary>
+    /// Manages loading and unloading all assets in the current project.
+    /// </summary>
     public class AssetManager
     {
         private readonly Dictionary<string, Asset> loadedAssets = [];
@@ -23,12 +32,29 @@ namespace DivisionEngine.Projects.Assets
         /// </summary>
         public event Action<string, AssetLoadState>? AssetLoadStateChanged;
 
+        /// <summary>
+        /// Gets a loaded asset.
+        /// </summary>
+        /// <param name="id">Asset GUID</param>
+        /// <returns>Loaded asset, null if asset isn't loaded</returns>
         public Asset? Get(string id) => loadedAssets.TryGetValue(id, out Asset? asset) ? asset : null;
         public T? Get<T>(string id) where T : Asset => loadedAssets.TryGetValue(id, out Asset? asset) ? asset as T : null;
 
+        /// <summary>
+        /// Gets the load state for an asset GUID.
+        /// </summary>
+        /// <param name="id">GUID to check load state of</param>
+        /// <returns>Load state of asset ID</returns>
         public AssetLoadState GetLoadState(string id) =>
             loadStates.TryGetValue(id, out AssetLoadState state) ? state : AssetLoadState.Unloaded;
 
+        /// <summary>
+        /// Loads an asset asynchronously.
+        /// </summary>
+        /// <typeparam name="T">Type of asset to load</typeparam>
+        /// <param name="id">Asset GUID to load</param>
+        /// <returns>Async task to load an object of type <typeparamref name="T"/></returns>
+        /// <remarks>Returns null if no asset with <paramref name="id"/> exists</remarks>
         public async Task<T?> LoadAssetAsync<T>(string id) where T : Asset
         {
             lock (stateLock)
@@ -99,6 +125,10 @@ namespace DivisionEngine.Projects.Assets
             }
         }
 
+        /// <summary>
+        /// Unloads an asset.
+        /// </summary>
+        /// <param name="id">GUID of asset to unload</param>
         public void UnloadAsset(string id)
         {
             bool shouldUnload = false;
@@ -126,6 +156,9 @@ namespace DivisionEngine.Projects.Assets
             }
         }
 
+        /// <summary>
+        /// Unloads all assets.
+        /// </summary>
         public void UnloadAll()
         {
             Debug.Info($"Asset Manager: Unloaded Assets");

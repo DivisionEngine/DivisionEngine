@@ -433,21 +433,6 @@ public partial class WorldWindow : EditorWindow
         scrollViewer.ContextMenu = backgroundContextMenu;
     }
 
-    /// <summary>
-    /// Refreshes the entity list.
-    /// </summary>
-    private void RefreshEntityList()
-    {
-        if (WorldManager.CurrentWorld != null)
-        {
-            // Clear and reload all entities
-            entityControls.Clear();
-            entitiesPanel.Children.Clear();
-            curEntities.Clear();
-            UpdateListEntries();
-        }
-    }
-
     private void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
     {
         searchFilter = headerSearchBox.Text?.Trim() ?? string.Empty;
@@ -461,12 +446,12 @@ public partial class WorldWindow : EditorWindow
     {
         if (string.IsNullOrWhiteSpace(searchFilter))
         {
-            foreach (var control in entityControls.Values)
+            foreach (EntityItemControl control in entityControls.Values)
                 control.IsVisible = true;
         }
         else
         {
-            foreach (var control in entityControls.Values)
+            foreach (EntityItemControl control in entityControls.Values)
                 control.IsVisible = control.IsVisibleWithFilter(searchFilter);
         }
 
@@ -485,12 +470,9 @@ public partial class WorldWindow : EditorWindow
 
         // Update existing entity displays
         foreach (uint entityId in curEntities.ToList())
-        {
             if (entityControls.TryGetValue(entityId, out EntityItemControl? control))
                 control.UpdateDisplay(w);
-        }
 
-        // Update the list of entities
         UpdateListEntries();
     }
 

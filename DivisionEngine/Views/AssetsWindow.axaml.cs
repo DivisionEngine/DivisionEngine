@@ -139,6 +139,7 @@ public partial class AssetsWindow : EditorWindow
                 new Setter(ContextMenuProperty, new Binding(nameof(AssetRowItem.RowContextMenu))),
             }
         });
+        tableView.SelectionChanged += TableView_SelectionChanged;
         tableView.DoubleTapped += TableView_DoubleTapped;
 
         // Empty-state overlay (shown/hidden regardless of which view is active)
@@ -645,10 +646,10 @@ public partial class AssetsWindow : EditorWindow
     }
 
     #endregion
+    #region tileView
 
-    #region Tile view
-
-    private Border BuildTile(Func<double, MaterialIcon> iconFactory, string name, string? subtitle, Action onDoubleTap, ContextMenu contextMenu, string? tintAssetId = null)
+    private Border BuildTile(Func<double, MaterialIcon> iconFactory, string name, string? subtitle, 
+        Action onTap, Action onDoubleTap, ContextMenu contextMenu, string? tintAssetId = null)
     {
         Border border = CreateTileBorder();
         SetupTileHoverEffects(border);
@@ -658,12 +659,33 @@ public partial class AssetsWindow : EditorWindow
         MaterialIcon icon = iconFactory(48);
         icon.Margin = new Thickness(0, 0, 0, 5);
 
-        StackPanel stack = new() { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        StackPanel stack = new()
+        {
+            Orientation = Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
         stack.Children.Add(icon);
-        stack.Children.Add(new TextBlock { Text = display, Foreground = Brushes.White, FontSize = 10, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 80 });
-        if (subtitle != null) stack.Children.Add(new TextBlock { Text = subtitle, Foreground = Brushes.LightGray, FontSize = 8, HorizontalAlignment = HorizontalAlignment.Center });
+        stack.Children.Add(new TextBlock 
+        {
+            Text = display,
+            Foreground = Brushes.White,
+            FontSize = 10, 
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 80,
+        });
+        if (subtitle != null) stack.Children.Add(new TextBlock
+        {
+            Text = subtitle,
+            Foreground = Brushes.LightGray,
+            FontSize = 8,
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
 
         border.Child = stack;
+        border.Tapped += (_, _) => onTap();
         border.DoubleTapped += (_, _) => onDoubleTap();
         border.ContextMenu = contextMenu;
         return border;
@@ -673,8 +695,15 @@ public partial class AssetsWindow : EditorWindow
     {
         Border border = null!;
         border = BuildTile(
-            size => new MaterialIcon { Kind = MaterialIconKind.Folder, Width = size, Height = size, Foreground = EditorColor.FromColor(ColorPalette.Mint) },
+            size => new MaterialIcon
+            {
+                Kind = MaterialIconKind.Folder,
+                Width = size,
+                Height = size,
+                Foreground = EditorColor.FromColor(ColorPalette.Mint),
+            },
             folder.Name, null,
+            () => { },
             () => Dispatcher.UIThread.Post(() => Setup(folder.FullName)),
             BuildFolderContextMenu(folder, () => ShowInPlaceRename(border, folder.Name, folder.FullName, true)));
         assetsTileGrid.Children.Add(border);
@@ -686,6 +715,7 @@ public partial class AssetsWindow : EditorWindow
         border = BuildTile(
             size => CreateFileIcon(file.Extension, size),
             Path.GetFileNameWithoutExtension(file.Name), file.Extension.ToUpperInvariant(),
+            () => { },
             () => EditorUI.OpenFile(file),
             BuildFileContextMenu(file, () => ShowInPlaceRename(border, Path.GetFileNameWithoutExtension(file.Name), file.FullName, false, file.Extension)));
         assetsTileGrid.Children.Add(border);
@@ -698,7 +728,8 @@ public partial class AssetsWindow : EditorWindow
         border = BuildTile(
             size => EditorUI.CreateAssetTypeIcon(asset.Type, size),
             Path.GetFileNameWithoutExtension(asset.FileName), GetAssetTypeDisplayName(asset.Type),
-            () => Debug.Info($"Asset: {asset.FileName} | Type: {asset.Type} | GUID: {asset.ID}"),
+            () => Selection.SelectAsset(asset.ID),
+            () => EditorUI.OpenAsset(asset),
             BuildAssetContextMenu(asset, () => ShowInPlaceRename(border, Path.GetFileNameWithoutExtension(asset.FileName), fullPath, false, Path.GetExtension(asset.FileName))),
             asset.ID);
         assetsTileGrid.Children.Add(border);
@@ -742,15 +773,20 @@ public partial class AssetsWindow : EditorWindow
     }
 
     #endregion
-
-    #region Table (list) view
+    #region tableView
 
     private void AddFolderRow(DirectoryInfo folder)
     {
         AssetRowItem row = new()
         {
             Name = folder.Name,
-            IconFactory = size => new MaterialIcon { Kind = MaterialIconKind.Folder, Width = size, Height = size, Foreground = EditorColor.FromColor(ColorPalette.Mint) },
+            IconFactory = size => new MaterialIcon
+            {
+                Kind = MaterialIconKind.Folder,
+                Width = size,
+                Height = size,
+                Foreground = EditorColor.FromColor(ColorPalette.Mint),
+            },
             IsFolder = true,
             FullPath = folder.FullName,
             TypeLabel = "Folder",
@@ -804,14 +840,28 @@ public partial class AssetsWindow : EditorWindow
         MaterialIcon icon = item.IconFactory(20);
         icon.Margin = new Thickness(0);
 
-        TextBlock displayText = new() { FontSize = 13, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
+        TextBlock displayText = new()
+        {
+            FontSize = 13,
+            Foreground = Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
         displayText.Bind(TextBlock.TextProperty, new Binding(nameof(AssetRowItem.Name)));
-        displayText.Bind(IsVisibleProperty, new Binding(nameof(AssetRowItem.IsEditing)) { Converter = InvertBoolConverter.Instance });
+        displayText.Bind(IsVisibleProperty, new Binding(nameof(AssetRowItem.IsEditing))
+        {
+            Converter = InvertBoolConverter.Instance,
+        });
 
         // Two-way bound to Name so the container survives virtualization/recycling correctly.
         // If the user cancels, Name may hold the typed text until the next reload — harmless
-        // since it's a display-only field and gets refreshed from disk on the next folder load.
-        TextBox editBox = new() { FontSize = 13, VerticalAlignment = VerticalAlignment.Center, MaxLength = 50, Padding = new Thickness(2) };
+        // since it's display-only field and gets refreshed from disk on the next folder load.
+        TextBox editBox = new()
+        {
+            FontSize = 13,
+            VerticalAlignment = VerticalAlignment.Center,
+            MaxLength = 50,
+            Padding = new Thickness(2),
+        };
         editBox.Bind(TextBox.TextProperty, new Binding(nameof(AssetRowItem.Name)));
         editBox.Bind(IsVisibleProperty, new Binding(nameof(AssetRowItem.IsEditing)));
         editBox.KeyDown += (s, e) =>
@@ -835,17 +885,21 @@ public partial class AssetsWindow : EditorWindow
         };
     }
 
+    private void TableView_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (tableView.SelectedItem is not AssetRowItem item || item.IsEditing) return;
+        if (item.AssetId != null) Selection.SelectAsset(item.AssetId);
+    }
+
     private void TableView_DoubleTapped(object? sender, TappedEventArgs e)
     {
         if (tableView.SelectedItem is not AssetRowItem item || item.IsEditing) return;
         if (item.IsFolder) Dispatcher.UIThread.Post(() => Setup(item.FullPath));
-        else if (item.AssetId != null) Debug.Info($"Asset: {item.Name} | GUID: {item.AssetId}");
         else EditorUI.OpenFile(new FileInfo(item.FullPath));
     }
 
     #endregion
-
-    #region Context menus / rename / clipboard (shared by tile + table view)
+    #region contextMenus
 
     private static ContextMenu CreateStyledContextMenu() => new()
     {
@@ -888,7 +942,10 @@ public partial class AssetsWindow : EditorWindow
     {
         string fullPath = Path.Combine(ProjectManager.CurrentProjectPath ?? "", asset.RelativePath);
         ContextMenu menu = CreateStyledContextMenu();
-        menu.Items.Add(EditorUI.CreateContextMenuItem("Open", MaterialIconKind.FileDocument, () => { if (File.Exists(fullPath)) EditorUI.OpenFile(new FileInfo(fullPath)); }));
+        menu.Items.Add(EditorUI.CreateContextMenuItem("Open", MaterialIconKind.FileDocument, () => 
+        {
+            if (File.Exists(fullPath)) EditorUI.OpenFile(new FileInfo(fullPath));
+        }));
         menu.Items.Add(EditorUI.CreateContextMenuItem("Show in Explorer", MaterialIconKind.FolderOpen, () =>
         {
             string? dir = Path.GetDirectoryName(fullPath);
@@ -897,7 +954,10 @@ public partial class AssetsWindow : EditorWindow
         menu.Items.Add(EditorUI.CreateContextMenuItem("Copy GUID", MaterialIconKind.Identifier, () => CopyToClipboard(asset.ID)));
         menu.Items.Add(EditorUI.CreateContextMenuItem("Copy Path", MaterialIconKind.ContentCopy, () => CopyToClipboard(asset.RelativePath)));
         menu.Items.Add(new Separator());
-        menu.Items.Add(EditorUI.CreateContextMenuItem("Rename", MaterialIconKind.Pencil, () => { if (File.Exists(fullPath)) requestRename(); }));
+        menu.Items.Add(EditorUI.CreateContextMenuItem("Rename", MaterialIconKind.Pencil, () =>
+        {
+            if (File.Exists(fullPath)) requestRename();
+        }));
         menu.Items.Add(new Separator());
         menu.Items.Add(EditorUI.CreateContextMenuItem("Delete", MaterialIconKind.Delete, async () =>
         {
@@ -943,13 +1003,31 @@ public partial class AssetsWindow : EditorWindow
             Margin = new Thickness(0, 5, 0, 0)
         };
 
-        StackPanel editStack = new() { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        editStack.Children.Add(isFolder
-            ? new MaterialIcon { Kind = MaterialIconKind.Folder, Width = 48, Height = 48, Foreground = EditorColor.FromColor(ColorPalette.Mint), Margin = new Thickness(0, 0, 0, 5) }
-            : CreateFileIcon(extension, 48));
+        StackPanel editStack = new()
+        {
+            Orientation = Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        editStack.Children.Add(isFolder ? new MaterialIcon
+            {
+                Kind = MaterialIconKind.Folder,
+                Width = 48,
+                Height = 48, 
+                Foreground = EditorColor.FromColor(ColorPalette.Mint),
+                Margin = new Thickness(0, 0, 0, 5),
+            } : CreateFileIcon(extension, 48));
         editStack.Children.Add(nameBox);
         if (!isFolder && !string.IsNullOrEmpty(extension))
-            editStack.Children.Add(new TextBlock { Text = extension.ToUpper(), Foreground = Brushes.LightGray, FontSize = 8, HorizontalAlignment = HorizontalAlignment.Center });
+        {
+            editStack.Children.Add(new TextBlock
+            {
+                Text = extension.ToUpper(),
+                Foreground = Brushes.LightGray,
+                FontSize = 8,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
 
         targetBorder.Child = new Border
         {
@@ -996,7 +1074,6 @@ public partial class AssetsWindow : EditorWindow
         {
             if (isFolder) Directory.Move(currentFullPath, newPath);
             else File.Move(currentFullPath, newPath);
-            Debug.Info($"Renamed {(isFolder ? "folder" : "file")}: {Path.GetFileName(currentFullPath)} -> {Path.GetFileName(newPath)}");
             return true;
         }
         catch (Exception ex)
@@ -1014,8 +1091,7 @@ public partial class AssetsWindow : EditorWindow
     }
 
     #endregion
-
-    #region Icons / labels
+    #region iconsAndLabels
 
     private static MaterialIcon CreateFileIcon(string extension, double size)
     {
@@ -1047,7 +1123,14 @@ public partial class AssetsWindow : EditorWindow
             ".wld" => ColorPalette.PaleGreen,
             _ => ColorPalette.Gray,
         };
-        return new MaterialIcon { Kind = iconKind, Width = size, Height = size, Foreground = EditorColor.FromColor(iconColor), Margin = new Thickness(0, 0, 0, 5) };
+        return new MaterialIcon
+        {
+            Kind = iconKind,
+            Width = size,
+            Height = size,
+            Foreground = EditorColor.FromColor(iconColor),
+            Margin = new Thickness(0, 0, 0, 5),
+        };
     }
 
     private static string GetAssetTypeDisplayName(AssetType type) => type switch
@@ -1062,8 +1145,7 @@ public partial class AssetsWindow : EditorWindow
     };
 
     #endregion
-
-    #region Empty state
+    #region emptyState
 
     private void ShowEmptyState(string message)
     {
@@ -1074,8 +1156,7 @@ public partial class AssetsWindow : EditorWindow
     private void HideEmptyState() => emptyStateOverlay.IsVisible = false;
 
     #endregion
-
-    #region Project / folder change events
+    #region projectFolderEvents
 
     private static void OnProjectLoaded()
     {

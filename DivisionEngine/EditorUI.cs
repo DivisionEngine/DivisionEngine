@@ -86,6 +86,37 @@ namespace DivisionEngine.Editor
         }
 
         /// <summary>
+        /// Similar to OpenFile, but works on assets instead.
+        /// </summary>
+        /// <param name="asset">Asset metadata to open</param>
+        public static void OpenAsset(AssetMetadata asset)
+        {
+            try
+            {
+                if (!File.Exists(AssetDatabase.GetAssetFullPath(asset.ID)))
+                {
+                    Debug.Warning($"Asset does not exist: {asset.FileName}");
+                    return;
+                }
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = AssetDatabase.GetAssetFullPath(asset.ID),
+                    UseShellExecute = true  // This is often needed for file associations
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.Warning($"Could not open file", ex);
+            }
+        }
+
+        /// <summary>
+        /// Similar to OpenFile, but works on assets instead.
+        /// </summary>
+        /// <param name="asset">Asset to open</param>
+        public static void OpenAsset(Asset asset) => OpenAsset(asset.Metadata);
+
+        /// <summary>
         /// Converts a number of bytes to a string representation.
         /// </summary>
         /// <param name="bytes">Byte amount</param>
@@ -169,6 +200,22 @@ namespace DivisionEngine.Editor
             menuItem.Click += (s, e) => action();
             return menuItem;
         }
+
+        /// <summary>
+        /// Converts an asset type to a material icon kind.
+        /// </summary>
+        /// <param name="type">Asset type</param>
+        /// <returns>Relevant asset icon</returns>
+        public static MaterialIconKind GetIconForAssetType(AssetType type) => type switch
+        {
+            AssetType.Texture => MaterialIconKind.Image,
+            AssetType.SDF => MaterialIconKind.CubeOutline,
+            AssetType.Material => MaterialIconKind.Palette,
+            AssetType.Script => MaterialIconKind.CodeBraces,
+            AssetType.Audio => MaterialIconKind.Audio,
+            AssetType.Font => MaterialIconKind.FormatFont,
+            _ => MaterialIconKind.FileDocument,
+        };
 
         /// <summary>
         /// Creates an Avalonia MaterialIcon for an asset type.

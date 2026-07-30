@@ -12,6 +12,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using DivisionEngine.Components;
 using DivisionEngine.Components.FieldAttributes;
@@ -19,6 +20,7 @@ using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Editor.Systems;
 using DivisionEngine.MathLib;
+using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using DivisionEngine.Systems;
 using Material.Icons;
@@ -32,10 +34,12 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using Button = Avalonia.Controls.Button;
 using Environment = DivisionEngine.Components.Environment;
 using Math = DivisionEngine.MathLib.Math;
 using Transform = DivisionEngine.Components.Transform;
+using Vector = Avalonia.Vector;
 
 namespace DivisionEngine.Editor;
 
@@ -54,7 +58,7 @@ public partial class PropertiesWindow : EditorWindow
     private readonly TextBlock headerText;
     private readonly Button addComponentButton;
 
-    private uint curEntityId;
+    private object? currentSelection;
 
     // Keyed by (entity, component type) so a field's "Reset to Default" can rebuild exactly
     // the card it lives in — whether that's the selected entity's panel or a World-view tab.
@@ -72,7 +76,7 @@ public partial class PropertiesWindow : EditorWindow
     public PropertiesWindow()
     {
         InitializeComponent();
-        curEntityId = uint.MaxValue;
+        currentSelection = null;
 
         propertiesPanel = new StackPanel { Margin = new Thickness(5) };
         scrollViewer = new ScrollViewer
@@ -163,9 +167,19 @@ public partial class PropertiesWindow : EditorWindow
         Selection.OnSelectionChanged += OnSelectedObject;
     }
 
+    // Add this method to handle asset selection
     private void OnSelectedObject(object? selection)
     {
-        if (Selection.SelectedType == SelectionType.Entity) LoadEntityComponents((uint)selection!);
+        if (selection == null)
+        {
+            CreateWorldEditor(WorldManager.CurrentWorld);
+            return;
+        }
+
+        if (Selection.SelectedType == SelectionType.Entity && selection is uint entityId) LoadEntityComponents(entityId);
+        else if (Selection.SelectedType == SelectionType.Asset && selection is string assetId) DisplayAssetProperties(assetId);
+        else if (selection is AssetMetadata assetMeta) DisplayAssetProperties(assetMeta.ID);
+        else CreateWorldEditor(WorldManager.CurrentWorld);
     }
 
     private static TabItem CreateWorldTab(string title, out StackPanel content)
@@ -175,7 +189,7 @@ public partial class PropertiesWindow : EditorWindow
             Margin = new Thickness(0, 4, 0, 4),
             Background = EditorColor.FromRGB(34, 34, 34),
         };
-        var scrollViewer = new ScrollViewer
+        ScrollViewer scrollViewer = new ScrollViewer
         {
             Content = content,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -222,19 +236,22 @@ public partial class PropertiesWindow : EditorWindow
         string searchLower = searchText.ToLowerInvariant().Replace(" ", "");
         bool hasFilter = !string.IsNullOrWhiteSpace(searchText);
 
-        foreach (Type compType in componentTypes)
+        if (currentSelection is uint curEntityId)
         {
-            string displayName = FormatComponentName(compType.Name);
-            if (hasFilter && !(compType.Name + " " + displayName).Contains(searchLower, StringComparison.InvariantCultureIgnoreCase)) continue;
-
-            Button compTypeButton = new() { Classes = { "menu-btn" }, Content = displayName, MinWidth = 240, Tag = compType };
-            compTypeButton.Click += (sender, _) =>
+            foreach (Type compType in componentTypes)
             {
-                if (sender is not Button { Tag: Type type } || curEntityId == uint.MaxValue || W.HasComponent(curEntityId, type)) return;
-                if (Activator.CreateInstance(type) is IComponent instance && W.AddComponent(curEntityId, instance)) LoadEntityComponents(curEntityId);
-                else Debug.Warning($"Failed to add component of type {type.Name}");
-            };
-            compListPanel.Children.Add(compTypeButton);
+                string displayName = FormatComponentName(compType.Name);
+                if (hasFilter && !(compType.Name + " " + displayName).Contains(searchLower, StringComparison.InvariantCultureIgnoreCase)) continue;
+
+                Button compTypeButton = new() { Classes = { "menu-btn" }, Content = displayName, MinWidth = 240, Tag = compType };
+                compTypeButton.Click += (sender, _) =>
+                {
+                    if (sender is not Button { Tag: Type type } || curEntityId == uint.MaxValue || W.HasComponent(curEntityId, type)) return;
+                    if (Activator.CreateInstance(type) is IComponent instance && W.AddComponent(curEntityId, instance)) LoadEntityComponents(curEntityId);
+                    else Debug.Warning($"Failed to add component of type {type.Name}");
+                };
+                compListPanel.Children.Add(compTypeButton);
+            }
         }
 
         if (compListPanel.Children.Count == 0)
@@ -324,11 +341,238 @@ public partial class PropertiesWindow : EditorWindow
 
         string entityName = W.TryGetEntityName(entityId);
         headerText.Text = string.IsNullOrEmpty(entityName) ? $"Entity_{entityId}" : entityName;
-        curEntityId = entityId;
+        currentSelection = entityId;
 
         foreach (IComponent component in W.GetAllComponents(entityId))
             CreateComponentEditor(propertiesPanel, component.GetType(), component, entityId);
         return true;
+    }
+
+    /// <summary>
+    /// Displays properties for a selected asset.
+    /// </summary>
+    private async void DisplayAssetProperties(string assetId)
+    {
+        StopRenderInfoRefresh();
+        worldTabs.IsVisible = false;
+        scrollViewer.IsVisible = true;
+
+        propertiesPanel.Children.Clear();
+        componentFieldPanels.Clear();
+
+        // Get asset metadata
+        AssetMetadata? metadata = AssetDatabase.GetAssetMetadataByID(assetId);
+        if (metadata == null)
+        {
+            headerText.Text = "Unknown Asset";
+            return;
+        }
+
+        // Get loaded asset if available
+        Asset? loadedAsset = ProjectManager.AssetManager?.Get(metadata.ID);
+        bool isLoaded = loadedAsset != null && loadedAsset.IsLoaded;
+
+        // Header
+        string assetName = Path.GetFileNameWithoutExtension(metadata.FileName);
+        headerText.Text = $"{assetName} (Asset)";
+
+        StackPanel assetPanel = new()
+        {
+            Margin = new Thickness(8, 4, 4, 8),
+        };
+        DockPanel loadStateRow = new()
+        {
+            Margin = new Thickness(0, 4, 0, 8),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        TextBlock loadStateLabel = new()
+        {
+            Text = "State:",
+            FontSize = 11,
+            Foreground = EditorColor.FromRGB(180, 180, 180),
+            MinWidth = 100,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        DockPanel.SetDock(loadStateLabel, Dock.Left);
+        TextBlock loadStateValue = new()
+        {
+            Text = isLoaded ? "Loaded" : "Unloaded",
+            FontSize = 11,
+            Foreground = isLoaded ? new SolidColorBrush(Color.FromRgb(76, 175, 80)) : Brushes.Gray,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        DockPanel.SetDock(loadStateValue, Dock.Left);
+
+        loadStateRow.Children.Add(loadStateLabel);
+        loadStateRow.Children.Add(loadStateValue);
+        assetPanel.Children.Add(loadStateRow);
+
+        // Add texture preview if applicable
+        if (metadata.Type == AssetType.Texture)
+        {
+            string? fullPath = AssetDatabase.GetAssetFullPath(metadata.ID);
+            if (!string.IsNullOrEmpty(fullPath) && File.Exists(fullPath))
+            {
+                // Create a loading indicator
+                StackPanel loadingPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 4, 0, 8),
+                };
+                loadingPanel.Children.Add(new TextBlock
+                {
+                    Text = "Loading preview...",
+                    FontSize = 12,
+                    Foreground = Brushes.Gray,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+                assetPanel.Children.Add(loadingPanel);
+
+                // Load texture preview
+                try
+                {
+                    Bitmap? preview = await LoadTexturePreviewAsync(fullPath);
+                    if (preview != null)
+                    {
+                        // Remove loading indicator
+                        assetPanel.Children.Remove(loadingPanel);
+                        AddTexturePreview(assetPanel, preview, metadata);
+                    }
+                    else
+                    {
+                        // Show error
+                        loadingPanel.Children.Clear();
+                        loadingPanel.Children.Add(new TextBlock
+                        {
+                            Text = "Failed to load preview",
+                            FontSize = 12,
+                            Foreground = EditorColor.FromRGB(200, 80, 80),
+                            VerticalAlignment = VerticalAlignment.Center,
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.Error($"Failed to load texture preview: {ex.Message}");
+                    loadingPanel.Children.Clear();
+                    loadingPanel.Children.Add(new TextBlock
+                    {
+                        Text = "Error loading preview",
+                        FontSize = 12,
+                        Foreground = EditorColor.FromRGB(200, 80, 80),
+                        VerticalAlignment = VerticalAlignment.Center,
+                    });
+                }
+            }
+        }
+
+        // Basic properties
+        AddPropertyRow(assetPanel, "Name", assetName);
+        AddPropertyRow(assetPanel, "Type", metadata.Type.ToString());
+        AddPropertyRow(assetPanel, "File Size", EditorUI.FormatFileSize(metadata.FileSize));
+        AddPropertyRow(assetPanel, "GUID", metadata.ID);
+        AddPropertyRow(assetPanel, "Path", metadata.RelativePath);
+        AddPropertyRow(assetPanel, "Last Modified", metadata.LastModified.ToString("g"));
+
+        // Asset-specific properties
+        if (loadedAsset != null && isLoaded)
+        {
+            switch (loadedAsset)
+            {
+                case TextureAsset texture:
+                    AddPropertyRow(assetPanel, "Dimensions", $"{texture.Width} x {texture.Height}");
+                    AddPropertyRow(assetPanel, "Pixel Count", $"{texture.PixelData?.Length:N0}");
+                    break;
+                    // Add more asset types as needed
+            }
+        }
+
+        // Action buttons panel
+        StackPanel actionButtonsPanel = new()
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 8, 0, 4),
+        };
+
+        if (isLoaded && ProjectManager.AssetManager != null)
+        {
+            // Unload button
+            Button unloadButton = new Button
+            {
+                Content = "Unload Asset",
+                FontSize = 12,
+                Padding = new Thickness(12, 6),
+                Background = EditorColor.FromRGB(60, 40, 40),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(4),
+            };
+
+            unloadButton.Click += (s, e) =>
+            {
+                unloadButton.Content = "Unloading...";
+                unloadButton.IsEnabled = false;
+                unloadButton.Background = EditorColor.FromRGB(40, 20, 20);
+
+                ProjectManager.AssetManager.UnloadAsset(assetId);
+                DisplayAssetProperties(assetId); // Refresh the display
+            };
+
+            actionButtonsPanel.Children.Add(unloadButton);
+        }
+        else if (!isLoaded && ProjectManager.AssetManager != null)
+        {
+            // Load button
+            Button loadButton = new Button
+            {
+                Content = "Load Asset",
+                FontSize = 12,
+                Padding = new Thickness(12, 6),
+                Background = EditorColor.FromRGB(40, 40, 40),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(4),
+            };
+
+            loadButton.Click += async (s, e) =>
+            {
+                loadButton.Content = "Loading...";
+                loadButton.IsEnabled = false;
+                loadButton.Background = EditorColor.FromRGB(40, 40, 80);
+
+                Asset? loaded = metadata.Type switch
+                {
+                    AssetType.Texture => await ProjectManager.AssetManager.LoadAssetAsync<TextureAsset>(assetId),
+                    _ => await ProjectManager.AssetManager.LoadAssetAsync<Asset>(assetId),
+                };
+
+                if (loaded != null && loaded.IsLoaded) DisplayAssetProperties(assetId);
+                else
+                {
+                    loadButton.Content = "Load Failed";
+                    loadButton.Background = EditorColor.FromRGB(80, 30, 30);
+                    loadButton.IsEnabled = true;
+                }
+            };
+
+            actionButtonsPanel.Children.Add(loadButton);
+        }
+
+        if (actionButtonsPanel.Children.Count > 0) assetPanel.Children.Add(actionButtonsPanel);
+
+        // Create the card
+        StackPanel card = BuildCard(
+            assetName,
+            EditorUI.GetIconForAssetType(metadata.Type),
+            assetPanel,
+            onRemove: null
+        );
+
+        propertiesPanel.Children.Add(card);
+        scrollViewer.ScrollToHome();
     }
 
     #endregion
@@ -341,7 +585,7 @@ public partial class PropertiesWindow : EditorWindow
     public void CreateWorldEditor(World? curWorld)
     {
         LastSelected = uint.MaxValue;
-        curEntityId = uint.MaxValue;
+        currentSelection = null;
         componentFieldPanels.Clear();
         StopRenderInfoRefresh();
 
@@ -576,8 +820,6 @@ public partial class PropertiesWindow : EditorWindow
 
     /// <summary>
     /// Rebuilds a single component's field editors from a fresh component instance.
-    /// Works for any (entity, component) pair — the selected entity's panel, or a card
-    /// in the World-view tabs — not just whatever entity happens to be "selected".
     /// </summary>
     public void RefreshComponent(uint entityId, Type compType)
     {
@@ -599,7 +841,11 @@ public partial class PropertiesWindow : EditorWindow
     /// <summary>
     /// Refreshes a component on the currently selected entity. Kept for external callers.
     /// </summary>
-    public void RefreshComponent(Type compType) => RefreshComponent(curEntityId, compType);
+    /// <param name="compType">Component type to refresh</param>
+    public void RefreshComponent(Type compType)
+    {
+        if (currentSelection is uint curEntityId) RefreshComponent(curEntityId, compType);
+    }
 
     #endregion
     #region fieldEditors
@@ -711,7 +957,7 @@ public partial class PropertiesWindow : EditorWindow
             ColorAttribute? colorAttr = field.GetCustomAttribute<ColorAttribute>();
 
             // Can be color or vector field
-            if (colorAttr != null) editorControl = CreateColorFieldEditorF3(field, component, colorAttr, entityId) ?? editorControl;
+            if (colorAttr != null) editorControl = CreateColorFieldEditorF3(field, component, entityId) ?? editorControl;
             else
             {
                 editorControl = BuildAxisRow(["X", "Y", "Z"], [state.X, state.Y, state.Z], (axis, v) =>
@@ -989,7 +1235,7 @@ public partial class PropertiesWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center, Children = { colorPicker } };
     }
 
-    private static StackPanel? CreateColorFieldEditorF3(FieldInfo field, IComponent component, ColorAttribute colorAttr, uint entityId)
+    private static StackPanel? CreateColorFieldEditorF3(FieldInfo field, IComponent component, uint entityId)
     {
         if (field.GetValue(component) is not float3 colorValue) return null;
 
@@ -1164,13 +1410,17 @@ public partial class PropertiesWindow : EditorWindow
         {
             StackPanel panel = new() { MinWidth = 200 };
             panel.Children.Add(BuildAssetOptionButton("None", () => 
-                { SetAssetValue(field, component, null); assetRefButtonText.Text = "None"; flyout.Hide(); }));
+            {
+                SetAssetValue(field, component, null); assetRefButtonText.Text = "None"; flyout.Hide();
+            }));
             foreach (AssetMetadata? asset in AssetDatabase.GetAssetsByType(expectedType))
             {
                 if (asset == null) continue;
                 string label = Path.GetFileNameWithoutExtension(asset.FileName);
                 panel.Children.Add(BuildAssetOptionButton(label, () => 
-                    { SetAssetValue(field, component, asset.ID); assetRefButtonText.Text = label; flyout.Hide(); }));
+                {
+                    SetAssetValue(field, component, asset.ID); assetRefButtonText.Text = label; flyout.Hide();
+                }));
             }
             flyout.Content = panel;
             flyout.ShowAt(assetRefButton);
@@ -1213,9 +1463,7 @@ public partial class PropertiesWindow : EditorWindow
     {
         Type fieldType = field.FieldType;
         if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>))
-        {
             field.SetValue(component, Activator.CreateInstance(fieldType, assetId ?? string.Empty));
-        }
         else if (fieldType == typeof(AssetRef))
         {
             object? current = field.GetValue(component);
@@ -1224,7 +1472,131 @@ public partial class PropertiesWindow : EditorWindow
         }
     }
 
-    #endregion AssetReferences
+    #endregion
+    #region AssetDisplay
+
+    /// <summary>
+    /// Adds a property row with label and value to a panel.
+    /// </summary>
+    private static void AddPropertyRow(StackPanel panel, string label, string value)
+    {
+        DockPanel row = new()
+        {
+            Margin = new Thickness(0, 2, 0, 2),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+
+        TextBlock labelBlock = new()
+        {
+            Text = label + ":",
+            FontSize = 11,
+            Foreground = EditorColor.FromRGB(180, 180, 180),
+            MinWidth = 100,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        DockPanel.SetDock(labelBlock, Dock.Left);
+
+        TextBlock valueBlock = new()
+        {
+            Text = value,
+            FontSize = 11,
+            Foreground = Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        DockPanel.SetDock(valueBlock, Dock.Left);
+
+        // For long values like GUID, make them selectable
+        if (label == "GUID" || label == "Path")
+        {
+            SelectableTextBlock selectableValue = new()
+            {
+                Text = value,
+                FontSize = 11,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+            };
+            row.Children.Add(labelBlock);
+            row.Children.Add(selectableValue);
+            panel.Children.Add(row);
+        }
+        else
+        {
+            row.Children.Add(labelBlock);
+            row.Children.Add(valueBlock);
+            panel.Children.Add(row);
+        }
+    }
+
+    /// <summary>
+    /// Loads a texture preview from a file path using Avalonia's Bitmap.
+    /// </summary>
+    private static async Task<Bitmap?> LoadTexturePreviewAsync(string filePath)
+    {
+        try
+        {
+            // Read the file asynchronously
+            using var stream = File.OpenRead(filePath);
+            return await Task.Run(() => new Bitmap(stream));
+        }
+        catch (Exception ex)
+        {
+            Debug.Error($"Failed to load texture preview: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Adds a texture preview to the asset panel.
+    /// </summary>
+    private static void AddTexturePreview(StackPanel panel, Bitmap bitmap, AssetMetadata metadata)
+    {
+        // Create border with preview
+        Border previewBorder = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(32, 32, 32)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(64, 64, 64)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Margin = new Thickness(0, 4, 0, 8),
+            Padding = new Thickness(4),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 300,
+            MaxHeight = 200,
+        };
+
+        // Create image control
+        Image image = new Image
+        {
+            Source = bitmap,
+            Stretch = Stretch.Uniform,
+            MaxWidth = 290,
+            MaxHeight = 190,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        // Add tooltip showing file info
+        ToolTip.SetTip(image, $"{Path.GetFileName(metadata.FileName)}\n{bitmap.Size.Width} x {bitmap.Size.Height}");
+
+        // Hover effect
+        previewBorder.PointerEntered += (s, e) =>
+        {
+            previewBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(100, 180, 255));
+            previewBorder.BorderThickness = new Thickness(2);
+        };
+        previewBorder.PointerExited += (s, e) =>
+        {
+            previewBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(64, 64, 64));
+            previewBorder.BorderThickness = new Thickness(1);
+        };
+
+        previewBorder.Child = image;
+        panel.Children.Add(previewBorder);
+    }
+
+    #endregion
 
     private static void ApplyTooltip(Control control, FieldInfo field)
     {
