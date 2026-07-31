@@ -17,6 +17,7 @@ using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Editor;
@@ -40,6 +41,7 @@ public partial class ConsoleWindow : EditorWindow
     private bool autoScroll;
     private bool collapseEnabled;
     private string searchFilter = string.Empty;
+    private Lock threadLock;
 
     // Grouped log entries for collapse feature
     private readonly Dictionary<string, GroupedLogEntry> groupedLogs = [];
@@ -64,6 +66,7 @@ public partial class ConsoleWindow : EditorWindow
         // Create header controls
         autoScroll = true;
         collapseEnabled = false;
+        threadLock = new Lock();
 
         clearButton = new Button
         {
@@ -270,13 +273,16 @@ public partial class ConsoleWindow : EditorWindow
         else
         {
             // Normal display - one entry per log
-            foreach (LogEntry log in Debug.Logs)
-                if (ShouldShowLog(log))
-                    logList.Children.Add(CreateLogControl(log, 1));
+            lock (threadLock)
+            {
+                foreach (LogEntry log in Debug.Logs)
+                    if (ShouldShowLog(log))
+                        logList.Children.Add(CreateLogControl(log, 1));
+            }
         }
 
         // Auto-scroll to end if enabled
-        if (autoScroll) Dispatcher.UIThread.Post(() => scrollViewer.ScrollToEnd(), DispatcherPriority.Background);
+        if (autoScroll) Dispatcher.UIThread.Post(scrollViewer.ScrollToEnd, DispatcherPriority.Background);
     }
 
     /// <summary>
@@ -364,18 +370,15 @@ public partial class ConsoleWindow : EditorWindow
         if (control.Child is StackPanel mainPanel && mainPanel.Children.Count > 0)
         {
             // Find the count badge in the header
-            foreach (var child in mainPanel.Children)
+            foreach (Control child in mainPanel.Children)
             {
                 if (child is Grid headerGrid)
                 {
-                    foreach (var gridChild in headerGrid.Children)
+                    foreach (Control gridChild in headerGrid.Children)
                     {
                         if (gridChild is Border badgeBorder && badgeBorder.Classes.Contains("count-badge"))
                         {
-                            if (badgeBorder.Child is TextBlock badgeText)
-                            {
-                                badgeText.Text = count.ToString();
-                            }
+                            if (badgeBorder.Child is TextBlock badgeText) badgeText.Text = count.ToString();
                             break;
                         }
                     }
@@ -601,7 +604,7 @@ public partial class ConsoleWindow : EditorWindow
 
             // Expand/collapse functionality
             bool isExpanded = false;
-            expandButton!.Click += (s, e) =>
+            expandButton!.Click += (_, _) =>
             {
                 isExpanded = !isExpanded;
                 expandedContent.IsVisible = isExpanded;
@@ -626,19 +629,13 @@ public partial class ConsoleWindow : EditorWindow
             string key = GetCollapseKey(logEntry);
             if (groupedLogs.TryGetValue(key, out GroupedLogEntry? group))
             {
-                if (group.Control != null)
-                {
-                    logList.Children.Remove(group.Control);
-                }
+                if (group.Control != null) logList.Children.Remove(group.Control);
                 groupedLogs.Remove(key);
             }
 
             // Remove all matching logs from the debug list
-            var logsToRemove = Debug.Logs.Where(l => GetCollapseKey(l) == key).ToList();
-            foreach (var log in logsToRemove)
-            {
-                Debug.ClearLog(log);
-            }
+            List<LogEntry> logsToRemove = [.. Debug.Logs.Where(l => GetCollapseKey(l) == key)];
+            foreach (LogEntry log in logsToRemove) Debug.ClearLog(log);
         }
         else
         {
