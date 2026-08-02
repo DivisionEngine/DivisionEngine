@@ -102,5 +102,32 @@ namespace DivisionEngine.Rendering.ShaderUtilities
             // normal (e.g. from a normal map) back into world space
             return Hlsl.Normalize(InverseRotateVector(localDir, rotation));
         }
+
+        /// <summary>
+        /// Calculates the luminance (perceived brightness) of an RGB color.
+        /// Uses Rec. 709 / ITU-R BT.709 coefficients for sRGB color space.
+        /// </summary>
+        /// <param name="rgb">RGB color in linear or gamma space</param>
+        /// <returns>Perceived luminance in [0, 1] range</returns>
+        public static float Luminance(float3 rgb)
+        {
+            return Hlsl.Dot(rgb, new float3(0.2126f, 0.7152f, 0.0722f));
+        }
+
+        /// <summary>
+        /// Calculates the luminance of an RGB color stored in a float4.
+        /// </summary>
+        public static float Luminance(float4 color)
+        {
+            return Hlsl.Dot(color.RGB, new float3(0.2126f, 0.7152f, 0.0722f));
+        }
+
+        /// <summary>
+        /// Calculates luminance using BT.2020 coefficients for HDR/wide color gamut.
+        /// </summary>
+        public static float LuminanceBT2020(float3 rgb)
+        {
+            return Hlsl.Dot(rgb, new float3(0.2627f, 0.6780f, 0.0593f));
+        }
     }
 }

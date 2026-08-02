@@ -7,6 +7,7 @@
 //
 using ComputeSharp;
 using DivisionEngine.Components;
+using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Rendering.AntiAliasing;
 using DivisionEngine.Rendering.Denoising;
 using DivisionEngine.Rendering.Effects;
@@ -18,9 +19,8 @@ using Silk.NET.Windowing;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
-using Window = Silk.NET.Windowing.Window;
 using Math = DivisionEngine.MathLib.Math;
-using DivisionEngine.Components.SDFs.Effects;
+using Window = Silk.NET.Windowing.Window;
 
 namespace DivisionEngine.Rendering
 {
@@ -158,6 +158,8 @@ namespace DivisionEngine.Rendering
         // Post-processing storage
         private ReadWriteTexture2D<float4>? fxaaInputTex;
         private ReadWriteTexture2D<float4>? blurTempTex;
+        private ReadWriteTexture2D<float4>? bloomBrightTex;
+        private ReadWriteTexture2D<float4>? bloomBlurTempTex;
 
         /// <summary>
         /// Rendered pixels buffer.
@@ -1060,6 +1062,39 @@ namespace DivisionEngine.Rendering
                         }
                     }
 
+                    // Bloom effect
+                    if (postProcess.enableBloom && currentTexture != null && postProcessTex != null)
+                    {
+                        if (bloomBrightTex == null || bloomBrightTex.Width != texWidth || bloomBrightTex.Height != texHeight)
+                        {
+                            bloomBrightTex?.Dispose();
+                            bloomBrightTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        }
+
+                        if (bloomBlurTempTex == null || bloomBlurTempTex.Width != texWidth || bloomBlurTempTex.Height != texHeight)
+                        {
+                            bloomBlurTempTex?.Dispose();
+                            bloomBlurTempTex = Device!.AllocateReadWriteTexture2D<float4>(texWidth, texHeight);
+                        }
+
+                        lock (SyncLock)
+                        {
+                            BloomShader bloomShader = new BloomShader(
+                                texWidth, texHeight,
+                                postProcess.bloomThreshold,
+                                postProcess.bloomKnee,
+                                postProcess.bloomIntensity,
+                                postProcess.bloomRadius,
+                                Math.Max(1, postProcess.bloomPasses),
+                                currentTexture,
+                                postProcessTex,
+                                bloomBrightTex,
+                                bloomBlurTempTex);
+                            Device?.For(texWidth, texHeight, bloomShader);
+                        }
+                        currentTexture = postProcessTex;
+                    }
+
                     // Vignette effect
                     if (postProcess.enableVignette && currentTexture != null && postProcessTex != null)
                     {
@@ -1211,7 +1246,7 @@ namespace DivisionEngine.Rendering
                     }
                 });
 
-                // Record the ACTUAL dimensions this buffer holds — this is what TryCopyEmbeddedFrame
+                // Record the actual dimensions this buffer holds — this is what TryCopyEmbeddedFrame
                 // must check against, not the live (possibly already-changed-again) EmbeddedWidth/Height
                 embeddedBufferWidth = w;
                 embeddedBufferHeight = h;

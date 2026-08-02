@@ -14,11 +14,27 @@ namespace DivisionEngine.Components.SDFs.Effects
     /// </summary>
     public class PostProcessing : IComponent
     {
+        /// <summary>
+        /// How far the hue is shifted from -180 to 180 degrees.
+        /// </summary>
         [Header("Color Grading")]
+        [Tooltip("How far the hue is shifted from -180 to 180 degrees")]
         [Range(-180f, 180f)] public float hueShift = 0f;
+        /// <summary>
+        /// Saturation of the render result, from 0 to 2.
+        /// </summary>
+        /// <remarks>1 is default saturation</remarks>
         [Range(0f, 2f)] public float saturation = 1f;
+        /// <summary>
+        /// Lightness of the render result, from 0 to 2.
+        /// </summary>
+        /// <remarks>1 is default lightness</remarks>
         [Range(0f, 2f)] public float lightness = 1f;
-        [Range(0f, 1f)] public float contrast = 1f;
+        /// <summary>
+        /// Contrast of the render result, from 0 to 2.
+        /// </summary>
+        /// <remarks>1 is default contrast</remarks>
+        [Range(0f, 2f)] public float contrast = 1f;
 
         /// <summary>
         /// Enables or disables the vignette effect.
@@ -64,6 +80,37 @@ namespace DivisionEngine.Components.SDFs.Effects
         [Range(0f, 50f)] public float blurRadius = 5f;
 
         /// <summary>
+        /// If bloom is enabled.
+        /// </summary>
+        [Header("Bloom")]
+        public bool enableBloom = false;
+        /// <summary>
+        /// Intensity of bloom pixels.
+        /// </summary>
+        [Tooltip("Intensity of bloom pixels")]
+        [Range(0f, 10f)] public float bloomIntensity = 1f;
+        /// <summary>
+        /// Threshold for pixels to bloom.
+        /// </summary>
+        [Tooltip("Threshold for pixels to bloom")]
+        [Range(0f, 2f)] public float bloomThreshold = 0.2f;
+        /// <summary>
+        /// Smoothness of the transition between bloom pixels and pixels that don't bloom.
+        /// </summary>
+        [Tooltip("Smoothness of the transition between bloom pixels and pixels that don't bloom")]
+        [Range(0f, 1f)] public float bloomKnee = 0.2f;
+        /// <summary>
+        /// Radius of bloom effect.
+        /// </summary>
+        [Tooltip("Radius of bloom effect")]
+        [Range(0f, 20f)] public float bloomRadius = 5f;
+        /// <summary>
+        /// Number of bloom blur passes.
+        /// </summary>
+        [Tooltip("Number of bloom blur passes")]
+        public int bloomPasses = 3;
+
+        /// <summary>
         /// Enable or disable depth of field.
         /// </summary>
         [Header("Depth of Field")]
@@ -107,6 +154,13 @@ namespace DivisionEngine.Components.SDFs.Effects
 
             enableBlur = enableBlur,
             blurRadius = blurRadius,
+
+            enableBloom = enableBloom,
+            bloomIntensity = bloomIntensity,
+            bloomThreshold = bloomThreshold,
+            bloomKnee = bloomKnee,
+            bloomRadius = bloomRadius,
+            bloomPasses = bloomPasses,
 
             enableDepthOfField = enableDepthOfField,
             enableAutofocus = enableAutofocus,
