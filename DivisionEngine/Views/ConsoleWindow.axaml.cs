@@ -41,7 +41,7 @@ public partial class ConsoleWindow : EditorWindow
     private bool autoScroll;
     private bool collapseEnabled;
     private string searchFilter = string.Empty;
-    private Lock threadLock;
+    private readonly Lock threadLock;
 
     // Grouped log entries for collapse feature
     private readonly Dictionary<string, GroupedLogEntry> groupedLogs = [];
@@ -220,11 +220,96 @@ public partial class ConsoleWindow : EditorWindow
         mainPanel.Children.Add(controlsPanel);
         mainPanel.Children.Add(scrollViewer);
 
+        // Attach background context menu
+        AttachBackgroundContextMenu();
+
         Debug.OnLogUpdate += Debug_OnLogUpdate;
 
         ReloadLogs();
         Border? border = this.FindControl<Border>("MainBorder");
         if (border != null) border.Child = mainPanel;
+    }
+
+    /// <summary>
+    /// Attaches a context menu to the background of the console window.
+    /// </summary>
+    private void AttachBackgroundContextMenu()
+    {
+        ContextMenu backgroundContextMenu = new ContextMenu
+        {
+            Background = EditorColor.FromRGB(68, 68, 68),
+            BorderBrush = EditorColor.FromRGB(128, 128, 128),
+        };
+
+        // Clear logs
+        MenuItem clearItem = new MenuItem
+        {
+            Header = "Clear All",
+            Icon = new MaterialIcon { Kind = MaterialIconKind.Delete, Width = 16, Height = 16 },
+            Foreground = EditorColor.FromRGB(220, 68, 68),
+        };
+        clearItem.Click += (s, e) => ClearButton_Click(s, e);
+        backgroundContextMenu.Items.Add(clearItem);
+
+        // Separator
+        backgroundContextMenu.Items.Add(new Separator());
+
+        // Copy all
+        MenuItem copyAllItem = new MenuItem
+        {
+            Header = "Copy All",
+            Icon = new MaterialIcon { Kind = MaterialIconKind.ContentCopy, Width = 16, Height = 16 },
+            Foreground = Brushes.White,
+        };
+        copyAllItem.Click += (s, e) => CopyAllLogs();
+        backgroundContextMenu.Items.Add(copyAllItem);
+
+        // Open log file
+        MenuItem openLogFileItem = new MenuItem
+        {
+            Header = "Open Log File",
+            Icon = new MaterialIcon { Kind = MaterialIconKind.FileDocument, Width = 16, Height = 16 },
+            Foreground = Brushes.White,
+        };
+        openLogFileItem.Click += (s, e) => Debug.OpenLogFile();
+        backgroundContextMenu.Items.Add(openLogFileItem);
+
+        // Open log directory
+        MenuItem openLogDirItem = new MenuItem
+        {
+            Header = "Open Log Directory",
+            Icon = new MaterialIcon { Kind = MaterialIconKind.FolderOpen, Width = 16, Height = 16 },
+            Foreground = Brushes.White,
+        };
+        openLogDirItem.Click += (s, e) => Debug.OpenLogDirectory();
+        backgroundContextMenu.Items.Add(openLogDirItem);
+
+        scrollViewer.ContextMenu = backgroundContextMenu;
+    }
+
+    /// <summary>
+    /// Copies all logs to the clipboard.
+    /// </summary>
+    private async void CopyAllLogs()
+    {
+        try
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard == null) return;
+
+            var logs = Debug.Logs.Select(log => log.ToFileString());
+            string allLogs = string.Join(Environment.NewLine, logs);
+
+            var data = new Avalonia.Input.DataTransfer();
+            data.Add(Avalonia.Input.DataTransferItem.CreateText(allLogs));
+            await clipboard.SetDataAsync(data);
+
+            Debug.Info($"Copied {Debug.Logs.Count} logs to clipboard");
+        }
+        catch (Exception ex)
+        {
+            Debug.Error($"Failed to copy logs: {ex.Message}");
+        }
     }
 
     /// <summary>
