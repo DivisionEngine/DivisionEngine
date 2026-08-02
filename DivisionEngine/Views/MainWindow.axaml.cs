@@ -148,9 +148,6 @@ namespace DivisionEngine.Editor
                 SetColumnWidth(LeftPanelGrid, layout.LeftPanelWidth);
                 SetColumnWidth(RightPanelGrid, layout.RightPanelWidth);
                 SetRowHeight(BottomPanelGrid, layout.BottomPanelHeight);
-
-                //await Task.Delay(50);
-                await App.SetEditorRenderingAsync(true);
             }
             catch (Exception ex)
             {

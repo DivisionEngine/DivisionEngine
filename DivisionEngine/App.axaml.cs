@@ -17,7 +17,6 @@ using DivisionEngine.Projects;
 using DivisionEngine.Rendering;
 using DivisionEngine.Settings;
 using System;
-using System.Threading.Tasks;
 
 namespace DivisionEngine.Editor
 {
@@ -42,11 +41,6 @@ namespace DivisionEngine.Editor
         public static Window? MainWindow { get; private set; }
 
         /// <summary>
-        /// Whether the engine is currently rendering to a target window.
-        /// </summary>
-        public static bool RendererVisible { get; private set; }
-
-        /// <summary>
         /// Whether the application is focused or not.
         /// </summary>
         public static event Action<bool>? AppFocused;
@@ -66,20 +60,6 @@ namespace DivisionEngine.Editor
         /// </summary>
         public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
-        /// <summary>
-        /// Sets whether the editor renders using a render pipeline.
-        /// </summary>
-        /// <param name="rendering">Whether the editor is rendering</param>
-        public static async Task SetEditorRenderingAsync(bool rendering)
-        {
-            if (rendering && !RendererVisible)
-            {
-                if (Renderer == null) StartRenderer(); // If renderer doesn't exist yet, create it
-                else RendererVisible = true;
-            }
-            else if (!rendering && RendererVisible) RendererVisible = false; // Just hide the renderer, don't destroy it
-        }
-
         public static void StartRenderer()
         {
             if (Renderer != null) return;
@@ -88,7 +68,6 @@ namespace DivisionEngine.Editor
             Renderer.BindCurrentWorld();
             Renderer.RunEmbedded(RequestedFPS); // no window, no Silk.NET input context needed
 
-            RendererVisible = true;
             EnvironmentWindow.SyncToolValuesToRenderer();
         }
 
@@ -112,7 +91,7 @@ namespace DivisionEngine.Editor
                 WorldManager.CurrentWorld?.CallAppStart();
                 StartEditorEngineLoop();
                 UserInput = new InputSystem();
-                _ = SetEditorRenderingAsync(true); // Start the SDFRenderer in a separate thread
+                StartRenderer(); // Start the SDFRenderer in a separate thread
                 SetupAvaloniaInput(desktop);
 
                 // Bind editor callbacks

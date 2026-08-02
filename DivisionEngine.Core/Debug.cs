@@ -82,7 +82,13 @@ namespace DivisionEngine
         /// </summary>
         public string CallerInfo =>
             string.IsNullOrEmpty(FilePath) ? string.Empty :
-            $"{System.IO.Path.GetFileName(FilePath)}:{LineNumber} {MethodName}()";
+            $"{Path.GetFileName(FilePath)}:{LineNumber} {MethodName}()";
+
+        /// <summary>
+        /// Formats the log entry for file output.
+        /// </summary>
+        public string ToFileString() =>
+            $"[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{Level}] {Message} ({CallerInfo})";
 
         public override string ToString() =>
             $"[{Level}] {Timestamp}: {Message} ({CallerInfo})";
@@ -101,6 +107,12 @@ namespace DivisionEngine
     {
         private static readonly Debug instance = new Debug();
         private readonly List<LogEntry> debugLog = [];
+        private readonly Lock fileLock = new();
+        private readonly string logFilePath;
+        private readonly string logDirectoryPath;
+        private const int MAX_LOG_FILE_SIZE_MB = 50; // Maximum size before rotating
+        private const int MAX_LOG_FILES = 5; // Number of rotated log files to keep
+        private bool headerWritten = false;
 
         /// <summary>
         /// Callback invoked when a new log entry is added.
@@ -112,9 +124,184 @@ namespace DivisionEngine
         /// </summary>
         public static IReadOnlyList<LogEntry> Logs => instance.debugLog;
 
+        /// <summary>
+        /// Whether file logging is enabled.
+        /// </summary>
+        public static bool FileLoggingEnabled { get; set; } = true;
+
         public Debug()
         {
+            // Setup log file path in AppData
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string companyFolder = Path.Combine(appDataPath, "DivisionEngine");
+            logDirectoryPath = Path.Combine(companyFolder, "Logs");
+
+            // Create directory if it doesn't exist
+            if (!Directory.Exists(logDirectoryPath))
+                Directory.CreateDirectory(logDirectoryPath);
+
+            // Generate log file name with date and time
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            logFilePath = Path.Combine(logDirectoryPath, $"Editor_{timestamp}.log");
+
+            // Clean up old log files (keep only the last N)
+            CleanupOldLogFiles();
+
+            // Write initial log header - use a more direct approach
+            WriteHeader();
+
             debugLog.Add(new LogEntry("Debug system initialized.", LogLevel.Info));
+        }
+
+        /// <summary>
+        /// Writes the log file header directly.
+        /// </summary>
+        private void WriteHeader()
+        {
+            if (!FileLoggingEnabled) return;
+
+            lock (fileLock)
+            {
+                try
+                {
+                    // Ensure directory exists
+                    if (!Directory.Exists(logDirectoryPath))
+                        Directory.CreateDirectory(logDirectoryPath);
+
+                    // Build header content
+                    var headerLines = new[]
+                    {
+                        "========================================",
+                        $"Division Engine Editor Log",
+                        $"Started: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}",
+                        $"Version: {System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0, 0)}",
+                        $"OS: {Environment.OSVersion}",
+                        $"Runtime: {Environment.Version}",
+                        $"64-bit OS: {Environment.Is64BitOperatingSystem}",
+                        $"Processors: {Environment.ProcessorCount}",
+                        $"Log File: {Path.GetFileName(logFilePath)}",
+                        "========================================",
+                        ""
+                    };
+
+                    // Write header directly to file
+                    File.WriteAllText(logFilePath, string.Join(Environment.NewLine, headerLines) + Environment.NewLine);
+                    headerWritten = true;
+
+                    Console.WriteLine($"Log file created: {logFilePath}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to write log header: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cleans up old log files, keeping only the most recent ones.
+        /// </summary>
+        private void CleanupOldLogFiles()
+        {
+            try
+            {
+                if (!Directory.Exists(logDirectoryPath)) return;
+                List<string> logFiles = [.. Directory.GetFiles(logDirectoryPath, "Editor_*.log").OrderByDescending(File.GetCreationTime)];
+
+                // Remove old files beyond the limit
+                for (int i = MAX_LOG_FILES; i < logFiles.Count; i++)
+                {
+                    try
+                    {
+                        File.Delete(logFiles[i]);
+                        Console.WriteLine($"Deleted old log file: {Path.GetFileName(logFiles[i])}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to delete old log file: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to clean up old log files: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Writes a string to the log file with automatic rotation.
+        /// </summary>
+        private void WriteToFile(string content)
+        {
+            if (!FileLoggingEnabled) return;
+
+            lock (fileLock)
+            {
+                try
+                {
+                    // Check if we need to rotate the log file
+                    if (File.Exists(logFilePath))
+                    {
+                        FileInfo fileInfo = new FileInfo(logFilePath);
+                        if (fileInfo.Length > MAX_LOG_FILE_SIZE_MB * 1024 * 1024)
+                            RotateLogFile();
+                    }
+
+                    // Ensure directory exists
+                    if (!Directory.Exists(logDirectoryPath))
+                        Directory.CreateDirectory(logDirectoryPath);
+
+                    // Ensure header is written
+                    if (!headerWritten && !File.Exists(logFilePath))
+                    {
+                        WriteHeader();
+                    }
+
+                    File.AppendAllText(logFilePath, content + Environment.NewLine);
+                }
+                catch (Exception ex)
+                {
+                    // If we can't write to the file, at least log to console
+                    Console.WriteLine($"Failed to write to log file: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rotates the log file when it gets too large.
+        /// </summary>
+        private void RotateLogFile()
+        {
+            try
+            {
+                if (!File.Exists(logFilePath)) return;
+
+                string fileName = Path.GetFileNameWithoutExtension(logFilePath);
+                string extension = Path.GetExtension(logFilePath);
+                string directory = Path.GetDirectoryName(logFilePath)!;
+
+                // Generate a new name for the rotated file
+                string date = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+                string rotatedPath = Path.Combine(directory, $"{fileName}_rotated_{date}{extension}");
+
+                // Move current log to rotated
+                File.Move(logFilePath, rotatedPath);
+                headerWritten = false; // Reset header flag so new header is written
+
+                // Write new header
+                WriteHeader();
+
+                // Add rotation notice
+                WriteToFile($"Previous log file was rotated at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                WriteToFile($"Rotated file: {Path.GetFileName(rotatedPath)}");
+                WriteToFile("");
+
+                // Clean up old rotated logs
+                CleanupOldLogFiles();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to rotate log file: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -192,6 +379,11 @@ namespace DivisionEngine
 
             LogEntry entry = new LogEntry(message, level, filePath, methodName, lineNumber);
             Console.WriteLine(entry.ToString());
+
+            // Write to file
+            instance.WriteToFile(entry.ToFileString());
+
+            // Add to in-memory log
             instance.debugLog.Add(entry);
             OnLogUpdate?.Invoke(entry);
         }
@@ -205,5 +397,40 @@ namespace DivisionEngine
         /// Removes a specific log entry.
         /// </summary>
         public static void ClearLog(LogEntry e) => instance.debugLog.Remove(e);
+
+        /// <summary>
+        /// Gets the path to the current log file.
+        /// </summary>
+        public static string GetLogFilePath() => instance.logFilePath;
+
+        /// <summary>
+        /// Gets the log directory path.
+        /// </summary>
+        public static string GetLogDirectory() => instance.logDirectoryPath;
+
+        /// <summary>
+        /// Opens the log directory in the file explorer.
+        /// </summary>
+        public static void OpenLogDirectory()
+        {
+            string dir = GetLogDirectory();
+            if (Directory.Exists(dir)) System.Diagnostics.Process.Start("explorer.exe", dir);
+        }
+
+        /// <summary>
+        /// Opens the current log file in the default text editor.
+        /// </summary>
+        public static void OpenLogFile()
+        {
+            string path = GetLogFilePath();
+            if (File.Exists(path))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true
+                });
+            }
+        }
     }
 }

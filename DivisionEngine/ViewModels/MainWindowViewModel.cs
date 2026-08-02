@@ -259,8 +259,6 @@ namespace DivisionEngine.Editor.ViewModels
         {
             try
             {
-                await App.SetEditorRenderingAsync(false);
-
                 ConfirmationDialog confirmDialog = new ConfirmationDialog("New Project",
                         $"Would you like to create a new project?");
                 if (await confirmDialog.ShowDialog<bool>(mainWindow))
@@ -268,13 +266,10 @@ namespace DivisionEngine.Editor.ViewModels
                     ProjectManager.CloseProject();
                     WorldManager.CreateDefaultWorld(true);
                 }
-
-                await App.SetEditorRenderingAsync(true);
             }
             catch (Exception ex)
             {
                 Debug.Error($"Error opening project", ex);
-                await App.SetEditorRenderingAsync(true);
             }
         }
 
@@ -283,8 +278,6 @@ namespace DivisionEngine.Editor.ViewModels
         {
             try
             {
-                await App.SetEditorRenderingAsync(false);
-
                 var suggestedLocation = await GetSuggestedProjectLocation(); // Get the starting folder
                 var result = await mainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
@@ -299,13 +292,10 @@ namespace DivisionEngine.Editor.ViewModels
                     projectPath = Path.TrimEndingDirectorySeparator(projectPath);
                     await OpenProjectAtPath(projectPath);
                 }
-
-                await App.SetEditorRenderingAsync(true);
             }
             catch (Exception ex)
             {
                 Debug.Error($"Error opening project", ex);
-                await App.SetEditorRenderingAsync(true);
             }
         }
 
@@ -353,14 +343,11 @@ namespace DivisionEngine.Editor.ViewModels
         {
             try
             {
-                await App.SetEditorRenderingAsync(false);
                 await OpenProjectAtPath(path);
-                await App.SetEditorRenderingAsync(true);
             }
             catch (Exception ex)
             {
                 Debug.Error($"Error opening recent project: {path}", ex);
-                await App.SetEditorRenderingAsync(true);
             }
         }
 
@@ -409,7 +396,6 @@ namespace DivisionEngine.Editor.ViewModels
             ShowProgress = true;
             try
             {
-                await App.SetEditorRenderingAsync(false);
                 EditorTaskManager.Update(t.Id, 0.25f);
 
                 // Get project name
@@ -419,7 +405,6 @@ namespace DivisionEngine.Editor.ViewModels
 
                 if (string.IsNullOrWhiteSpace(projectName))
                 {
-                    await App.SetEditorRenderingAsync(true);
                     EditorTaskManager.Complete(t.Id);
                     return;
                 }
@@ -438,7 +423,6 @@ namespace DivisionEngine.Editor.ViewModels
 
                 if (folderResult.Count == 0 || string.IsNullOrEmpty(folderResult[0].Path.LocalPath))
                 {
-                    await App.SetEditorRenderingAsync(true);
                     EditorTaskManager.Complete(t.Id);
                     return;
                 }
@@ -455,7 +439,6 @@ namespace DivisionEngine.Editor.ViewModels
                     EditorTaskManager.Update(t.Id, 1f);
                     if (!overwrite)
                     {
-                        await App.SetEditorRenderingAsync(true);
                         EditorTaskManager.Complete(t.Id);
                         return;
                     }
@@ -470,8 +453,6 @@ namespace DivisionEngine.Editor.ViewModels
                 }
                 else Debug.Error("Failed to save project");
                 EditorTaskManager.Complete(t.Id);
-
-                await App.SetEditorRenderingAsync(true);
             }
             catch (Exception ex)
             {
@@ -531,6 +512,18 @@ namespace DivisionEngine.Editor.ViewModels
             });
         }
 
+        [RelayCommand]
+        private static void OpenLogDirectory()
+        {
+            Debug.OpenLogDirectory();
+        }
+
+        [RelayCommand]
+        private static void OpenLogFile()
+        {
+            Debug.OpenLogFile();
+        }
+
         /// <summary>
         /// Creates an entity straight from the "Add" menu.
         /// </summary>
@@ -558,9 +551,6 @@ namespace DivisionEngine.Editor.ViewModels
                 "Developer" => new DeveloperWindowViewModel(),
                 _ => null
             };
-
-            if (args[0] == "Environment" && !App.RendererVisible) // Re-enable render window if disabled.
-                _ = App.SetEditorRenderingAsync(true);
 
             if (vm == null)
             {
@@ -594,10 +584,6 @@ namespace DivisionEngine.Editor.ViewModels
         /// </summary>
         public void AddWindowToPanel(EditorWindowViewModel viewModel, string panelType)
         {
-            // Re-enable renderer if needed (special case for Environment window)
-            if (viewModel is EnvironmentWindowViewModel && !App.RendererVisible)
-                _ = App.SetEditorRenderingAsync(true);
-
             switch (panelType)
             {
                 case "left":

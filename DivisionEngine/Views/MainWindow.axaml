@@ -102,6 +102,10 @@
             <MenuItem Header="Debug" Command="{Binding ApplyDebugLayoutCommand}" Foreground="#ccc"/>
         </MenuItem>
             <!--Other Menus-->
+        <MenuItem Header="Logs">
+            <MenuItem Header="Open Log Directory" Command="{Binding OpenLogDirectoryCommand}"/>
+            <MenuItem Header="Open Current Log File" Command="{Binding OpenLogFileCommand}"/>
+        </MenuItem>
         <MenuItem Header="Help" Foreground="#ccc">
             <MenuItem Header="About" Command="{Binding AboutCommand}" Foreground="#ccc"/>
             <MenuItem Header="Roadmap" Command="{Binding RoadmapCommand}" Foreground="#ccc"/>

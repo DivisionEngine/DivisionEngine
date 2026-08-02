@@ -31,7 +31,6 @@ public class DivisionRenderView : Control
     private PixelPoint dragStartScreen;
     private bool suppressNextMove = false;
 
-
     /// <summary>
     /// Create a new Division render view.
     /// </summary>

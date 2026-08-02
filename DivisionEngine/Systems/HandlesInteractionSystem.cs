@@ -103,9 +103,7 @@ namespace DivisionEngine.Editor.Systems
             {
                 uint handleId = 0;
                 if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height)
-                {
                     handleId = RenderPipeline.Instance.GetHandleAtPosition(pixelX, pixelY);
-                }
 
                 // Get camera data first (needed for all operations)
                 Transform? camTransform = GetMainCamera();

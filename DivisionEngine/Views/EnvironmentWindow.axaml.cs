@@ -20,7 +20,7 @@ using Math = DivisionEngine.MathLib.Math;
 namespace DivisionEngine.Editor;
 
 /// <summary>
-/// Window responsible for displaying the Silk.NET player in-editor, sized correctly.
+/// Window responsible for displaying the render target, and renderer controls.
 /// </summary>
 public partial class EnvironmentWindow : EditorWindow
 {
@@ -158,9 +158,6 @@ public partial class EnvironmentWindow : EditorWindow
         };
         mainPanel.Children.Add(renderVisualizerFrame);
 
-        // Re-enable render window if just focused
-        if (!App.RendererVisible) _ = App.SetEditorRenderingAsync(true);
-
         this.FindControl<Border>("MainBorder")!.Child = mainPanel;
         currentWindows.Add(this);
     }
@@ -170,18 +167,15 @@ public partial class EnvironmentWindow : EditorWindow
     /// </summary>
     public static void SyncToolValuesToRenderer()
     {
-        if (App.RendererVisible)
-        {
-            for (int i = 0; i < currentWindows.Count; i++)
-                currentWindows[i]?.UpdateRendererDebugMode();
-        }
+        for (int i = 0; i < currentWindows.Count; i++)
+            currentWindows[i]?.UpdateRendererDebugMode();
     }
 
     private void UpdateDisplayText()
     {
         if (widthHeightText != null && renderVisualizerFrame != null)
         {
-            var bounds = renderVisualizerFrame.Bounds;
+            Rect bounds = renderVisualizerFrame.Bounds;
             int width = (int)bounds.Width;
             int height = (int)bounds.Height;
             double fps = TimeSystem.FPS;
@@ -195,8 +189,8 @@ public partial class EnvironmentWindow : EditorWindow
         if (renderVisualizerFrame != null)
         {
             // Get actual rendered size (considering DPI scaling)
-            var bounds = renderVisualizerFrame.Bounds;
-            var topLevel = TopLevel.GetTopLevel(renderVisualizerFrame);
+            Rect bounds = renderVisualizerFrame.Bounds;
+            TopLevel? topLevel = TopLevel.GetTopLevel(renderVisualizerFrame);
             double dpiScale = topLevel?.RenderScaling ?? 1.0;
 
             int physicalWidth = (int)(bounds.Width * dpiScale);
@@ -204,9 +198,7 @@ public partial class EnvironmentWindow : EditorWindow
 
             // Update the renderer's embedded viewport size
             if (App.Renderer != null && App.Renderer.Mode == RenderPipeline.RunMode.Embedded)
-            {
                 App.Renderer.SetEmbeddedViewportSize(physicalWidth, physicalHeight);
-            }
 
             // Update display text
             UpdateDisplayText();
@@ -223,26 +215,13 @@ public partial class EnvironmentWindow : EditorWindow
     }
 
     /// <summary>
-    /// Sets the render frame size.
-    /// </summary>
-    /// <param name="width">Width in pixels</param>
-    /// <param name="height">Height in pixels</param>
-    public void SetRenderFrameSize(int width, int height)
-    {
-        renderVisualizerFrame.Width = width;
-        renderVisualizerFrame.Height = height;
-    }
-
-    /// <summary>
     /// Makes sure all environment windows in current list are active.
     /// </summary>
     private static void ValidateEnvironmentWindows()
     {
         foreach (EnvironmentWindow? window in currentWindows.ToArray()) // Don't forget to create iterator copy
-        {
             if (window == null || !window.IsLoaded)
                 currentWindows.Remove(window);
-        }
     }
 
     /// <summary>
