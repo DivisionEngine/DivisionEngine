@@ -138,6 +138,10 @@ namespace DivisionEngine.Components.SDFs.Effects
         [Tooltip("Turns the ACES tonemapper on or off for this camera")]
         public bool enableAcesTonemapper = true;
 
+        [Header("Chromatic Aberration")]
+        public bool enableChromaticAberration = false;
+        [Range(0f, 0.05f)] public float chromaticIntensity = 0.003f; // Subtle by default
+
         public IComponent Clone() => new PostProcessing
         {
             hueShift = hueShift,
@@ -168,6 +172,9 @@ namespace DivisionEngine.Components.SDFs.Effects
             focalLength = focalLength,
 
             enableAcesTonemapper = enableAcesTonemapper,
+
+            enableChromaticAberration = enableChromaticAberration,
+            chromaticIntensity = chromaticIntensity,
         };
     }
 }

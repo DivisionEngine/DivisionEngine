@@ -1095,6 +1095,21 @@ namespace DivisionEngine.Rendering
                         currentTexture = postProcessTex;
                     }
 
+                    // Chromatic aberration effect
+                    if (postProcess.enableChromaticAberration && currentTexture != null && postProcessTex != null)
+                    {
+                        lock (SyncLock)
+                        {
+                            ChromaticAberrationShader caShader = new ChromaticAberrationShader(
+                                texWidth, texHeight,
+                                postProcess.chromaticIntensity,
+                                currentTexture,
+                                postProcessTex);
+                            Device?.For(texWidth, texHeight, caShader);
+                        }
+                        currentTexture = postProcessTex;
+                    }
+
                     // Vignette effect
                     if (postProcess.enableVignette && currentTexture != null && postProcessTex != null)
                     {
