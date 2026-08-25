@@ -39,7 +39,6 @@ using Button = Avalonia.Controls.Button;
 using Environment = DivisionEngine.Components.Environment;
 using Math = DivisionEngine.MathLib.Math;
 using Transform = DivisionEngine.Components.Transform;
-using Vector = Avalonia.Vector;
 
 namespace DivisionEngine.Editor;
 
@@ -63,6 +62,10 @@ public partial class PropertiesWindow : EditorWindow
     // Keyed by (entity, component type) so a field's "Reset to Default" can rebuild exactly
     // the card it lives in — whether that's the selected entity's panel or a World-view tab.
     private readonly Dictionary<(uint EntityId, Type CompType), StackPanel> componentFieldPanels = [];
+
+    // Static dictionary to persist expanded state across all instances and rebuilds
+    private static readonly Dictionary<string, bool> cardExpandedState = [];
+    private static readonly Lock stateLock = new();
 
     // Rendering-info tab: live system stats, refreshed on a timer while the World view is open.
     private DispatcherTimer? renderInfoRefreshTimer;
@@ -575,6 +578,9 @@ public partial class PropertiesWindow : EditorWindow
         scrollViewer.ScrollToHome();
     }
 
+    private static string GetComponentKey(uint entityId, Type compType, string? cardTitle = null) =>
+        cardTitle ?? $"{entityId}_{compType.FullName}";
+
     #endregion
     #region worldEditor
 
@@ -693,7 +699,7 @@ public partial class PropertiesWindow : EditorWindow
     /// Builds a foldout card for a component and registers its field panel so
     /// "Reset to Default" (and any other targeted refresh) can rebuild it later.
     /// </summary>
-    private void CreateComponentEditor(StackPanel targetPanel, Type compType, IComponent instance, 
+    private void CreateComponentEditor(StackPanel targetPanel, Type compType, IComponent instance,
         uint entityId, string? cardTitle = null, bool allowRemove = true)
     {
         StackPanel fieldsPanel = new() { Margin = new Thickness(8, 4, 4, 8) };
@@ -710,17 +716,44 @@ public partial class PropertiesWindow : EditorWindow
         {
             W.RemoveComponent(entityId, compType);
             componentFieldPanels.Remove((entityId, compType));
+
+            // Remove the state when component is removed
+            string key = $"{compType.Name}_{entityId}";
+            lock (stateLock)
+            {
+                cardExpandedState.Remove(key);
+            }
+
             LoadEntityComponents(entityId);
-        } : null;
-        targetPanel.Children.Add(BuildCard(cardTitle ?? compType.Name, MaterialIconKind.DataMatrixScan, fieldsPanel, onRemove));
+        }
+        : null;
+
+        // Use a consistent key format
+        string cardKey = $"{compType.Name}_{entityId}";
+        targetPanel.Children.Add(BuildCard(
+            cardTitle ?? compType.Name,
+            MaterialIconKind.DataMatrixScan,
+            fieldsPanel,
+            onRemove,
+            cardKey));
     }
 
     /// <summary>
     /// Builds a collapsible card. Used for component editors and for the World-view info cards.
     /// </summary>
-    private static StackPanel BuildCard(string title, MaterialIconKind icon, Control content, Action? onRemove = null)
+    private StackPanel BuildCard(string title, MaterialIconKind icon, Control content,
+        Action? onRemove = null, string? cardKey = null)
     {
-        bool expanded = true;
+        // Use the cardKey or generate one from the title and current selection
+        string key = cardKey ?? $"{title}_{currentSelection ?? "world"}";
+
+        // Get saved state or default to true (expanded)
+        bool expanded;
+        lock (stateLock)
+        {
+            // Default to true if not found
+            expanded = !cardExpandedState.TryGetValue(key, out bool state) || state;
+        }
 
         Border headerBorder = new()
         {
@@ -751,7 +784,7 @@ public partial class PropertiesWindow : EditorWindow
         };
         MaterialIcon chevronIcon = new()
         {
-            Kind = MaterialIconKind.ChevronDown,
+            Kind = expanded ? MaterialIconKind.ChevronDown : MaterialIconKind.ChevronRight,
             Width = 16,
             Height = 16,
             Foreground = EditorColor.FromRGB(148, 148, 148),
@@ -759,8 +792,6 @@ public partial class PropertiesWindow : EditorWindow
             Margin = new Thickness(4, 0, 4, 0),
         };
 
-        // Same DockPanel arrangement as the original header (icon+name left, extras right) —
-        // just with the chevron slotted in before the remove button.
         DockPanel.SetDock(headerCompIcon, Dock.Left);
         DockPanel.SetDock(titleText, Dock.Left);
         DockPanel.SetDock(chevronIcon, Dock.Left);
@@ -773,8 +804,8 @@ public partial class PropertiesWindow : EditorWindow
             Button removeButton = new()
             {
                 Classes = { "icon-btn" },
-                Content = new MaterialIcon { Kind = MaterialIconKind.Close }, // Use Close instead of Remove for X icon
-                HorizontalAlignment = HorizontalAlignment.Right // Ensure it's on the right
+                Content = new MaterialIcon { Kind = MaterialIconKind.Close },
+                HorizontalAlignment = HorizontalAlignment.Right
             };
             removeButton.Click += (_, _) => onRemove();
             DockPanel.SetDock(removeButton, Dock.Right);
@@ -791,6 +822,7 @@ public partial class PropertiesWindow : EditorWindow
             Margin = new Thickness(4, 0, 12, 0),
             Padding = new Thickness(8, 4, 4, 4),
             Child = content,
+            IsVisible = expanded,
         };
         contentBorder.PointerEntered += (_, _) =>
         {
@@ -805,14 +837,19 @@ public partial class PropertiesWindow : EditorWindow
             contentBorder.Background = EditorColor.FromRGB(20, 20, 20);
         };
 
+        // When toggling, save the state to the static dictionary
         headerBorder.Tapped += (_, _) =>
         {
             expanded = !expanded;
             contentBorder.IsVisible = expanded;
             chevronIcon.Kind = expanded ? MaterialIconKind.ChevronDown : MaterialIconKind.ChevronRight;
-            // Collapsed: the header stands alone, so round its bottom corners too instead of
-            // leaving them flush against a hidden content border.
             headerBorder.CornerRadius = expanded ? new CornerRadius(4, 4, 0, 0) : new CornerRadius(4, 4, 4, 4);
+
+            // Save the state persistently
+            lock (stateLock)
+            {
+                cardExpandedState[key] = expanded;
+            }
         };
 
         return new StackPanel { Children = { headerBorder, contentBorder } };
