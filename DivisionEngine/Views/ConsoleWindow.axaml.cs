@@ -333,7 +333,8 @@ public partial class ConsoleWindow : EditorWindow
         if (collapseEnabled)
         {
             // First, group all logs by their collapse key
-            foreach (LogEntry log in Debug.Logs)
+            IReadOnlyList<LogEntry> logs = Debug.Logs;
+            foreach (LogEntry log in logs)
             {
                 string key = GetCollapseKey(log);
                 if (!groupedLogs.TryGetValue(key, out GroupedLogEntry? group))
@@ -360,7 +361,8 @@ public partial class ConsoleWindow : EditorWindow
             // Normal display - one entry per log
             lock (threadLock)
             {
-                foreach (LogEntry log in Debug.Logs)
+                IReadOnlyList<LogEntry> logs = Debug.Logs;
+                foreach (LogEntry log in logs)
                     if (ShouldShowLog(log))
                         logList.Children.Add(CreateLogControl(log, 1));
             }

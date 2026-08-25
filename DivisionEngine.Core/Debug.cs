@@ -136,18 +136,13 @@ namespace DivisionEngine
             string companyFolder = Path.Combine(appDataPath, "DivisionEngine");
             logDirectoryPath = Path.Combine(companyFolder, "Logs");
 
-            // Create directory if it doesn't exist
             if (!Directory.Exists(logDirectoryPath))
                 Directory.CreateDirectory(logDirectoryPath);
 
-            // Generate log file name with date and time
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
             logFilePath = Path.Combine(logDirectoryPath, $"Editor_{timestamp}.log");
 
-            // Clean up old log files (keep only the last N)
             CleanupOldLogFiles();
-
-            // Write initial log header - use a more direct approach
             WriteHeader();
 
             debugLog.Add(new LogEntry("Debug system initialized.", LogLevel.Info));
@@ -238,24 +233,15 @@ namespace DivisionEngine
             {
                 try
                 {
-                    // Check if we need to rotate the log file
+                    // Check if need to rotate the log file
                     if (File.Exists(logFilePath))
                     {
                         FileInfo fileInfo = new FileInfo(logFilePath);
-                        if (fileInfo.Length > MAX_LOG_FILE_SIZE_MB * 1024 * 1024)
-                            RotateLogFile();
+                        if (fileInfo.Length > MAX_LOG_FILE_SIZE_MB * 1024 * 1024) RotateLogFile();
                     }
 
-                    // Ensure directory exists
-                    if (!Directory.Exists(logDirectoryPath))
-                        Directory.CreateDirectory(logDirectoryPath);
-
-                    // Ensure header is written
-                    if (!headerWritten && !File.Exists(logFilePath))
-                    {
-                        WriteHeader();
-                    }
-
+                    if (!Directory.Exists(logDirectoryPath)) Directory.CreateDirectory(logDirectoryPath); // Ensure directory exists
+                    if (!headerWritten && !File.Exists(logFilePath)) WriteHeader(); // Ensure header is written
                     File.AppendAllText(logFilePath, content + Environment.NewLine);
                 }
                 catch (Exception ex)
@@ -286,17 +272,13 @@ namespace DivisionEngine
                 // Move current log to rotated
                 File.Move(logFilePath, rotatedPath);
                 headerWritten = false; // Reset header flag so new header is written
-
-                // Write new header
-                WriteHeader();
+                WriteHeader(); // Write new header
 
                 // Add rotation notice
                 WriteToFile($"Previous log file was rotated at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 WriteToFile($"Rotated file: {Path.GetFileName(rotatedPath)}");
                 WriteToFile("");
-
-                // Clean up old rotated logs
-                CleanupOldLogFiles();
+                CleanupOldLogFiles(); // Clean up old rotated logs
             }
             catch (Exception ex)
             {
