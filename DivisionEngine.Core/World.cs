@@ -174,6 +174,16 @@ namespace DivisionEngine
             return string.Empty;
         }
 
+        public bool AddEntityWithId(uint id, string? name = null)
+        {
+            if (entities.Contains(id)) return false;
+            entities.Add(id);
+            if (id >= NextEntityId) NextEntityId = id + 1;
+            if (!string.IsNullOrEmpty(name))
+                AddComponent(id, new Name(name));
+            return true;
+        }
+
         #endregion
         #region systems
 
@@ -434,6 +444,19 @@ namespace DivisionEngine
             Type type = typeof(T);
             if (components.TryGetValue(type, out var value) && value.TryGetValue(entityId, out var component))
                 return (T)component;
+            return default;
+        }
+
+        /// <summary>
+        /// Gets a component on an entity.
+        /// </summary>
+        /// <param name="entityId">The entity</param>
+        /// <param name="componentType">Type of component to retrieve (must be IComponent)</param>
+        /// <returns>The component on the entity</returns>
+        public IComponent? GetComponent(uint entityId, Type componentType)
+        {
+            if (components.TryGetValue(componentType, out var value) && value.TryGetValue(entityId, out var component))
+                return component;
             return default;
         }
 
@@ -708,7 +731,7 @@ namespace DivisionEngine
             }
 
             // Copy all other components
-            foreach (var componentType in sourceWorld.components.Keys)
+            foreach (Type componentType in sourceWorld.components.Keys)
             {
                 if (componentType == typeof(Name)) continue;
 
@@ -720,6 +743,17 @@ namespace DivisionEngine
                     AddComponent(entityId, clonedComponent);
                 }
             }
+        }
+
+        public Dictionary<Type, IComponent> GetClonedComponents(uint entityId)
+        {
+            var dict = new Dictionary<Type, IComponent>();
+            foreach (var kv in components)
+            {
+                if (kv.Value.TryGetValue(entityId, out var comp))
+                    dict[kv.Key] = comp.Clone();
+            }
+            return dict;
         }
 
         #endregion

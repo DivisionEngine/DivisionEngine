@@ -179,7 +179,7 @@ namespace DivisionEngine
 
         private float EstimateMipLevel(float depth, float scale, int2 textureResolution)
         {
-            float texelWorldSize = (1f / Hlsl.Max(scale, EPSILON)) / Hlsl.Max(textureResolution.X, 1f);
+            float texelWorldSize = Hlsl.Rcp(Hlsl.Max(scale, EPSILON)) / Hlsl.Max(textureResolution.X, 1f);
             float pixelWorldSize = Hlsl.Max(depth * worldData[0].camScreenDist / height, depth * worldData[0].camScreenDist / width);
             return Hlsl.Max(0f, Hlsl.Log2(Hlsl.Max(pixelWorldSize / Hlsl.Max(texelWorldSize, EPSILON), 1f)));
         }
@@ -451,12 +451,13 @@ namespace DivisionEngine
         private float3 SoftShadow(float3 point, float3 dir)
         {
             float depth, dist, shadow = 1;
+            int maxShadowRaySteps = worldData[0].maxShadowRaySteps;
             for (int k = 0; k < sdfObjects.Length; k++)
             {
                 SDFObjectDTO sdf = sdfObjects[k];
                 depth = sdf.shadowDistances.X;
                 if (!sdf.shadowEffects.X) continue;
-                for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
+                for (int i = 0; i < maxShadowRaySteps; ++i)
                 {
                     dist = ObjectSDF(point + depth * dir, sdf);
                     if (depth > sdf.shadowDistances.Y) break;
@@ -473,6 +474,7 @@ namespace DivisionEngine
             float shadow = 1f;
             float3 tint = float3.One;
             float tintShadow = 1f;
+            int maxShadowRaySteps = worldData[0].maxShadowRaySteps;
             for (int k = 0; k < sdfObjects.Length; k++)
             {
                 SDFObjectDTO sdf = sdfObjects[k];
@@ -480,7 +482,7 @@ namespace DivisionEngine
                 bool isGlass = sdf.hasRefraction == 1;
                 float depth = sdf.shadowDistances.X;
                 float3 absorptionCoefficient = isGlass ? Hlsl.Log(Hlsl.Max(sdf.absorptionColor.RGB, 0.001f)) : float3.Zero;
-                for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
+                for (int i = 0; i < maxShadowRaySteps; ++i)
                 {
                     if (depth > sdf.shadowDistances.Y) break;
                     float dist = ObjectSDF(point + depth * dir, sdf);
@@ -509,12 +511,13 @@ namespace DivisionEngine
         private float3 HardShadow(float3 point, float3 dir)
         {
             float depth, dist;
+            int maxShadowRaySteps = worldData[0].maxShadowRaySteps;
             for (int k = 0; k < sdfObjects.Length; k++)
             {
                 SDFObjectDTO sdf = sdfObjects[k];
                 depth = sdf.shadowDistances.X;
                 if (!sdf.shadowEffects.X) continue;
-                for (int i = 0; i < worldData[0].maxShadowRaySteps; ++i)
+                for (int i = 0; i < maxShadowRaySteps; ++i)
                 {
                     dist = ObjectSDF(point + depth * dir, sdf);
                     if (dist < EPSILON) return 0f;
@@ -578,7 +581,7 @@ namespace DivisionEngine
                     float3 lightVec = light.position - hitPoint;
                     float distance = Hlsl.Length(lightVec);
                     float3 lightDir = lightVec / distance;
-                    float attenuation = 1f / (distance * distance);
+                    float attenuation = Hlsl.Rcp(distance * distance);
                     float radiusFactor = Hlsl.Saturate(1f - (distance / light.radius));
                     attenuation *= radiusFactor;
 
@@ -632,7 +635,7 @@ namespace DivisionEngine
         /// This is a single-bounce approximation, not a full recursive trace - it's meant
         /// to be cheap enough to call from inside a shadow loop.
         /// </summary>
-        private float3 CausticTransmit(float3 point, float3 dir, SDFObjectDTO sdf, int traceDepth,
+        private float3 CausticTransmit(float3 point, float3 dir, SDFObjectDTO sdf,
             out float3 exitPoint, out float3 exitDir)
         {
             exitPoint = point;
@@ -641,7 +644,7 @@ namespace DivisionEngine
             float3 entryNormal = FastNormalSingleObject(point, sdf);
             if (Hlsl.Dot(entryNormal, dir) > 0f) entryNormal = -entryNormal; // oppose incident, like TraceRay's convention
 
-            float entryEta = 1f / Hlsl.Max(sdf.ior, EPSILON);
+            float entryEta = Hlsl.Rcp(Hlsl.Max(sdf.ior, EPSILON));
             if (!Refract(dir, entryNormal, entryEta, out float3 innerDir))
                 return float3.Zero; // Total internal reflection right at entry - treat as opaque for shadow purposes
 
@@ -691,7 +694,7 @@ namespace DivisionEngine
             float3 attenuation = float3.One;
 
             int maxRefractiveHits = Hlsl.Max(0, 2 - traceDepth); // depth 0: up to 2 panes of glass, depth 2+: none
-
+            int maxShadowRaySteps = worldData[0].maxShadowRaySteps;
             for (int pass = 0; pass <= maxRefractiveHits; pass++)
             {
                 int hitObj = -1;
@@ -703,7 +706,7 @@ namespace DivisionEngine
                     if (!sdf.shadowEffects.X) continue;
 
                     float td = sdf.shadowDistances.X;
-                    for (int i = 0; i < worldData[0].maxShadowRaySteps; i++)
+                    for (int i = 0; i < maxShadowRaySteps; i++)
                     {
                         if (td > sdf.shadowDistances.Y) break;
                         float dist = ObjectSDF(p + td * dir, sdf);
@@ -725,7 +728,7 @@ namespace DivisionEngine
                     return float3.Zero; // Opaque occluder, or out of refractive budget
 
                 float3 entryPoint = p + dir * hitDepth;
-                float3 segAtten = CausticTransmit(entryPoint, dir, hitSdf, traceDepth + pass, out float3 exitPoint, out float3 exitDir);
+                float3 segAtten = CausticTransmit(entryPoint, dir, hitSdf, out float3 exitPoint, out float3 exitDir);
                 attenuation *= segAtten;
                 if (attenuation.X + attenuation.Y + attenuation.Z < MIN_THROUGHPUT) return float3.Zero;
 
@@ -747,7 +750,7 @@ namespace DivisionEngine
             localPos = ShaderMath.RotateVector(hitPoint - sdf.position, sdf.rotation);
             float3 localGeoNormal = Hlsl.Normalize(ShaderMath.RotateVector(geoNormal, sdf.rotation));
             blend = TriplanarWeights(localGeoNormal, sdf.triplanarBlend);
-            float scale = 1f / Hlsl.Max(sdf.texTilingOffset.X, EPSILON);
+            float scale = Hlsl.Rcp(Hlsl.Max(sdf.texTilingOffset.X, EPSILON));
 
             float mipLevel = 0f;
             if (sdf.albedoTexMetaID >= 0)
@@ -886,6 +889,7 @@ namespace DivisionEngine
             closestObj = -1;
             float3 hitPoint = rayOrigin;
             float lastSafeDepth = depth;
+            float camScreenDist = worldData[0].camScreenDist;
 
             for (steps = 0; steps < maxSteps && depth < farClipPlane; steps++)
             {
@@ -926,7 +930,7 @@ namespace DivisionEngine
                 }
 
                 // Use fixed epsilon near surface, adaptive only for early termination
-                float hitEps = (depth < 10f) ? EPSILON : ShaderMath.AdaptiveEpsilon(depth, width, height, worldData[0].camScreenDist, EPSILON);
+                float hitEps = (depth < 10f) ? EPSILON : ShaderMath.AdaptiveEpsilon(depth, width, height, camScreenDist, EPSILON);
                 if (worldDist < hitEps) break;
 
                 depth += worldDist;
@@ -951,132 +955,117 @@ namespace DivisionEngine
         private float3 TraceRefractionRay(float3 startDir, float3 startOrigin, float3 ambientBase, float3 backgroundCol,
             float3 normal, SDFObjectDTO startMat, out int steps)
         {
-            float3 totalTransmittance = float3.One; // Start with full transmittance
+            float3 totalTransmittance = float3.One;
             float3 accumulatedColor = float3.Zero;
 
-            // Current state
             float3 currentOrigin = startOrigin;
             float3 currentDir = startDir;
             float3 currentNormal = normal;
-            SDFObjectDTO currentMat = startMat;
+            SDFObjectDTO currentObj = startMat;
             bool currentlyInsideObject = true;
             steps = 0;
+            float camScreenDist = worldData[0].camScreenDist;
+            float farPlane = worldData[0].farPlane;
+            int maxRaySteps = worldData[0].maxRaySteps;
 
             for (int transmit = 0; transmit < startMat.refractMaxRecursion; transmit++)
             {
-                // Determine direction (into or out of material)
-                float currentEta = currentlyInsideObject ? 1.0f / currentMat.ior : currentMat.ior;
+                float currentEta = currentlyInsideObject ? 1.0f / currentObj.ior : currentObj.ior;
 
                 if (Refract(currentDir, currentNormal, currentEta, out float3 refractDir))
                 {
-                    // Trace through the current medium
-                    float3 entryPt = currentOrigin - currentNormal * EPSILON * 2f;
-                    float3 p = entryPt;
+                    float3 p = currentOrigin - currentNormal * EPSILON * 2f;
                     float travelDistance = 0f;
                     bool foundExit = false;
                     float3 exitPt = float3.Zero;
                     float3 exitNorm = float3.Zero;
-                    float3 absorptionCoefficient = Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
+                    float3 absorptionCoefficient = Hlsl.Log(Hlsl.Max(currentObj.absorptionColor.RGB, 0.001f));
 
-                    for (int i = 0; i < currentMat.refractionMaxSteps; i++)
+                    for (int i = 0; i < currentObj.refractionMaxSteps; i++)
                     {
-                        float d = WorldSDF(p, out int closestObj);
+                        // Use ONLY the current refractive object's SDF
+                        float d = ObjectSDF(p, currentObj);
                         bool nowInside = d < 0f;
 
                         if (currentlyInsideObject != nowInside)
                         {
-                            // Binary search for the actual surface crossing
-                            float3 tMin3 = p - refractDir * Hlsl.Max(Hlsl.Abs(d), 
-                                ShaderMath.AdaptiveEpsilon(travelDistance, width, height, worldData[0].camScreenDist, EPSILON));
-                            float3 tMax3 = p;
+                            // Binary search for the exact surface of currentObj
+                            float3 tMin = p - refractDir * Hlsl.Max(Hlsl.Abs(d),
+                                ShaderMath.AdaptiveEpsilon(travelDistance, width, height, camScreenDist, EPSILON));
+                            float3 tMax = p;
                             const float REFRACT_BISECT_EPS = EPSILON * 20f;
 
                             for (int b = 0; b < 12; b++)
                             {
-                                float3 mid = (tMin3 + tMax3) * 0.5f;
-                                float dMid = WorldSDF(mid, out _);
+                                float3 mid = (tMin + tMax) * 0.5f;
+                                float dMid = ObjectSDF(mid, currentObj);   // use currentObj only
 
                                 if (Hlsl.Abs(dMid) < REFRACT_BISECT_EPS)
                                 {
-                                    tMin3 = mid; // close enough, use this
+                                    tMin = mid;
                                     break;
                                 }
-
-                                // tMin3 should always be on the "was inside" side
-                                if ((dMid < 0f) == currentlyInsideObject) tMin3 = mid;
-                                else tMax3 = mid;
+                                if ((dMid < 0f) == currentlyInsideObject) tMin = mid;
+                                else tMax = mid;
                             }
 
-                            // tMin3 is now on the side we WERE on — safe for normal sampling
-                            exitPt = tMin3;
-                            exitNorm = FastNormalSingleObject(exitPt, sdfObjects[closestObj]);
-                            int exitClosestObj = closestObj;
+                            exitPt = tMin;
+                            // Compute normal from currentObj only
+                            exitNorm = FastNormalSingleObject(exitPt, currentObj);
                             if (Hlsl.Dot(exitNorm, refractDir) > 0f) exitNorm = -exitNorm;
                             foundExit = true;
 
                             float3 segmentTransmittance = Hlsl.Exp(
-                                absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
+                                absorptionCoefficient * travelDistance * currentObj.absorptionColor.A * 5f);
                             totalTransmittance *= segmentTransmittance;
-
-                            currentlyInsideObject = nowInside;
-                            if (currentlyInsideObject && exitClosestObj != -1)
-                            {
-                                currentMat = sdfObjects[exitClosestObj];
-                                absorptionCoefficient = Hlsl.Log(Hlsl.Max(currentMat.absorptionColor.RGB, 0.001f));
-                            }
                             break;
                         }
 
-                        float stepSize = Hlsl.Max(Hlsl.Abs(d), 
-                            ShaderMath.AdaptiveEpsilon(travelDistance, width, height, worldData[0].camScreenDist, EPSILON));
+                        float stepSize = Hlsl.Max(Hlsl.Abs(d),
+                            ShaderMath.AdaptiveEpsilon(travelDistance, width, height, camScreenDist, EPSILON));
                         p += refractDir * stepSize;
                         travelDistance += stepSize;
                     }
 
-                    int tracedSteps;
                     if (!foundExit)
                     {
-                        // Apply final absorption
-                        float3 segmentTransmittance = Hlsl.Exp(absorptionCoefficient * travelDistance * currentMat.absorptionColor.A * 5f);
+                        // Still inside? Apply final absorption and return background.
+                        float3 segmentTransmittance = Hlsl.Exp(absorptionCoefficient * travelDistance * currentObj.absorptionColor.A * 5f);
                         totalTransmittance *= segmentTransmittance;
-
-                        float3 bgColor = TraceRefractionExitRay(p, refractDir, ambientBase, backgroundCol, out _, out _, out tracedSteps);
+                        float3 bgColor = TraceRefractionExitRay(p, refractDir, ambientBase, backgroundCol, out _, out _, out int tracedSteps);
                         accumulatedColor = bgColor;
                         steps += tracedSteps;
                         break;
                     }
 
-                    // Found exit
-                    currentOrigin = exitPt;
+                    // Found exit, now outside currentObj.
                     currentDir = refractDir;
                     currentNormal = exitNorm;
 
-                    if (!currentlyInsideObject) // If just exited to air
-                    {
-                        // Raymarch from exit point
-                        float3 rayStart = exitPt + currentNormal * EPSILON;
-                        float3 hitPoint = Raymarch(rayStart, currentDir, worldData[0].maxRaySteps, worldData[0].farPlane,
-                            out int nextObjIndex, out _, out tracedSteps);
-                        steps += tracedSteps;
+                    // Now raymarch from the exit point to find the next surface (if any)
+                    float3 rayStart = exitPt + currentNormal * EPSILON;
+                    float3 hitPoint = Raymarch(rayStart, currentDir, maxRaySteps, farPlane,
+                        out int nextObjIndex, out _, out int tracedSteps2);
+                    steps += tracedSteps2;
 
-                        if (nextObjIndex >= 0 && nextObjIndex < sdfObjects.Length)
-                        {
-                            currentOrigin = hitPoint;
-                            currentNormal = FastNormalSingleObject(hitPoint, sdfObjects[nextObjIndex]);
-                            if (Hlsl.Dot(currentNormal, currentDir) > 0) currentNormal = -currentNormal;
-                            currentMat = sdfObjects[nextObjIndex];
-                            currentlyInsideObject = true;
-                        }
-                        else
-                        {
-                            float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, ambientBase, backgroundCol, out _, out _, out tracedSteps);
-                            accumulatedColor = bgColor;
-                            steps += tracedSteps;
-                            break;
-                        }
+                    if (nextObjIndex >= 0 && nextObjIndex < sdfObjects.Length)
+                    {
+                        currentOrigin = hitPoint;
+                        currentNormal = FastNormalSingleObject(hitPoint, sdfObjects[nextObjIndex]);
+                        if (Hlsl.Dot(currentNormal, currentDir) > 0) currentNormal = -currentNormal;
+                        currentObj = sdfObjects[nextObjIndex];
+                        currentlyInsideObject = true;
+                    }
+                    else
+                    {
+                        // Nothing hit, accumulate background
+                        float3 bgColor = TraceRefractionExitRay(rayStart, currentDir, ambientBase, backgroundCol, out _, out _, out int tracedSteps3);
+                        accumulatedColor = bgColor;
+                        steps += tracedSteps3;
+                        break;
                     }
                 }
-                else break; // Total internal reflection
+                else break; // TIR
             }
 
             return accumulatedColor * totalTransmittance;
@@ -1089,10 +1078,10 @@ namespace DivisionEngine
             normal = float3.Zero;
 
             // Trace
-            int maxRaySteps = worldData[0].maxRaySteps;
-            float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, worldData[0].farPlane, out int closestObjIndex, out totalDist, out steps);
+            float farPlane = worldData[0].farPlane;
+            float3 hitPoint = Raymarch(rayOrigin, rayDir, worldData[0].maxRaySteps, farPlane, out int closestObjIndex, out totalDist, out steps);
 
-            if (closestObjIndex == -1 || totalDist > worldData[0].farPlane)
+            if (closestObjIndex == -1 || totalDist > farPlane)
             {
                 finalColor += backgroundCol;
                 return finalColor;
@@ -1138,7 +1127,7 @@ namespace DivisionEngine
             SDFObjectDTO mainMat = default;
             outputNormal = float3.Zero;
             totalDist = 0f;
-            float farClipPlane = worldData[0].farPlane;
+            float farPlane = worldData[0].farPlane;
             bool firstHit = true;
             steps = 0;
 
@@ -1152,14 +1141,14 @@ namespace DivisionEngine
             int maxRaySteps = worldData[0].maxRaySteps;
             for (int bounce = 0; bounce < 32; bounce++)
             {
-                float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farClipPlane,
+                float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farPlane,
                     out int closestObjIndex, out float depth, out int tracedSteps);
                 steps += tracedSteps;
 
                 // Calc sky color
                 float3 sky = GetSkyColor(rayDir);
 
-                if (closestObjIndex == -1 || depth > farClipPlane)
+                if (closestObjIndex == -1 || depth > farPlane)
                 {
                     finalColor += contribution * sky;
                     if (firstHit) totalDist = depth;
@@ -1420,10 +1409,8 @@ namespace DivisionEngine
                     uint2 idData = entityIdBuffer[pixel.X + pixel.Y * (int)width];
                     if (idData.X != uint.MaxValue)
                     {
-                        SDFObjectDTO sdf = sdfObjects[(int)idData.X];
                         float3 hitPoint = rayOrigin + rayDir * depthNormals[pixel].R * (worldData[0].farPlane - worldData[0].nearPlane);
                         float3 normal = depthNormals[pixel].GBA;
-
                         if (Hlsl.Length(worldData[0].mainLightDir) > 0f)
                         {
                             float3 shadowOrigin = hitPoint + normal * EPSILON * REFLECTION_BIAS;
@@ -1454,7 +1441,7 @@ namespace DivisionEngine
                         if (sdf.albedoTexMetaID >= 0)
                         {
                             float depth = depthNormals[pixel].R * (worldData[0].farPlane - worldData[0].nearPlane);
-                            float scale = 1f / Hlsl.Max(sdf.texTilingOffset.X, EPSILON);
+                            float scale = Hlsl.Rcp(Hlsl.Max(sdf.texTilingOffset.X, EPSILON));
                             float mipLevel = EstimateMipLevel(depth, scale, textureMetadata[sdf.albedoTexMetaID].resolution);
                             objColor = MipLevelColor(mipLevel);
                         }
