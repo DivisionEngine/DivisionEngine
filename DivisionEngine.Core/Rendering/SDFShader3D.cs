@@ -1139,7 +1139,7 @@ namespace DivisionEngine
 
             // Adaptive reflection step sizes
             int maxRaySteps = worldData[0].maxRaySteps;
-            for (int bounce = 0; bounce < 32; bounce++)
+            for (int bounce = 0; bounce < 32; bounce++) // Max 32 bounces for reflections
             {
                 float3 hitPoint = Raymarch(rayOrigin, rayDir, maxRaySteps, farPlane,
                     out int closestObjIndex, out float depth, out int tracedSteps);

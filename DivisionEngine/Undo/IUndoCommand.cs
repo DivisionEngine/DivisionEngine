@@ -7,8 +7,12 @@
 //
 namespace DivisionEngine.Editor.Undo
 {
+    /// <summary>
+    /// Represents an undo/redo operation.
+    /// </summary>
     public interface IUndoCommand
     {
+        string Description { get; } // description of operation
         void Do(); // execute or redo
         void Undo(); // reverse
     }

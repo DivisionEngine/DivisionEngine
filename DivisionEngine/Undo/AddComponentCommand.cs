@@ -22,6 +22,8 @@ namespace DivisionEngine.Editor.Undo
             this.component = component.Clone();
         }
 
+        public string Description => $"Add component {componentType}_{entityId}";
+
         public void Do()
         {
             var w = WorldManager.CurrentWorld;

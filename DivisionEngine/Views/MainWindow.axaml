@@ -64,31 +64,31 @@
             <MenuItem Header="Exit" Command="{Binding ExitCommand}" Foreground="#ccc"/>
         </MenuItem>
         <MenuItem Header="Edit" Foreground="#ccc">
-            <MenuItem Header="Undo" Command="{Binding UndoCommand}" Foreground="#ccc"/>
-            <MenuItem Header="Redo" Command="{Binding RedoCommand}" Foreground="#ccc"/>
+            <MenuItem Header="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" Foreground="#ccc"/>
+            <MenuItem Header="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" Foreground="#ccc"/>
         </MenuItem>
             <!--Add Entity Menu-->
         <MenuItem Header="Add" Foreground="#ccc">
-            <MenuItem Header="Empty Entity" Command="{Binding CreateEntityCommand}" CommandParameter="empty"/>
-            <MenuItem Header="Empty Transform" Command="{Binding CreateEntityCommand}" CommandParameter="emptyTransform"/>
+            <MenuItem Header="Empty Entity" Command="{Binding CreateEntityCommand}" CommandParameter="empty" Foreground="#ccc"/>
+            <MenuItem Header="Empty Transform" Command="{Binding CreateEntityCommand}" CommandParameter="emptyTransform" Foreground="#ccc"/>
             <Separator/>
-            <MenuItem Header="Camera" Command="{Binding CreateEntityCommand}" CommandParameter="camera"/>
-            <MenuItem Header="Environment" Command="{Binding CreateEntityCommand}" CommandParameter="environment"/>
+            <MenuItem Header="Camera" Command="{Binding CreateEntityCommand}" CommandParameter="camera" Foreground="#ccc"/>
+            <MenuItem Header="Environment" Command="{Binding CreateEntityCommand}" CommandParameter="environment" Foreground="#ccc"/>
             <Separator/>
-            <MenuItem Header="Directional Light" Command="{Binding CreateEntityCommand}" CommandParameter="directionalLight"/>
-            <MenuItem Header="Point Light" Command="{Binding CreateEntityCommand}" CommandParameter="pointLight"/>
+            <MenuItem Header="Directional Light" Command="{Binding CreateEntityCommand}" CommandParameter="directionalLight" Foreground="#ccc"/>
+            <MenuItem Header="Point Light" Command="{Binding CreateEntityCommand}" CommandParameter="pointLight" Foreground="#ccc"/>
             <Separator/>
-            <MenuItem Header="Sphere" Command="{Binding CreateEntityCommand}" CommandParameter="sphere"/>
-            <MenuItem Header="Box" Command="{Binding CreateEntityCommand}" CommandParameter="box"/>
-            <MenuItem Header="Rounded Box" Command="{Binding CreateEntityCommand}" CommandParameter="roundedBox"/>
-            <MenuItem Header="Donut" Command="{Binding CreateEntityCommand}" CommandParameter="torus"/>
-            <MenuItem Header="Pyramid" Command="{Binding CreateEntityCommand}" CommandParameter="pyramid"/>
-            <MenuItem Header="Plane" Command="{Binding CreateEntityCommand}" CommandParameter="plane"/>
-            <MenuItem Header="Cylinder" Command="{Binding CreateEntityCommand}" CommandParameter="cylinder"/>
-            <MenuItem Header="Capsule" Command="{Binding CreateEntityCommand}" CommandParameter="capsule"/>
-            <MenuItem Header="Cone" Command="{Binding CreateEntityCommand}" CommandParameter="cone"/>
+            <MenuItem Header="Sphere" Command="{Binding CreateEntityCommand}" CommandParameter="sphere" Foreground="#ccc"/>
+            <MenuItem Header="Box" Command="{Binding CreateEntityCommand}" CommandParameter="box" Foreground="#ccc"/>
+            <MenuItem Header="Rounded Box" Command="{Binding CreateEntityCommand}" CommandParameter="roundedBox" Foreground="#ccc"/>
+            <MenuItem Header="Donut" Command="{Binding CreateEntityCommand}" CommandParameter="torus" Foreground="#ccc"/>
+            <MenuItem Header="Pyramid" Command="{Binding CreateEntityCommand}" CommandParameter="pyramid" Foreground="#ccc"/>
+            <MenuItem Header="Plane" Command="{Binding CreateEntityCommand}" CommandParameter="plane" Foreground="#ccc"/>
+            <MenuItem Header="Cylinder" Command="{Binding CreateEntityCommand}" CommandParameter="cylinder" Foreground="#ccc"/>
+            <MenuItem Header="Capsule" Command="{Binding CreateEntityCommand}" CommandParameter="capsule" Foreground="#ccc"/>
+            <MenuItem Header="Cone" Command="{Binding CreateEntityCommand}" CommandParameter="cone" Foreground="#ccc"/>
             <Separator/>
-            <MenuItem Header="Terrain" Command="{Binding CreateEntityCommand}" CommandParameter="terrain"/>
+            <MenuItem Header="Terrain" Command="{Binding CreateEntityCommand}" CommandParameter="terrain" Foreground="#ccc"/>
         </MenuItem>
             <!--Layouts Menu-->
         <MenuItem Header="Layouts" Foreground="#ccc">

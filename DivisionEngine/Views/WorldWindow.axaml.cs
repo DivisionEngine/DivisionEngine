@@ -12,6 +12,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.Components;
+using DivisionEngine.Editor.Undo;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
@@ -50,6 +51,8 @@ public partial class WorldWindow : EditorWindow
         private readonly ContextMenu contextMenu;
         private readonly TextBox renameTextBox;
         private bool isRenaming = false;
+        private bool isSelected;
+        private bool isPointerOver;
 
         public uint EntityId => entityId;
         public string? CurrentName => nameText.Text;
@@ -132,8 +135,22 @@ public partial class WorldWindow : EditorWindow
                     e.Handled = true;
                 }
             };
-            PointerEntered += (s, e) => { if (!isRenaming) Background = EditorColor.FromRGB(32, 32, 32); };
-            PointerExited += (s, e) => { if (!isRenaming) Background = EditorColor.FromRGB(17, 17, 17); };
+            PointerEntered += (s, e) =>
+            {
+                if (!isRenaming)
+                {
+                    isPointerOver = true;
+                    UpdateBackground();
+                }
+            };
+            PointerExited += (s, e) =>
+            {
+                if (!isRenaming)
+                {
+                    isPointerOver = false;
+                    UpdateBackground();
+                }
+            };
         }
 
         /// <summary>
@@ -171,7 +188,12 @@ public partial class WorldWindow : EditorWindow
                 Foreground = Brushes.White,
                 Margin = new Thickness(0),
             };
-            duplicateItem.Click += (s, e) => W.DuplicateEntity(entityId);
+            duplicateItem.Click += (s, e) =>
+            {
+                World? w = WorldManager.CurrentWorld;
+                if (w != null && w.EntityExists(entityId))
+                    UndoManager.Execute(new DuplicateEntityCommand(entityId, w));
+            };
             menuItems.Add(duplicateItem);
 
             // Delete entity
@@ -183,10 +205,32 @@ public partial class WorldWindow : EditorWindow
                 Foreground = EditorColor.FromRGB(220, 68, 68),
                 Margin = new Thickness(0),
             };
-            deleteItem.Click += (s, e) => W.DestroyEntity(entityId);
+            deleteItem.Click += (s, e) =>
+            {
+                World? w = WorldManager.CurrentWorld;
+                if (w != null && w.EntityExists(entityId))
+                    UndoManager.Execute(new RemoveEntityCommand(entityId, w));
+            };
             menuItems.Add(deleteItem);
             menu.ItemsSource = menuItems;
             return menu;
+        }
+
+        public void SetSelected(bool selected)
+        {
+            if (isSelected == selected) return;
+            isSelected = selected;
+            UpdateBackground();
+        }
+
+        private void UpdateBackground()
+        {
+            if (isSelected)
+                Background = EditorColor.FromRGB(40, 60, 100); // highlight color
+            else if (isPointerOver)
+                Background = EditorColor.FromRGB(32, 32, 32);
+            else
+                Background = EditorColor.FromRGB(17, 17, 17);
         }
 
         /// <summary>
@@ -378,12 +422,23 @@ public partial class WorldWindow : EditorWindow
         mainGrid.Children.Add(scrollViewer);
         this.FindControl<Border>("MainBorder")!.Child = mainGrid;
 
+        Selection.OnSelectionChanged += OnSelectionChanged;
+        Unloaded += (s, e) => Selection.OnSelectionChanged -= OnSelectionChanged;
+
         worldWinUpdater = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(20),
         };
         worldWinUpdater.Tick += WorldWinUpdater_Tick;
         worldWinUpdater.Start();
+    }
+
+    private void OnSelectionChanged(object? selection) => UpdateEntityHighlight();
+
+    private void UpdateEntityHighlight()
+    {
+        uint selectedId = Selection.Entity;
+        foreach (var kv in entityControls) kv.Value.SetSelected(kv.Key == selectedId);
     }
 
     /// <summary>
@@ -511,6 +566,7 @@ public partial class WorldWindow : EditorWindow
         curEntities.Clear();
         curEntities.UnionWith(newEntities);
         ApplySearchFilter(); // Apply search filter after updating entities
+        UpdateEntityHighlight(); // Update selection highlighting
 
         // Update entity count display
         int visibleCount = entityControls.Values.Count(c => c.IsVisible);

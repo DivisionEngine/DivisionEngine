@@ -19,6 +19,7 @@ using DivisionEngine.Components.FieldAttributes;
 using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Editor.Systems;
+using DivisionEngine.Editor.Undo;
 using DivisionEngine.MathLib;
 using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
@@ -249,8 +250,13 @@ public partial class PropertiesWindow : EditorWindow
                 Button compTypeButton = new() { Classes = { "menu-btn" }, Content = displayName, MinWidth = 240, Tag = compType };
                 compTypeButton.Click += (sender, _) =>
                 {
-                    if (sender is not Button { Tag: Type type } || curEntityId == uint.MaxValue || W.HasComponent(curEntityId, type)) return;
-                    if (Activator.CreateInstance(type) is IComponent instance && W.AddComponent(curEntityId, instance)) LoadEntityComponents(curEntityId);
+                    if (sender is not Button { Tag: Type type } || curEntityId == uint.MaxValue) return;
+                    if (W.HasComponent(curEntityId, type)) return;
+                    if (Activator.CreateInstance(type) is IComponent instance)
+                    {
+                        UndoManager.Execute(new AddComponentCommand(curEntityId, instance));
+                        LoadEntityComponents(curEntityId);
+                    }
                     else Debug.Warning($"Failed to add component of type {type.Name}");
                 };
                 compListPanel.Children.Add(compTypeButton);
@@ -714,16 +720,11 @@ public partial class PropertiesWindow : EditorWindow
         componentFieldPanels[(entityId, compType)] = fieldsPanel;
         Action? onRemove = allowRemove ? () =>
         {
-            W.RemoveComponent(entityId, compType);
+            IComponent? comp = WorldManager.CurrentWorld?.GetComponent(entityId, compType);
+            if (comp != null) UndoManager.Execute(new RemoveComponentCommand(entityId, compType, comp));
             componentFieldPanels.Remove((entityId, compType));
-
-            // Remove the state when component is removed
             string key = $"{compType.Name}_{entityId}";
-            lock (stateLock)
-            {
-                cardExpandedState.Remove(key);
-            }
-
+            lock (stateLock) { cardExpandedState.Remove(key); }
             LoadEntityComponents(entityId);
         }
         : null;
@@ -945,7 +946,13 @@ public partial class PropertiesWindow : EditorWindow
             float lo = minAttr?.Min ?? -2000000000f, hi = maxAttr?.Max ?? 2000000000f;
             if (rangeAttr != null)
             {
-                NumericUpDown box = CreateFloatNumericBox(value, f => { field.SetValue(component, f); Notify(); }, false, lo, hi);
+                NumericUpDown box = CreateFloatNumericBox(value, f => {
+                    object? old = field.GetValue(component);
+                    field.SetValue(component, f);
+                    Notify();
+                    if (!UndoManager.IsExecuting)
+                        UndoManager.Execute(new ModifyFieldCommand(entityId, component.GetType(), field.Name, old, f));
+                }, false, lo, hi);
                 editorControl = new StackPanel { Orientation = Orientation.Horizontal, 
                     Children = { CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, f => 
                     { field.SetValue(component, f); box.Value = (decimal)f; Notify(); }), box } };

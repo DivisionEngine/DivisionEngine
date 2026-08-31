@@ -6,25 +6,13 @@
 // project root for full license terms.
 //
 using System;
+using System.Reflection;
 
 namespace DivisionEngine.Editor.Undo
 {
-    public class ModifyFieldCommand : IUndoCommand
+    public class ModifyFieldCommand(uint entityId, Type componentType, string fieldName, object? oldValue, object? newValue) : IUndoCommand
     {
-        private readonly uint entityId;
-        private readonly Type componentType;
-        private readonly string fieldName;
-        private readonly object? oldValue;
-        private readonly object? newValue;
-
-        public ModifyFieldCommand(uint entityId, Type componentType, string fieldName, object? oldValue, object? newValue)
-        {
-            this.entityId = entityId;
-            this.componentType = componentType;
-            this.fieldName = fieldName;
-            this.oldValue = oldValue;
-            this.newValue = newValue;
-        }
+        public string Description => $"Modify field {fieldName}_{entityId}";
 
         public void Do()
         {
@@ -38,11 +26,11 @@ namespace DivisionEngine.Editor.Undo
 
         private void SetField(object? value)
         {
-            var w = WorldManager.CurrentWorld;
+            World? w = WorldManager.CurrentWorld;
             if (w == null || !w.EntityExists(entityId)) return;
-            var comp = w.GetComponent(entityId, componentType);
+            IComponent? comp = w.GetComponent(entityId, componentType);
             if (comp == null) return;
-            var field = componentType.GetField(fieldName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            FieldInfo? field = componentType.GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
             field?.SetValue(comp, value);
         }
     }

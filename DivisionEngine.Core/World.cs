@@ -745,14 +745,17 @@ namespace DivisionEngine
             }
         }
 
+        /// <summary>
+        /// Gets a dictionary of components cloned from an entity, organized by type.
+        /// </summary>
+        /// <param name="entityId">Entity to clone components</param>
+        /// <returns>Ordered dictionary of cloned components</returns>
         public Dictionary<Type, IComponent> GetClonedComponents(uint entityId)
         {
-            var dict = new Dictionary<Type, IComponent>();
+            Dictionary<Type, IComponent> dict = [];
             foreach (var kv in components)
-            {
                 if (kv.Value.TryGetValue(entityId, out var comp))
                     dict[kv.Key] = comp.Clone();
-            }
             return dict;
         }
 

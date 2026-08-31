@@ -21,9 +21,11 @@ namespace DivisionEngine.Editor.Undo
         {
             this.entityId = entityId;
             components = world.GetClonedComponents(entityId);
-            var nameComp = world.GetComponent<Name>(entityId);
+            Name? nameComp = world.GetComponent<Name>(entityId);
             entityName = nameComp?.name;
         }
+
+        public string Description => $"Remove entity {entityName}_{entityId}";
 
         public void Do()
         {

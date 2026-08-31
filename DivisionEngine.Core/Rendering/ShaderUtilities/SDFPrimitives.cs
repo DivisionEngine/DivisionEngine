@@ -212,9 +212,6 @@ namespace DivisionEngine.Rendering.ShaderUtilities
                     float randomRotation = SimplexNoise.Noise2D(cellIndex * 23.1f + new float2(0.9f, 0.1f)) * 6.28318530718f;
 
                     // Blade height at root position (sample terrain at blade root)
-                    // Note: In a real implementation, you'd need to pass the shader instance
-                    // For now, we assume terrainHeight is already at the query point
-                    // This is a simplification - for proper slopes, you'd sample at cellCenterWorld
                     float bladeGroundHeight = terrainHeight; // Simplified
 
                     float2 offsetXZ = worldXZ - cellCenterWorld;

@@ -9,29 +9,21 @@ using System;
 
 namespace DivisionEngine.Editor.Undo
 {
-    public class RemoveComponentCommand : IUndoCommand
+    public class RemoveComponentCommand(uint entityId, Type componentType, IComponent component) : IUndoCommand
     {
-        private readonly uint entityId;
-        private readonly Type componentType;
-        private readonly IComponent component;
+        private readonly IComponent component = component.Clone();
 
-        public RemoveComponentCommand(uint entityId, Type componentType, IComponent component)
-        {
-            this.entityId = entityId;
-            this.componentType = componentType;
-            this.component = component.Clone();
-        }
+        public string Description => $"Remove component {componentType}_{entityId}";
 
         public void Do()
         {
-            var w = WorldManager.CurrentWorld;
-            if (w != null && w.EntityExists(entityId))
-                w.RemoveComponent(entityId, componentType);
+            World? w = WorldManager.CurrentWorld;
+            if (w != null && w.EntityExists(entityId)) w.RemoveComponent(entityId, componentType);
         }
 
         public void Undo()
         {
-            var w = WorldManager.CurrentWorld;
+            World? w = WorldManager.CurrentWorld;
             if (w != null && w.EntityExists(entityId) && !w.HasComponent(entityId, componentType))
                 w.AddComponent(entityId, component.Clone());
         }

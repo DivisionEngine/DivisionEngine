@@ -74,11 +74,18 @@ public partial class AssetsWindow : EditorWindow
 
     // Asset tint
     private readonly Dictionary<string, Action<IBrush>> assetTintSetters = [];
-    private static readonly IBrush TintLoaded = EditorColor.FromRGB(24, 48, 28);   // dark green
-    private static readonly IBrush TintLoading = EditorColor.FromRGB(22, 34, 58);  // dark blue
-    private static readonly IBrush TintUnloaded = EditorColor.FromRGB(46, 24, 24); // dark red
+    private static readonly IBrush TintLoaded = EditorColor.FromRGB(24, 48, 28);
+    private static readonly IBrush TintLoading = EditorColor.FromRGB(22, 34, 58);
+    private static readonly IBrush TintUnloaded = EditorColor.FromRGB(46, 24, 24);
     private static readonly IBrush TintHover = EditorColor.FromRGB(30, 30, 34);
     private static readonly IBrush TileDefaultBg = EditorColor.FromRGB(20, 20, 20);
+
+    // Selection
+    private string? selectedItemPath;
+    private AssetRowItem? selectedRowItem;
+    private readonly Dictionary<Border, string> tileIdentifiers = [];
+    private readonly Dictionary<Border, bool> tileHovered = [];
+    private readonly Dictionary<string, AssetRowItem> rowItemsByIdentifier = [];
 
     static AssetsWindow() => SubscribeToProjectEvents();
 
@@ -250,6 +257,23 @@ public partial class AssetsWindow : EditorWindow
 
         Border separatorBorder = new Border { Background = EditorColor.FromRGB(68, 68, 68), Height = 1 };
         Panel contentArea = new Panel { Children = { scrollViewer, tableView, emptyStateOverlay } };
+        contentArea.PointerPressed += (s, e) =>
+        {
+            if (e.Source is not Control source) return; // Get source control
+
+            Control? current = source;
+            while (current != null)
+            {
+                // Check if it's a tile (a Border in tileIdentifiers)
+                if (current is Border border && tileIdentifiers.ContainsKey(border)) return;
+                if (current is TableViewRow || current is TableViewCell) return;
+                current = current.Parent as Control;
+            }
+            
+            ClearSelection(); // Clicked on empty background
+            if (Selection.SelectedType == SelectionType.Asset)
+                Selection.Clear();
+        };
         Grid grid = new Grid
         {
             RowDefinitions =
@@ -281,6 +305,8 @@ public partial class AssetsWindow : EditorWindow
             SyncAssetManagerSubscription();
         }
 
+        Selection.OnSelectionChanged += OnGlobalSelectionChanged; // subscribe to selection
+
         Dispatcher.UIThread.Post(() => Setup(GetDefaultAssetsPath()));
     }
 
@@ -291,7 +317,7 @@ public partial class AssetsWindow : EditorWindow
         return Directory.Exists(assetsPath) ? assetsPath : ProjectManager.CurrentProjectPath;
     }
 
-    #region Asset manager / load-state tint subscription
+    #region assetManager
 
     private void SyncAssetManagerSubscription()
     {
@@ -330,8 +356,7 @@ public partial class AssetsWindow : EditorWindow
     }
 
     #endregion
-
-    #region Background context menu / creation
+    #region contextMenu
 
     private void AttachBackgroundContextMenu()
     {
@@ -455,8 +480,7 @@ public partial class AssetsWindow : EditorWindow
     }
 
     #endregion
-
-    #region Navigation / loading
+    #region navigation
 
     private void DirectoryField_TextChanged(object? sender, TextChangedEventArgs e)
     {
@@ -552,11 +576,16 @@ public partial class AssetsWindow : EditorWindow
             assetTintSetters.Clear();
             assetsTileGrid.Children.Clear();
             rowItems.Clear();
+            tileIdentifiers.Clear();
+            tileHovered.Clear();
+            rowItemsByIdentifier.Clear();
             HideEmptyState();
 
             string assetsRoot = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
             if (path.StartsWith(assetsRoot)) LoadAssetsUsingDatabase(path);
             else LoadAssetsUsingFileSystem(path);
+
+            ClearSelection();
         }
         catch (Exception ex)
         {
@@ -646,15 +675,79 @@ public partial class AssetsWindow : EditorWindow
     }
 
     #endregion
+    #region selection
+
+    private void OnGlobalSelectionChanged(object? selection)
+    {
+        if (selection is string assetId && AssetDatabase.GetAssetMetadataByID(assetId) != null)
+            SelectItem(assetId, true); // Asset selected from elsewhere
+        else ClearSelection();
+    }
+
+    private void SelectItem(string path, bool isAsset = false)
+    {
+        selectedItemPath = path;
+        UpdateTileHighlights();
+        UpdateListSelection(path, isAsset);
+    }
+
+    private void ClearSelection()
+    {
+        selectedItemPath = null;
+        selectedRowItem = null;
+        UpdateTileHighlights();
+        tableView.SelectedItem = null;
+    }
+
+    private void UpdateTileHighlights()
+    {
+        foreach (var kv in tileIdentifiers) UpdateTileBackground(kv.Key);
+    }
+
+    private void UpdateListSelection(string identifier, bool isAsset)
+    {
+        if (rowItemsByIdentifier.TryGetValue(identifier, out AssetRowItem? row))
+        {
+            tableView.SelectedItem = row;
+            selectedRowItem = row;
+        }
+        else
+        {
+            tableView.SelectedItem = null;
+            selectedRowItem = null;
+        }
+    }
+
+    #endregion
     #region tileView
 
-    private Border BuildTile(Func<double, MaterialIcon> iconFactory, string name, string? subtitle, 
-        Action onTap, Action onDoubleTap, ContextMenu contextMenu, string? tintAssetId = null)
+    private Border BuildTile(Func<double, MaterialIcon> iconFactory, string name, string? subtitle,
+        Action onTap, Action onDoubleTap, ContextMenu contextMenu,
+        string? tintAssetId = null, string? identifier = null)
     {
         Border border = CreateTileBorder();
-        SetupTileHoverEffects(border);
-        if (tintAssetId != null) ApplyAssetTint(tintAssetId, brush => SetTileBaseBackground(border, brush));
 
+        // Apply tint (sets Tag and Background)
+        if (tintAssetId != null)
+            ApplyAssetTint(tintAssetId, brush => SetTileBaseBackground(border, brush));
+
+        string id = identifier ?? tintAssetId ?? Guid.NewGuid().ToString();
+        tileIdentifiers[border] = id;
+        tileHovered[border] = false;
+
+        // Hover events
+        border.PointerEntered += (_, _) =>
+        {
+            tileHovered[border] = true;
+            UpdateTileBackground(border);
+        };
+        border.PointerExited += (_, _) =>
+        {
+            tileHovered[border] = false;
+            UpdateTileBackground(border);
+        };
+
+        // Content
         string display = name.Length > 12 ? string.Concat(name.AsSpan(0, 10), "..") : name;
         MaterialIcon icon = iconFactory(48);
         icon.Margin = new Thickness(0, 0, 0, 5);
@@ -666,11 +759,11 @@ public partial class AssetsWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center
         };
         stack.Children.Add(icon);
-        stack.Children.Add(new TextBlock 
+        stack.Children.Add(new TextBlock
         {
             Text = display,
             Foreground = Brushes.White,
-            FontSize = 10, 
+            FontSize = 10,
             TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -691,6 +784,24 @@ public partial class AssetsWindow : EditorWindow
         return border;
     }
 
+    private void UpdateTileBackground(Border border)
+    {
+        if (!tileIdentifiers.TryGetValue(border, out string? id)) return;
+
+        bool isSelected = id == selectedItemPath;
+        bool isHovered = tileHovered.TryGetValue(border, out bool hover) && hover;
+
+        IBrush background;
+        if (isSelected)
+            background = EditorColor.FromRGB(60, 90, 120); // selection color
+        else if (isHovered)
+            background = TintHover;
+        else
+            background = (IBrush)border.Tag!; // base background (tint or default)
+
+        border.Background = background;
+    }
+
     private void CreateFolderTile(DirectoryInfo folder)
     {
         Border border = null!;
@@ -703,7 +814,7 @@ public partial class AssetsWindow : EditorWindow
                 Foreground = EditorColor.FromColor(ColorPalette.Mint),
             },
             folder.Name, null,
-            () => { },
+            onTap: () => SelectItem(folder.FullName, false),
             () => Dispatcher.UIThread.Post(() => Setup(folder.FullName)),
             BuildFolderContextMenu(folder, () => ShowInPlaceRename(border, folder.Name, folder.FullName, true)));
         assetsTileGrid.Children.Add(border);
@@ -715,7 +826,7 @@ public partial class AssetsWindow : EditorWindow
         border = BuildTile(
             size => CreateFileIcon(file.Extension, size),
             Path.GetFileNameWithoutExtension(file.Name), file.Extension.ToUpperInvariant(),
-            () => { },
+            onTap: () => SelectItem(file.FullName, false),
             () => EditorUI.OpenFile(file),
             BuildFileContextMenu(file, () => ShowInPlaceRename(border, Path.GetFileNameWithoutExtension(file.Name), file.FullName, false, file.Extension)));
         assetsTileGrid.Children.Add(border);
@@ -728,7 +839,11 @@ public partial class AssetsWindow : EditorWindow
         border = BuildTile(
             size => EditorUI.CreateAssetTypeIcon(asset.Type, size),
             Path.GetFileNameWithoutExtension(asset.FileName), GetAssetTypeDisplayName(asset.Type),
-            () => Selection.SelectAsset(asset.ID),
+            onTap: () =>
+            {
+                Selection.SelectAsset(asset.ID);
+                SelectItem(asset.ID, true);
+            },
             () => EditorUI.OpenAsset(asset),
             BuildAssetContextMenu(asset, () => ShowInPlaceRename(border, Path.GetFileNameWithoutExtension(asset.FileName), fullPath, false, Path.GetExtension(asset.FileName))),
             asset.ID);
@@ -742,29 +857,12 @@ public partial class AssetsWindow : EditorWindow
         BorderThickness = new Thickness(0, 0, 1, 1),
         BorderBrush = EditorColor.FromRGB(10, 10, 10),
         Background = TileDefaultBg,
+        Tag = TileDefaultBg, // initialize base background
         CornerRadius = new CornerRadius(4),
         Margin = new Thickness(5),
         Padding = new Thickness(5),
         Cursor = new Cursor(StandardCursorType.Hand),
     };
-
-    private static void SetupTileHoverEffects(Border border)
-    {
-        border.Tag ??= TileDefaultBg;
-        border.Background = (IBrush)border.Tag;
-        border.PointerEntered += (_, _) =>
-        {
-            border.BorderThickness = new Thickness(1, 0, 2, 2);
-            border.BorderBrush = EditorColor.FromRGB(12, 12, 12);
-            border.Background = TintHover;
-        };
-        border.PointerExited += (_, _) =>
-        {
-            border.BorderThickness = new Thickness(0, 0, 1, 1);
-            border.BorderBrush = EditorColor.FromRGB(10, 10, 10);
-            border.Background = (IBrush)border.Tag!;
-        };
-    }
 
     private static void SetTileBaseBackground(Border border, IBrush background)
     {
@@ -794,6 +892,7 @@ public partial class AssetsWindow : EditorWindow
         };
         row.RowContextMenu = BuildFolderContextMenu(folder, () => row.IsEditing = true);
         rowItems.Add(row);
+        rowItemsByIdentifier[folder.FullName] = row;
         _ = UpdateFolderSizeAsync(folder, row);
     }
 
@@ -810,6 +909,7 @@ public partial class AssetsWindow : EditorWindow
         };
         row.RowContextMenu = BuildFileContextMenu(file, () => row.IsEditing = true);
         rowItems.Add(row);
+        rowItemsByIdentifier[file.FullName] = row;
     }
 
     private void AddAssetRow(AssetMetadata asset)
@@ -826,6 +926,7 @@ public partial class AssetsWindow : EditorWindow
         };
         row.RowContextMenu = BuildAssetContextMenu(asset, () => row.IsEditing = true);
         rowItems.Add(row);
+        rowItemsByIdentifier[asset.ID] = row;
         ApplyAssetTint(asset.ID, brush => row.RowBackground = brush);
     }
 
@@ -888,7 +989,19 @@ public partial class AssetsWindow : EditorWindow
     private void TableView_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (tableView.SelectedItem is not AssetRowItem item || item.IsEditing) return;
-        if (item.AssetId != null) Selection.SelectAsset(item.AssetId);
+        if (item.AssetId != null)
+        {
+            Selection.SelectAsset(item.AssetId);
+            SelectItem(item.AssetId, true);
+        }
+        else if (item.IsFolder)
+        {
+            SelectItem(item.FullPath, false);
+        }
+        else // file
+        {
+            SelectItem(item.FullPath, false);
+        }
     }
 
     private void TableView_DoubleTapped(object? sender, TappedEventArgs e)

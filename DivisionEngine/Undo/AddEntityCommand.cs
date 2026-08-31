@@ -10,37 +10,32 @@ using System.Collections.Generic;
 
 namespace DivisionEngine.Editor.Undo
 {
-    public class AddEntityCommand : IUndoCommand
+    /// <summary>
+    /// Represents the command for adding entities in the undo/redo manager.
+    /// </summary>
+    /// <param name="entityId">Entity ID to add</param>
+    /// <param name="components">Components on entity</param>
+    /// <param name="name">Name of entity to add</param>
+    public class AddEntityCommand(uint entityId, Dictionary<Type, IComponent> components, string? name = null) : IUndoCommand
     {
-        private readonly uint entityId;
-        private readonly Dictionary<Type, IComponent> components;
-        private readonly string? entityName;
-
-        public AddEntityCommand(uint entityId, Dictionary<Type, IComponent> components, string? name = null)
-        {
-            this.entityId = entityId;
-            this.components = components;
-            entityName = name;
-        }
+        public string Description => $"Add entity {name}_{entityId}";
 
         public void Do()
         {
-            var w = WorldManager.CurrentWorld;
+            World? w = WorldManager.CurrentWorld;
             if (w == null) return;
             if (!w.EntityExists(entityId))
             {
-                w.AddEntityWithId(entityId, entityName);
-                foreach (var kv in components)
-                    w.AddComponent(entityId, kv.Value.Clone());
+                w.AddEntityWithId(entityId, name);
+                foreach (var kv in components) w.AddComponent(entityId, kv.Value.Clone());
             }
         }
 
         public void Undo()
         {
-            var w = WorldManager.CurrentWorld;
+            World? w = WorldManager.CurrentWorld;
             if (w == null) return;
-            if (w.EntityExists(entityId))
-                w.DestroyEntity(entityId);
+            if (w.EntityExists(entityId)) w.DestroyEntity(entityId);
         }
     }
 }

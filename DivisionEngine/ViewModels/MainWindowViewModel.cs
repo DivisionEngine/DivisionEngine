@@ -13,6 +13,7 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
 using DivisionEngine.Editor.Settings;
 using DivisionEngine.Editor.Tasks;
+using DivisionEngine.Editor.Undo;
 using DivisionEngine.Projects;
 using DivisionEngine.Settings;
 using Material.Icons.Avalonia;
@@ -36,6 +37,8 @@ namespace DivisionEngine.Editor.ViewModels
 
         // Main Window Menu Commands
         public Action? RequestClose { get; set; }
+        public bool CanUndo => UndoManager.CanUndo;
+        public bool CanRedo => UndoManager.CanRedo;
 
         // Editor window tab collections
         public ObservableCollection<EditorWindowViewModel> CenterTabs { get; } = [];
@@ -139,6 +142,35 @@ namespace DivisionEngine.Editor.ViewModels
             BottomTabs.Add(new ConsoleWindowViewModel());
 
             LoadRecentProjects(); // Load recent projects
+
+            // Undo setup
+            UndoManager.UndoStackChanged += OnUndoStackChanged;
+        }
+
+        private void OnUndoStackChanged()
+        {
+            // Update menu item enabled states
+            this.RaisePropertyChanged(nameof(CanUndo));
+            this.RaisePropertyChanged(nameof(CanRedo));
+
+            // Refresh the PropertiesWindow based on the current selection
+            RefreshEditorUI();
+        }
+
+        private static void RefreshEditorUI()
+        {
+            if (Selection.SelectedType == SelectionType.Entity && Selection.Entity != uint.MaxValue)
+            {
+                // If the entity no longer exists, clear the selection
+                if (WorldManager.CurrentWorld == null || !WorldManager.CurrentWorld.EntityExists(Selection.Entity)) Selection.Clear();
+                else PropertiesWindow.LoadEntityComponents(Selection.Entity);
+            }
+            else if (Selection.SelectedType == SelectionType.Asset && !string.IsNullOrEmpty(Selection.Asset))
+            {
+                // Refresh asset properties
+                // PropertiesWindow.LoadAssetProperties(Selection.Asset);
+            }
+            else PropertiesWindow.LoadWorldData(WorldManager.CurrentWorld);
         }
 
         private void LoadRecentProjects()
@@ -469,17 +501,17 @@ namespace DivisionEngine.Editor.ViewModels
         }
 
         [RelayCommand]
-        private void Undo()
+        private static void Undo()
         {
             Debug.Info("Undo Triggered");
-            // Implement Undo functionality here
+            UndoManager.Undo();
         }
 
         [RelayCommand]
-        private void Redo()
+        private static void Redo()
         {
-            Debug.Info("Redo Triggered: Division Engine is an SDF-based game engine written entirely in C#. Utilizing Avalonia UI for the interface and Silk.NET for native rendering, Division Engine features a comprehensive build pipeline that dynamically builds HLSL shader code from .NET code, thanks to a library called ComputeSharp.\r\n\r\nNote: This engine is still in preview and has known issues; it is specifically for experimentation and education only.\r\n\r\nThe render pipeline is built using an OpenGL backend with HLSL shaders written in C# using ComputeSharp.\r\n\r\nPicture this:\r\n\r\nSDF-based rendering\r\nGPU compute acceleration in C#\r\nOpen source\r\nECS backend, fast data handling\r\nConvenient editor tooling\r\nEditor Preview Screenshots:\r\nScreenshot 2025-12-01 163210 Screenshot 2025-12-23 200053\r\nWhat Are SDFs?\r\nSigned Distance Fields are spatial fields that store information represented as a grid sampling of the closest distance to the surface of an object defined as a polygonal model. Usually, the convention of using negative values inside the object and positive values outside the object is applied. Signed distance fields are important in computer graphics and related fields. Often, they are used for collision detection in cloth animation, soft-body physics effects, malleable geometry, volumetric effects, and fluid simulation. (https://developer.nvidia.com/gpugems/gpugems3/part-v-physics-simulation/chapter-34-signed-distance-fields-using-single-pass-gpu)\r\n\r\nHow to Work with ECS\r\nECS or an entity-component-system framework is a way of organizing game data such that it is memory efficient and hyper-performant. Entities are simply IDs with components stored as a dictionary in an \"ECS World\" object. Systems are code files written that operate on an awake --> update --> fixed update --> render schedule, allowing components to be manipulated during different engine loops/stages. For more information on ECS, check out how the Unity game engine implemented its ECS framework here: https://unity.com/ecs\r\n\r\nResources:\r\nFollow the development: https://trello.com/b/mWtyHBMf/division-engine\r\n\r\nTutorials by Inigo Quilez (Not sponsored, just useful for learning constructive geometry):\r\n\r\nBuild mathematical worlds: https://youtu.be/0ifChJ0nJfM?si=ypKU1rz-8JloPlj2\r\nBuild a 3D landscape: https://youtu.be/BFld4EBO2RE?si=EASXvq-ez2qBOIHN\r\nPaint a 3D character with math: https://youtu.be/8--5LwHRhjk?si=fH9QwvCz6dLptHE1\r\nFramework\r\nDivision Engine is built using three core packages: Silk.NET, ComputeSharp, and AvaloniaUI. Check them out here:\r\n\r\nSilk.NET\r\nComputeSharp\r\nAvaloniaUI");
-            // Implement Redo functionality here
+            Debug.Info("Redo Triggered");
+            UndoManager.Redo();
         }
 
         [RelayCommand]
