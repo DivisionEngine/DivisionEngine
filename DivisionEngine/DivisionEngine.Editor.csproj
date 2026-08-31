@@ -13,10 +13,15 @@
   <PropertyGroup Label="Avalonia">
     <AvaloniaXamlIlDebuggerLaunch>False</AvaloniaXamlIlDebuggerLaunch>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <ApplicationIcon>Assets\DivisionEngineLogoRAS.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\DivisionEngineLogoRAS.ico" />
   </ItemGroup>
 
   <ItemGroup>

@@ -6,7 +6,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <StartupObject>DivisionEngine.Player.GameStartup</StartupObject>
+    <ApplicationIcon>DivisionEngineLogoRAIS.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="DivisionEngineLogoRAIS.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ComputeSharp" Version="3.2.0" />
