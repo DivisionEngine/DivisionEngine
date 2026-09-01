@@ -91,7 +91,7 @@
             <MenuItem Header="Terrain" Command="{Binding CreateEntityCommand}" CommandParameter="terrain" Foreground="#ccc"/>
         </MenuItem>
             <!--Layouts Menu-->
-        <MenuItem Header="Layouts" Foreground="#ccc">
+        <MenuItem Header="Layouts" IsEnabled="{Binding LayoutsEnabled}" Foreground="#ccc">
             <MenuItem Header="Default" Command="{Binding ApplyDefaultLayoutCommand}" Foreground="#ccc"/>
             <Separator/>
             <MenuItem Header="Focus Editor" Command="{Binding ApplyFocusEditorLayoutCommand}" Foreground="#ccc"/>
@@ -110,6 +110,8 @@
             <MenuItem Header="About" Command="{Binding AboutCommand}" Foreground="#ccc"/>
             <MenuItem Header="Roadmap" Command="{Binding RoadmapCommand}" Foreground="#ccc"/>
             <MenuItem Header="Forum" Command="{Binding ForumCommand}" Foreground="#ccc"/>
+            <Separator/>
+            <MenuItem Header="Check Out Our Website!" Command="{Binding NorthRocCommand}" Foreground="#ccc"/>
         </MenuItem>
         </Menu>
     

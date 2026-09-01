@@ -451,6 +451,7 @@ namespace DivisionEngine.Rendering
         {
             Mode = RunMode.Embedded;
             Device = GraphicsDevice.GetDefault();
+            Debug.Info($"Renderer: Using device: {Device.Name}");
             Device.DeviceLost += Device_DeviceLost;
 
             embeddedRunning = true;
@@ -637,6 +638,7 @@ namespace DivisionEngine.Rendering
 
                 // Load graphics device
                 Device = GraphicsDevice.GetDefault();
+                Debug.Info($"Renderer: Using device: {Device.Name}");
                 Device.DeviceLost += Device_DeviceLost;
 
                 Debug.Info("Renderer: Compiling OpenGL Shader Program");
@@ -1212,6 +1214,7 @@ namespace DivisionEngine.Rendering
             {
                 Debug.Error($"Renderer: Invalid operation during ComputeSharp execution", ex);
                 Device = GraphicsDevice.GetDefault();
+                Debug.Info($"Renderer: Reverting to using device: {Device.Name}");
                 return;
             }
 

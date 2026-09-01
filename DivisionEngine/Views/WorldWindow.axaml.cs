@@ -442,6 +442,10 @@ public partial class WorldWindow : EditorWindow
             uint selectedId = Selection.Entity;
             foreach (var kv in entityControls) kv.Value.SetSelected(kv.Key == selectedId);
         }
+        else
+        {
+            foreach (var kv in entityControls) kv.Value.SetSelected(kv.Key == uint.MaxValue);
+        }
     }
 
     /// <summary>

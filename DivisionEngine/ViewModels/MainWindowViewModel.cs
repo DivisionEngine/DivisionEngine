@@ -35,10 +35,11 @@ namespace DivisionEngine.Editor.ViewModels
         public static MainWindowViewModel? vm;
         private readonly Window mainWindow;
 
-        // Main Window Menu Commands
+        // Main window menu bindings
         public Action? RequestClose { get; set; }
-        public bool CanUndo => UndoManager.CanUndo;
-        public bool CanRedo => UndoManager.CanRedo;
+        public static bool CanUndo => UndoManager.CanUndo;
+        public static bool CanRedo => UndoManager.CanRedo;
+        public static bool LayoutsEnabled => ProjectManager.IsCurrentLoaded;
 
         // Editor window tab collections
         public ObservableCollection<EditorWindowViewModel> CenterTabs { get; } = [];
@@ -125,7 +126,11 @@ namespace DivisionEngine.Editor.ViewModels
 
             // Undo setup
             UndoManager.UndoStackChanged += OnUndoStackChanged;
+            ProjectManager.ProjectLoaded += ProjectStateChanged;
+            ProjectManager.ProjectClosed += ProjectStateChanged;
         }
+
+        private void ProjectStateChanged() => this.RaisePropertyChanged(nameof(LayoutsEnabled));
 
         private void OnUndoStackChanged()
         {
@@ -480,18 +485,10 @@ namespace DivisionEngine.Editor.ViewModels
         }
 
         [RelayCommand]
-        private static void Undo()
-        {
-            Debug.Info("Undo Triggered");
-            UndoManager.Undo();
-        }
+        private static void Undo() => UndoManager.Undo();
 
         [RelayCommand]
-        private static void Redo()
-        {
-            Debug.Info("Redo Triggered");
-            UndoManager.Redo();
-        }
+        private static void Redo() => UndoManager.Redo();
 
         [RelayCommand]
         private static void About()
@@ -524,16 +521,20 @@ namespace DivisionEngine.Editor.ViewModels
         }
 
         [RelayCommand]
-        private static void OpenLogDirectory()
+        private static void NorthRoc()
         {
-            Debug.OpenLogDirectory();
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://northroc.org/",
+                UseShellExecute = true,
+            });
         }
 
         [RelayCommand]
-        private static void OpenLogFile()
-        {
-            Debug.OpenLogFile();
-        }
+        private static void OpenLogDirectory() => Debug.OpenLogDirectory();
+
+        [RelayCommand]
+        private static void OpenLogFile() => Debug.OpenLogFile();
 
         /// <summary>
         /// Creates an entity straight from the "Add" menu.
