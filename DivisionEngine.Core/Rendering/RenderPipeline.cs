@@ -238,10 +238,7 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Updates the DPI scaling factor for input coordinate conversion.
         /// </summary>
-        public void UpdateDpiScale(float scale)
-        {
-            currentDpiScale = scale;
-        }
+        public void UpdateDpiScale(float scale) => currentDpiScale = scale;
 
         #region editorDrawing
 
@@ -257,11 +254,14 @@ namespace DivisionEngine.Rendering
         /// <summary>
         /// Hides the editor handles.
         /// </summary>
-        public void HideHandles()
-        {
-            editorHandlePosition = null;
-        }
+        public void HideHandles() => editorHandlePosition = null;
 
+        /// <summary>
+        /// Gets a handle index at a screen coordinate.
+        /// </summary>
+        /// <param name="screenX">X position on the render target</param>
+        /// <param name="screenY">Y position on the render target</param>
+        /// <returns>Handle uint index</returns>
         public uint GetHandleAtPosition(int screenX, int screenY)
         {
             // Check if we're in embedded mode
@@ -269,31 +269,25 @@ namespace DivisionEngine.Rendering
             if (Mode == RunMode.Embedded)
             {
                 if (HandleIds == null || screenX < 0 || screenY < 0 ||
-                    screenX >= EmbeddedWidth || screenY >= EmbeddedHeight)
-                    return 0;
+                    screenX >= EmbeddedWidth || screenY >= EmbeddedHeight) return 0;
 
                 flippedY = EmbeddedHeight - 1 - screenY;
                 index = screenX + flippedY * EmbeddedWidth;
 
                 // Validate index bounds
-                if (index < 0 || index >= HandleIds.Length)
-                    return 0;
-
+                if (index < 0 || index >= HandleIds.Length) return 0;
                 return HandleIds[index];
             }
 
             // Original windowed mode
             if (RendererWindow == null || HandleIds == null || screenX < 0 || screenY < 0 ||
-                screenX >= RendererWindow?.Size.X || screenY >= RendererWindow?.Size.Y)
-                return 0;
+                screenX >= RendererWindow?.Size.X || screenY >= RendererWindow?.Size.Y) return 0;
 
             int width = RendererWindow!.Size.X;
             flippedY = RendererWindow.Size.Y - screenY;
             index = screenX + flippedY * width;
 
-            if (index < 0 || index >= HandleIds.Length)
-                return 0;
-
+            if (index < 0 || index >= HandleIds.Length) return 0;
             return HandleIds[index];
         }
 
@@ -309,30 +303,24 @@ namespace DivisionEngine.Rendering
             if (Mode == RunMode.Embedded)
             {
                 if (iconIdBuffer == null || IconIds == null || screenX < 0 || screenY < 0 ||
-                    screenX >= EmbeddedWidth || screenY >= EmbeddedHeight)
-                    return 0;
+                    screenX >= EmbeddedWidth || screenY >= EmbeddedHeight) return 0;
 
                 flippedY = EmbeddedHeight - 1 - screenY;
                 index = screenX + flippedY * EmbeddedWidth;
 
-                if (index < 0 || index >= IconIds.Length)
-                    return 0;
-
+                if (index < 0 || index >= IconIds.Length) return 0;
                 return IconIds[index];
             }
 
             if (RendererWindow == null || iconIdBuffer == null || IconIds == null || screenX < 0 || screenY < 0 ||
-                screenX >= RendererWindow.Size.X || screenY >= RendererWindow.Size.Y)
-                return 0;
+                screenX >= RendererWindow.Size.X || screenY >= RendererWindow.Size.Y) return 0;
 
             int width = RendererWindow.Size.X;
             int height = RendererWindow.Size.Y;
             flippedY = height - 1 - screenY;
             index = screenX + flippedY * width;
 
-            if (index < 0 || index >= IconIds.Length)
-                return 0;
-
+            if (index < 0 || index >= IconIds.Length) return 0;
             return IconIds[index];
         }
 
@@ -348,33 +336,32 @@ namespace DivisionEngine.Rendering
             if (Mode == RunMode.Embedded)
             {
                 if (customShapeIdBuffer == null || CustomShapeIds == null || screenX < 0 || screenY < 0 ||
-                    screenX >= EmbeddedWidth || screenY >= EmbeddedHeight)
-                    return 0;
+                    screenX >= EmbeddedWidth || screenY >= EmbeddedHeight) return 0;
 
                 flippedY = EmbeddedHeight - 1 - screenY;
                 index = screenX + flippedY * EmbeddedWidth;
 
-                if (index < 0 || index >= CustomShapeIds.Length)
-                    return 0;
-
+                if (index < 0 || index >= CustomShapeIds.Length) return 0;
                 return CustomShapeIds[index];
             }
 
             if (RendererWindow == null || customShapeIdBuffer == null || CustomShapeIds == null || screenX < 0 || screenY < 0 ||
-                screenX >= RendererWindow.Size.X || screenY >= RendererWindow.Size.Y)
-                return 0;
+                screenX >= RendererWindow.Size.X || screenY >= RendererWindow.Size.Y) return 0;
 
             int width = RendererWindow.Size.X;
             int height = RendererWindow.Size.Y;
             flippedY = height - 1 - screenY;
             index = screenX + flippedY * width;
 
-            if (index < 0 || index >= CustomShapeIds.Length)
-                return 0;
-
+            if (index < 0 || index >= CustomShapeIds.Length) return 0;
             return CustomShapeIds[index];
         }
 
+        /// <summary>
+        /// Notifies the render pipeline of the current mouse position to update focused handles.
+        /// </summary>
+        /// <param name="mouseX">Mouse X position</param>
+        /// <param name="mouseY">Mouse Y position</param>
         public void UpdateHoveredHandle(int mouseX, int mouseY)
         {
             lock (SyncLock)
@@ -705,7 +692,6 @@ namespace DivisionEngine.Rendering
             int texWidth = RendererWindow.Size.X;
             int texHeight = RendererWindow.Size.Y;
             if (texWidth < 1 || texHeight < 1) return;
-
             RenderFrame(delta, texWidth, texHeight, presentToGL: true);
         }
 
@@ -1239,7 +1225,6 @@ namespace DivisionEngine.Rendering
             lock (embeddedBufferLock)
             {
                 // Guard against Pixels having been reallocated at a different size mid-flight
-                // (shouldn't happen now that w/h are a snapshot, but this is a cheap, cheap-to-keep safety net)
                 if (Pixels.Length != w * h) return;
 
                 int needed = w * h * 4;
@@ -1261,8 +1246,7 @@ namespace DivisionEngine.Rendering
                     }
                 });
 
-                // Record the actual dimensions this buffer holds — this is what TryCopyEmbeddedFrame
-                // must check against, not the live (possibly already-changed-again) EmbeddedWidth/Height
+                // Record the actual dimensions this buffer holds
                 embeddedBufferWidth = w;
                 embeddedBufferHeight = h;
             }

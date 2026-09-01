@@ -20,7 +20,8 @@ namespace DivisionEngine.Editor.Systems
     {
         public override int Priority => -10;
 
-        private static bool isDragging = false;
+        public static bool IsDragging { get; private set; } = false;
+
         private static uint selectedHandle = 0;
         private static uint draggedEntity = uint.MaxValue;
 
@@ -68,7 +69,7 @@ namespace DivisionEngine.Editor.Systems
             if (RenderPipeline.Instance == null || EngineCore.IsInPlayMode) return;
 
             // Always update handle position to match selected entity's transform
-            if (draggedEntity != uint.MaxValue && !isDragging)
+            if (draggedEntity != uint.MaxValue && !IsDragging)
             {
                 Transform? transform = W.GetComponent<Transform>(draggedEntity);
                 if (transform != null) RenderPipeline.Instance?.ShowHandles(transform.position, EditorSettings.Instance!.EditorHandleScale);
@@ -94,12 +95,12 @@ namespace DivisionEngine.Editor.Systems
             else return;
 
             // Only update hover if mouse is within bounds
-            if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height)
+            if (!IsDragging && pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height)
                 RenderPipeline.Instance!.UpdateHoveredHandle(pixelX, pixelY);
 
             // Start dragging
             bool mouseDown = InputSystem.IsMousePressed(MouseCode.Left);
-            if (mouseDown && !isDragging)
+            if (mouseDown && !IsDragging)
             {
                 uint handleId = 0;
                 if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height)
@@ -116,7 +117,7 @@ namespace DivisionEngine.Editor.Systems
                 cameraRight = camTransform.Right;
                 cameraUp = camTransform.Up;
 
-                var entityTransform = W.GetComponent<Transform>(draggedEntity);
+                Transform? entityTransform = W.GetComponent<Transform>(draggedEntity);
                 if (entityTransform == null && handleId > 0)
                 {
                     Debug.Error($"HandleInteraction: No Transform component on entity {draggedEntity}");
@@ -142,7 +143,7 @@ namespace DivisionEngine.Editor.Systems
                 // Translation handles (1-3)
                 if (handleId >= 1 && handleId <= 3 && draggedEntity != uint.MaxValue)
                 {
-                    isDragging = true;
+                    IsDragging = true;
                     selectedHandle = handleId;
                     lastMousePos = mousePos;
 
@@ -157,7 +158,7 @@ namespace DivisionEngine.Editor.Systems
                 // Scale handles (5-7)
                 else if (handleId >= 5 && handleId <= 7 && draggedEntity != uint.MaxValue)
                 {
-                    isDragging = true;
+                    IsDragging = true;
                     selectedHandle = handleId;
                     lastMousePos = mousePos;
 
@@ -175,7 +176,7 @@ namespace DivisionEngine.Editor.Systems
                 // Rotation
                 else if (handleId >= 8 && handleId <= 10 && draggedEntity != uint.MaxValue)
                 {
-                    isDragging = true;
+                    IsDragging = true;
                     selectedHandle = handleId;
                     lastMousePos = mousePos;
 
@@ -196,7 +197,7 @@ namespace DivisionEngine.Editor.Systems
             }
 
             // Dragging
-            if (isDragging && mouseDown)
+            if (IsDragging && mouseDown)
             {
                 // Calculate delta from LAST frame
                 float2 delta = new float2(
@@ -298,10 +299,10 @@ namespace DivisionEngine.Editor.Systems
             }
 
             // Stop dragging
-            if (!mouseDown && isDragging)
+            if (!mouseDown && IsDragging)
             {
                 Debug.Info($"HandleInteraction: Stopped dragging handle {selectedHandle}");
-                isDragging = false;
+                IsDragging = false;
                 selectedHandle = 0;
             }
         }

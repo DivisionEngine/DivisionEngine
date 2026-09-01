@@ -675,7 +675,7 @@ namespace DivisionEngine.Editor
                 TextTrimming = TextTrimming.CharacterEllipsis,
             };
             Grid.SetColumn(nameText, 0);
-            Button closeButton = new Button
+            Button removeButton = new Button
             {
                 Content = "×",
                 FontSize = 16,
@@ -694,18 +694,17 @@ namespace DivisionEngine.Editor
                 HorizontalContentAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(4, 0, 0, 0),
             };
-            closeButton.PointerEntered += (s, e) => closeButton.Foreground = Brushes.White;
-            closeButton.PointerExited += (s, e) => closeButton.Foreground = Brushes.Gray;
-            closeButton.Click += (s, e) =>
+            removeButton.PointerEntered += (s, e) => removeButton.Foreground = Brushes.White;
+            removeButton.PointerExited += (s, e) => removeButton.Foreground = Brushes.Gray;
+            removeButton.Click += (s, e) =>
             {
-                if (closeButton.Tag is Guid taskId)
-                    EditorTaskManager.Remove(taskId);
+                if (removeButton.Tag is Guid taskId) EditorTaskManager.Remove(taskId);
                 e.Handled = true;
             };
-            Grid.SetColumn(closeButton, 1);
+            Grid.SetColumn(removeButton, 1);
 
             nameContainer.Children.Add(nameText);
-            nameContainer.Children.Add(closeButton);
+            nameContainer.Children.Add(removeButton);
             Grid.SetColumn(nameContainer, 1);
             Grid.SetRow(nameContainer, 0);
 
@@ -732,8 +731,8 @@ namespace DivisionEngine.Editor
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 0, 4, 0),
             };
-            Grid.SetColumn(progressText, 2);
-            Grid.SetRow(progressText, 0);
+            Grid.SetColumn(progressText, 1);
+            Grid.SetRow(progressText, 1);
 
             // Progress bar
             ProgressBar progressBar = new ProgressBar
