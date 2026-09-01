@@ -51,8 +51,8 @@ public partial class WorldWindow : EditorWindow
         private readonly ContextMenu contextMenu;
         private readonly TextBox renameTextBox;
         private bool isRenaming = false;
-        private bool isSelected;
-        private bool isPointerOver;
+        private bool isSelected = false;
+        private bool isPointerOver = false;
 
         public uint EntityId => entityId;
         public string? CurrentName => nameText.Text;
@@ -437,8 +437,11 @@ public partial class WorldWindow : EditorWindow
 
     private void UpdateEntityHighlight()
     {
-        uint selectedId = Selection.Entity;
-        foreach (var kv in entityControls) kv.Value.SetSelected(kv.Key == selectedId);
+        if (Selection.SelectedType == SelectionType.Entity)
+        {
+            uint selectedId = Selection.Entity;
+            foreach (var kv in entityControls) kv.Value.SetSelected(kv.Key == selectedId);
+        }
     }
 
     /// <summary>

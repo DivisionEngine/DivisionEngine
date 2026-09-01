@@ -8,8 +8,6 @@
 using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using DivisionEngine.Rendering;
-using Silk.NET.Vulkan;
-using static System.Net.Mime.MediaTypeNames;
 using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems

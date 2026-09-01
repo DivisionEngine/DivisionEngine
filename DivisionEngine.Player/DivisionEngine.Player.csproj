@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <StartupObject>DivisionEngine.Player.GameStartup</StartupObject>
     <ApplicationIcon>DivisionEngineLogoRAIS.ico</ApplicationIcon>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(SolutionDir)DivisionKey.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -14,6 +14,8 @@
     <AvaloniaXamlIlDebuggerLaunch>False</AvaloniaXamlIlDebuggerLaunch>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <ApplicationIcon>Assets\DivisionEngineLogoRAS.ico</ApplicationIcon>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(SolutionDir)DivisionKey.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <ItemGroup>
