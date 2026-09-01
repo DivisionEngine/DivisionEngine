@@ -497,6 +497,11 @@ public partial class PropertiesWindow : EditorWindow
             }
         }
 
+        if (metadata.Type == AssetType.Texture)
+        {
+            AddTextureSettingsPanel(assetPanel, metadata);
+        }
+
         // Action buttons panel
         StackPanel actionButtonsPanel = new()
         {
@@ -1516,6 +1521,13 @@ public partial class PropertiesWindow : EditorWindow
         }
     }
 
+    private static void SaveAssetMetadata(AssetMetadata metadata)
+    {
+        // The metadata object is already in AllAssetsByID and its folder's Assets dictionary.
+        // Save all metadata to ensure the change is written to the .divmeta file.
+        AssetDatabase.SaveAll();
+    }
+
     #endregion
     #region AssetDisplay
 
@@ -1638,6 +1650,112 @@ public partial class PropertiesWindow : EditorWindow
 
         previewBorder.Child = image;
         panel.Children.Add(previewBorder);
+    }
+
+    private void AddTextureSettingsPanel(StackPanel panel, AssetMetadata metadata)
+    {
+        // Ensure CustomProperties exists
+        metadata.CustomProperties ??= new Dictionary<string, object>();
+
+        const string samplingKey = "Sampling";
+        const string texTypeKey = "TextureType";
+        const string maxMipKey = "MaxMipmap";
+
+        // Get current values or defaults
+        string currentSampling = metadata.CustomProperties.TryGetValue(samplingKey, out object? sObj) ? sObj.ToString() : "Bilinear";
+        string currentTexType = metadata.CustomProperties.TryGetValue(texTypeKey, out object? tObj) ? tObj.ToString() : "Texture2D";
+        int currentMaxMip = metadata.CustomProperties.TryGetValue(maxMipKey, out object? mObj) && int.TryParse(mObj.ToString(), out int m) ? m : 4;
+
+        // Header
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Texture Import Settings",
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = Brushes.White,
+            Margin = new Thickness(0, 12, 0, 4)
+        });
+
+        StackPanel settingsPanel = new() { Margin = new Thickness(0, 0, 0, 8) };
+
+        // ---- Sampling ----
+        DockPanel samplingRow = new() { Margin = new Thickness(0, 2, 0, 2) };
+        TextBlock samplingLabel = new()
+        {
+            Text = "Sampling:",
+            FontSize = 11,
+            Foreground = EditorColor.FromRGB(180, 180, 180),
+            MinWidth = 100,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        ComboBox samplingCombo = new()
+        {
+            ItemsSource = new[] { "Point", "Bilinear" },
+            SelectedItem = currentSampling,
+            Classes = { "field-editor" },
+            MinWidth = 100
+        };
+        samplingCombo.SelectionChanged += (_, _) =>
+        {
+            metadata.CustomProperties[samplingKey] = samplingCombo.SelectedItem?.ToString() ?? "Bilinear";
+            SaveAssetMetadata(metadata);
+        };
+        DockPanel.SetDock(samplingLabel, Dock.Left);
+        samplingRow.Children.Add(samplingLabel);
+        samplingRow.Children.Add(samplingCombo);
+        settingsPanel.Children.Add(samplingRow);
+
+        // ---- Texture Type ----
+        DockPanel texTypeRow = new() { Margin = new Thickness(0, 2, 0, 2) };
+        TextBlock texTypeLabel = new()
+        {
+            Text = "Texture Type:",
+            FontSize = 11,
+            Foreground = EditorColor.FromRGB(180, 180, 180),
+            MinWidth = 100,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        ComboBox texTypeCombo = new()
+        {
+            ItemsSource = new[] { "Texture2D", "Texture3D", "Cubemap" },
+            SelectedItem = currentTexType,
+            Classes = { "field-editor" },
+            MinWidth = 100
+        };
+        texTypeCombo.SelectionChanged += (_, _) =>
+        {
+            metadata.CustomProperties[texTypeKey] = texTypeCombo.SelectedItem?.ToString() ?? "Texture2D";
+            SaveAssetMetadata(metadata);
+        };
+        DockPanel.SetDock(texTypeLabel, Dock.Left);
+        texTypeRow.Children.Add(texTypeLabel);
+        texTypeRow.Children.Add(texTypeCombo);
+        settingsPanel.Children.Add(texTypeRow);
+
+        // ---- Max Mipmap ----
+        DockPanel mipRow = new() { Margin = new Thickness(0, 2, 0, 2) };
+        TextBlock mipLabel = new()
+        {
+            Text = "Max Mipmap:",
+            FontSize = 11,
+            Foreground = EditorColor.FromRGB(180, 180, 180),
+            MinWidth = 100,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        NumericUpDown mipBox = CreateIntegerNumericBox(
+            currentMaxMip,
+            val =>
+            {
+                metadata.CustomProperties[maxMipKey] = val;
+                SaveAssetMetadata(metadata);
+            },
+            false, 0, 16);
+        DockPanel.SetDock(mipLabel, Dock.Left);
+        mipRow.Children.Add(mipLabel);
+        mipRow.Children.Add(mipBox);
+        settingsPanel.Children.Add(mipRow);
+
+        panel.Children.Add(settingsPanel);
     }
 
     #endregion

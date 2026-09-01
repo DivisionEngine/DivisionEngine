@@ -43,6 +43,7 @@ namespace DivisionEngine.Editor.Tasks
         /// <summary>
         /// Updates a task in the task manager.
         /// </summary>
+        /// <remarks>Creates a task if none exist already</remarks>
         /// <param name="id">Task GUID to update</param>
         /// <param name="progress">Progress value to set (0.0 - 1.0)</param>
         public static void Update(Guid id, float progress)
@@ -56,8 +57,16 @@ namespace DivisionEngine.Editor.Tasks
         }
 
         /// <summary>
+        /// Checks if a task exists in the task manager.
+        /// </summary>
+        /// <param name="id">GUID of the task to check</param>
+        /// <returns>If a task with this GUID exists</returns>
+        public static bool TaskExists(Guid id) => tasks.ContainsKey(id);
+
+        /// <summary>
         /// Complete a task in the task manager.
         /// </summary>
+        /// <remarks>Functionally the same as "Update(id, 1)"</remarks>
         /// <param name="id">GUID of task to mark complete</param>
         public static void Complete(Guid id) => Update(id, 1);
 
@@ -71,9 +80,12 @@ namespace DivisionEngine.Editor.Tasks
         /// Removes a task from the editor task manager.
         /// </summary>
         /// <param name="id">GUID of task to remove</param>
-        public static void Remove(Guid id)
+        /// <returns>If the task was successfully removed</returns>
+        public static bool Remove(Guid id)
         {
-            if (tasks.TryRemove(id, out _)) TasksChanged?.Invoke(); // Make sure this line exists!
+            bool removed = tasks.TryRemove(id, out _);
+            if (removed) TasksChanged?.Invoke(); // Make sure this line exists!
+            return removed;
         }
     }
 }

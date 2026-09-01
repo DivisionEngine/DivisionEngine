@@ -27,24 +27,6 @@ namespace DivisionEngine.Editor
     internal static class EditorUI
     {
         /// <summary>
-        /// Functionally the same as MainWindowViewModel.vm!.ProgressValue!.Value.
-        /// </summary>
-        public static double Progress
-        {
-            get { return MainWindowViewModel.vm!.ProgressValue!.Value; }
-            set { MainWindowViewModel.vm!.ProgressValue = value; }
-        }
-
-        /// <summary>
-        /// Functionally the same as MainWindowViewModel.vm!.ShowProgress!.Value.
-        /// </summary>
-        public static bool ShowProgress
-        {
-            get { return MainWindowViewModel.vm!.ShowProgress!.Value; }
-            set { MainWindowViewModel.vm!.ShowProgress = value; }
-        }
-
-        /// <summary>
         /// Checks and sees if there is a parent TabItem to this control.
         /// </summary>
         /// <param name="control"></param>

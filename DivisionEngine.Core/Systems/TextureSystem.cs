@@ -8,6 +8,8 @@
 using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using DivisionEngine.Rendering;
+using Silk.NET.Vulkan;
+using static System.Net.Mime.MediaTypeNames;
 using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
@@ -49,9 +51,19 @@ namespace DivisionEngine.Systems
         public static int LastLoadedTextureBufferSize { get; private set; } = 0;
 
         /// <summary>
-        /// Use this to determine when the texture data is changed.
+        /// Use this to determine when the texture data has fully loaded or been modified.
         /// </summary>
         public static event Action? UpdatedTextureData;
+
+        /// <summary>
+        /// Called when texture data is called to load.
+        /// </summary>
+        public static event Action? StartedLoadingTextureData;
+
+        /// <summary>
+        /// 0.0 - 1.0, the progress of the texture loader when active.
+        /// </summary>
+        public static float TextureLoadProgress { get; private set; } = 0f;
 
         /// <summary>
         /// Dictionary mapping texture asset IDs to their metadata index.
@@ -105,11 +117,13 @@ namespace DivisionEngine.Systems
         public static async Task LoadAllTexturesAsync()
         {
             if (loadingTextures) return;
+            StartedLoadingTextureData?.Invoke();
+            TextureLoadProgress = 0f;
             loadingTextures = true;
 
             if (!ProjectManager.IsCurrentLoaded)
             {
-                Debug.Info("TextureSystem: Cannot load textures without a current project loaded!");
+                Debug.Info("Texture System: Cannot load textures without a current project loaded!");
                 UpdatedTextureData?.Invoke();
                 loadingTextures = false;
                 return;
@@ -119,7 +133,7 @@ namespace DivisionEngine.Systems
             List<AssetMetadata> textureMetadatas = [.. AssetDatabase.GetAssetsByType(AssetType.Texture)];
             if (textureMetadatas.Count == 0)
             {
-                Debug.Info("TextureSystem: No textures found in project");
+                Debug.Info("Texture System: No textures found in project");
                 AllTextureData = [];
                 AllTextureMetadata = [];
                 LastLoadedTextureCount = 0;
@@ -129,26 +143,34 @@ namespace DivisionEngine.Systems
                 return;
             }
 
-            Debug.Info($"TextureSystem: Loading {textureMetadatas.Count} textures...");
+            Debug.Info($"Texture System: Loading {textureMetadatas.Count} textures...");
 
             // Load each texture through the AssetManager (caches them)
             List<TextureAsset> loadedTextures = [];
             List<TextureMetadata> metadataList = [];
             List<uint> allData = [];
             int currentOffset = 0;
+            int completedMips = 0;
             foreach (AssetMetadata meta in textureMetadatas)
             {
                 TextureAsset? texture = await ProjectManager.AssetManager!.LoadAssetAsync<TextureAsset>(meta.ID);
                 if (texture == null)
                 {
-                    Debug.Warning($"TextureSystem: Failed to load texture: {meta.FileName}");
+                    Debug.Warning($"Texture System: Failed to load texture: {meta.FileName}");
                     continue;
                 }
 
                 loadedTextures.Add(texture);
                 if (texture?.PixelData == null) continue;
 
-                List<uint[]> mipChain = BuildMipChain(texture.PixelData, texture.Width, texture.Height);
+                int maxLevels = (int)Math.Floor(Math.Log2(Math.Max(texture.Width, texture.Height))) + 1;
+                List<uint[]> mipChain = await BuildMipChainAsync(texture.PixelData!, texture.Width, texture.Height,
+                    (progressIncrement) =>
+                    {
+                        // This callback is called after each mip level is generated.
+                        completedMips += progressIncrement;
+                        TextureLoadProgress += 1f / maxLevels / textureMetadatas.Count;
+                    });
 
                 metadataList.Add(new TextureMetadata
                 {
@@ -157,7 +179,6 @@ namespace DivisionEngine.Systems
                     mipCount = mipChain.Count,
                 });
                 textureIdToIndex[meta.ID] = metadataList.Count - 1;
-                Debug.Log($"Texture {texture.ID} created with {mipChain.Count} mips");
 
                 foreach (uint[] level in mipChain)
                 {
@@ -166,17 +187,19 @@ namespace DivisionEngine.Systems
                 }
 
                 GC.Collect(); // Collect GC after every texture loaded
+                TextureLoadProgress = (float)loadedTextures.Count / textureMetadatas.Count; // set to make sure progress doesn't over/under shoot
             }
 
             if (loadedTextures.Count == 0)
             {
-                Debug.Warning("TextureSystem: No textures loaded successfully");
+                Debug.Warning("Texture System: No textures loaded successfully");
                 AllTextureData = [];
                 AllTextureMetadata = [];
                 LastLoadedTextureCount = 0;
                 LastLoadedTextureBufferSize = 0;
                 UpdatedTextureData?.Invoke();
                 loadingTextures = false;
+                TextureLoadProgress = 0f;
                 return;
             }
 
@@ -185,41 +208,50 @@ namespace DivisionEngine.Systems
             LastLoadedTextureCount = AllTextureMetadata.Length;
             LastLoadedTextureBufferSize = AllTextureData.Length;
 
-            Debug.Info($"TextureSystem: Loaded {loadedTextures.Count} textures, {AllTextureData.Length} total pixels");
+            Debug.Info($"Texture System: Loaded {loadedTextures.Count} textures, {AllTextureData.Length} total pixels");
             UpdatedTextureData?.Invoke();
             loadingTextures = false;
+            TextureLoadProgress = 1f;
         }
 
-        private static List<uint[]> BuildMipChain(uint[] baseLevel, int width, int height)
+        private static async Task<List<uint[]>> BuildMipChainAsync(uint[] baseLevel, int width, int height, Action<int> onProgress)
         {
             List<uint[]> levels = [baseLevel];
             int w = width, h = height;
             uint[] prev = baseLevel;
+            int maxLevels = (int)Math.Floor(Math.Log2(Math.Max(width, height))) + 1;
+            int generated = 1; // base level already done
+            onProgress(1); // report base level
 
-            while (w > 1 || h > 1)
+            while ((w > 1 || h > 1) && levels.Count < maxLevels)
             {
                 int nw = Math.Max(1, w / 2);
                 int nh = Math.Max(1, h / 2);
                 uint[] next = new uint[nw * nh];
 
-                for (int y = 0; y < nh; y++)
+                // Offload the averaging to a background thread
+                await Task.Run(() =>
                 {
-                    for (int x = 0; x < nw; x++)
+                    for (int y = 0; y < nh; y++)
                     {
-                        int x0 = Math.Min(x * 2, w - 1);
-                        int x1 = Math.Min(x * 2 + 1, w - 1);
-                        int y0 = Math.Min(y * 2, h - 1);
-                        int y1 = Math.Min(y * 2 + 1, h - 1);
-
-                        next[y * nw + x] = AveragePixels(
-                            prev[y0 * w + x0], prev[y0 * w + x1],
-                            prev[y1 * w + x0], prev[y1 * w + x1]);
+                        for (int x = 0; x < nw; x++)
+                        {
+                            int x0 = Math.Min(x * 2, w - 1);
+                            int x1 = Math.Min(x * 2 + 1, w - 1);
+                            int y0 = Math.Min(y * 2, h - 1);
+                            int y1 = Math.Min(y * 2 + 1, h - 1);
+                            next[y * nw + x] = AveragePixels(
+                                prev[y0 * w + x0], prev[y0 * w + x1],
+                                prev[y1 * w + x0], prev[y1 * w + x1]);
+                        }
                     }
-                }
+                });
 
                 levels.Add(next);
                 prev = next;
                 w = nw; h = nh;
+                generated++;
+                onProgress(1); // report one mip level done
             }
 
             return levels;
@@ -286,7 +318,7 @@ namespace DivisionEngine.Systems
             AllTextureData = [];
             AllTextureMetadata = [];
             textureIdToIndex.Clear();
-            Debug.Info("TextureSystem: Unloaded all textures");
+            Debug.Info("Texture System: Unloaded all textures");
         }
 
         public static void FreeCPUTextureData()
@@ -294,7 +326,7 @@ namespace DivisionEngine.Systems
             _allTextureData = null;
             _allTextureMetadata = null;
             GC.Collect(); // Force garbage collection
-            Debug.Info("TextureSystem: Freed CPU texture data");
+            Debug.Info("Texture System: Freed CPU texture data");
         }
     }
 }

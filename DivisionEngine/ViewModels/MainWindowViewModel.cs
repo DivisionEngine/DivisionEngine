@@ -91,27 +91,7 @@ namespace DivisionEngine.Editor.ViewModels
 
         // Main Window API
 
-        private double? progressVal;
-        private bool? showProgress;
         private string? recentControlsText;
-
-        /// <summary>
-        /// Editor progress bar value between 0.0 and 1.0.
-        /// </summary>
-        public double? ProgressValue
-        {
-            get => progressVal;
-            set => this.RaiseAndSetIfChanged(ref progressVal, value);
-        }
-
-        /// <summary>
-        /// Enables or disables the progress bar.
-        /// </summary>
-        public bool? ShowProgress
-        {
-            get => showProgress;
-            set => this.RaiseAndSetIfChanged(ref showProgress, value);
-        }
 
         /// <summary>
         /// States what the recent controls text should be.
@@ -425,7 +405,6 @@ namespace DivisionEngine.Editor.ViewModels
         private async Task SaveProjectAs()
         {
             EditorTask t = EditorTaskManager.Create("Saving Project", "Creating new project...", 0f);
-            ShowProgress = true;
             try
             {
                 EditorTaskManager.Update(t.Id, 0.25f);

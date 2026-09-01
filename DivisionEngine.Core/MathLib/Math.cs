@@ -99,15 +99,23 @@ namespace DivisionEngine.MathLib
         /// <param name="value">The angle to compute the arc-tangent of</param>
         /// <returns>The arc-tangent of <paramref name="value"/></returns>
         public static float Atan(float value) => (float)System.Math.Atan(value);
+        public static double Atan(double value) => System.Math.Atan(value);
         /// <summary>
         /// Computes the angle (in radians) whose tangent is the quotient of two specified numbers, y and x.
         /// </summary>
         /// <returns>The angle in radians</returns>
         public static float Atan2(float y, float x) => (float)System.Math.Atan2(y, x);
+        public static double Atan2(double y, double x) => System.Math.Atan2(y, x);
         public static float Pow(float x, float y) => (float)System.Math.Pow(x, y);
+        public static double Pow(double x, double y) => System.Math.Pow(x, y);
         public static float Exp(float x) => (float)System.Math.Exp(x);
+        public static double Exp(double x) => System.Math.Exp(x);
         public static float Log(float x) => (float)System.Math.Log(x);
+        public static double Log(double x) => System.Math.Log(x);
+        public static float Log2(float x) => (float)System.Math.Log2(x);
+        public static double Log2(double x) => System.Math.Log2(x);
         public static float Log(float x, float newBase) => (float)System.Math.Log(x, newBase);
+        public static double Log(double x, double newBase) => System.Math.Log(x, newBase);
         public static float Log10(float x) => (float)System.Math.Log10(x);
         /// <summary>
         /// Floors a value to a whole number.
@@ -179,6 +187,7 @@ namespace DivisionEngine.MathLib
         /// <param name="x">Value to root</param>
         /// <returns>Square root of value</returns>
         public static float Sqrt(float x) => (float)System.Math.Sqrt(x);
+        public static double Sqrt(double x) => System.Math.Sqrt(x);
 
         /// <summary>
         /// Restricts a value to be within a specified range.

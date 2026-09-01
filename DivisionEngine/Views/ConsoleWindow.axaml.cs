@@ -361,7 +361,7 @@ public partial class ConsoleWindow : EditorWindow
             // Normal display - one entry per log
             lock (threadLock)
             {
-                IReadOnlyList<LogEntry> logs = Debug.Logs;
+                List<LogEntry> logs = [.. Debug.Logs];
                 foreach (LogEntry log in logs)
                     if (ShouldShowLog(log))
                         logList.Children.Add(CreateLogControl(log, 1));
