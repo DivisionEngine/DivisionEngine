@@ -647,6 +647,41 @@ namespace DivisionEngine.Editor.ViewModels
             }
         }
 
+        /// <summary>
+        /// Duplicates a tab, creating a new instance of the same window type and inserting it directly after the original in the same panel.
+        /// </summary>
+        /// <param name="vm">Tab to duplicate</param>
+        [RelayCommand]
+        private void DuplicateTab(EditorWindowViewModel? vm)
+        {
+            if (vm is null) return;
+
+            // Create a fresh instance of the same concrete type
+            if (Activator.CreateInstance(vm.GetType()) is not EditorWindowViewModel duplicate)
+            {
+                Debug.Error($"Failed to duplicate tab: could not create instance of {vm.GetType().Name}");
+                return;
+            }
+
+            if (InsertAfter(LeftTabs, vm, duplicate)) { SelectedLeftTab = duplicate; return; }
+            if (InsertAfter(RightTabs, vm, duplicate)) { SelectedRightTab = duplicate; return; }
+            if (InsertAfter(CenterTabs, vm, duplicate)) { SelectedCenterTab = duplicate; return; }
+            if (InsertAfter(BottomTabs, vm, duplicate)) { SelectedBottomTab = duplicate; return; }
+            Debug.Error("Failed to duplicate tab: original tab not found in any panel");
+        }
+
+        /// <summary>
+        /// Inserts <paramref name="duplicate"/> directly after <paramref name="original"/> in <paramref name="tabs"/>, if present.
+        /// </summary>
+        /// <returns>True if the original was found and the duplicate was inserted.</returns>
+        private static bool InsertAfter(ObservableCollection<EditorWindowViewModel> tabs, EditorWindowViewModel original, EditorWindowViewModel duplicate)
+        {
+            int index = tabs.IndexOf(original);
+            if (index < 0) return false;
+            tabs.Insert(index + 1, duplicate);
+            return true;
+        }
+
         [RelayCommand]
         private async Task ApplyDefaultLayout()
         {
