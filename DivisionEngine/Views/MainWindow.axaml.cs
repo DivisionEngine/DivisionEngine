@@ -891,11 +891,11 @@ namespace DivisionEngine.Editor
 
             ghost = new Border
             {
-                Background = EditorColor.FromRGB(68, 68, 68),
+                Background = EditorColor.FromRGB(24, 24, 24),
                 Padding = new Thickness(8, 4),
-                CornerRadius = new CornerRadius(4),
-                BorderBrush = Brushes.White,
-                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2),
+                BorderBrush = Brushes.Black,
+                BorderThickness = new Thickness(0, 0, 2, 2),
                 Opacity = 0.85,
                 Width = 120,
                 Height = 28,
@@ -903,20 +903,22 @@ namespace DivisionEngine.Editor
                 IsHitTestVisible = false, // don't let the ghost itself block hit-testing
             };
 
-            StackPanel content = new StackPanel { Orientation = Orientation.Horizontal };
+            StackPanel content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             content.Children.Add(new MaterialIcon
             {
                 Kind = draggedTab.Icon,
                 Width = 12,
                 Height = 12,
-                Foreground = Brushes.LightGray
+                Foreground = Brushes.LightGray,
+                VerticalAlignment = VerticalAlignment.Center,
             });
             content.Children.Add(new TextBlock
             {
                 Text = draggedTab.Title,
-                FontSize = 11,
+                FontSize = 12,
                 Foreground = Brushes.White,
-                Margin = new Thickness(4, 0, 0, 0)
+                Margin = new Thickness(4, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
             });
             ghost.Child = content;
             overlay.Children.Add(ghost);
