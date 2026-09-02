@@ -89,4 +89,5 @@ Texturing System:
 <img width="1919" height="1029" alt="Screenshot 2026-07-18 013607" src="https://github.com/user-attachments/assets/86c5ae53-8e12-4164-98dd-418f4ff5bae1" />
 
 Multiple Workflows:
-<img width="1919" height="1029" alt="Screenshot 2026-04-01 233041" src="https://github.com/user-attachments/assets/3be4a06a-af2d-4c01-a28d-12ccba969ecc" />
+<img width="1919" height="1028" alt="Screenshot 2026-09-02 020709" src="https://github.com/user-attachments/assets/353f6bb6-527a-4336-99b2-01b55e936383" />
+
