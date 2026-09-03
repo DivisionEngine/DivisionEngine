@@ -16,6 +16,7 @@ using Avalonia.Threading;
 using DivisionEngine.Editor.Tasks;
 using DivisionEngine.Editor.ViewModels;
 using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using DivisionEngine.Projects;
 using Material.Icons;
 using Material.Icons.Avalonia;
@@ -24,7 +25,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
-using Math = DivisionEngine.MathLib.Math;
 using Vector = Avalonia.Vector;
 
 namespace DivisionEngine.Editor
@@ -837,7 +837,7 @@ namespace DivisionEngine.Editor
             Vector diff = windowPoint - pressPoint;
 
             // Start drag if moved at least 10 pixels
-            if (!isDragging && (Math.Abs(diff.X) > 10 || Math.Abs(diff.Y) > 10))
+            if (!isDragging && (math.abs(diff.X) > 10 || math.abs(diff.Y) > 10))
             {
                 isDragging = true;
                 CreateGhost();

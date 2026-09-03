@@ -7,7 +7,7 @@
 //
 using System.Numerics;
 
-namespace DivisionEngine.MathLib
+namespace DivisionEngine.MathUtilities
 {
     /// <summary>
     /// Handles common matrix operations and provides predefined matrices.

@@ -7,7 +7,7 @@
 //
 using System.Numerics;
 
-namespace DivisionEngine.MathLib
+namespace DivisionEngine.MathUtilities
 {
     /// <summary>
     /// Extension methods for float3 vector operations.

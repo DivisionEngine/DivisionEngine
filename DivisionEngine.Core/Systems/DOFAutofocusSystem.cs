@@ -8,7 +8,6 @@
 using DivisionEngine.Components;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Rendering;
-using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {

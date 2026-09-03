@@ -12,11 +12,11 @@ using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
 using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using DivisionEngine.Projects.Assets;
 using DivisionEngine.Rendering;
 using System.Diagnostics.CodeAnalysis;
 using Environment = DivisionEngine.Components.Environment;
-using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {
@@ -196,9 +196,9 @@ namespace DivisionEngine.Systems
                     position = transform.position,
                     rotation = transform.rotation,
                     scaling = new float3(
-                        Math.Max(1f / transform.scaling.X, EPSILON),
-                        Math.Max(1f / transform.scaling.Y, EPSILON),
-                        Math.Max(1f / transform.scaling.Z, EPSILON)),
+                        math.max(1f / transform.scaling.X, EPSILON),
+                        math.max(1f / transform.scaling.Y, EPSILON),
+                        math.max(1f / transform.scaling.Z, EPSILON)),
                     color = new float4(1f, 0f, 1f, 1f), // Default render color if no material active
                     stepBias = 1f,
 
@@ -267,10 +267,10 @@ namespace DivisionEngine.Systems
                     float s2016 = 0.16f * mat.specular * mat.specular;
                     float3 f0 = new float3(s2016, s2016, s2016);
                     curSDF.f0_reflectance = new float3(
-                        Math.Lerp(f0.X, mat.albedoColor.X, mat.metallic),
-                        Math.Lerp(f0.Y, mat.albedoColor.Y, mat.metallic),
-                        Math.Lerp(f0.Z, mat.albedoColor.Z, mat.metallic));
-                    if (curSDF.hasRefraction == 1) curSDF.f0_dielectric = Math.Pow((mat.ior - 1.0f) / (mat.ior + 1.0f), 2.0f);
+                        math.lerp(f0.X, mat.albedoColor.X, mat.metallic),
+                        math.lerp(f0.Y, mat.albedoColor.Y, mat.metallic),
+                        math.lerp(f0.Z, mat.albedoColor.Z, mat.metallic));
+                    if (curSDF.hasRefraction == 1) curSDF.f0_dielectric = math.pow((mat.ior - 1.0f) / (mat.ior + 1.0f), 2.0f);
                 }
 
                 // SDF Objects

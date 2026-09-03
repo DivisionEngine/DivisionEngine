@@ -6,7 +6,7 @@
 // project root for full license terms.
 //
 using DivisionEngine.Components.FieldAttributes;
-using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using DivisionEngine.Projects.Assets;
 
 namespace DivisionEngine.Components

@@ -7,7 +7,7 @@
 //
 using DivisionEngine.Components;
 using DivisionEngine.Input;
-using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using DivisionEngine.Rendering;
 using DivisionEngine.Settings;
 

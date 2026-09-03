@@ -5,7 +5,7 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
-namespace DivisionEngine.MathLib
+namespace DivisionEngine.MathUtilities
 {
     // This class was generated with the help of copilot auto-complete.
     // The class has not been tested and therefore cannot be used in production yet.

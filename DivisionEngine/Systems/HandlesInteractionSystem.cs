@@ -8,7 +8,7 @@
 using DivisionEngine.Components;
 using DivisionEngine.Editor.Settings;
 using DivisionEngine.Input;
-using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using DivisionEngine.Rendering;
 
 namespace DivisionEngine.Editor.Systems

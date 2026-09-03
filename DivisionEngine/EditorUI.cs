@@ -11,13 +11,13 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using DivisionEngine.Editor.ViewModels;
 using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using DivisionEngine.Projects.Assets;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
-using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Editor
 {
@@ -110,8 +110,8 @@ namespace DivisionEngine.Editor
             string[] sizeSuffixes = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
             // Use log to find the right unit index
-            int unitIndex = (int)Math.Min(Math.Floor(Math.Log(bytes, 1024)), sizeSuffixes.Length - 1);
-            double size = bytes / Math.Pow(1024, unitIndex);
+            int unitIndex = (int)math.min(math.floor(MathUtilities.Math.Log(bytes, 1024)), sizeSuffixes.Length - 1);
+            double size = bytes / math.pow(1024, unitIndex);
             string format = $"{{0:F{decimalPlaces}}} {{1}}";
             return string.Format(format, size, sizeSuffixes[unitIndex]);
         }

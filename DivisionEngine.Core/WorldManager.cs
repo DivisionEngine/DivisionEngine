@@ -10,10 +10,10 @@ using DivisionEngine.Components.Lights;
 using DivisionEngine.Components.SDFs;
 using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Components.SDFs.Primitives;
-using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using DivisionEngine.Rendering;
 using Environment = DivisionEngine.Components.Environment;
-using Random = DivisionEngine.MathLib.Random;
+using Random = DivisionEngine.MathUtilities.Random;
 
 namespace DivisionEngine
 {

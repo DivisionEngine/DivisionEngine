@@ -21,6 +21,7 @@ using DivisionEngine.Components.SDFs.Effects;
 using DivisionEngine.Editor.Systems;
 using DivisionEngine.Editor.Undo;
 using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using DivisionEngine.Systems;
@@ -38,7 +39,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Button = Avalonia.Controls.Button;
 using Environment = DivisionEngine.Components.Environment;
-using Math = DivisionEngine.MathLib.Math;
 using Transform = DivisionEngine.Components.Transform;
 
 namespace DivisionEngine.Editor;
@@ -1327,15 +1327,15 @@ public partial class PropertiesWindow : EditorWindow
     {
         if (field.GetValue(component) is not float4 quatValue) return null;
 
-        float3 eulerState = Math.QuaternionToEuler(quatValue);
-        if (rotAttr.Degrees) eulerState = new float3(eulerState.X * Math.Rad2Deg, eulerState.Y * Math.Rad2Deg, eulerState.Z * Math.Rad2Deg);
+        float3 eulerState = MathUtilities.Math.QuaternionToEuler(quatValue);
+        if (rotAttr.Degrees) eulerState = new float3(eulerState.X * math.Rad2Deg, eulerState.Y * math.Rad2Deg, eulerState.Z * math.Rad2Deg);
 
         StackPanel panel = BuildAxisRow(["X", "Y", "Z"], [eulerState.X, eulerState.Y, eulerState.Z], (axis, v) =>
         {
             switch (axis) { case 0: eulerState.X = v; break; case 1: eulerState.Y = v; break; default: eulerState.Z = v; break; }
-            float3 radians = rotAttr.Degrees ? new float3(eulerState.X * Math.Deg2Rad, 
-                eulerState.Y * Math.Deg2Rad, eulerState.Z * Math.Deg2Rad) : eulerState;
-            field.SetValue(component, Math.EulerToQuaternion(radians));
+            float3 radians = rotAttr.Degrees ? new float3(eulerState.X * math.Deg2Rad, 
+                eulerState.Y * math.Deg2Rad, eulerState.Z * math.Deg2Rad) : eulerState;
+            field.SetValue(component, MathUtilities.Math.EulerToQuaternion(radians));
             PropertiesRefreshSystem.OnFieldChanged(entityId, component.GetType().Name);
         }, out NumericUpDown[] boxes);
 
@@ -1366,7 +1366,7 @@ public partial class PropertiesWindow : EditorWindow
             Value = (decimal)initialVal,
             Minimum = (decimal)min,
             Maximum = (decimal)max,
-            Increment = (decimal)Math.Max(initialVal / 10f, 0.1f),
+            Increment = (decimal)math.max(initialVal / 10f, 0.1f),
             ParsingNumberStyle = NumberStyles.Float,
             ShowButtonSpinner = hasSpinner,
         };

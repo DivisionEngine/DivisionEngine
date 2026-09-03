@@ -19,7 +19,6 @@ using Silk.NET.Windowing;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
-using Math = DivisionEngine.MathLib.Math;
 using Window = Silk.NET.Windowing.Window;
 
 namespace DivisionEngine.Rendering

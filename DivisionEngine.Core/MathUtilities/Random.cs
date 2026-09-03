@@ -5,7 +5,7 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
-namespace DivisionEngine.MathLib
+namespace DivisionEngine.MathUtilities
 {
     /// <summary>
     /// Represents a pseduo random number generator that holds state.

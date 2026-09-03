@@ -5,7 +5,7 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
-namespace DivisionEngine.MathLib
+namespace DivisionEngine.MathUtilities
 {
     /// <summary>
     /// Mathematical utilities for Division Engine.

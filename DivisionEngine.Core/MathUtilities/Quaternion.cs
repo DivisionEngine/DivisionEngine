@@ -5,7 +5,7 @@
 // of the Division Engine License. See the LICENSE.txt file in the
 // project root for full license terms.
 //
-namespace DivisionEngine.MathLib
+namespace DivisionEngine.MathUtilities
 {
     /// <summary>
     /// Extension methods for quaternion vector operations on float4 objects.

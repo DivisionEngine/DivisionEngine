@@ -12,13 +12,13 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Editor;
 
@@ -602,7 +602,7 @@ public partial class ConsoleWindow : EditorWindow
         {
             int firstNewline = log.Message.IndexOf('\n');
             if (firstNewline >= 0)
-                displayMessage = string.Concat(log.Message.AsSpan(0, Math.Min(firstNewline, 100)), "...");
+                displayMessage = string.Concat(log.Message.AsSpan(0, math.min(firstNewline, 100)), "...");
             else if (log.Message.Length > 100)
                 displayMessage = string.Concat(log.Message.AsSpan(0, 100), "...");
         }

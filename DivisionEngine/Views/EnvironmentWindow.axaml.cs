@@ -15,7 +15,6 @@ using DivisionEngine.Rendering;
 using DivisionEngine.Systems;
 using System;
 using System.Collections.Generic;
-using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Editor;
 

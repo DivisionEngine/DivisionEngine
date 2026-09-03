@@ -11,7 +11,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
-using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 
 namespace DivisionEngine.Editor;
 

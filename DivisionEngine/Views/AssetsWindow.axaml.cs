@@ -18,6 +18,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using DivisionEngine.MathLib;
+using DivisionEngine.MathUtilities;
 using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using Material.Icons;
@@ -32,7 +33,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Math = DivisionEngine.MathLib.Math;
 using Path = System.IO.Path;
 
 namespace DivisionEngine.Editor;
@@ -371,7 +371,7 @@ public partial class AssetsWindow : EditorWindow
             "using DivisionEngine;\n" +
             "using DivisionEngine.Components;\n" +
             "using DivisionEngine.Components.FieldAttributes;\n" +
-            "using DivisionEngine.MathLib;\n\n" +
+            "using DivisionEngine.MathUtilities;\n\n" +
             "public class NewComponent : IComponent\n" +
             "{\n" +
             "   [Range(0f, 1f)] private float demoValue;\n\n" +
@@ -670,7 +670,7 @@ public partial class AssetsWindow : EditorWindow
         double availableWidth = scrollViewer.Bounds.Width;
         if (scrollViewer.VerticalScrollBarVisibility == ScrollBarVisibility.Auto) availableWidth -= 18;
         if (availableWidth <= 0) return;
-        int newColumns = Math.Max(1, (int)(availableWidth / 90));
+        int newColumns = math.max(1, (int)(availableWidth / 90));
         if (assetsTileGrid.Columns != newColumns) assetsTileGrid.Columns = newColumns;
     }
 

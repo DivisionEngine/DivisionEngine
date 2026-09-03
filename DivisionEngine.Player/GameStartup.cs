@@ -11,7 +11,6 @@ using DivisionEngine.Rendering;
 using DivisionEngine.Settings;
 using Silk.NET.Input;
 using Silk.NET.Maths;
-using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Player;
 
@@ -100,7 +99,7 @@ public class GameStartup
                 EngineCore.RunFrame();
 
                 // Make sure engine will sleep by some frame time
-                int engineSleep = Math.RoundToInt(1f / EngineSettings.Instance.MaxFPS * 1000f);
+                int engineSleep = MathUtilities.Math.RoundToInt(1f / EngineSettings.Instance.MaxFPS * 1000f);
                 if (engineSleep > 0) Thread.Sleep(engineSleep);
                 else Thread.Sleep(frameTime);
             }

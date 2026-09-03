@@ -6,7 +6,7 @@
 // project root for full license terms.
 //
 using DivisionEngine.Components;
-using Math = DivisionEngine.MathLib.Math;
+using DivisionEngine.MathLib;
 
 namespace DivisionEngine.Systems
 {
@@ -61,8 +61,8 @@ namespace DivisionEngine.Systems
 
         public static float FovToScreenDistance(Camera cam)
         {
-            float fovRadians = cam.fieldOfView * Math.PI / 180f;
-            return Math.Tan(fovRadians * 0.5f);
+            float fovRadians = cam.fieldOfView * math.PI / 180f;
+            return math.tan(fovRadians * 0.5f);
         }
     }
 }

@@ -8,7 +8,6 @@
 using DivisionEngine.Projects;
 using DivisionEngine.Projects.Assets;
 using DivisionEngine.Rendering;
-using Math = DivisionEngine.MathLib.Math;
 
 namespace DivisionEngine.Systems
 {
