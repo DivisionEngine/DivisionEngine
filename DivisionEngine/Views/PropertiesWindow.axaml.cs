@@ -951,16 +951,13 @@ public partial class PropertiesWindow : EditorWindow
             float lo = minAttr?.Min ?? -2000000000f, hi = maxAttr?.Max ?? 2000000000f;
             if (rangeAttr != null)
             {
-                NumericUpDown box = CreateFloatNumericBox(value, f => {
-                    object? old = field.GetValue(component);
-                    field.SetValue(component, f);
-                    Notify();
-                    if (!UndoManager.IsExecuting)
-                        UndoManager.Execute(new ModifyFieldCommand(entityId, component.GetType(), field.Name, old, f));
-                }, false, lo, hi);
-                editorControl = new StackPanel { Orientation = Orientation.Horizontal, 
-                    Children = { CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, f => 
-                    { field.SetValue(component, f); box.Value = (decimal)f; Notify(); }), box } };
+                NumericUpDown box = CreateFloatNumericBox(value, f => { field.SetValue(component, f); Notify(); }, false, lo, hi);
+                editorControl = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Children = { CreateFloatSlider(value, rangeAttr.Min, rangeAttr.Max, f =>
+                    { field.SetValue(component, f); box.Value = (decimal)f; Notify(); }), box }
+                };
             }
             else editorControl = CreateFloatNumericBox(value, f => { field.SetValue(component, f); Notify(); }, true, lo, hi);
         }
