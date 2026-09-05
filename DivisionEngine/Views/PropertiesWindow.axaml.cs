@@ -513,8 +513,7 @@ public partial class PropertiesWindow : EditorWindow
 
         if (isLoaded && ProjectManager.AssetManager != null)
         {
-            // Unload button
-            Button unloadButton = new Button
+            Button unloadButton = new Button // Unload button
             {
                 Content = "Unload Asset",
                 FontSize = 12,
@@ -524,7 +523,6 @@ public partial class PropertiesWindow : EditorWindow
                 BorderThickness = new Thickness(0),
                 CornerRadius = new CornerRadius(4),
             };
-
             unloadButton.Click += (s, e) =>
             {
                 unloadButton.Content = "Unloading...";
@@ -532,15 +530,14 @@ public partial class PropertiesWindow : EditorWindow
                 unloadButton.Background = EditorColor.FromRGB(40, 20, 20);
 
                 ProjectManager.AssetManager.UnloadAsset(assetId);
-                DisplayAssetProperties(assetId); // Refresh the display
+                if (metadata.Type == AssetType.Texture) TextureSystem.RemoveTexture(assetId);
+                DisplayAssetProperties(assetId);
             };
-
             actionButtonsPanel.Children.Add(unloadButton);
         }
         else if (!isLoaded && ProjectManager.AssetManager != null)
         {
-            // Load button
-            Button loadButton = new Button
+            Button loadButton = new Button // Load button
             {
                 Content = "Load Asset",
                 FontSize = 12,
@@ -550,7 +547,6 @@ public partial class PropertiesWindow : EditorWindow
                 BorderThickness = new Thickness(0),
                 CornerRadius = new CornerRadius(4),
             };
-
             loadButton.Click += async (s, e) =>
             {
                 loadButton.Content = "Loading...";
@@ -562,8 +558,11 @@ public partial class PropertiesWindow : EditorWindow
                     AssetType.Texture => await ProjectManager.AssetManager.LoadAssetAsync<TextureAsset>(assetId),
                     _ => await ProjectManager.AssetManager.LoadAssetAsync<Asset>(assetId),
                 };
-
-                if (loaded != null && loaded.IsLoaded) DisplayAssetProperties(assetId);
+                if (loaded != null && loaded.IsLoaded)
+                {
+                    if (metadata.Type == AssetType.Texture) TextureSystem.MarkTextureDirty(assetId);
+                    DisplayAssetProperties(assetId);
+                }
                 else
                 {
                     loadButton.Content = "Load Failed";
@@ -571,7 +570,6 @@ public partial class PropertiesWindow : EditorWindow
                     loadButton.IsEnabled = true;
                 }
             };
-
             actionButtonsPanel.Children.Add(loadButton);
         }
 
@@ -687,9 +685,9 @@ public partial class PropertiesWindow : EditorWindow
         int texPixels = TextureSystem.LastLoadedTextureBufferSize;
         long totalBytes = texPixels * 4;
         string bytesText = EditorUI.FormatFileSize(totalBytes, 1);
-        if (renderInfoTextureText != null) renderInfoTextureText.Text = $"Textures: {texCount} ({texPixels:N0} px) ({bytesText})";
-        if (renderInfoSdfText != null) renderInfoSdfText.Text = $"SDF Objects: {SDFRenderSystem.PreparedSDFObjectsDTO.Length}";
-        if (renderInfoLightText != null) renderInfoLightText.Text = $"Lights: {SDFRenderSystem.PreparedLightsDTO.Length}";
+        renderInfoTextureText?.Text = $"Textures: {texCount} ({texPixels:N0} px) ({bytesText})";
+        renderInfoSdfText?.Text = $"SDF Objects: {SDFRenderSystem.PreparedSDFObjectsDTO.Length}";
+        renderInfoLightText?.Text = $"Lights: {SDFRenderSystem.PreparedLightsDTO.Length}";
     }
 
     private void StartRenderInfoRefresh()
@@ -1520,13 +1518,12 @@ public partial class PropertiesWindow : EditorWindow
 
     private static void SaveAssetMetadata(AssetMetadata metadata)
     {
-        // The metadata object is already in AllAssetsByID and its folder's Assets dictionary.
-        // Save all metadata to ensure the change is written to the .divmeta file.
+        // Replace with individual save in the future
         AssetDatabase.SaveAll();
     }
 
     #endregion
-    #region AssetDisplay
+    #region assetDisplay
 
     /// <summary>
     /// Adds a property row with label and value to a panel.
@@ -1649,19 +1646,28 @@ public partial class PropertiesWindow : EditorWindow
         panel.Children.Add(previewBorder);
     }
 
-    private void AddTextureSettingsPanel(StackPanel panel, AssetMetadata metadata)
+    private static void AddTextureSettingsPanel(StackPanel panel, AssetMetadata metadata)
     {
         // Ensure CustomProperties exists
-        metadata.CustomProperties ??= new Dictionary<string, object>();
+        metadata.CustomProperties ??= [];
+
+        void ReimportTexture()
+        {
+            SaveAssetMetadata(metadata);
+            ProjectManager.AssetManager?.InvalidateAsset(metadata.ID);
+            TextureSystem.MarkTextureDirty(metadata.ID);
+        }
 
         const string samplingKey = "Sampling";
         const string texTypeKey = "TextureType";
         const string maxMipKey = "MaxMipmap";
+        const string layoutKey = "CubemapLayout";
 
-        // Get current values or defaults
-        string currentSampling = metadata.CustomProperties.TryGetValue(samplingKey, out object? sObj) ? sObj.ToString() : "Bilinear";
-        string currentTexType = metadata.CustomProperties.TryGetValue(texTypeKey, out object? tObj) ? tObj.ToString() : "Texture2D";
+        // Read current values (or defaults)
+        string? currentSampling = metadata.CustomProperties.TryGetValue(samplingKey, out object? sObj) ? sObj.ToString() : "Bilinear";
+        string? currentTexType = metadata.CustomProperties.TryGetValue(texTypeKey, out object? tObj) ? tObj.ToString() : "Texture2D";
         int currentMaxMip = metadata.CustomProperties.TryGetValue(maxMipKey, out object? mObj) && int.TryParse(mObj.ToString(), out int m) ? m : 4;
+        string? currentLayout = metadata.CustomProperties.TryGetValue(layoutKey, out object? lObj) ? lObj.ToString() : "None";
 
         // Header
         panel.Children.Add(new TextBlock
@@ -1675,7 +1681,7 @@ public partial class PropertiesWindow : EditorWindow
 
         StackPanel settingsPanel = new() { Margin = new Thickness(0, 0, 0, 8) };
 
-        // ---- Sampling ----
+        // Sampling
         DockPanel samplingRow = new() { Margin = new Thickness(0, 2, 0, 2) };
         TextBlock samplingLabel = new()
         {
@@ -1695,14 +1701,14 @@ public partial class PropertiesWindow : EditorWindow
         samplingCombo.SelectionChanged += (_, _) =>
         {
             metadata.CustomProperties[samplingKey] = samplingCombo.SelectedItem?.ToString() ?? "Bilinear";
-            SaveAssetMetadata(metadata);
+            ReimportTexture();
         };
         DockPanel.SetDock(samplingLabel, Dock.Left);
         samplingRow.Children.Add(samplingLabel);
         samplingRow.Children.Add(samplingCombo);
         settingsPanel.Children.Add(samplingRow);
 
-        // ---- Texture Type ----
+        // Texture type
         DockPanel texTypeRow = new() { Margin = new Thickness(0, 2, 0, 2) };
         TextBlock texTypeLabel = new()
         {
@@ -1722,14 +1728,57 @@ public partial class PropertiesWindow : EditorWindow
         texTypeCombo.SelectionChanged += (_, _) =>
         {
             metadata.CustomProperties[texTypeKey] = texTypeCombo.SelectedItem?.ToString() ?? "Texture2D";
-            SaveAssetMetadata(metadata);
+            ReimportTexture();
         };
         DockPanel.SetDock(texTypeLabel, Dock.Left);
         texTypeRow.Children.Add(texTypeLabel);
         texTypeRow.Children.Add(texTypeCombo);
         settingsPanel.Children.Add(texTypeRow);
 
-        // ---- Max Mipmap ----
+        // Cubemap layout
+        DockPanel layoutRow = new() { Margin = new Thickness(0, 2, 0, 2) };
+        TextBlock layoutLabel = new()
+        {
+            Text = "Cubemap Layout:",
+            FontSize = 11,
+            Foreground = EditorColor.FromRGB(180, 180, 180),
+            MinWidth = 100,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        ComboBox layoutCombo = new()
+        {
+            ItemsSource = new[] { "None", "Equirectangular", "Cross", "VerticalCross" },
+            SelectedItem = currentLayout,
+            Classes = { "field-editor" },
+            MinWidth = 100
+        };
+        layoutCombo.SelectionChanged += (_, _) =>
+        {
+            metadata.CustomProperties[layoutKey] = layoutCombo.SelectedItem?.ToString() ?? "None";
+            ReimportTexture();
+        };
+        DockPanel.SetDock(layoutLabel, Dock.Left);
+        layoutRow.Children.Add(layoutLabel);
+        layoutRow.Children.Add(layoutCombo);
+        settingsPanel.Children.Add(layoutRow);
+
+        // Initially set visibility
+        layoutRow.IsVisible = (texTypeCombo.SelectedItem?.ToString() == "Cubemap");
+
+        // Toggle visibility when texture type changes
+        texTypeCombo.SelectionChanged += (_, _) =>
+        {
+            bool isCubemap = (texTypeCombo.SelectedItem?.ToString() == "Cubemap");
+            layoutRow.IsVisible = isCubemap;
+            if (!isCubemap)
+            {
+                metadata.CustomProperties[layoutKey] = "None";
+                layoutCombo.SelectedItem = "None";
+                ReimportTexture();
+            }
+        };
+
+        // Max mipmap
         DockPanel mipRow = new() { Margin = new Thickness(0, 2, 0, 2) };
         TextBlock mipLabel = new()
         {
@@ -1744,7 +1793,7 @@ public partial class PropertiesWindow : EditorWindow
             val =>
             {
                 metadata.CustomProperties[maxMipKey] = val;
-                SaveAssetMetadata(metadata);
+                ReimportTexture();
             },
             false, 0, 16);
         DockPanel.SetDock(mipLabel, Dock.Left);

@@ -16,6 +16,7 @@ using DivisionEngine.Editor.Tasks;
 using DivisionEngine.Editor.Undo;
 using DivisionEngine.Projects;
 using DivisionEngine.Settings;
+using DivisionEngine.Systems;
 using Material.Icons.Avalonia;
 using ReactiveUI;
 using System;
@@ -489,6 +490,9 @@ namespace DivisionEngine.Editor.ViewModels
 
         [RelayCommand]
         private static void Redo() => UndoManager.Redo();
+
+        [RelayCommand]
+        private static void ReloadTextures() => TextureSystem.MarkDirty();
 
         [RelayCommand]
         private static void About()

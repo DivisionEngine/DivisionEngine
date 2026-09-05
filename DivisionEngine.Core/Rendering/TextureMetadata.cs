@@ -15,5 +15,27 @@ namespace DivisionEngine.Rendering
         public int2 resolution; // Width, Height
         public int bufferOffset; // Starting index in the big buffer
         public int mipCount; // Mip levels in texture
+        public int cubemapLayout; // Cubemap potential layout
+    }
+
+    public enum TextureSampling
+    {
+        Point = 0,
+        Bilinear = 1,
+    }
+
+    public enum TextureDimension
+    {
+        Texture2D = 0,
+        Texture3D = 1,
+        Cubemap = 2,
+    }
+
+    public enum CubemapLayout
+    {
+        None = 0,
+        Equirectangular = 1,
+        Cross = 2,
+        VerticalCross = 3,
     }
 }

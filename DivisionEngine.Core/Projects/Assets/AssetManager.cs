@@ -178,6 +178,24 @@ namespace DivisionEngine.Projects.Assets
             }
         }
 
+        /// <summary>
+        /// Forcibly discards a cached asset regardless of reference count, so the next
+        /// LoadAssetAsync call reloads it fresh from disk — re-reading any metadata
+        /// (e.g. import settings) that changed since it was originally cached.
+        /// </summary>
+        public void InvalidateAsset(string id)
+        {
+            Asset? assetToUnload;
+            lock (stateLock)
+            {
+                if (!loadedAssets.TryGetValue(id, out assetToUnload)) return;
+                loadedAssets.Remove(id);
+                referenceCounts.Remove(id);
+            }
+            assetToUnload?.Unload();
+            SetLoadState(id, AssetLoadState.Unloaded);
+        }
+
         private void SetLoadState(string id, AssetLoadState state)
         {
             lock (stateLock) loadStates[id] = state;

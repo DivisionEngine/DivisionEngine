@@ -822,26 +822,66 @@ namespace DivisionEngine
         /// <summary>
         /// Gets HDRI sky color (placeholder for now).
         /// </summary>
-        private static float3 GetHDRISkyColor(float3 viewDir, SDFWorldDTO world)
+        private float3 GetHDRISkyColor(float3 viewDir, SDFWorldDTO world)
         {
-            // Placeholder - just return a neutral color with a hint of blue
-            // This will be replaced with actual HDRI sampling later
-            float3 dir = Hlsl.Normalize(viewDir);
+            int texId = world.hdriTexMetaID;
+            if (texId < 0 || texId >= textureMetadata.Length)
+                return world.skyColor.RGB * world.skyIntensity; // fallback
 
-            // Simple fake HDRI: gradient with some variation
-            float y = dir.Y * 0.5f + 0.5f;
-            float3 color = Hlsl.Lerp(
-                new float3(0.3f, 0.2f, 0.1f), // Bottom
-                new float3(0.4f, 0.6f, 1.0f), // Top
-                y
-            );
-
-            // Add some directional variation
-            float sunAngle = Hlsl.Max(Hlsl.Dot(dir, world.mainLightDir), 0.0f);
-            float3 sunColor = new float3(1.0f, 0.8f, 0.4f) * Hlsl.Pow(sunAngle, 64.0f) * 2.0f;
-            color += sunColor;
-
+            int layout = textureMetadata[texId].cubemapLayout;
+            float3 color = SampleCubemap(texId, viewDir, layout);
             return color * world.skyIntensity;
+        }
+
+        private float3 SampleCubemap(int texId, float3 direction, int layout)
+        {
+            if (layout == 1) // For Equirectangular (panorama)
+            {
+                float theta = Hlsl.Atan2(direction.Z, direction.X); // -PI to PI
+                float phi = Hlsl.Acos(direction.Y); // 0 to PI
+                float u = (theta + PI) / (2f * PI);
+                float v = phi / PI;
+                return SampleTextureBilinear(texId, new float2(u, v), float4.Zero).RGB;
+            }
+            else if (layout == 2) // Horizontal cross (4 wide x 3 tall grid)
+            {
+                float3 absDir = Hlsl.Abs(direction);
+                float maxComp = Hlsl.Max(absDir.X, Hlsl.Max(absDir.Y, absDir.Z));
+
+                int faceCol, faceRow;
+                float2 faceUV;
+
+                if (maxComp == absDir.X && direction.X > 0) { faceUV = new float2(-direction.Z, -direction.Y) / absDir.X; faceCol = 2; faceRow = 1; } // +X
+                else if (maxComp == absDir.X) { faceUV = new float2(direction.Z, -direction.Y) / absDir.X; faceCol = 0; faceRow = 1; } // -X
+                else if (maxComp == absDir.Y && direction.Y > 0) { faceUV = new float2(direction.X, direction.Z) / absDir.Y; faceCol = 1; faceRow = 0; } // +Y
+                else if (maxComp == absDir.Y) { faceUV = new float2(direction.X, -direction.Z) / absDir.Y; faceCol = 1; faceRow = 2; } // -Y
+                else if (direction.Z > 0) { faceUV = new float2(direction.X, -direction.Y) / absDir.Z; faceCol = 1; faceRow = 1; } // +Z
+                else { faceUV = new float2(-direction.X, -direction.Y) / absDir.Z; faceCol = 3; faceRow = 1; } // -Z
+
+                faceUV = faceUV * 0.5f + 0.5f;
+                float2 globalUV = new float2((faceCol + faceUV.X) / 4f, (faceRow + faceUV.Y) / 3f);
+                return SampleTextureBilinear(texId, globalUV, float4.Zero).RGB;
+            }
+            else if (layout == 3) // Vertical cross (3 wide x 4 tall grid)
+            {
+                float3 absDir = Hlsl.Abs(direction);
+                float maxComp = Hlsl.Max(absDir.X, Hlsl.Max(absDir.Y, absDir.Z));
+
+                int faceCol, faceRow;
+                float2 faceUV;
+
+                if (maxComp == absDir.X && direction.X > 0) { faceUV = new float2(-direction.Z, -direction.Y) / absDir.X; faceCol = 2; faceRow = 1; } // +X
+                else if (maxComp == absDir.X) { faceUV = new float2(direction.Z, -direction.Y) / absDir.X; faceCol = 0; faceRow = 1; } // -X
+                else if (maxComp == absDir.Y && direction.Y > 0) { faceUV = new float2(direction.X, direction.Z) / absDir.Y; faceCol = 1; faceRow = 0; } // +Y
+                else if (maxComp == absDir.Y) { faceUV = new float2(direction.X, -direction.Z) / absDir.Y; faceCol = 1; faceRow = 2; } // -Y
+                else if (direction.Z > 0) { faceUV = new float2(direction.X, -direction.Y) / absDir.Z; faceCol = 1; faceRow = 1; } // +Z
+                else { faceUV = new float2(-direction.X, direction.Y) / absDir.Z; faceCol = 1; faceRow = 3; } // -Z, bottom cell
+
+                faceUV = faceUV * 0.5f + 0.5f;
+                float2 globalUV = new float2((faceCol + faceUV.X) / 3f, (faceRow + faceUV.Y) / 4f);
+                return SampleTextureBilinear(texId, globalUV, float4.Zero).RGB;
+            }
+            else return SampleTextureBilinear(texId, new float2(0.5f, 0.5f), float4.Zero).RGB; // Fallback
         }
 
         /// <summary>
