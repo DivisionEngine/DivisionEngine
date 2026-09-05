@@ -29,6 +29,7 @@ using Material.Icons;
 using Material.Icons.Avalonia;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -380,11 +381,11 @@ public partial class PropertiesWindow : EditorWindow
         // Get loaded asset if available
         Asset? loadedAsset = ProjectManager.AssetManager?.Get(metadata.ID);
         bool isLoaded = loadedAsset != null && loadedAsset.IsLoaded;
+        string? fullPath = AssetDatabase.GetAssetFullPath(metadata.ID);
 
         // Header
         string assetName = Path.GetFileNameWithoutExtension(metadata.FileName);
         headerText.Text = $"{assetName} (Asset)";
-
         StackPanel assetPanel = new()
         {
             Margin = new Thickness(8, 4, 4, 8),
@@ -417,71 +418,66 @@ public partial class PropertiesWindow : EditorWindow
         assetPanel.Children.Add(loadStateRow);
 
         // Add texture preview if applicable
-        if (metadata.Type == AssetType.Texture)
+        if (metadata.Type == AssetType.Texture && !string.IsNullOrEmpty(fullPath) && File.Exists(fullPath))
         {
-            string? fullPath = AssetDatabase.GetAssetFullPath(metadata.ID);
-            if (!string.IsNullOrEmpty(fullPath) && File.Exists(fullPath))
+            // Create a loading indicator
+            StackPanel loadingPanel = new StackPanel
             {
-                // Create a loading indicator
-                StackPanel loadingPanel = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 4, 0, 8),
-                };
-                loadingPanel.Children.Add(new TextBlock
-                {
-                    Text = "Loading preview...",
-                    FontSize = 12,
-                    Foreground = Brushes.Gray,
-                    VerticalAlignment = VerticalAlignment.Center,
-                });
-                assetPanel.Children.Add(loadingPanel);
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 8),
+            };
+            loadingPanel.Children.Add(new TextBlock
+            {
+                Text = "Loading preview...",
+                FontSize = 12,
+                Foreground = Brushes.Gray,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            assetPanel.Children.Add(loadingPanel);
 
-                // Load texture preview
-                try
+            // Load texture preview
+            try
+            {
+                Bitmap? preview = await LoadTexturePreviewAsync(fullPath);
+                if (preview != null)
                 {
-                    Bitmap? preview = await LoadTexturePreviewAsync(fullPath);
-                    if (preview != null)
-                    {
-                        // Remove loading indicator
-                        assetPanel.Children.Remove(loadingPanel);
-                        AddTexturePreview(assetPanel, preview, metadata);
-                    }
-                    else
-                    {
-                        // Show error
-                        loadingPanel.Children.Clear();
-                        loadingPanel.Children.Add(new TextBlock
-                        {
-                            Text = "Failed to load preview",
-                            FontSize = 12,
-                            Foreground = EditorColor.FromRGB(200, 80, 80),
-                            VerticalAlignment = VerticalAlignment.Center,
-                        });
-                    }
+                    // Remove loading indicator
+                    assetPanel.Children.Remove(loadingPanel);
+                    AddTexturePreview(assetPanel, preview, metadata);
                 }
-                catch (Exception ex)
+                else
                 {
-                    Debug.Error($"Failed to load texture preview: {ex.Message}");
+                    // Show error
                     loadingPanel.Children.Clear();
                     loadingPanel.Children.Add(new TextBlock
                     {
-                        Text = "Error loading preview",
+                        Text = "Failed to load preview",
                         FontSize = 12,
                         Foreground = EditorColor.FromRGB(200, 80, 80),
                         VerticalAlignment = VerticalAlignment.Center,
                     });
                 }
             }
+            catch (Exception ex)
+            {
+                Debug.Error($"Failed to load texture preview: {ex.Message}");
+                loadingPanel.Children.Clear();
+                loadingPanel.Children.Add(new TextBlock
+                {
+                    Text = "Error loading preview",
+                    FontSize = 12,
+                    Foreground = EditorColor.FromRGB(200, 80, 80),
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+            }
         }
 
         // Basic properties
-        AddPropertyRow(assetPanel, "Name", assetName);
         AddPropertyRow(assetPanel, "Type", metadata.Type.ToString());
         AddPropertyRow(assetPanel, "File Size", EditorUI.FormatFileSize(metadata.FileSize));
         AddPropertyRow(assetPanel, "GUID", metadata.ID);
-        AddPropertyRow(assetPanel, "Path", metadata.RelativePath);
+        AddPathPropertyRow(assetPanel, fullPath, metadata.RelativePath);
         AddPropertyRow(assetPanel, "Last Modified", metadata.LastModified.ToString("g"));
 
         // Asset-specific properties
@@ -916,9 +912,7 @@ public partial class PropertiesWindow : EditorWindow
         fieldPanel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, 
             Margin = new Thickness(0, 0, 4, 0), Children = { nameLabel } });
 
-        // Reset-to-default. onReset() rebuilds this field's owning card from a fresh component
-        // instance, so the on-screen control always ends up matching the model — this is the fix
-        // for reset not visibly updating the editor.
+        // Reset to default.
         object? defaultValue = GetDefaultFieldValue(component.GetType(), field.Name);
         ContextMenu fieldContextMenu = new();
         MenuItem resetMenuItem = new()
@@ -936,6 +930,44 @@ public partial class PropertiesWindow : EditorWindow
             onReset();
         };
         fieldContextMenu.Items.Add(resetMenuItem);
+
+        // "Open Asset" — only meaningful for asset-reference fields
+        bool isAssetRefField = fieldType == typeof(AssetRef) ||
+            (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(AssetRef<>));
+        if (isAssetRefField)
+        {
+            MenuItem openAssetMenuItem = new()
+            {
+                Header = "Open Asset",
+                Icon = new MaterialIcon
+                {
+                    Kind = MaterialIconKind.OpenInNew,
+                    Width = 16,
+                    Height = 16,
+                    Foreground = EditorColor.FromRGB(140, 180, 220)
+                },
+                Foreground = Brushes.White,
+            };
+            openAssetMenuItem.Click += (_, _) =>
+            {
+                // Re-read the field rather than using the value captured when this editor was built
+                object? liveValue = field.GetValue(component);
+                string assetId = liveValue != null ? GetAssetId(liveValue) : "";
+                if (string.IsNullOrEmpty(assetId) || AssetDatabase.GetAssetMetadataByID(assetId) == null) return;
+                Selection.SelectAsset(assetId);
+            };
+
+            fieldContextMenu.Items.Add(new Separator());
+            fieldContextMenu.Items.Add(openAssetMenuItem);
+
+            // Enable/disable right before the menu shows, so it always reflects the live value
+            fieldContextMenu.Opened += (_, _) =>
+            {
+                object? liveValue = field.GetValue(component);
+                string assetId = liveValue != null ? GetAssetId(liveValue) : "";
+                openAssetMenuItem.IsEnabled = !string.IsNullOrEmpty(assetId) && AssetDatabase.GetAssetMetadataByID(assetId) != null;
+            };
+        }
         fieldPanel.ContextMenu = fieldContextMenu;
 
         MinAttribute? minAttr = field.GetCustomAttribute<MinAttribute>();
@@ -1535,7 +1567,6 @@ public partial class PropertiesWindow : EditorWindow
             Margin = new Thickness(0, 2, 0, 2),
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
-
         TextBlock labelBlock = new()
         {
             Text = label + ":",
@@ -1545,7 +1576,6 @@ public partial class PropertiesWindow : EditorWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
         DockPanel.SetDock(labelBlock, Dock.Left);
-
         TextBlock valueBlock = new()
         {
             Text = value,
@@ -1557,7 +1587,7 @@ public partial class PropertiesWindow : EditorWindow
         DockPanel.SetDock(valueBlock, Dock.Left);
 
         // For long values like GUID, make them selectable
-        if (label == "GUID" || label == "Path")
+        if (label == "GUID")
         {
             SelectableTextBlock selectableValue = new()
             {
@@ -1577,6 +1607,58 @@ public partial class PropertiesWindow : EditorWindow
             row.Children.Add(valueBlock);
             panel.Children.Add(row);
         }
+    }
+
+    /// <summary>
+    /// Adds a "Path" row whose value acts as a hyperlink — clicking it reveals the asset's
+    /// file in the OS file explorer with the file pre-selected/highlighted.
+    /// </summary>
+    private static void AddPathPropertyRow(StackPanel panel, string? fullPath, string relativePath)
+    {
+        DockPanel row = new()
+        {
+            Margin = new Thickness(0, 2, 0, 2),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        TextBlock labelBlock = new()
+        {
+            Text = "Path:",
+            FontSize = 11,
+            Foreground = EditorColor.FromRGB(180, 180, 180),
+            MinWidth = 100,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        DockPanel.SetDock(labelBlock, Dock.Left);
+        bool canOpen = !string.IsNullOrEmpty(fullPath) && File.Exists(fullPath);
+        SelectableTextBlock linkBlock = new()
+        {
+            Text = relativePath,
+            FontSize = 11,
+            Foreground = canOpen ? EditorColor.FromRGB(100, 180, 255) : Brushes.White,
+            TextDecorations = canOpen ? TextDecorations.Underline : null,
+            Cursor = canOpen ? new Cursor(StandardCursorType.Hand) : Cursor.Default,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+        };
+
+        if (canOpen)
+        {
+            ToolTip.SetTip(linkBlock, "Click to reveal in File Explorer");
+            linkBlock.PointerPressed += (_, e) =>
+            {
+                // Don't fire on a text-selection drag, only a plain click
+                if (e.GetCurrentPoint(linkBlock).Properties.IsLeftButtonPressed)
+                {
+                    try { Process.Start("explorer.exe", $"/select,\"{fullPath}\""); }
+                    catch (Exception ex) { Debug.Error($"Failed to reveal file in explorer: {fullPath}", ex); }
+                }
+            };
+        }
+
+        DockPanel.SetDock(linkBlock, Dock.Left);
+        row.Children.Add(labelBlock);
+        row.Children.Add(linkBlock);
+        panel.Children.Add(row);
     }
 
     /// <summary>
@@ -1602,8 +1684,7 @@ public partial class PropertiesWindow : EditorWindow
     /// </summary>
     private static void AddTexturePreview(StackPanel panel, Bitmap bitmap, AssetMetadata metadata)
     {
-        // Create border with preview
-        Border previewBorder = new Border
+        Border previewBorder = new Border // Create border with preview
         {
             Background = new SolidColorBrush(Color.FromRgb(32, 32, 32)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(64, 64, 64)),
@@ -1615,9 +1696,7 @@ public partial class PropertiesWindow : EditorWindow
             MaxWidth = 300,
             MaxHeight = 200,
         };
-
-        // Create image control
-        Image image = new Image
+        Image image = new Image // Create image control
         {
             Source = bitmap,
             Stretch = Stretch.Uniform,
@@ -1641,7 +1720,6 @@ public partial class PropertiesWindow : EditorWindow
             previewBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(64, 64, 64));
             previewBorder.BorderThickness = new Thickness(1);
         };
-
         previewBorder.Child = image;
         panel.Children.Add(previewBorder);
     }

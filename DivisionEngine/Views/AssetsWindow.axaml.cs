@@ -15,6 +15,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using DivisionEngine.MathLib;
@@ -310,14 +311,14 @@ public partial class AssetsWindow : EditorWindow
         Dispatcher.UIThread.Post(() => Setup(GetDefaultAssetsPath()));
     }
 
+    #region assetManager
+
     private static string? GetDefaultAssetsPath()
     {
         if (!ProjectManager.IsCurrentLoaded) return null;
         string assetsPath = Path.Combine(ProjectManager.CurrentProjectPath!, "Assets");
         return Directory.Exists(assetsPath) ? assetsPath : ProjectManager.CurrentProjectPath;
     }
-
-    #region assetManager
 
     private void SyncAssetManagerSubscription()
     {
@@ -353,6 +354,23 @@ public partial class AssetsWindow : EditorWindow
     {
         assetTintSetters[assetId] = setter;
         setter(GetTintForState(ProjectManager.AssetManager?.GetLoadState(assetId) ?? AssetLoadState.Unloaded));
+    }
+
+    /// <summary>
+    /// Loads a texture preview bitmap from disk, for thumbnailing texture asset tiles.
+    /// </summary>
+    private static async Task<Bitmap?> LoadTexturePreviewAsync(string filePath)
+    {
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            return await Task.Run(() => new Bitmap(stream));
+        }
+        catch (Exception ex)
+        {
+            Debug.Error($"Failed to load texture preview: {ex.Message}");
+            return null;
+        }
     }
 
     #endregion
@@ -723,7 +741,7 @@ public partial class AssetsWindow : EditorWindow
 
     private Border BuildTile(Func<double, MaterialIcon> iconFactory, string name, string? subtitle,
         Action onTap, Action onDoubleTap, ContextMenu contextMenu,
-        string? tintAssetId = null, string? identifier = null)
+        string? tintAssetId = null, string? identifier = null, Func<Task<Bitmap?>>? thumbnailLoader = null)
     {
         Border border = CreateTileBorder();
 
@@ -781,7 +799,38 @@ public partial class AssetsWindow : EditorWindow
         border.Tapped += (_, _) => onTap();
         border.DoubleTapped += (_, _) => onDoubleTap();
         border.ContextMenu = contextMenu;
+
+        if (thumbnailLoader != null) _ = LoadAndApplyThumbnailAsync(thumbnailLoader, stack, icon);
+
         return border;
+    }
+
+    /// <summary>
+    /// Loads a tile's thumbnail asynchronously and swaps it in for the placeholder icon
+    /// once ready. If the tile has since been discarded (folder navigated away from before
+    /// the load finished), the icon is no longer in the panel and the swap is silently skipped.
+    /// </summary>
+    private static async Task LoadAndApplyThumbnailAsync(Func<Task<Bitmap?>> loader, StackPanel stack, MaterialIcon icon)
+    {
+        Bitmap? bitmap;
+        try { bitmap = await loader(); }
+        catch { bitmap = null; }
+        if (bitmap == null) return;
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            int index = stack.Children.IndexOf(icon);
+            if (index < 0) return; // tile discarded before the load finished
+
+            stack.Children[index] = new Image
+            {
+                Source = bitmap,
+                Width = 48,
+                Height = 48,
+                Stretch = Stretch.UniformToFill,
+                Margin = icon.Margin,
+            };
+        });
     }
 
     private void UpdateTileBackground(Border border)
@@ -835,6 +884,11 @@ public partial class AssetsWindow : EditorWindow
     private void CreateAssetTile(AssetMetadata asset)
     {
         string fullPath = Path.Combine(ProjectManager.CurrentProjectPath ?? "", asset.RelativePath);
+
+        Func<Task<Bitmap?>>? thumbnailLoader = null;
+        if (asset.Type == AssetType.Texture && File.Exists(fullPath))
+            thumbnailLoader = () => LoadTexturePreviewAsync(fullPath);
+
         Border border = null!;
         border = BuildTile(
             size => EditorUI.CreateAssetTypeIcon(asset.Type, size),
@@ -846,7 +900,8 @@ public partial class AssetsWindow : EditorWindow
             },
             () => EditorUI.OpenAsset(asset),
             BuildAssetContextMenu(asset, () => ShowInPlaceRename(border, Path.GetFileNameWithoutExtension(asset.FileName), fullPath, false, Path.GetExtension(asset.FileName))),
-            asset.ID);
+            asset.ID,
+            thumbnailLoader: thumbnailLoader);
         assetsTileGrid.Children.Add(border);
     }
 
